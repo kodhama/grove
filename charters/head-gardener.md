@@ -12,8 +12,8 @@ updated: 2026-07-07
 > Provenance: generalized from ADR-0030 §Naming/§Dispatch/§Workflows/
 > §Adopted mechanics and the source project's bug-pipeline and
 > self-improvement operating sections. The bug pipeline below drops the
-> source project's product-specific severity taxonomy (a kid-app
-> session-blocker tier) in favor of a placeholder.
+> source project's own product-specific severity taxonomy in favor of a
+> placeholder.
 
 > **No `.claude/agents/head-gardener.md` counterpart ships in this wave
 > — deliberately.** ADR-0030's team table marks head-gardener
