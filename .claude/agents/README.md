@@ -10,11 +10,15 @@ Copy the ones you need into your own project's `.claude/agents/`, then
 fill in each file's placeholders (angle-bracketed tokens like
 `<TEST_CMD>`).
 
-**No `head-gardener.md` here, deliberately.** ADR-0030 charters
-head-gardener as "cold-started: the interactive session (v0)" — it IS
-the session driving the swarm, not a role that session dispatches out
-to. See `charters/head-gardener.md` for its charter and the note
-explaining the omission.
+**`head-gardener.md` is scoped, not a full peer of the rest.** ADR-0030
+charters head-gardener as "cold-started: the interactive session (v0)"
+— sequencing a whole run requires state that survives across dozens of
+dispatches, which a one-shot subagent invocation cannot hold. The
+driving session remains the actual head-gardener across a run. This
+file is a narrow one-shot advisor for two bounded sub-judgments
+(workflow classification, next-dispatch recommendation) — see the
+file's own "Why this file is narrower" section and
+`charters/head-gardener.md` for the full role it does not replace.
 
 | File | Stage | Role |
 |---|---|---|
@@ -27,3 +31,4 @@ explaining the omission.
 | `validator.md` | 5 | per-PR critique + triggered drift audits |
 | `run-resumer.md` | remediation | resumes a run that died at its turn cap |
 | `propagation-remediator.md` | remediation | writes an honest missing propagation section |
+| `head-gardener.md` | dispatch | one-shot classify/next-dispatch advisor only — not a sequencer |

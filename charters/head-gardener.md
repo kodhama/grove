@@ -15,14 +15,20 @@ updated: 2026-07-07
 > source project's own product-specific severity taxonomy in favor of a
 > placeholder.
 
-> **No `.claude/agents/head-gardener.md` counterpart ships in this wave
-> — deliberately.** ADR-0030's team table marks head-gardener
+> **`.claude/agents/head-gardener.md` is scoped, not a full peer of the
+> other gardener agents.** ADR-0030's team table marks head-gardener
 > "cold-started: the interactive session (v0)." A genuinely
 > cold-started subagent cannot hold the live, multi-turn dispatch state
 > this role requires in v0; it IS the interactive session, not a role
 > dispatched out of one. Whoever runs that session (a human at the
 > terminal, or later an autonomous dispatcher) follows this charter
-> directly. Revisit when v0 graduates to a runner-hosted dispatcher.
+> directly for the full role. The agent file ports two bounded
+> sub-judgments that genuinely fit a single call — workflow
+> classification, next-dispatch recommendation from a ledger snapshot —
+> as a one-shot advisor a dispatcher can consult; it explicitly refuses
+> to sequence a run if asked to. Revisit when v0 graduates to a
+> runner-hosted dispatcher, at which point a real persistent
+> head-gardener process becomes possible.
 
 ## What this role is
 
