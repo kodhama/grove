@@ -1,6 +1,6 @@
 # specs/
 
-This repo's own specs — contract-layer artifacts for espalier's own
+This repo's own specs — contract-layer artifacts for grove's own
 tooling or process (e.g., a spec for a future runner-hosted dispatch
 mechanism), written by a `contract-author` gardener from an approved
 decision and never from a draft.

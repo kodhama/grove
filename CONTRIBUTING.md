@@ -1,6 +1,6 @@
-# Contributing to espalier
+# Contributing to grove
 
-espalier ships a collection of artifacts — **charters** (`charters/`),
+grove ships a collection of artifacts — **charters** (`charters/`),
 **specs** (`specs/`), **decisions** (`decisions/`), and their executable
 counterparts (`.claude/agents/`, `.claude/skills/`) — not a binary or a
 service. Contributing here means proposing, gating, and (for a human)
@@ -180,7 +180,7 @@ human spec-gate pipeline:
 
 A charter, spec, or decision in this repo is written to be **cold-
 started in any consuming project** — it never hardcodes a noun specific
-to the project espalier itself was lifted out of, or to any other
+to the project grove itself was lifted out of, or to any other
 specific consuming project. Where a role genuinely needs a
 project-specific value (a test command, a spec path, an issue-tracker
 convention), it declares an explicit angle-bracketed placeholder (e.g.

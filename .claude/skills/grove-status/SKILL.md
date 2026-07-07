@@ -1,24 +1,24 @@
 ---
-name: espalier-status
-description: Emit runtime status onto the Espalier bus while working as a gardener (or head-gardener) in an Espalier run — so the maintainer's dashboard shows who is working, on what, and who is blocked. Use at role start, at every state transition (working/blocked/awaiting-gate/done/failed), when issuing a verdict, when parking a question, and poll for commands at step seams.
+name: grove-status
+description: Emit runtime status onto the Grove bus while working as a gardener (or head-gardener) in a Grove run — so the maintainer's dashboard shows who is working, on what, and who is blocked. Use at role start, at every state transition (working/blocked/awaiting-gate/done/failed), when issuing a verdict, when parking a question, and poll for commands at step seams.
 ---
 
-# espalier-status — report yourself on the runtime bus
+# grove-status — report yourself on the runtime bus
 
-You are a gardener in an Espalier run. Alongside your artifact work,
+You are a gardener in a Grove run. Alongside your artifact work,
 report your state onto the runtime bus so the human can see the swarm
 live. The bus is telemetry, NOT truth: artifact state remains the source
 of truth (ADR-0030 — "state derived from artifact existence, never
 agent claims"). Never report progress you have not actually made; a
 false "working" claim is worse than silence.
 
-**This skill talks to a vendored [espial](https://github.com/kodhama/espial)
-install.** Espial is a separate repo; espalier never requires it to
+**This skill talks to a vendored [wisp](https://github.com/kodhama/wisp)
+install.** Wisp is a separate repo; grove never requires it to
 function (telemetry is optional by construction) but this skill is the
 gardener-flavored wrapper around it once a consuming project vendors it.
-Replace `<ESPIAL_VENDOR_PATH>` below with wherever your project vendored
-or installed espial (its own README names the emitter entrypoint — as
-of espial v1 that's an `emit.ts`/`emit.js` at the vendor root).
+Replace `<WISP_VENDOR_PATH>` below with wherever your project vendored
+or installed wisp (its own README names the emitter entrypoint — as
+of wisp v1 that's an `emit.ts`/`emit.js` at the vendor root).
 
 ## When to emit
 
@@ -38,7 +38,7 @@ secrets into a simple status ping; avoid a runner with that behavior for
 this call):
 
 ```sh
-node <ESPIAL_VENDOR_PATH>/emit.ts <subcommand> --run <run-id> --agent <your-role> [...]
+node <WISP_VENDOR_PATH>/emit.ts <subcommand> --run <run-id> --agent <your-role> [...]
 ```
 
 `<run-id>` is the furrow/run identifier the head-gardener gave you (e.g.
@@ -62,8 +62,8 @@ test run — poll for commands addressed to you and acknowledge what you
 handle:
 
 ```sh
-node <ESPIAL_VENDOR_PATH>/emit.ts check --run <run-id> --agent <your-role>
-node <ESPIAL_VENDOR_PATH>/emit.ts ack --run <run-id> --agent <your-role> \
+node <WISP_VENDOR_PATH>/emit.ts check --run <run-id> --agent <your-role>
+node <WISP_VENDOR_PATH>/emit.ts ack --run <run-id> --agent <your-role> \
   --command-id <cmd-id> --result accepted --note "<what you did about it>"
 ```
 
@@ -88,5 +88,5 @@ comply.
 
 ## Placeholders
 
-- `<ESPIAL_VENDOR_PATH>` — where your project vendored or installed
-  espial (e.g. `tools/espial/`, or a package's installed bin path).
+- `<WISP_VENDOR_PATH>` — where your project vendored or installed
+  wisp (e.g. `tools/wisp/`, or a package's installed bin path).

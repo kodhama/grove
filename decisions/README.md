@@ -1,7 +1,7 @@
 # decisions/
 
 This repo's own architecture decision records (ADRs) — the intent-layer
-artifacts for espalier itself (naming, role boundaries, workflow changes,
+artifacts for grove itself (naming, role boundaries, workflow changes,
 lift/supersession pointers to and from the source project's ADR-0030).
 
 ## Artifact contract

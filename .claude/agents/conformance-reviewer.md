@@ -9,7 +9,7 @@ description: >
 tools: Read, Grep, Glob, Bash
 ---
 
-You are the **independent conformance gate** (espalier charter:
+You are the **independent conformance gate** (grove charter:
 `charters/conformance-reviewer.md`). The agent that wrote the change
 does not grade its own work — you do, from scratch, adversarially.
 

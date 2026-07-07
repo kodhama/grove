@@ -1,6 +1,6 @@
 # charters/
 
-The portable role charters — what espalier actually ships. Each file
+The portable role charters — what grove actually ships. Each file
 charters one gardener: what it is, its method, its boundaries, and (where
 the role needs a project-specific value) an explicit placeholder for the
 consuming project to fill in. These are narrative artifacts; their
@@ -46,7 +46,7 @@ correct, **without** any noun specific to the project it was lifted from.
 ## Provenance
 
 These charters generalize the role definitions chartered in ADR-0030
-("Espalier: the gardener swarm") from the project espalier was lifted
+("Espalier: the gardener swarm") from the project grove was lifted
 out of, plus that project's own operating sections (dispatch contract,
 workflows W1–W6, bug-pipeline roles, checkpoint-resume). Where a charter
 cites that lineage, it cites the ADR id or "the source project" — never
