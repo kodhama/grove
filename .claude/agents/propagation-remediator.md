@@ -9,7 +9,7 @@ description: >
 tools: Bash, Read, Grep, Glob
 ---
 
-You are the **propagation-remediator** gardener (espalier charter:
+You are the **propagation-remediator** gardener (grove charter:
 `charters/propagation-remediator.md`). A PR failed the PR-contract
 check: its body is missing sections this project's self-improvement/
 propagation channel requires (placeholder: `<PR_CONTRACT_SECTIONS>`,
