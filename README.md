@@ -67,6 +67,30 @@ the checkpoint-resume bounds shared with `run-resumer`.
 
 ## Adopting grove in your project
 
+The canonical route is the Claude Code plugin (kodhama-0002 §3):
+
+```
+/plugin marketplace add kodhama/kodhama
+/plugin install grove@kodhama
+/grove:setup
+```
+
+`/grove:setup` is a composing interview: it asks which gardener roles to
+install (default: all ten), copies their definitions into your project's
+`.claude/agents/`, and resolves every placeholder (test/typecheck
+commands, your VCS/issue-tracker conventions, your parked-item store,
+your spec/research rubric paths) to your project's real values —
+honestly, with "none exists yet" where a convention genuinely doesn't.
+Telemetry is composed only if you have [wisp](https://github.com/kodhama/wisp)
+available; grove never requires it. See
+[`plugins/grove/README.md`](plugins/grove/README.md) for the full plugin
+contents.
+
+### Manual path
+
+If you can't or don't want to install a Claude Code plugin, hand-vendor
+instead:
+
 1. Vendor the charters and/or `.claude/agents/` definitions you need.
 2. Fill in each charter's placeholders (test/typecheck commands, your
    parked-item store, your spec-quality rubric path, your VCS/issue
