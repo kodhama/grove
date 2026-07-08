@@ -13,12 +13,13 @@ values. Nothing here is invented from scratch, and nothing outside what's listed
 
 ## 1. Pick which gardener roles to compose
 
-Ask which of the ten gardener roles to install; default to **all ten** if the user has no
+Ask which of the eleven gardener roles to install; default to **all eleven** if the user has no
 preference. Show the roster (from `${CLAUDE_PLUGIN_ROOT}/reference/agents/README.md`) so they can
 pick a subset if they want a lighter install:
 
 `divergent-researcher`, `shaper`, `contract-author`, `spec-adversary`, `executor`,
-`conformance-reviewer`, `validator`, `head-gardener`, `run-resumer`, `propagation-remediator`.
+`conformance-reviewer`, `validator`, `head-gardener`, `run-resumer`, `propagation-remediator`,
+`corpus-reviewer`.
 
 ## 2. Copy the chosen agent definitions
 
@@ -51,6 +52,9 @@ This project's copies carry these tokens (not all appear in every file):
 | `<PARKED_ITEM_STORE>` | `conformance-reviewer.md`, `propagation-remediator.md` | where this project tracks deferred/parked items (a TODO/ROADMAP file, a `decisions/` entry, issue labels, …) |
 | `<SPEC_RUBRIC_PATH>` | `contract-author.md` | this project's spec-quality rubric path |
 | `<RESEARCH_RUBRIC_PATH>` | `divergent-researcher.md` | this project's research-quality rubric path |
+| `<ARTIFACT_DIRS>` | `corpus-reviewer.md` | this project's corpus directories (family default: `decisions/`, `specs/`; add what the project keeps) |
+| `<ARTIFACT_CONTRACT_PATHS>` | `corpus-reviewer.md` | where this project declares its artifact contract (family default: `decisions/README.md` + `specs/README.md`) |
+| `<REPO_TYPED_CHECKS>` | `corpus-reviewer.md` | any repo-typed extra checks this project declares beyond the family core ("none" is a valid resolution) |
 
 Ask about each token **once** (the same answer applies everywhere it appears), then edit it inline
 in every file that carries it — the resolved value replaces the token, in place, in running prose.
@@ -92,7 +96,7 @@ forward pointer). Adapt, don't invent a heavier process than grove's own.
 
 Append this block to the project's `CLAUDE.md` (create the file if it doesn't exist). Touch
 **nothing else** in the file. Fill in `<ROLES_LIST>` with the roles actually installed (e.g. "all
-ten roles" or a named subset) and `<SHA>` with the output of
+eleven roles" or a named subset) and `<SHA>` with the output of
 `git -C "${CLAUDE_PLUGIN_ROOT}" rev-parse --short HEAD` (if that command fails — not a git checkout
 — use `unknown`; an honest stamp beats none):
 

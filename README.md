@@ -78,7 +78,7 @@ The canonical route is the Claude Code plugin (kodhama-0002 §3):
 ```
 
 `/grove:setup` is a composing interview: it asks which gardener roles to
-install (default: all ten), copies their definitions into your project's
+install (default: all eleven), copies their definitions into your project's
 `.claude/agents/`, and resolves every placeholder (test/typecheck
 commands, your VCS/issue-tracker conventions, your parked-item store,
 your spec/research rubric paths) to your project's real values —

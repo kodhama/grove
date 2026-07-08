@@ -1,7 +1,7 @@
 ---
 id: charter-corpus-reviewer
 type: charter
-status: gated
+status: approved  # ratified by PR #6 merge (2026-07-08)
 depends_on: [adr-0001-corpus-reviewer-lift]
 owner: agent
 updated: 2026-07-08

@@ -33,3 +33,4 @@ file's own "Why this file is narrower" section and
 | `run-resumer.md` | remediation | resumes a run that died at its turn cap |
 | `propagation-remediator.md` | remediation | writes an honest missing propagation section |
 | `head-gardener.md` | dispatch | one-shot classify/next-dispatch advisor only — not a sequencer |
+| `corpus-reviewer.md` | standing | artifact-corpus conformance vs the repo's own contract; report-only |
