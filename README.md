@@ -18,7 +18,8 @@ the same door pattern Trellis uses for its own overlay.
 ## The team
 
 Grove charters eight gardener roles, one per stage of the pipeline, plus
-two remediation roles that keep runs from silently dying. Every role is a
+two remediation roles that keep runs from silently dying, plus one
+standing audit role over the artifact record itself. Every role is a
 **stateless cold start**: all context travels through artifacts and their
 `depends_on` graph, never through conversation history. A floundering cold
 role is evidence about the artifacts it was given, not just the agent.
@@ -35,6 +36,7 @@ role is evidence about the artifacts it was given, not just the agent.
 | head-gardener | — | dispatch, sequencing, findings ledger, checkpoint-resume | the interactive session (v0) |
 | run-resumer | remediation | resumes a run that died at its turn cap from its checkpoint | yes |
 | propagation-remediator | remediation | writes an honest missing propagation section when a PR's contract check fails | yes |
+| corpus-reviewer | standing | artifact-corpus conformance vs the repo's own contract (frontmatter, lifecycle, `depends_on`, supersession); report-only | yes |
 
 Full charters, each with a `## Placeholders` section naming exactly what a
 consuming project must fill in, live in [`charters/`](charters/).
