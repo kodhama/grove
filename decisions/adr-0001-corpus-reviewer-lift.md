@@ -1,7 +1,7 @@
 ---
 id: adr-0001-corpus-reviewer-lift
 type: adr
-status: gated
+status: approved  # ratified by PR #6 merge (2026-07-08)
 depends_on: []
 owner: agent
 updated: 2026-07-08

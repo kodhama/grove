@@ -1,6 +1,6 @@
 # grove (Claude Code plugin)
 
-A portable agent-swarm operating model for Claude Code — ten chartered gardener roles, a dispatch
+A portable agent-swarm operating model for Claude Code — eleven chartered gardener roles, a dispatch
 contract, and workflows, composed onto your project. No binary, no service.
 
 ## Install
@@ -16,7 +16,7 @@ Then compose it onto any project:
 /grove:setup
 ```
 
-It asks which gardener roles to install (default: all ten), copies their definitions into your
+It asks which gardener roles to install (default: all eleven), copies their definitions into your
 project's `.claude/agents/`, and resolves every placeholder (test/typecheck commands, VCS/issue-
 tracker conventions, parked-item store, spec/research rubric paths) to your project's real values —
 interactively, with an honest "none exists yet" where a convention genuinely doesn't. Telemetry
@@ -26,10 +26,10 @@ throughout, and idempotent on re-run.
 
 ## What it bundles
 
-- **`skills/setup`** — `/grove:setup`: compose the ten gardener roles onto your project.
+- **`skills/setup`** — `/grove:setup`: compose the eleven gardener roles onto your project.
 - **`skills/remove`** — `/grove:remove`: cleanly un-compose (delete the composed files, strip the
   `CLAUDE.md` block — asks before deleting anything).
-- **`reference/agents/`** — the ten gardener definitions plus their `README.md`, vendored from this
+- **`reference/agents/`** — the eleven gardener definitions plus their `README.md`, vendored from this
   repo's own `.claude/agents/` — the payload `/grove:setup` copies from and resolves.
 - **`reference/skills/grove-status/`** — the runtime-telemetry skill, vendored from this repo's own
   `.claude/skills/grove-status/`.
