@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- kodhama-ds: v0.1.0 -->
+<!-- kodhama-ds: v0.2.0 -->
 <!--
   Generated per kodhama/design-system's lp-generator.md contract, read at
   the pinned tag above. Composed from this repo's own docs/lp-content.md
@@ -10,30 +10,46 @@
   (informational, user-navigated), not asset dependencies — patterns.md's
   own buttons/pills example (`View on GitHub`) uses the same convention.
 
+  Regenerated at v0.2.0 to fix three independent staleness axes this page
+  had accumulated: (1) the espalier → grove / espial → wisp family rename
+  (this repo's own commit 4cdfec5), landed well before this page was last
+  generated — every "espalier"/"espial" occurrence below is fixed; (2) the
+  header mark, refreshed to icons/grove.svg's post-redesign two-tone
+  crown-over-trunks drawing (design-system's icons/grammar.md, "spirits
+  are solid, structure is faint"); (3) the "Adopting grove" section,
+  rewritten against this repo's own README.md, which now names the Claude
+  Code plugin (kodhama/kodhama → grove@kodhama → /grove:setup) the
+  canonical route, demoting hand-vendoring to a "Manual path" fallback.
+
   Deviation from patterns.md, noted per its own rule ("deviate only where
   the consuming repo's content genuinely doesn't fit a pattern, and note
-  the deviation"): the "how espalier is consumed" section below does not
-  use the Terminal (tabs/copy/prompt) pattern verbatim. Espalier ships no
-  binary and there is no curl/brew/plugin install command to run — install
-  is "copy some files into your project," a 4-step prose list, not a
-  shell session. The terminal's dark-surface/monospace visual language is
-  reused (kept in-family) but the tabs/copy-button/panel markup and JS are
-  dropped since there is no multi-method command to switch between or
-  copy. See the `.howto` rules in this stylesheet, marked below as an
-  espalier-specific addition rather than a patterns.md extract.
+  the deviation"): only the Manual path fallback inside "Adopting grove"
+  still skips the Terminal (tabs/copy/prompt) pattern — it's four prose
+  steps (vendor files, fill placeholders, optionally wire telemetry,
+  optionally run `trellis setup`), not a shell session, so it keeps the
+  dark-surface `.howto` ordered-list treatment: the terminal's visual
+  language reused without its tabs/copy-button markup, since there's no
+  multi-method command there to switch between or copy. The plugin route
+  above it, by contrast, is a real command sequence now that grove ships
+  one — it uses the Terminal pattern verbatim, no deviation needed, unlike
+  the old (v0.1.0) page's now-false claim that "there is no curl/brew/
+  plugin install command to run."
 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>espalier — agent-swarm operating model</title>
+<title>grove — agent-swarm operating model</title>
 <style>
 /*
  * kodhama design system — tokens
  *
- * Extracted verbatim from trellis's landing page (docs/index.html), the
- * design system's source of truth. This is extraction, not redesign: every
- * value below is copied exactly as it appears upstream.
+ * Color, --maxw and the font stacks are extracted verbatim from trellis's
+ * landing page (docs/index.html), the design system's source of truth.
+ * The type scale, radius, shadow, spacing and seasonal-accent blocks were
+ * codified from identity/spec.md + the consistent values in use across
+ * the family's pages (surfaced on the design-system spec sheet) —
+ * codification, not redesign.
  *
  * Structure mirrors the source:
  *   1. :root            — light values (the default block)
@@ -61,10 +77,47 @@
 
   /* layout */
   --maxw: 1080px;
+  --gutter: 24px;
+  --space-section: 56px;
+  --card-pad: 24px;
+  --grid-gap: 20px;
 
-  /* type */
+  /* radius */
+  --radius-chip: 7px;
+  --radius-button: 10px;
+  --radius-panel: 12px;
+  --radius-card: 14px;
+  --radius-pill: 999px;
+
+  /* elevation */
+  --shadow-lift: 0 18px 40px -24px rgba(0, 0, 0, .44);
+
+  /* accent, softened — a lighter shade of the (possibly seasonal) accent,
+   * mixed toward the surface so it tracks both theme and season. Used for
+   * the secondary strand in the woven trellis mark and the grove mark;
+   * never muddies to grey the way an opacity-dimmed accent does. */
+  --accent-soft: color-mix(in srgb, var(--accent) 58%, var(--surface));
+
+  /* type — stacks */
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* type — scale (extracted from the pages) */
+  --text-display: clamp(2.1rem, 4vw, 3.1rem);
+  --text-section: 1.6rem;
+  --text-card: 1.15rem;
+  --text-lede: 1.08rem;
+  --text-body: 17px;
+  --text-eyebrow: 12.5px;
+  --text-mono: 14px;
+
+  /* type — treatment */
+  --weight-heading: 650;
+  --weight-strong: 600;
+  --tracking-heading: -0.02em;
+  --tracking-eyebrow: 0.18em;
+  --leading-heading: 1.12;
+  --leading-body: 1.6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -108,6 +161,39 @@
   --code-accent: #56d69b;
 }
 
+/* ─── Seasonal accents ───────────────────────────────────────────────
+ * The accent triad turns at solstices & equinoxes; every neutral stays
+ * fixed — the forest changes color, not shape. Set data-season on <html>.
+ * The default green tokens above are "evergreen": the year-round default
+ * when no season is set. Each season overrides --accent (and --accent-ink
+ * in light). In dark, --accent takes the season's dark value and
+ * --accent-ink holds the base dark ink (#9fe9c4) — seasons ship no dark ink.
+ * Season is picked by date at generation time, or by one line of runtime
+ * JS. Staleness is a finding, not a break — same as the DS versioning rule.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+:root[data-season="spring"] { --accent: #35b077; --accent-ink: #156b45; }
+:root[data-season="summer"] { --accent: #ba8b26; --accent-ink: #7d5a14; }
+:root[data-season="autumn"] { --accent: #bf4f30; --accent-ink: #86301c; }
+:root[data-season="winter"] { --accent: #4f93a8; --accent-ink: #245b6e; }
+
+@media (prefers-color-scheme: dark) {
+  :root[data-season="spring"] { --accent: #62dfa3; --accent-ink: #9fe9c4; }
+  :root[data-season="summer"] { --accent: #e6c260; --accent-ink: #9fe9c4; }
+  :root[data-season="autumn"] { --accent: #e89673; --accent-ink: #9fe9c4; }
+  :root[data-season="winter"] { --accent: #85cfe0; --accent-ink: #9fe9c4; }
+}
+
+/* explicit theme pins beat OS preference */
+:root[data-theme="light"][data-season="spring"] { --accent: #35b077; --accent-ink: #156b45; }
+:root[data-theme="light"][data-season="summer"] { --accent: #ba8b26; --accent-ink: #7d5a14; }
+:root[data-theme="light"][data-season="autumn"] { --accent: #bf4f30; --accent-ink: #86301c; }
+:root[data-theme="light"][data-season="winter"] { --accent: #4f93a8; --accent-ink: #245b6e; }
+:root[data-theme="dark"][data-season="spring"] { --accent: #62dfa3; --accent-ink: #9fe9c4; }
+:root[data-theme="dark"][data-season="summer"] { --accent: #e6c260; --accent-ink: #9fe9c4; }
+:root[data-theme="dark"][data-season="autumn"] { --accent: #e89673; --accent-ink: #9fe9c4; }
+:root[data-theme="dark"][data-season="winter"] { --accent: #85cfe0; --accent-ink: #9fe9c4; }
+
 /* ---- patterns.md: Shared base ---- */
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -141,6 +227,40 @@ h1, h2, h3 { line-height: 1.12; letter-spacing: -0.02em; text-wrap: balance; mar
 .card h3 { font-size: 1.15rem; }
 .card p { color: var(--muted); margin: 10px 0 0; font-size: 0.98rem; }
 .card .num { font-family: var(--mono); font-size: 12px; color: var(--accent-ink); letter-spacing: 0.1em; }
+
+/* ---- patterns.md: Terminal (tabs / copy / prompt) ---- */
+.terminal {
+  margin-top: 34px; max-width: 760px; background: var(--code-bg); color: var(--code-text);
+  border-radius: 12px; border: 1px solid #ffffff10; overflow: hidden;
+  box-shadow: 0 18px 40px -24px #00000070;
+}
+.terminal .tt { display: flex; align-items: center; gap: 8px; padding: 8px 14px 8px; border-bottom: 1px solid #ffffff12; }
+.terminal .dot { width: 11px; height: 11px; border-radius: 50%; background: #ffffff20; }
+.tabs { display: flex; gap: 4px; margin-left: 10px; }
+.tab {
+  font-family: var(--mono); font-size: 12px; cursor: pointer;
+  background: transparent; color: #ffffff66; border: 0; border-radius: 6px; padding: 5px 10px;
+}
+.tab:hover { color: #cfe9db; }
+.tab.active { background: #ffffff14; color: #d7e6dd; }
+.terminal .panel { display: none; padding: 9px 0; }
+.terminal .panel.active { display: block; }
+.terminal .cmd {
+  padding: 7px 16px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px;
+  scrollbar-width: thin; scrollbar-color: #ffffff22 transparent;
+}
+.terminal .cmd::-webkit-scrollbar { height: 6px; }
+.terminal .cmd::-webkit-scrollbar-thumb { background: #ffffff22; border-radius: 3px; }
+.terminal .cmd code { white-space: pre; }
+.terminal .cmd .prompt { color: var(--code-accent); user-select: none; }
+.copy {
+  margin-left: auto; flex: none; font-family: var(--mono); font-size: 12px; cursor: pointer;
+  background: #ffffff12; color: #cfe9db; border: 0; border-radius: 7px; padding: 6px 11px;
+}
+.copy:hover { background: #ffffff22; }
+.terminal .cmt { color: #ffffff40; }
+.tnote { margin-top: 14px; color: var(--muted); font-size: 0.92rem; max-width: 640px; }
+.tnote code { font-family: var(--mono); font-size: 0.85em; background: color-mix(in srgb, var(--accent) 13%, transparent); padding: 1px 6px; border-radius: 5px; color: var(--accent-ink); }
 
 /* ---- patterns.md: Lattice motif ---- */
 .hero { position: relative; overflow: hidden; border-bottom: 1px solid var(--line); }
@@ -195,12 +315,12 @@ h1, h2, h3 { line-height: 1.12; letter-spacing: -0.02em; text-wrap: balance; mar
   .btn, .toggle, .copy, .tab { transition: all 0.15s ease; }
 }
 
-/* ---- espalier-specific additions (not from patterns.md) ---- */
+/* ---- grove-specific additions (not from patterns.md) ---- */
 /* Header bar: not a named pattern in patterns.md, minimal layout only. */
 .site-header { border-bottom: 1px solid var(--line); }
 .site-header .bar { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
 .brand { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-weight: 600; letter-spacing: -0.01em; color: var(--text); text-decoration: none; }
-.brand .mark { width: 22px; height: 22px; color: var(--accent); }
+.brand .mark { width: 22px; height: 22px; flex: none; }
 .brand:hover { color: var(--text); }
 
 section.section { padding: 56px 0; }
@@ -241,12 +361,14 @@ section.section + section.section { border-top: 1px solid var(--line); }
 <header class="site-header">
   <div class="wrap bar">
     <a class="brand" href="#top">
-      <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M2 9h20M2 15h20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" opacity=".55"/>
-        <path d="M12 21V7M12 7C11 6.3 10.6 5.2 10.5 4M12 7C13 6.3 13.4 5.2 13.5 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        <path d="M12 11C9.8 11 8.2 9 5 9M12 11C14.2 11 15.8 9 19 9M12 17C9.8 17 8.2 15 5 15M12 17C14.2 17 15.8 15 19 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="color:var(--accent)">
+        <title>grove mark</title>
+        <path d="M10.007 13.855A3.2 3.2 0 1 1 7.829 8.829" style="stroke:var(--accent-soft, color-mix(in srgb, currentColor 58%, #fff))" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M7.4 21V15.2" style="stroke:var(--accent-soft, color-mix(in srgb, currentColor 58%, #fff))" stroke-width="1.7" stroke-linecap="round"/>
+        <circle cx="13.4" cy="9.4" r="5.6" stroke="currentColor" stroke-width="1.7"/>
+        <path d="M13.4 21V15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
       </svg>
-      espalier
+      grove
     </a>
     <button class="toggle" id="themeToggle" aria-label="Toggle color theme">theme</button>
   </div>
@@ -285,7 +407,7 @@ section.section + section.section { border-top: 1px solid var(--line); }
     <p class="eyebrow">Agent-swarm operating model</p>
     <h1 style="font-size:clamp(2.1rem, 4vw, 3.1rem); margin-top:14px; max-width:720px;">Training growth along a frame</h1>
     <p class="muted" style="max-width:600px; margin-top:18px; font-size:1.08rem;">
-      Espalier is a portable agent-swarm operating model — chartered
+      Grove is a portable agent-swarm operating model — chartered
       roles (&ldquo;gardeners&rdquo;), workflows, and a dispatch
       contract, distributed as markdown charters + Claude Code agent
       definitions + a skill. No binary, no service — just files you
@@ -293,7 +415,7 @@ section.section + section.section { border-top: 1px solid var(--line); }
     </p>
     <div class="cta">
       <a class="btn btn-primary" href="#charters">Read the charters &rarr;</a>
-      <a class="btn btn-ghost" href="https://github.com/kodhama/espalier">View on GitHub &rarr;</a>
+      <a class="btn btn-ghost" href="https://github.com/kodhama/grove">View on GitHub &rarr;</a>
     </div>
   </div>
 </div>
@@ -373,22 +495,21 @@ section.section + section.section { border-top: 1px solid var(--line); }
 <section class="section">
   <div class="wrap">
     <p class="eyebrow">Why the name</p>
-    <h2>The trellis is the frame; espalier is the growth trained against it</h2>
+    <h2>The trellis is the frame; grove is the growth trained against it</h2>
     <div class="motif-block">
       <p>
-        Espalier is the horticultural term for training a plant's growth
-        flat along a frame — a wall, a fence, a wire lattice — so it
-        grows in a deliberate, legible shape instead of wherever gravity
-        and light happen to pull it. That's the name's whole argument:
-        espalier (this repo) is the growth,
-        <a href="https://github.com/kodhama/trellis">Trellis</a> (the
-        governance layer this repo overlays) is the frame it's trained
-        against. The gardeners aren't the trellis and they aren't the
-        tree — they're what does the training: chartered roles that keep
-        a swarm's work growing along the frame instead of sprawling. The
-        lattice pattern behind the hero above and the climbing mark
-        drawing up its right edge are that idea rendered, not decoration
-        bolted on after the fact.
+        Grove is the druids' own word: a grove is a community of trees —
+        and, in the druidic orders, the name of the community itself.
+        That's the name's whole argument: grove (this repo) is the
+        growth, <a href="https://github.com/kodhama/trellis">Trellis</a>
+        (the governance layer this repo overlays) is the frame it's
+        trained against — keeping the family's founding image, a grove
+        trained along a trellis. The gardeners aren't the trellis and
+        they aren't the trees — they're what does the training: chartered
+        roles that keep a swarm's work growing along the frame instead of
+        sprawling. The lattice pattern behind the hero above and the
+        climbing mark drawing up its right edge are that idea rendered,
+        not decoration bolted on after the fact.
       </p>
     </div>
   </div>
@@ -396,36 +517,64 @@ section.section + section.section { border-top: 1px solid var(--line); }
 
 <section class="section">
   <div class="wrap">
-    <p class="eyebrow">Adopting espalier</p>
+    <p class="eyebrow">Adopting grove</p>
     <h2>How it's consumed</h2>
     <p class="lede">
-      There's no binary and nothing to install from a registry —
-      adopting espalier means copying files into your own project, per
-      <code>.claude/agents/README.md</code>.
+      The canonical route is the Claude Code plugin (kodhama-0002 &sect;3).
     </p>
-    <div class="howto" role="group" aria-label="Steps to adopt espalier in your project">
+    <div class="terminal" role="group" aria-label="Install grove via the Claude Code plugin">
+      <div class="tt">
+        <i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="tabs" role="tablist" aria-label="Install method">
+          <button class="tab active" role="tab" aria-selected="true" data-tab="plugin">Claude Code</button>
+        </div>
+        <button class="copy" id="copyBtn" aria-label="Copy commands">copy</button>
+      </div>
+      <div class="panel active" data-panel="plugin">
+        <div class="cmd"><code><span class="prompt">&gt; </span>/plugin marketplace add kodhama/kodhama</code></div>
+        <div class="cmd"><code><span class="prompt">&gt; </span>/plugin install grove@kodhama</code></div>
+        <div class="cmd"><code><span class="prompt">&gt; </span>/grove:setup</code></div>
+      </div>
+    </div>
+    <p class="tnote">
+      <code>/grove:setup</code> is a composing interview: it asks which gardener
+      roles to install (default: all eleven), copies their definitions into
+      your project's <code>.claude/agents/</code>, and resolves every
+      placeholder (test/typecheck commands, your VCS/issue-tracker
+      conventions, your parked-item store, your spec/research rubric paths)
+      to your project's real values — honestly, with &ldquo;none exists
+      yet&rdquo; where a convention genuinely doesn't. Telemetry is composed
+      only if you have <a href="https://github.com/kodhama/wisp">wisp</a>
+      available; grove never requires it. See
+      <code>plugins/grove/README.md</code> for the full plugin contents.
+    </p>
+
+    <h3 style="margin-top:40px; font-size:1.1rem;">Manual path</h3>
+    <p class="lede" style="margin-top:8px;">
+      If you can't or don't want to install a Claude Code plugin, hand-vendor
+      instead:
+    </p>
+    <div class="howto" role="group" aria-label="Manual steps to adopt grove in your project">
       <ol>
         <li>
           Vendor the charters and/or <code>.claude/agents/</code>
-          definitions you need — copy them into your own project's
-          <code>.claude/agents/</code>.
-          <div class="step-note">The charters in <code>charters/</code> are the source of truth; the agent definitions in <code>.claude/agents/</code> are generated from them.</div>
+          definitions you need.
         </li>
         <li>
-          Fill in each charter's placeholders (angle-bracketed tokens
-          like <code>&lt;TEST_CMD&gt;</code>, <code>&lt;TYPECHECK_CMD&gt;</code>)
-          — your test/typecheck commands, your parked-item store, your
-          spec-quality rubric path, your VCS/issue tracker conventions.
+          Fill in each charter's placeholders (test/typecheck commands,
+          your parked-item store, your spec-quality rubric path, your
+          VCS/issue tracker conventions).
         </li>
         <li>
           If you want live telemetry, vendor
-          <code>kodhama/espial</code> and set the vendor path the
-          <code>espalier-status</code> skill expects.
-          <div class="step-note">Telemetry is optional by construction — espalier never requires espial to function.</div>
+          <code>kodhama/wisp</code> and set the vendor path the
+          <code>grove-status</code> skill expects
+          (<code>&lt;WISP_VENDOR_PATH&gt;</code> — see the skill's own doc).
+          <div class="step-note">Telemetry is optional by construction — grove never requires wisp to function.</div>
         </li>
         <li>
           Run <code>trellis setup</code> in your project if you also
-          want the governance overlay espalier itself runs on.
+          want the governance overlay grove itself runs on.
           <div class="step-note">Recommended, not required.</div>
         </li>
       </ol>
@@ -440,9 +589,9 @@ section.section + section.section { border-top: 1px solid var(--line); }
     <ul class="layout-list">
       <li><code>decisions/</code><span>This repo's own ADRs (append-only).</span></li>
       <li><code>specs/</code><span>This repo's own specs, if any.</span></li>
-      <li><code>charters/</code><span>The portable role charters: what each gardener is, what it does, its boundaries, and its placeholders. This is the artifact espalier ships.</span></li>
+      <li><code>charters/</code><span>The portable role charters: what each gardener is, what it does, its boundaries, and its placeholders. This is the artifact grove ships.</span></li>
       <li><code>.claude/agents/</code><span>Claude Code subagent definitions generated from the charters, ready to drop into a consuming project's <code>.claude/agents/</code>.</span></li>
-      <li><code>.claude/skills/espalier-status/</code><span>The runtime-status skill a gardener uses to report itself onto an espial event bus, if one is vendored.</span></li>
+      <li><code>.claude/skills/grove-status/</code><span>The runtime-status skill a gardener uses to report itself onto a wisp event bus, if one is vendored.</span></li>
       <li><code>.trellis/</code><span>The Trellis governance overlay this repo runs on itself.</span></li>
     </ul>
   </div>
@@ -450,30 +599,30 @@ section.section + section.section { border-top: 1px solid var(--line); }
 
 <footer class="site-footer">
   <div class="wrap">
-    <p class="eyebrow">espalier</p>
+    <p class="eyebrow">grove</p>
     <p class="lede" style="margin-top:10px;">
-      Espalier is the reference implementation and distribution home —
+      Grove is the reference implementation and distribution home —
       a consuming project adopts it by vendoring the charters and
       agents it needs and wiring the placeholders to its own paths and
       commands, the same door pattern Trellis uses for its own overlay.
     </p>
     <div class="cta">
       <a class="btn btn-ghost" href="https://github.com/kodhama/trellis">Pairs with Trellis &rarr;</a>
-      <a class="btn btn-ghost" href="https://github.com/kodhama/espalier">View source &rarr;</a>
+      <a class="btn btn-ghost" href="https://github.com/kodhama/grove">View source &rarr;</a>
     </div>
-    <p class="fine">kodhama family &middot; espalier</p>
+    <p class="fine">kodhama family &middot; grove</p>
   </div>
 </footer>
 
 <script>
 // patterns.md: Theme toggle behavior, storage key namespaced per that
 // pattern's own note ("Consumers should namespace this per product,
-// e.g. espalier-theme").
+// e.g. grove-theme").
 (function () {
   var root = document.documentElement;
   var toggle = document.getElementById("themeToggle");
   var saved = null;
-  try { saved = localStorage.getItem("espalier-theme"); } catch (e) {}
+  try { saved = localStorage.getItem("grove-theme"); } catch (e) {}
   if (saved) root.setAttribute("data-theme", saved);
   function themeNow() {
     return root.getAttribute("data-theme") ||
@@ -484,8 +633,24 @@ section.section + section.section { border-top: 1px solid var(--line); }
   toggle.addEventListener("click", function () {
     var next = themeNow() === "dark" ? "light" : "dark";
     root.setAttribute("data-theme", next);
-    try { localStorage.setItem("espalier-theme", next); } catch (e) {}
+    try { localStorage.setItem("grove-theme", next); } catch (e) {}
     syncToggle();
+  });
+})();
+
+// patterns.md: Terminal copy behavior for the "Adopting grove" plugin
+// block. One tab only (the plugin is the sole primary install method —
+// the Manual path below it is prose steps, not a command set to copy),
+// so only the copy button needs wiring, not tab switching.
+(function () {
+  var btn = document.getElementById("copyBtn");
+  if (!btn) return;
+  var commands = "/plugin marketplace add kodhama/kodhama\n/plugin install grove@kodhama\n/grove:setup";
+  btn.addEventListener("click", function () {
+    navigator.clipboard.writeText(commands).then(function () {
+      btn.textContent = "copied ✓";
+      setTimeout(function () { btn.textContent = "copy"; }, 1600);
+    });
   });
 })();
 </script>
