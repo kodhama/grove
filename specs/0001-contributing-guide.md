@@ -2,7 +2,7 @@
 id: spec-0001-contributing-guide
 type: spec
 status: gated
-depends_on: [charter-contract-author, charter-spec-adversary, charter-executor, charter-conformance-reviewer, charter-head-gardener, charter-shaper, charter-run-resumer, charter-propagation-remediator, charter-validator, charter-divergent-researcher]
+depends_on: [charter-contract-author, charter-spec-adversary, charter-executor, charter-conformance-reviewer, charter-dispatcher, charter-shaper, charter-run-resumer, charter-propagation-remediator, charter-validator, charter-divergent-researcher]
 owner: agent
 updated: 2026-07-07
 ---
@@ -32,10 +32,10 @@ charters already in this repo, read in full):
 - `charters/contract-author.md`, `charters/spec-adversary.md`,
   `charters/executor.md` — the three hats this furrow itself runs, and
   so the three roles CONTRIBUTING.md most owes a walkthrough to.
-- `charters/conformance-reviewer.md`, `charters/head-gardener.md`,
+- `charters/conformance-reviewer.md`, `charters/dispatcher.md`,
   `charters/shaper.md`, `charters/run-resumer.md`,
   `charters/propagation-remediator.md`, `charters/validator.md`,
-  `charters/divergent-researcher.md` — the remaining seven gardeners,
+  `charters/divergent-researcher.md` — the remaining seven agents,
   for completeness of the contribution surface.
 - `specs/README.md`, `decisions/README.md` — the sibling artifact-type
   contracts (spec and decision lifecycles), which mirror the charter
@@ -151,9 +151,9 @@ R8. **PR mechanics.** States, as a checklist: what branch-naming pattern
 R9. **Where this doesn't apply.** CONTRIBUTING.md notes narrowly-scoped
     exceptions that exist in the charters as of this writing: `shaper`
     canvases are explicitly interactive/PR-based but never promoted past
-    `gated` by the agent (`charters/shaper.md`); `head-gardener`'s
+    `gated` by the agent (`charters/shaper.md`); `dispatcher`'s
     `.claude/agents/` file is a scoped one-shot advisor, not a full
-    charter port (`charters/head-gardener.md` boxed note) — a
+    charter port (`charters/dispatcher.md` boxed note) — a
     contributor should not expect uniform agent-definition coverage for
     every charter.
 
@@ -190,7 +190,7 @@ R9. **Where this doesn't apply.** CONTRIBUTING.md notes narrowly-scoped
       R8's four items (branch naming reality, Conventional Commits, no
       self-merge past a human gate, open-and-unmerged is a valid resting
       state).
-- [ ] AC7. CONTRIBUTING.md names the R9 exceptions (shaper, head-gardener)
+- [ ] AC7. CONTRIBUTING.md names the R9 exceptions (shaper, dispatcher)
       so a contributor does not over-generalize the ten-charter pattern.
 - [ ] AC8. Every claim CONTRIBUTING.md makes about this repo's current
       state (e.g. "no PR template exists," "no generator script exists")
@@ -225,7 +225,7 @@ the grep (during execution, not during this pass) found this file and
 CONTRIBUTING.md were NOT clean. Recorded here rather than quietly
 smoothed over: an adversary pass that asserts "checked, clean" without
 executing the check is exactly the vacuity this repo's own adopted
-mechanics warn against (`charters/head-gardener.md`, "vacuity detection
+mechanics warn against (`charters/dispatcher.md`, "vacuity detection
 at every gate — a gate must distinguish verified clean from
 verification never ran"). Also checked: R4/R5's "hand-sync, no
 generator" claim against a live diff of
