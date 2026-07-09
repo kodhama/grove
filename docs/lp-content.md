@@ -15,7 +15,7 @@ Agent-swarm operating model
 **Title:** Training growth along a frame
 
 **Subtitle:** Grove is a portable agent-swarm operating model —
-chartered roles ("gardeners"), workflows, and a dispatch contract,
+chartered roles ("grove agents"), workflows, and a dispatch contract,
 distributed as markdown charters + Claude Code agent definitions + a
 skill. No binary, no service — just files you copy into your project.
 
@@ -33,7 +33,7 @@ name's whole argument: grove (this repo) is the growth,
 [Trellis](https://github.com/kodhama/trellis) (the governance layer
 this repo overlays) is the frame it's trained against — keeping the
 family's founding image, a grove trained along a trellis. The
-gardeners aren't the trellis and they aren't the trees — they're what
+agents aren't the trellis and they aren't the trees — they're what
 does the training: chartered roles that keep a swarm's work growing
 along the frame instead of sprawling. The lattice pattern in this
 page's hero and the climbing mark in the header are that idea
@@ -50,20 +50,21 @@ tree-motif half of the pun needed a new source.
 
 ## What grove is (the team)
 
-Grove charters eight gardener roles, one per stage of the pipeline,
-plus two remediation roles that keep runs from silently dying. Every
-role is a stateless cold start: all context travels through artifacts
-and their `depends_on` graph, never through conversation history. A
-floundering cold role is evidence about the artifacts it was given, not
-just the agent.
+Grove charters eight agent roles, one per stage of the pipeline, plus
+two remediation roles that keep runs from silently dying — ten agents
+in total, or, as we like to call them, druids, tending the grove.
+Every role is a stateless cold start: all context travels through
+artifacts and their `depends_on` graph, never through conversation
+history. A floundering cold role is evidence about the artifacts it
+was given, not just the agent.
 
-Cards (numbered, one per gardener — condensed from the repo's own
+Cards (numbered, one per agent — condensed from the repo's own
 README table):
 
 1. **divergent-researcher** — stage 1. Research discipline; loud abort
    on missing tools.
 2. **shaper** — stage 2. Decision canvases; never decides. The one
-   interactive (not cold-started) role besides head-gardener.
+   interactive (not cold-started) role besides dispatcher.
 3. **contract-author** — stage 3. Specs from approved intent; never
    implements.
 4. **spec-adversary** — stage 3½. Breaks `gated` specs before human
@@ -76,7 +77,7 @@ README table):
    upstream, multi-round; drift taxonomy.
 7. **validator** — stage 5. Per-PR critique + triggered drift audits;
    report-only.
-8. **head-gardener** — dispatch, sequencing, findings ledger,
+8. **dispatcher** — dispatch, sequencing, findings ledger,
    checkpoint-resume. Cold-started as "the interactive session (v0)."
 9. **run-resumer** — remediation. Resumes a run that died at its turn
    cap from its checkpoint.
@@ -85,8 +86,8 @@ README table):
 
 ## Dispatch and workflows
 
-The head-gardener classifies every ask into one of six workflows and
-sequences gardeners through it — inference-first: classify, announce
+The dispatcher classifies every ask into one of six workflows and
+sequences agents through it — inference-first: classify, announce
 the classification in the first status line, proceed. Explicit workflow
 commands remain an override, not the operating model.
 
@@ -100,7 +101,7 @@ The canonical route is the Claude Code plugin (kodhama-0002 §3):
 /grove:setup
 ```
 
-`/grove:setup` is a composing interview: it asks which gardener roles to
+`/grove:setup` is a composing interview: it asks which agent roles to
 install (default: all eleven), copies their definitions into your project's
 `.claude/agents/`, and resolves every placeholder (test/typecheck
 commands, your VCS/issue-tracker conventions, your parked-item store,
@@ -145,14 +146,14 @@ route. Noted here per `lp-generator.md`'s deviation rule.
 
 - `decisions/` — this repo's own ADRs (append-only).
 - `specs/` — this repo's own specs, if any.
-- `charters/` — the portable role charters: what each gardener is, what
+- `charters/` — the portable role charters: what each agent is, what
   it does, its boundaries, and its placeholders. This is the artifact
   grove ships.
 - `.claude/agents/` — Claude Code subagent definitions generated from
   the charters, ready to drop into a consuming project's
   `.claude/agents/`.
-- `.claude/skills/grove-status/` — the runtime-status skill a
-  gardener uses to report itself onto a
+- `.claude/skills/grove-status/` — the runtime-status skill an
+  agent uses to report itself onto a
   [wisp](https://github.com/kodhama/wisp) event bus, if one is
   vendored.
 - `.trellis/` — the Trellis governance overlay this repo runs on itself.
