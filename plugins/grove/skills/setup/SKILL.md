@@ -95,21 +95,40 @@ forward pointer). Adapt, don't invent a heavier process than grove's own.
 ## 6. Compose the managed block into `CLAUDE.md`
 
 Append this block to the project's `CLAUDE.md` (create the file if it doesn't exist). Touch
-**nothing else** in the file. Fill in `<ROLES_LIST>` with the roles actually installed (e.g. "all
-eleven roles" or a named subset) and `<SHA>` with the output of
+**nothing else** in the file. **Before editing, save a pre-write copy** of the existing `CLAUDE.md`
+somewhere temporary (skip if the file doesn't exist yet) — the verification below diffs against it.
+Fill in `<ROLES_LIST>` with the roles actually installed (e.g. "all eleven roles" or a named
+subset) and `<SHA>` with the output of
 `git -C "${CLAUDE_PLUGIN_ROOT}" rev-parse --short HEAD` (if that command fails — not a git checkout
 — use `unknown`; an honest stamp beats none):
 
 ```
 <!-- grove:begin (managed by grove — edit .claude/agents/, not this block) -->
-This project is **grove-managed**: work items run as grove runs, sequenced through the
-chartered agent roles in `.claude/agents/` (<ROLES_LIST>).
+Work items matching a grove workflow (W1–W6 — e.g. a bug report → the bug pipeline, a
+research ask → divergent research) run as grove runs, sequenced through the chartered
+agent roles in `.claude/agents/` (<ROLES_LIST>). Anything else — conversation, trivial
+asks, out-of-scope questions — proceeds normally.
 grove plugin@<SHA>
 <!-- grove:end -->
 ```
 
 If a `grove:begin … grove:end` block already exists (a re-run), **replace only what is between the
 markers** — idempotent, never a second block, never a change outside the markers.
+
+**Verify the write.** After composing the block, check both of these:
+
+1. **Exactly one block**: `grep -c 'grove:begin' CLAUDE.md` and `grep -c 'grove:end' CLAUDE.md`
+   must each print `1`.
+2. **Nothing outside the markers changed**: `diff` the pre-write copy against the new file — every
+   changed or added line must lie between the markers (on a first install: one appended block and
+   nothing else; on a file grove created: the block is the whole file).
+
+If either check fails, **fix it before moving on**: restore from the pre-write copy and re-attempt
+the edit once. If it fails again, stop — show the user the pre-write copy's location, the exact
+diff, and the intended block, and say plainly that the write misfired. **Never leave a mangled
+`CLAUDE.md` silently in place.** A misfire here — observed by you or reported by a user — fires the
+armed trigger in grove's `decisions/adr-0003-managed-block-routing-rule.md`: report it as an issue
+on `kodhama/grove`, so this prose edit gets replaced by a bundled deterministic upsert script.
 
 ## 7. Telemetry (optional — grove never requires it)
 

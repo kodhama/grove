@@ -29,7 +29,7 @@ In the project's `CLAUDE.md`, remove the managed block **between and including**
 
 ```
 <!-- grove:begin … -->
-   … (the grove-managed declaration + version stamp) …
+   … (the grove routing rule + version stamp) …
 <!-- grove:end -->
 ```
 
