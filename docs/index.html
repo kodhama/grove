@@ -408,7 +408,7 @@ section.section + section.section { border-top: 1px solid var(--line); }
     <h1 style="font-size:clamp(2.1rem, 4vw, 3.1rem); margin-top:14px; max-width:720px;">Training growth along a frame</h1>
     <p class="muted" style="max-width:600px; margin-top:18px; font-size:1.08rem;">
       Grove is a portable agent-swarm operating model — chartered
-      roles (&ldquo;gardeners&rdquo;), workflows, and a dispatch
+      roles (&ldquo;grove agents&rdquo;), workflows, and a dispatch
       contract, distributed as markdown charters + Claude Code agent
       definitions + a skill. No binary, no service — just files you
       copy into your project.
@@ -423,8 +423,9 @@ section.section + section.section { border-top: 1px solid var(--line); }
 <section class="section" id="charters">
   <div class="wrap">
     <p class="eyebrow">The team</p>
-    <h2>Eight gardener roles, one per stage — plus two that keep runs from dying</h2>
+    <h2>Eight agent roles, one per stage — plus two that keep runs from dying</h2>
     <p class="lede">
+      Ten agents — or, as we like to call them, druids — tend the grove.
       Every role is a stateless cold start: all context travels through
       artifacts and their <code>depends_on</code> graph, never through
       conversation history. A floundering cold role is evidence about
@@ -468,7 +469,7 @@ section.section + section.section { border-top: 1px solid var(--line); }
       </div>
       <div class="card">
         <p class="num">08</p>
-        <h3>head-gardener</h3>
+        <h3>dispatcher</h3>
         <p>Dispatch, sequencing, findings ledger, checkpoint-resume. Cold-started as &ldquo;the interactive session (v0).&rdquo;</p>
       </div>
       <div class="card">
@@ -483,8 +484,8 @@ section.section + section.section { border-top: 1px solid var(--line); }
       </div>
     </div>
     <p class="lede" style="margin-top:30px;">
-      The head-gardener classifies every ask into one of six workflows
-      and sequences gardeners through it — inference-first: classify,
+      The dispatcher classifies every ask into one of six workflows
+      and sequences agents through it — inference-first: classify,
       announce the classification in the first status line, proceed.
       Explicit workflow commands remain an override, not the operating
       model.
@@ -504,7 +505,7 @@ section.section + section.section { border-top: 1px solid var(--line); }
         growth, <a href="https://github.com/kodhama/trellis">Trellis</a>
         (the governance layer this repo overlays) is the frame it's
         trained against — keeping the family's founding image, a grove
-        trained along a trellis. The gardeners aren't the trellis and
+        trained along a trellis. The agents aren't the trellis and
         they aren't the trees — they're what does the training: chartered
         roles that keep a swarm's work growing along the frame instead of
         sprawling. The lattice pattern behind the hero above and the
@@ -537,7 +538,7 @@ section.section + section.section { border-top: 1px solid var(--line); }
       </div>
     </div>
     <p class="tnote">
-      <code>/grove:setup</code> is a composing interview: it asks which gardener
+      <code>/grove:setup</code> is a composing interview: it asks which agent
       roles to install (default: all eleven), copies their definitions into
       your project's <code>.claude/agents/</code>, and resolves every
       placeholder (test/typecheck commands, your VCS/issue-tracker
@@ -589,9 +590,9 @@ section.section + section.section { border-top: 1px solid var(--line); }
     <ul class="layout-list">
       <li><code>decisions/</code><span>This repo's own ADRs (append-only).</span></li>
       <li><code>specs/</code><span>This repo's own specs, if any.</span></li>
-      <li><code>charters/</code><span>The portable role charters: what each gardener is, what it does, its boundaries, and its placeholders. This is the artifact grove ships.</span></li>
+      <li><code>charters/</code><span>The portable role charters: what each agent is, what it does, its boundaries, and its placeholders. This is the artifact grove ships.</span></li>
       <li><code>.claude/agents/</code><span>Claude Code subagent definitions generated from the charters, ready to drop into a consuming project's <code>.claude/agents/</code>.</span></li>
-      <li><code>.claude/skills/grove-status/</code><span>The runtime-status skill a gardener uses to report itself onto a wisp event bus, if one is vendored.</span></li>
+      <li><code>.claude/skills/grove-status/</code><span>The runtime-status skill an agent uses to report itself onto a wisp event bus, if one is vendored.</span></li>
       <li><code>.trellis/</code><span>The Trellis governance overlay this repo runs on itself.</span></li>
     </ul>
   </div>
