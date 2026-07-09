@@ -30,7 +30,7 @@ updated: YYYY-MM-DD
 | `id` | kebab-case, prefixed by type (`charter-executor`, `spec-0001-...`, `adr-0001-...`) |
 | `type` | `adr` \| `spec` \| `charter` \| `plan` \| `rubric` \| ... |
 | `status` | see the four values below |
-| `depends_on` | ids of the upstream artifacts this one was built from — the bounded-context graph a cold-started gardener reads, never the whole archive |
+| `depends_on` | ids of the upstream artifacts this one was built from — the bounded-context graph a cold-started agent reads, never the whole archive |
 | `owner` | `agent` (author) or `human` — who wrote it, not who's accountable for it |
 | `updated` | last-touched date |
 
@@ -116,7 +116,7 @@ way?" stays answerable later (`decisions/README.md`).
    `.claude/agents/<role-slug>.md` in the **same PR**: the `name` /
    `description` / `tools` frontmatter Claude Code expects, plus the
    charter's body. If the role is interactive or otherwise shouldn't
-   get a subagent file (see the shaper/head-gardener exceptions
+   get a subagent file (see the shaper/dispatcher exceptions
    below), say so explicitly in the PR body instead of leaving the
    pairing silently unaddressed.
 5. Open the PR. It stays open at `gated` until a human reviews and
@@ -237,10 +237,10 @@ person's name, a Slack channel, an internal URL).
   **never promotes the decision past `gated`** — the maintainer's merge
   is always the approval, even more tightly than the general rule above
   (`charters/shaper.md`).
-- **`head-gardener`**'s `.claude/agents/head-gardener.md` is a scoped
+- **`dispatcher`**'s `.claude/agents/dispatcher.md` is a scoped
   one-shot advisor (workflow classification, next-dispatch
   recommendation only) — it is **not** a full port of
-  `charters/head-gardener.md`, because that role requires live,
+  `charters/dispatcher.md`, because that role requires live,
   multi-turn dispatch state a cold-started subagent call cannot hold.
   Don't expect every charter to have a 1:1, fully-equivalent
   `.claude/agents/` file — check the charter's own notes first.
