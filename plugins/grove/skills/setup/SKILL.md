@@ -1,24 +1,24 @@
 ---
 name: setup
-description: Compose grove onto this project — pick which gardener roles to install, resolve every placeholder to this project's real conventions, and wire the managed CLAUDE.md block (augment-never-clobber). Use when the user asks to set up, add, install, or compose grove in their repo.
+description: Compose grove onto this project — pick which agent roles to install, resolve every placeholder to this project's real conventions, and wire the managed CLAUDE.md block (augment-never-clobber). Use when the user asks to set up, add, install, or compose grove in their repo.
 ---
 
 # Compose grove into this project
 
 You are composing **grove** — a portable agent-swarm operating model — onto the user's project.
-This is **composition, not code generation**: you copy vendored, ready-to-run gardener definitions
+This is **composition, not code generation**: you copy vendored, ready-to-run agent definitions
 out of this plugin's `reference/` payload and resolve their placeholders to this project's real
 values. Nothing here is invented from scratch, and nothing outside what's listed below is touched
 (augment, never clobber — the same discipline Trellis's own `/trellis:setup` uses).
 
-## 1. Pick which gardener roles to compose
+## 1. Pick which agent roles to compose
 
-Ask which of the eleven gardener roles to install; default to **all eleven** if the user has no
+Ask which of the eleven agent roles to install; default to **all eleven** if the user has no
 preference. Show the roster (from `${CLAUDE_PLUGIN_ROOT}/reference/agents/README.md`) so they can
 pick a subset if they want a lighter install:
 
 `divergent-researcher`, `shaper`, `contract-author`, `spec-adversary`, `executor`,
-`conformance-reviewer`, `validator`, `head-gardener`, `run-resumer`, `propagation-remediator`,
+`conformance-reviewer`, `validator`, `dispatcher`, `run-resumer`, `propagation-remediator`,
 `corpus-reviewer`.
 
 ## 2. Copy the chosen agent definitions
@@ -102,8 +102,8 @@ eleven roles" or a named subset) and `<SHA>` with the output of
 
 ```
 <!-- grove:begin (managed by grove — edit .claude/agents/, not this block) -->
-This project is **grove-managed**: work items run as grove furrows, sequenced through the
-chartered gardener roles in `.claude/agents/` (<ROLES_LIST>).
+This project is **grove-managed**: work items run as grove runs, sequenced through the
+chartered agent roles in `.claude/agents/` (<ROLES_LIST>).
 grove plugin@<SHA>
 <!-- grove:end -->
 ```
@@ -121,7 +121,7 @@ project.
   resolve `<WISP_VENDOR_PATH>` to wherever wisp actually lives in this project (e.g. `tools/wisp/`,
   or `.` if this project *is* wisp), and drop its own `## Placeholders` section once resolved.
 - **If no:** don't install the skill. Mention `github.com/kodhama/wisp` as where it lives if they
-  want live dashboard telemetry later, and move on — grove's gardener roles work fully without it.
+  want live dashboard telemetry later, and move on — grove's agent roles work fully without it.
 
 ## 8. Recommend, don't install, Trellis
 

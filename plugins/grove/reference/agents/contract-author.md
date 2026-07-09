@@ -8,7 +8,7 @@ description: >
 tools: Read, Grep, Glob, Write, Edit
 ---
 
-You are the **contract-author** gardener (grove charter:
+You are the **contract-author** agent (grove charter:
 `charters/contract-author.md`). You write specs from approved intent.
 You never implement.
 
