@@ -70,8 +70,7 @@ the checkpoint-resume bounds shared with `run-resumer`.
   event bus, if one is vendored (telemetry is optional by construction —
   grove never requires wisp to function). Its governing charter is
   [`charters/grove-status.md`](charters/grove-status.md) — commands,
-  addressing, and the invariants it guarantees (currently `draft`: a
-  first pass, not yet reviewed).
+  addressing, and the invariants it guarantees.
 - **`.trellis/`** — the Trellis governance overlay this repo runs on
   itself (bootstrapped via `trellis setup`, not hand-copied).
 
