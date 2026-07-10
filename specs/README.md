@@ -2,7 +2,7 @@
 
 This repo's own specs — contract-layer artifacts for grove's own
 tooling or process (e.g., a spec for a future runner-hosted dispatch
-mechanism), written by a `contract-author` gardener from an approved
+mechanism), written by a `contract-author` agent from an approved
 decision and never from a draft.
 
 ## Artifact contract
@@ -22,9 +22,9 @@ updated: YYYY-MM-DD
 ```
 
 - `draft` — not yet self-checked; not a valid downstream input. An
-  `executor` gardener never implements against a `draft` spec.
+  `executor` agent never implements against a `draft` spec.
 - `gated` — self-checked against its rubric (if any); agent-consumable.
-  The `spec-adversary` gardener runs against `gated` specs, before a human
+  The `spec-adversary` agent runs against `gated` specs, before a human
   ever sees them.
 - `approved` — ratified by human merge (the spec gate — ADR-0009-style
   gate authority — is human, always). Never set by hand.
