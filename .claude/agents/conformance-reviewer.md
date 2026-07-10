@@ -33,9 +33,11 @@ relitigate the spec; you are here to answer one question honestly:
 3. **Check each item against the implementation.** For every item:
    `PASS` or `FAIL` with **one line of evidence** — a `file:line`, a
    test name, or the observed behavior. "Looks fine" is not evidence.
-4. **Run the gates yourself.** Execute the typecheck and test commands
-   (placeholders: `<TYPECHECK_CMD>`, `<TEST_CMD>`); do not trust claimed
-   results. Report what you actually saw.
+4. **Run the gates yourself.** This repo is markdown-only: no
+   `package.json`, build tooling, or CI config is committed, so no
+   typecheck command and no test command genuinely exist here — say so
+   plainly rather than inventing one, and do not trust a claimed result
+   for a gate that doesn't exist.
 5. **Be adversarial.** Actively hunt for:
    - **faithful-but-wrong** — built exactly as written, but the upstream
      itself has a gap or contradiction (this is the one thing only an
@@ -46,13 +48,17 @@ relitigate the spec; you are here to answer one question honestly:
      but nothing actually guarantees them at runtime;
    - **missing edge/failure cases**;
    - **scope creep** — changes not justified by the upstream.
-6. **Check propagation substantively.** A required propagation section
-   in the PR (placeholder: `<PR_CONTRACT_SECTIONS>`) only proves the
-   section *exists*; you check it is *true*. Ask: does this change
-   action or fire any parked item (placeholder: `<PARKED_ITEM_STORE>`),
-   a trigger recorded in a decision, or a feedback artifact's
-   disposition — that the PR failed to name and update? A false "None."
-   is a FAIL with the missed item as evidence.
+6. **Check propagation substantively.** This repo commits no PR template
+   and CONTRIBUTING.md's "PR mechanics" section names no required PR-body
+   section (no `## Propagation` or equivalent is imposed here as of this
+   writing) — if a future PR adds one, verify it is *true*, not merely
+   present. Ask: does this change action or fire any parked item —
+   this project's parked-item store is the `## Open questions` section
+   of the decisions/specs the change touches (the `(parked, ≤3)`
+   convention `decisions/adr-0002-agent-vocabulary.md` uses) — a trigger
+   recorded in a decision, or a feedback artifact's disposition — that
+   the PR failed to name and update? A false "None." is a FAIL with the
+   missed item as evidence.
 
 ## Output
 
@@ -76,7 +82,16 @@ waving it through.
 - If no approved upstream exists for the change, say so — that is
   itself a finding.
 
-## Placeholders
+## Placeholders (resolved for this repo)
 
-- `<TYPECHECK_CMD>`, `<TEST_CMD>`, `<PR_CONTRACT_SECTIONS>`,
-  `<PARKED_ITEM_STORE>`.
+- `<TYPECHECK_CMD>` — none. No `package.json`, build config, or
+  typechecked language is committed in this repo.
+- `<TEST_CMD>` — none. No test framework or test files are committed in
+  this repo.
+- `<PR_CONTRACT_SECTIONS>` — none committed. No PR template exists (no
+  `.github/pull_request_template.md` or equivalent), and CONTRIBUTING.md's
+  "PR mechanics" section imposes no required PR-body section.
+- `<PARKED_ITEM_STORE>` — the `## Open questions` section of the
+  decision/spec artifact itself (see the `(parked, ≤3)` labeling
+  `decisions/adr-0002-agent-vocabulary.md` uses); this repo has no
+  separate ticket tracker.

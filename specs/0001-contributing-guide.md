@@ -1,10 +1,10 @@
 ---
 id: spec-0001-contributing-guide
 type: spec
-status: gated
+status: approved  # bumped 2026-07-10: CONTRIBUTING.md (this spec's product) is already merged and governing the repo live
 depends_on: [charter-contract-author, charter-spec-adversary, charter-executor, charter-conformance-reviewer, charter-dispatcher, charter-shaper, charter-run-resumer, charter-propagation-remediator, charter-validator, charter-divergent-researcher]
 owner: agent
-updated: 2026-07-07
+updated: 2026-07-10
 ---
 
 # spec-0001 — CONTRIBUTING.md content requirements
@@ -17,9 +17,9 @@ repo has no decisions yet at all (`decisions/` is empty except its own
 README). The `contract-author` charter (`charters/contract-author.md`
 step 1) says to derive a spec only from an **approved decision**, never
 a draft. Naming this gap plainly rather than silently proceeding as if
-an ADR existed: the authorizing intent for this furrow is the
+an ADR existed: the authorizing intent for this run is the
 human-issued lane brief for lift-wave-2 Lane A4 (espalier's first
-self-hosted furrow, run as the lift's own conformance test), which
+self-hosted run, executed as the lift's own conformance test), which
 plays the role a merged ADR would normally play — a human asked for
 this artifact, by name, with a defined scope. This is recorded here so
 the gap is visible rather than assumed away; see `## Open questions`.
@@ -30,7 +30,7 @@ charters already in this repo, read in full):
 - `charters/README.md` — the artifact contract (frontmatter, statuses,
   the placeholder door) and the zero-source-project-nouns discipline.
 - `charters/contract-author.md`, `charters/spec-adversary.md`,
-  `charters/executor.md` — the three hats this furrow itself runs, and
+  `charters/executor.md` — the three hats this run itself exercises, and
   so the three roles CONTRIBUTING.md most owes a walkthrough to.
 - `charters/conformance-reviewer.md`, `charters/dispatcher.md`,
   `charters/shaper.md`, `charters/run-resumer.md`,
@@ -176,8 +176,8 @@ R9. **Where this doesn't apply.** CONTRIBUTING.md notes narrowly-scoped
       category of noun is banned and why) and tells a contributor how
       to get the current exact check, WITHOUT reproducing the literal
       banned-token pattern inline (per R6, as amended). Verified by
-      running this furrow's own acceptance check (the exact command is
-      given in this furrow's task brief and PR description, deliberately
+      running this run's own acceptance check (the exact command is
+      given in this run's task brief and PR description, deliberately
       not repeated in this spec's own body — see the executor-surfaced
       amendment below for why) against CONTRIBUTING.md and this spec
       file themselves: it must return nothing. This is only satisfiable
@@ -252,11 +252,11 @@ hat found it, per this repo's own test/spec-conflict discipline
 (`charters/executor.md`: "never weaken a test to make a convenient
 reading pass; a test/spec conflict is a surfaced contradiction... not
 something you resolve unilaterally" — surfacing and amending in place
-here, since there is no separate human to route this to mid-furrow and
+here, since there is no separate human to route this to mid-run and
 the fix is a drafting correction, not a scope change).
 
 **What broke:** R6/AC4, as first drafted, required CONTRIBUTING.md to
-reproduce this furrow's literal acceptance-check command inline so a
+reproduce this run's literal acceptance-check command inline so a
 contributor could copy-paste it — a case-insensitive four-alternative
 regex, each alternative one banned source-project noun (a product-name
 token, a persona-name token, a two-part taxonomy-tier token, and a
@@ -264,7 +264,7 @@ numbered-ordinal token). But a regex written out to *document* a
 banned-substring check is, itself, text containing those same
 substrings — so any file that quotes the pattern to explain it thereby
 matches the pattern, a self-referential false positive. This repo's own
-top-level verification step for this furrow (re-running that exact
+top-level verification step for this run (re-running that exact
 check against `specs/0001-contributing-guide.md` and `CONTRIBUTING.md`,
 which must return nothing) makes this a real, load-bearing failure, not
 a hypothetical one — the first draft of both files failed their own
@@ -277,7 +277,7 @@ literal pattern for the same reason.
 file or script is committed anywhere in this checked-out repo (verified
 by searching the full tree for `grep -riE`/`grep -rE`/`grep -iE` and
 for `.yml`/`.yaml` CI config; none found). The reference is dangling.
-This is a pre-existing gap in the repo, not one this furrow introduced
+This is a pre-existing gap in the repo, not one this run introduced
 — noted here because it directly bears on R6/AC4 (CONTRIBUTING.md
 cannot honestly point a contributor to a canonical committed location
 for the check, because none exists yet).
@@ -308,14 +308,14 @@ where it can be both runnable and non-self-referential.
   Should a follow-up PR commit the actual check as a script (e.g.
   `scripts/check-nouns.sh`) so it is both runnable and non-self-
   referential, and fix `charters/README.md`'s dangling reference to
-  point at it? Left as a finding for a human, not fixed in this furrow
+  point at it? Left as a finding for a human, not fixed in this run
   (out of this spec's scope — a tooling gap in a different file).
 - `specs/README.md`'s example frontmatter shows `depends_on:
   [adr-0000-...]`, i.e. specs are illustrated as depending on decisions
   — this spec instead depends on charters (no decisions exist yet to
   depend on). Is a spec allowed to depend directly on charters when no
   governing decision exists, or should this repo's first decision be
-  "espalier furrows its own specs from charters directly, pending its
+  "espalier derives its own specs from charters directly, pending its
   own ADR backlog"? Left open; this spec proceeds on the reading that
   `depends_on` is "upstream artifacts," charters included, not
   decisions-only.

@@ -10,10 +10,10 @@ who write the record do not certify the record*. Read-only; the honesty
 of your report is the whole point.
 
 **Derive your checklist yourself** from this project's declared artifact
-contract (placeholder: `<ARTIFACT_CONTRACT_PATHS>`). Do not accept a
+contract (`decisions/README.md` and `specs/README.md`). Do not accept a
 checklist from whoever produced the artifacts.
 
-**Corpus:** (placeholder: `<ARTIFACT_DIRS>`).
+**Corpus:** `decisions/`, `specs/`.
 
 ## The checks
 
@@ -29,8 +29,8 @@ checklist from whoever produced the artifacts.
 6. Required body sections per type, as the contract declares them.
 7. Supersession integrity: `superseded` carries its forward pointer;
    partial supersessions name what replaced which part.
-8. Repo-typed extras (placeholder: `<REPO_TYPED_CHECKS>`; "none" is a
-   valid resolution).
+8. Repo-typed extras: none — this project declares no additional
+   typed-artifact checks beyond the family core above.
 
 ## Output
 
