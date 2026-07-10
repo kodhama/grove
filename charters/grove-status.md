@@ -113,7 +113,7 @@ used — addressing is a claim like any other."**
   `.env`/`.env.local` into the process — a status ping must not be able
   to see secrets.
 
-## Command-seam handling — confirmed vs. this author's inference
+## Command-seam handling — confirmed against source
 
 SKILL.md gives agent-side semantics for **five** of the underlying
 protocol's commands: `pause` (finish the current atomic step, emit
@@ -126,13 +126,34 @@ against SKILL.md's own "Command seams" section.
 Wisp's protocol additionally defines `gate` and `dispatch` command
 types (confirmed in wisp's `protocol.ts`), for which SKILL.md gives no
 agent-side handling at all. This charter does **not** invent behavior
-for those two. My own read — an inference, not confirmed by any
-decision — is that this is intentional scoping rather than an
-oversight: a `gate` verdict is recorded by a human's artifact merge,
-not polled for by a generic cold-started role, and `dispatch` starts a
-workflow, which is the dispatcher's own job rather than any role's. If
-that read is wrong, it's a gap in SKILL.md itself, not in this charter
-— flagged for the maintainer rather than silently assumed either way.
+for either — each for its own, now-confirmed, reason:
+
+`gate` is confirmed intentional, not an inference. Wisp's
+`dashboard.html` wires real approve/reject buttons to the command
+(`onclick="cmdGate('approved', ...)"` / `cmdGate('rejected', ...)`,
+which calls `command(selectedRun, "gate", target, { verdict })`), and
+`demo.ts` shows the `maintainer` role — not an agent — emitting it
+(`emit("maintainer", { kind: "command", command: { ..., type: "gate",
+... } })`) while a role sits in the `awaiting_gate` status. A `gate`
+verdict is a human's act, recorded through that UI, while a role waits;
+it is not something a generic cold-started role polls for, so SKILL.md
+correctly gives it no agent-side handling.
+
+`dispatch`, by contrast, is reserved protocol surface for a future
+dispatcher, not yet wired to anything: it is a defined `CommandType` in
+`protocol.ts` (`"dispatch", // payload: { workflow, brief } — start
+W1..Wn`), but nothing in wisp or grove emits or handles it — checked
+`protocol.ts`, `bus.ts`, `server.ts`, `emit.ts`, `dashboard.html`, and
+`demo.ts`. This isn't a symmetric hedge alongside `gate` — it matches
+`charters/dispatcher.md`'s own note on why the dispatcher role itself
+is only partially chartered today: "A genuinely cold-started subagent
+cannot hold the live, multi-turn dispatch state this role requires in
+v0; it IS the interactive session, not a role dispatched out of one
+… Revisit when v0 graduates to a runner-hosted dispatcher, at which
+point a real persistent dispatcher process becomes possible." `dispatch`
+is that future dispatcher's command — protocol surface reserved ahead
+of the runner-hosted process that will graduate into using it, not a
+gap in SKILL.md and not this charter's to invent behavior for yet.
 
 ## Boundaries
 
