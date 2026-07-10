@@ -111,6 +111,8 @@ This repo was lifted out of its source project per ADR-0030 §Lift path
 ("Espalier graduates to its own repo as trellis's reference swarm
 implementation after ≥2 surviving furrows"). Wave 1 bootstrap covers the
 skeleton and the generalized charters/agents/skill (steps A1–A2 of
-`plan-suite-lift.md` Lane A); the generated landing page (A3) and this
-repo's first self-hosted run (A4, the lift's own conformance test) are
-wave 2.
+`plan-suite-lift.md` Lane A); this repo's first self-hosted run (A4, the
+lift's own conformance test) is wave 2. A3 (a per-repo generated landing
+page) is retired as a grove work item — `kodhama-0006` makes LP
+generation a design-system feature, triggered externally, never a
+product repo's own task.
