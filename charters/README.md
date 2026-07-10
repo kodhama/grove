@@ -8,6 +8,12 @@ executable counterparts — ready-to-drop-in Claude Code subagent
 definitions generated from the same charters — live in
 [`.claude/agents/`](../.claude/agents/).
 
+One file, [`grove-status.md`](grove-status.md), charters a skill rather
+than an agent role — the shared runtime-telemetry contract every role
+composes into its own work. It has no `.claude/agents/` counterpart and
+no pipeline stage; its own charter says so explicitly rather than
+forcing the "one file, one agent" shape above onto it.
+
 ## Artifact contract
 
 Every artifact in this repo (here, `decisions/`, and `specs/`) begins with

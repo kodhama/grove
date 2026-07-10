@@ -68,7 +68,10 @@ the checkpoint-resume bounds shared with `run-resumer`.
 - **`.claude/skills/grove-status/`** — the runtime-status skill an
   agent uses to report itself onto a [wisp](https://github.com/kodhama/wisp)
   event bus, if one is vendored (telemetry is optional by construction —
-  grove never requires wisp to function).
+  grove never requires wisp to function). Its governing charter is
+  [`charters/grove-status.md`](charters/grove-status.md) — commands,
+  addressing, and the invariants it guarantees (currently `draft`: a
+  first pass, not yet reviewed).
 - **`.trellis/`** — the Trellis governance overlay this repo runs on
   itself (bootstrapped via `trellis setup`, not hand-copied).
 
@@ -104,7 +107,8 @@ instead:
    tracker conventions).
 3. If you want live telemetry, vendor [wisp](https://github.com/kodhama/wisp)
    and set the vendor path the `grove-status` skill expects
-   (`<WISP_VENDOR_PATH>` — see the skill's own doc).
+   (`<WISP_VENDOR_PATH>` — see the skill's own doc and
+   [`charters/grove-status.md`](charters/grove-status.md)).
 4. Run `trellis setup` in your project if you also want the governance
    overlay grove itself runs on (recommended, not required).
 

@@ -32,7 +32,9 @@ throughout, and idempotent on re-run.
 - **`reference/agents/`** — the eleven agent definitions plus their `README.md`, vendored from this
   repo's own `.claude/agents/` — the payload `/grove:setup` copies from and resolves.
 - **`reference/skills/grove-status/`** — the runtime-telemetry skill, vendored from this repo's own
-  `.claude/skills/grove-status/`.
+  `.claude/skills/grove-status/`. Its governing charter (commands, addressing, invariants) is
+  [`../../charters/grove-status.md`](../../charters/grove-status.md) in the source repo — not
+  itself vendored into the plugin payload, same as every other charter.
 
 ## Sync note
 
