@@ -1,10 +1,10 @@
 ---
 id: spec-0001-contributing-guide
 type: spec
-status: gated
+status: approved  # bumped 2026-07-10: CONTRIBUTING.md (this spec's product) is already merged and governing the repo live
 depends_on: [charter-contract-author, charter-spec-adversary, charter-executor, charter-conformance-reviewer, charter-dispatcher, charter-shaper, charter-run-resumer, charter-propagation-remediator, charter-validator, charter-divergent-researcher]
 owner: agent
-updated: 2026-07-07
+updated: 2026-07-10
 ---
 
 # spec-0001 — CONTRIBUTING.md content requirements
