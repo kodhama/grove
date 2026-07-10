@@ -19,9 +19,12 @@ the same door pattern Trellis uses for its own overlay.
 
 ## The team
 
-Grove charters eight agent roles, one per stage of the pipeline, plus
-two remediation roles that keep runs from silently dying, plus one
-standing audit role over the artifact record itself. Every role is a
+Grove charters seven agent roles, one per stage of the pipeline, plus
+the dispatcher that sequences them (it holds live run state across
+every stage rather than occupying one, so it carries no stage number of
+its own), plus two remediation roles that keep runs from silently
+dying, plus one standing audit role over the artifact record itself —
+eleven roles in all. Every role is a
 **stateless cold start**: all context travels through artifacts and their
 `depends_on` graph, never through conversation history. A floundering cold
 role is evidence about the artifacts it was given, not just the agent.
