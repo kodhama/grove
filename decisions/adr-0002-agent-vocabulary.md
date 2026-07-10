@@ -4,7 +4,7 @@ type: adr
 status: approved  # ratified by PR #10 merge (2026-07-09)
 depends_on: [kodhama-0003-family-naming]
 owner: agent
-updated: 2026-07-09
+updated: 2026-07-10  # Open Questions: self-furrow question resolved (append-only note, Context/Decision/Consequences untouched)
 ---
 
 # ADR-0002: agent, dispatcher, run — official vocabulary; druid/archdruid as sanctioned register, never defining
@@ -160,6 +160,22 @@ pulling them apart shaped the decision:
   that already-landed historical PR/artifact get touched? Leaning:
   historical stays per append-only, forward mentions use "self-run" —
   not yet confirmed explicitly, flagged rather than assumed.
+- **[Resolved 2026-07-10]** The question directly above: confirmed as
+  leaned, maintainer-directed. `specs/0001-contributing-guide.md` has
+  been swept to current vocabulary (its 11 live "furrow" mentions —
+  none of them quotes of ratified text, all its own forward-facing
+  narrative — now read "run", one verb usage reads "derives"); it is a
+  forward-facing artifact, not the historical record, so it should not
+  have carried the retired term going forward. Historical use of
+  "furrow" is retained only in ratified ADRs describing history: this
+  ADR's own Decision §3 (the retirement clause itself necessarily names
+  the term it retires) and ADR-0030's historical sections (§Dispatch,
+  §v0 configuration, §Lift path — already quoted verbatim with
+  attribution in this repo's `README.md` Status section). The
+  already-landed historical PR/artifact the question above asks about is
+  left untouched, per append-only. Recorded here so this question closes
+  on an explicit resolution, not by silent omission at spec-0001's
+  `approved` bump.
 
 ## Self-check (gate)
 
