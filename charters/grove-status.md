@@ -1,7 +1,7 @@
 ---
 id: charter-grove-status
 type: charter
-status: draft
+status: gated
 depends_on: []
 owner: agent
 updated: 2026-07-10
