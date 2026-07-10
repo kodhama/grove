@@ -1,7 +1,7 @@
 ---
 id: adr-0003-managed-block-routing-rule
 type: adr
-status: gated
+status: approved  # ratified by PR #17 merge (2026-07-09)
 depends_on: [kodhama-0007-one-render-many-copiers]
 owner: agent
 updated: 2026-07-10
