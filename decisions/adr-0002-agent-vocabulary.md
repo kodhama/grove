@@ -2,7 +2,7 @@
 id: adr-0002-agent-vocabulary
 type: adr
 status: approved  # ratified by PR #10 merge (2026-07-09)
-depends_on: [kodhama-0003-family-naming]
+depends_on: [kodhama/kodhama-0003-family-naming]
 owner: agent
 updated: 2026-07-10  # Open Questions: self-furrow question resolved (append-only note, Context/Decision/Consequences untouched)
 ---
