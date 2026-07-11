@@ -41,10 +41,38 @@ updated: 2026-07-11
 
 **Open** (live questions — this draft moves items here to Decided as they
 resolve):
-1. Given model 4, what the required shape of an in-place amendment/delta
-   note should be — a candidate already exists in this family's own
-   organic practice (see Context: the five-field template), not yet
-   formalized as a rule anywhere.
+1. **(Expanded scope, maintainer-directed, 2026-07-11 — noted explicitly
+   per this repo's scope-guard convention, not silently folded in.)**
+   Given model 4, what the required shape of an in-place amendment/delta
+   note should be. The maintainer confirmed the five-field template as a
+   base but added two requirements: (a) acceptance criteria should be
+   Gherkin-shaped (Given/When/Then) to drive tests — this is grove#21's
+   own ask, adopted here as a prerequisite for the delta mechanism to
+   work well, not duplicated as a separate requirement; (b) asked for a
+   PO-with-AI lens on what fields are actually valuable, beyond engineering
+   trigger/scope. Proposed synthesis below — not yet confirmed by the
+   maintainer, still open:
+
+   **Two altitudes, not one uniform note:**
+   - **Scenario-level** (routine — a single Given/When/Then changes):
+     tag the scenario's own id inline, matching math-quest's *already-
+     working* practice exactly — `S8 (amended <date>, <trigger-ref>; was:
+     <one-line prior Then-clause>)`. No separate blockquote needed; the
+     id + tag *is* the delta note.
+   - **Section/spec-level** (broader — more than one scenario, or the
+     spec's own scope/purpose changes): the five-field blockquote,
+     **plus two new fields**:
+     - **VALUE** — one sentence, in user/persona terms, of what changes
+       for whom (not "the mechanism changed" but "as a `<persona>`, X
+       now happens instead of Y"). This is the field a PO reads first,
+       and it's the same language a story-map/user-activity view would
+       use — deliberately connecting this item to Open item 2, not
+       treating them as unrelated.
+     - **CONFIDENCE** — `verified` | `inferred`, the exact tagging
+       convention this family's own research/shaping practice already
+       uses successfully (see this ADR's own Context section) — states
+       plainly whether the delta reflects a confirmed fact or a judgment
+       call, so a PO deciding whether to act on it knows which.
 2. Whether — and how — to formalize story-map (user-activity) organization
    for specs, given math-quest already has a working, unprompted example
    of this (see below) that predates this issue.
