@@ -60,8 +60,14 @@ updated: 2026-07-11
     tests under strict TDD (`adr-0005`), so it also declares and maintains
     the ledger. (Derive-skeletons-from-GWT/EARS, grove#21's parked idea,
     stays parked — a possible later refinement, not now.)
-  - a **reviewer sweep** — notices a stale pin (pin < current) and fires
-    the real conformance check. Also a charter duty, not a declared schema.
+  - the **staleness sweep + re-check, split across existing reviewers**
+    (decided 2026-07-11): `corpus-reviewer` runs the **standing** sweep —
+    it already owns the version audit (`decision-0045`) and resolves the
+    `depends_on` graph, so it flags a stale pin (consumer's pin < upstream
+    current); `conformance-reviewer`, invoked on the flagged consumer,
+    **re-derives against the current upstream and verdicts**. No new role,
+    no event machinery. (Reactive/on-change flagging via a wisp event
+    stays a parked future refinement, not v0.)
 - **Guardrail (grove#22, carried):** absence of a spec/test is *never*
   evidence code is wrong or should be deleted; a coverage gap is a
   *visible governance gap* (needs a spec/test), not a delete trigger.
@@ -79,16 +85,12 @@ updated: 2026-07-11
   its verdict to the staleness signal, rather than building a new agent.
 
 **Open** (the forks to shape):
-1. **The staleness sweep** — which role runs pin-vs-current and fires the
-   conformance check (`conformance-reviewer` / `corpus-reviewer` / new)?
-   And *when* — on-change (an upstream bump flags stale downstream) vs.
-   standing/periodic?
+1. **The test deps ledger form** — where it lives (per-file frontmatter? a
+   per-package ledger file?) and its exact shape.
 2. **Emergence's forgotten-dependency soft spot** — is "surfaces as a
    coverage gap when the check runs" (+ role-conformance) enough, or does
    something enforce declaration more actively?
-3. **The test deps ledger form** — where it lives (per-file frontmatter? a
-   per-package ledger file?) and its exact shape.
-4. **The collapsed (charter) case detail** — how "charter conforms to its
+3. **The collapsed (charter) case detail** — how "charter conforms to its
    ADR" is checked concretely (a review verdict), and whether a charter,
    being *dual-consumed* (vendored byte-copy AND behavioral), needs both a
    byte-marker and a behavioral one (`decision-0045`'s dual-consumed open
