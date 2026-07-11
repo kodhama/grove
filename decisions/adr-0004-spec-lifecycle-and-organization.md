@@ -1,7 +1,7 @@
 ---
 id: adr-0004-spec-lifecycle-and-organization
 type: adr
-status: gated  # self-checked 2026-07-11, shaping converged — see Self-check section
+status: approved  # 2026-07-11, direct maintainer approval (intent act) — see Self-check
 depends_on: [trellis/decision-0014, trellis/spec-0001]
 owner: agent
 updated: 2026-07-11
@@ -215,13 +215,19 @@ flagged doesn't materialize.
 ## Consequences
 
 Implementation follows approval, not the reverse. The maintainer's
-approval of this decision was a **conversational intent act**
-(2026-07-11) — the intent gate opening — after which the **grove-side
-execution was folded into this same PR**; the record's `gated →
-approved` state flip is applied on merge, per this repo's current
-mechanic (`decision-0022`/`0042`). *(This exercised the current
-mechanic, not the intent-act-decouples-from-merge refinement that this
-decision's own parked note flags for a separate trellis decision.)*
+approval of this decision was a **direct intent act** (2026-07-11) — the
+intent gate opening, in the shaping conversation — after which the
+**grove-side execution was folded into this same PR**. The record's
+`status: approved` flip is applied **here, in the PR**, recording that
+intent act directly, rather than deferred to a post-merge bump. That is
+a deliberate, maintainer-authorized exercise of the
+intent-act-decouples-from-merge model **ahead of its own formal
+decision** (`trellis#142`) — flagged, not silent: it departs from the
+current mechanic (`decision-0022`/`0042`: merge = ratification, "never
+set `approved` by hand"), which this repo's own `decisions/README.md`
+still states. Until `trellis#142` lands and updates that mechanic, an
+audit may correctly note this as ahead of the written rule; it is
+recorded here as authorized, not drift.
 
 **Done in this PR (grove-side execution):**
 
@@ -300,9 +306,18 @@ decision's own parked note flags for a separate trellis decision.)*
   corpus — not `draft`. PASS. *(Caught and fixed during this self-check:
   the working draft initially cited these unqualified, which would have
   been a dangling reference under the now-approved contract.)*
-- **Directional flow**: this artifact is being promoted to `status:
-  gated`; both dependencies are ratified/approved, not draft — no
-  violation either at `draft` or `gated`. PASS.
+- **Directional flow**: this artifact is `status: approved`; both
+  dependencies (`trellis/decision-0014`, `trellis/spec-0001`) are
+  ratified/approved, not draft — no violation. PASS.
+- **Approval mechanic (flagged, not a silent pass)**: `approved` was set
+  in-PR by the maintainer's direct intent act, not by a post-merge bump.
+  This is ahead of the current written mechanic (`decision-0022`/`0042`,
+  and this repo's `decisions/README.md`), pending `trellis#142`. It is
+  **not** agent self-approval (`floor-intent-gate` holds — a human, the
+  maintainer, performed the act); it is the human-authorized case the
+  proxy rule "only merge approves" exists to permit but doesn't yet
+  express. Documented here and in Consequences so it reads as authorized,
+  not drift.
 - **Required body sections**: Decision, Context, Considered and
   rejected, Consequences, Acceptance criteria, Open questions,
   Self-check — present, matching sibling ADRs (`adr-0002`, `adr-0003`).
@@ -312,7 +327,9 @@ decision's own parked note flags for a separate trellis decision.)*
 - **Append-only discipline**: this is a new artifact, nothing edited in
   place. N/A, no violation possible.
 
-**Overall: ready to promote `draft` → `gated`.** The maintainer's own
-merge remains the `approved` act, per this repo's convention — this
-self-check only certifies the artifact is internally sound and
-consumable, not that it's ratified.
+**Overall: internally sound, consumable, and `approved`** by the
+maintainer's direct intent act (2026-07-11). The self-check certifies
+the artifact is well-formed and its dependencies resolve; the `approved`
+status records the maintainer's actual approval, made in the shaping
+conversation and folded into this PR with the execution — flagged above
+as ahead of the current written approval mechanic (`trellis#142`).
