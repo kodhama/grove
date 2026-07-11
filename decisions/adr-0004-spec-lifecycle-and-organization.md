@@ -38,17 +38,24 @@ updated: 2026-07-11
   model-4 rule, as part of this same change — landing the decision and
   the docs that describe it together, not as separate follow-up. See
   Consequences for the concrete file list.
-- **Delta-note format, confirmed 2026-07-11** (scope expanded by the
-  maintainer beyond the original five-field-template question — noted
-  per this repo's scope-guard convention, not silently folded in — to
-  also require Gherkin-shaped acceptance criteria, per grove#21, and a
-  PO-with-AI lens on which fields actually matter): **two altitudes, not
-  one uniform note.**
-  - **Scenario-level** (routine — a single Given/When/Then changes): tag
-    the scenario's own id inline, matching math-quest's *already-working*
-    practice exactly — `S8 (amended <date>, <trigger-ref>; was: <one-line
-    prior Then-clause>)`. The id + tag *is* the delta note; no separate
-    blockquote.
+- **Spec acceptance-criteria format, confirmed 2026-07-11 — corrected
+  same turn.** Grove#21's full ask is adopted as-is for specs
+  themselves: acceptance criteria are written in **both** GWT
+  (Given/When/Then, for scenarios) **and** EARS (the "shall" forms, for
+  invariants/requirements), exactly matching math-quest's own existing
+  dual-format practice (S-prefixed scenarios in GWT; INV-prefixed
+  invariants in EARS) — not one grammar standing in for the other.
+- **Delta-note format, confirmed 2026-07-11, then corrected in the same
+  turn: the delta note itself is NOT required to be written in GWT/EARS
+  grammar.** It's a plain structured annotation *describing* a change to
+  a GWT/EARS-shaped spec, not itself a scenario. **Two altitudes, not one
+  uniform note:**
+  - **Scenario-level** (routine — a single Given/When/Then or EARS
+    statement changes): tag the scenario/invariant's own id inline,
+    matching math-quest's *already-working* practice exactly — `S8
+    (amended <date>, <trigger-ref>; was: <one-line prior Then-clause>)`.
+    The id + tag *is* the delta note; no separate blockquote, no Gherkin
+    sentence required for the tag itself.
   - **Section/spec-level** (broader — more than one scenario, or the
     spec's own scope/purpose changes): the five-field blockquote
     (dated marker / WHAT / WHY / SCOPE / POINTER, per Context), **plus two
@@ -58,20 +65,20 @@ updated: 2026-07-11
     story-map view uses) and **CONFIDENCE** (`verified` | `inferred`,
     this family's own existing research-tagging convention, states
     plainly whether the delta is confirmed fact or judgment call).
-  - This adopts grove#21's Gherkin/GWT requirement as a **prerequisite**
-    for the delta mechanism to work well (not a duplicated, separately-
-    tracked requirement) — acceptance criteria should already be
-    Given/When/Then-shaped for the scenario-level tag to be meaningful.
+- **Story-map organization, confirmed 2026-07-11: physical reorg, not an
+  index-over-reorg overlay** — a deliberate choice against this draft's
+  own research-based recommendation (see Context: index-over-reorg was
+  the mechanically cheaper option, costing no id/`depends_on` churn).
+  The maintainer chose structural reorganization anyway — specs are
+  physically grouped by user activity (directory/path, not a separate
+  index document). **Churn scope, also confirmed:** move files only,
+  keep existing ids stable (e.g. `specs/installing/0005-curl-install-
+  mechanical-vendoring.md`, same `id: spec-0005-...`) — `depends_on`
+  references are unaffected since ids don't change; only file-path
+  citations (if any exist in prose) need updating.
 
-**Open** (live questions — this draft moves items here to Decided as they
-resolve):
-1. Whether — and how — to formalize story-map (user-activity) organization
-   for specs, given math-quest already has a working, unprompted example
-   of this (see below) that predates this issue. The confirmed delta
-   format's **VALUE** field (above) already writes in persona/user-activity
-   terms, so this question is no longer fully independent of what's
-   already decided — whatever this settles should stay consistent with
-   that.
+**Open:** none — all four items converged. Ready for self-check against
+this repo's rubric before promoting past `draft`.
 
 **Parked** (explicitly deferred, not part of this decision):
 - The narrower "should executor's plan format be standardized" question
@@ -175,21 +182,39 @@ churn, no `depends_on` graph disruption — while a physical reorg
 either break existing ids or add redirection machinery for no clear
 discovery gain at trellis's current corpus size (5 specs).
 
-## Consequences (drafted, pending Open items above)
+## Consequences
 
-- **`specs/README.md` fixes, once this ADR is approved** (in scope, per
-  Decided above): `grove/specs/README.md`, `design-system/specs/README.md`,
-  `wisp/specs/README.md` — currently identical, word-for-word copies
-  stating specs inherit decisions' append-only discipline — corrected to
-  state the model-4 rule (revise-in-place; significant changes get a
-  decision citing this ADR; minor edits don't). Not executed by this ADR
-  itself (per this repo's own stage discipline: implementation follows
-  approval, doesn't precede it) — a follow-on pass across the three repos
-  once this merges.
+None of the following is executed by this ADR itself — per this repo's
+own stage discipline, implementation follows approval, it doesn't
+precede it. All four are follow-on work once this merges and is bumped
+to `approved`:
 
-*(remaining consequences left blank pending resolution of the other Open
-items — filled in as this draft converges, not asserted ahead of the
-maintainer's actual decision)*
+1. **`specs/README.md` fixes** — `grove/specs/README.md`,
+   `design-system/specs/README.md`, `wisp/specs/README.md` (currently
+   identical, word-for-word copies stating specs inherit decisions'
+   append-only discipline) corrected to state the model-4 rule
+   (revise-in-place; significant changes get a decision citing this ADR;
+   minor edits don't).
+2. **Spec acceptance-criteria format** — existing specs across the
+   family should move toward GWT (scenarios) + EARS (invariants/
+   requirements) acceptance criteria where they aren't already there;
+   this ADR doesn't mandate a retroactive rewrite of every existing spec
+   in one pass, but new specs and any spec undergoing a significant
+   revision should conform going forward.
+3. **Delta-note format adoption** — `contract-author`'s and `executor`'s
+   charters (wherever they describe how a spec gets amended) should
+   reference this ADR's two-altitude format, so the convention is
+   discoverable from the roles that actually write/consume it, not just
+   from this ADR.
+4. **Physical reorg by user activity** — each repo's own `specs/`
+   directory gets restructured into activity-grouped paths (ids stable,
+   only file location changes), following math-quest's own slice/
+   component precedent as the worked model. Trellis's 5 specs are the
+   smallest, cheapest test case (see Context's sketch: installing,
+   leaving cleanly, keeping the corpus honest, tuning strictness).
+   Math-quest's own corpus, which already has a partial, organic version
+   of this via slice specs, is the strongest existing precedent to
+   generalize from, not a green-field design.
 
 ## Rejected options
 
