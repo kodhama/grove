@@ -214,25 +214,38 @@ flagged doesn't materialize.
 
 ## Consequences
 
-None of the following is executed by this ADR itself — per this repo's
-own stage discipline, implementation follows approval, it doesn't
-precede it. All four are follow-on work once this merges and is bumped
-to `approved`:
+Implementation follows approval, not the reverse. The maintainer's
+approval of this decision was a **conversational intent act**
+(2026-07-11) — the intent gate opening — after which the **grove-side
+execution was folded into this same PR**; the record's `gated →
+approved` state flip is applied on merge, per this repo's current
+mechanic (`decision-0022`/`0042`). *(This exercised the current
+mechanic, not the intent-act-decouples-from-merge refinement that this
+decision's own parked note flags for a separate trellis decision.)*
 
-1. **`specs/README.md` fixes** — `grove/specs/README.md`,
-   `design-system/specs/README.md`, `wisp/specs/README.md` corrected to
-   state this ADR's rule (revise-in-place; significant changes get a
-   decision citing this ADR; minor edits don't).
+**Done in this PR (grove-side execution):**
+
+- `contract-author` / `executor` charter updates — the two-altitude
+  delta-note format, the GWT+EARS acceptance-criteria requirement, and
+  the revise-in-place model, discoverable from the roles that
+  write/consume specs.
+- grove's own `specs/README.md` corrected to state this ADR's rule.
+- a worked seven-field delta-note example in grove's `specs/README.md`
+  (satisfies Acceptance criterion 4 — proof the format is usable, not
+  just specified).
+
+**Genuine follow-on work, each in its own PR once this merges:**
+
+1. **Cross-repo `specs/README.md` fixes** — `design-system/specs/README.md`
+   and `wisp/specs/README.md` corrected to state this ADR's rule
+   (grove's own is done above). These are separate repos, so they cannot
+   ride this grove PR.
 2. **Spec acceptance-criteria format** — existing specs across the
    family move toward GWT (scenarios) + EARS (invariants/requirements)
    where they aren't already there; not a mandated retroactive rewrite
    in one pass, but new specs and any spec undergoing a significant
    revision should conform going forward.
-3. **Delta-note format adoption** — `contract-author`'s and
-   `executor`'s charters (wherever they describe how a spec gets
-   amended) reference this ADR's two-altitude format, so the convention
-   is discoverable from the roles that actually write/consume it.
-4. **Physical reorg by user activity** — each repo's `specs/` directory
+3. **Physical reorg by user activity** — each repo's `specs/` directory
    restructured into activity-grouped paths (ids stable, only file
    location changes), following math-quest's own slice/component
    precedent as the worked model. Trellis's 5 specs are the smallest,
@@ -251,12 +264,15 @@ to `approved`:
       into activity-grouped paths, with every existing spec `id:` value
       unchanged (verifiable: a `depends_on` resolution check before and
       after the reorg returns identical results).
-- [ ] `contract-author`'s and `executor`'s charters (in whichever
+- [x] `contract-author`'s and `executor`'s charters (in whichever
       repo(s) define them) reference this ADR's two-altitude delta-note
-      format.
-- [ ] A worked example exists of a section/spec-level delta note using
+      format. *(Done in this PR — grove's `charters/contract-author.md`
+      and `charters/executor.md`.)*
+- [x] A worked example exists of a section/spec-level delta note using
       all seven fields (dated marker, WHAT, WHY, SCOPE, POINTER, VALUE,
       CONFIDENCE) — proof the format is usable, not just specified.
+      *(Done in this PR — grove's `specs/README.md`, "Worked example"
+      subsection.)*
 
 ## Open questions (parked, ≤3)
 
@@ -291,7 +307,7 @@ to `approved`:
   rejected, Consequences, Acceptance criteria, Open questions,
   Self-check — present, matching sibling ADRs (`adr-0002`, `adr-0003`).
   PASS.
-- **Open questions count**: 1, within this repo's own ≤3 convention.
+- **Open questions count**: 2, within this repo's own ≤3 convention.
   PASS.
 - **Append-only discipline**: this is a new artifact, nothing edited in
   place. N/A, no violation possible.

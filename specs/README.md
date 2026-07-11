@@ -48,3 +48,25 @@ carries `adr-0004`'s two-altitude delta note at the point of change (a
 scenario-level inline id-tag, or a section-level five-field blockquote
 plus VALUE + CONFIDENCE); the note is provenance, not retained as its own
 artifact.
+
+### Worked example — a section-level delta note
+
+Illustrative (a hypothetical spec change), showing all seven fields:
+
+> **Amendment (2026-07-11, grove#42 — post-incident review).**
+> **WHAT:** §4 "Workflow classification" — scenario `S7` previously routed
+> a bare bug report to W2 (shaping); it now routes to W4 (execution).
+> **WHY:** three plain bug reports in a row stalled in shaping when they
+> needed a direct fix (grove#42).
+> **SCOPE:** `S7` amended; `S1`–`S6` and every EARS invariant in §4 stand
+> unchanged.
+> **POINTER:** the current Given/When/Then for `S7` is in §4 below — this
+> note is provenance only, not itself an acceptance criterion.
+> **VALUE:** as a maintainer filing a plain bug, my report now reaches an
+> executor directly instead of sitting in a shaping queue.
+> **CONFIDENCE:** `verified` — the three stalled reports are linked in
+> grove#42.
+
+The routine, scenario-level form is lighter — just tag the scenario id in
+place, no blockquote: `S7 (amended 2026-07-11, grove#42; was: routed bare
+bug reports to W2/shaping)`.
