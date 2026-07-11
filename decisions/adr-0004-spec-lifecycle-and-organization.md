@@ -21,13 +21,31 @@ updated: 2026-07-11
 - Specs represent **current behavior**, not a delta on top of some other
   document — settled in grove#22 itself, prior to this shaping pass, not
   reopened here.
+- **Model 4 (formalized-but-transient) is the family rule for ALL specs**
+  (2026-07-11, maintainer): revise-in-place current-truth; a change gets a
+  structured delta note at the point of edit but that note isn't retained
+  as its own artifact; significant changes additionally get a durable
+  decision, minor/editorial edits don't. This **generalizes**
+  `decision-0014`'s already-ratified shape (previously scoped to the
+  invariant set specifically) to specs generally, rather than writing the
+  rule fresh — `decision-0014` itself is not edited (it already works fine
+  scoped to invariants); this ADR states the same shape as the general
+  case and cites 0014 as precedent/proof-of-practice.
 
 **Open** (live questions — this draft moves items here to Decided as they
 resolve):
-1. Which of the four candidate lifecycle models (below) to formalize as
-   the rule for how a change gets *into* a current-behavior spec.
-2. Given whichever model wins, what the required shape of an in-place
-   amendment/delta note should be.
+1. **(New, surfaced by the model-4 decision above.)** grove's, design-
+   system's, and wisp's own `specs/README.md` files currently state the
+   *opposite* rule (specs inherit decisions' append-only discipline) —
+   now directly contradicting the family rule just decided. Should
+   fixing these three files be **in scope for this same ADR** (so the
+   decision and the docs that describe it land together, consistent),
+   or **separate follow-up work** (kept parked, tracked as issues,
+   landed in each repo's own PR after this ADR merges)?
+2. Given model 4, what the required shape of an in-place amendment/delta
+   note should be — a candidate already exists in this family's own
+   organic practice (see Context: the five-field template), not yet
+   formalized as a rule anywhere.
 3. Whether — and how — to formalize story-map (user-activity) organization
    for specs, given math-quest already has a working, unprompted example
    of this (see below) that predates this issue.
@@ -37,15 +55,6 @@ resolve):
   from grove#22's tail — the maintainer flagged this as its own,
   more speculative question; it doesn't gate the lifecycle/organization
   decision here.
-- A live, three-repo-repeated inconsistency this research surfaced as a
-  side effect (not itself the subject of #22): `grove`/`design-system`/
-  `wisp`'s `specs/README.md` all state specs inherit decisions' append-only
-  discipline, directly contradicting trellis's ratified `spec-0001` §3.7
-  and `decision-0014` (both say revise-in-place) and math-quest's actual
-  practice. No repo has ever set `status: superseded` on a spec, so this
-  hasn't caused an incident — but it's live and unresolved. Parked here
-  because fixing it should follow whatever this decision settles, not
-  precede it — flagged so it isn't lost once this ADR merges.
 
 ## Context
 
