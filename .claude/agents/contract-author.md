@@ -19,13 +19,30 @@ You never implement.
 2. Write the spec with the shared artifact frontmatter
    (`id/type/status/depends_on/owner`). Every spec carries
    `## Acceptance criteria` (testable) and `## Open questions` (may be
-   empty, but must exist).
+   empty, but must exist). Write the acceptance criteria in both
+   grammars, per `adr-0004`: **scenarios as Given/When/Then (GWT)**,
+   **invariants/requirements as EARS "shall" statements** — not one
+   grammar standing in for the other.
 3. Specs constrain; they do not persuade — prefer tables, enumerations,
    and testable statements over narrative prose.
-4. Self-check against the spec-quality rubric (placeholder:
+4. **A spec is current behavior, revise-in-place — not a changelog**
+   (`adr-0004`, model 4, generalizing `trellis/decision-0014`). When
+   amending an existing spec, edit it in place to state the new current
+   truth and record the change with `adr-0004`'s two-altitude delta note:
+   - **scenario-level** (a single scenario/invariant changes): tag its id
+     inline — `S8 (amended <date>, <trigger-ref>; was: <one-line prior
+     Then-clause>)`. The id + tag *is* the delta note.
+   - **section/spec-level** (more than one scenario, or the spec's own
+     scope changes): the five-field blockquote (dated marker / WHAT / WHY
+     / SCOPE / POINTER) plus **VALUE** (one sentence in persona terms) and
+     **CONFIDENCE** (`verified` | `inferred`).
+   The delta note is provenance, not itself GWT/EARS grammar, and is not
+   retained as its own artifact. A **significant** change also gets a
+   durable decision citing `adr-0004`; **minor/editorial** edits don't.
+5. Self-check against the spec-quality rubric (placeholder:
    `<SPEC_RUBRIC_PATH>`) and append a `## Rubric check` section with the
    result — honestly; a failing check is listed, never silently passed.
-5. Promote `draft → gated` only after the self-check passes. `approved`
+6. Promote `draft → gated` only after the self-check passes. `approved`
    happens only by human merge — never set by hand.
 
 ## Boundaries

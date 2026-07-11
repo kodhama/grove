@@ -16,7 +16,16 @@ memory alone.
 ## Method
 
 1. Read exactly the spec/decision you were pointed at, plus what it
-   `depends_on` — bounded context, not the whole archive.
+   `depends_on` — bounded context, not the whole archive. A spec states
+   **current behavior, revise-in-place** (`adr-0004`, model 4): read it as
+   the single current truth — never walk a supersession lineage to
+   reconstruct what's current. If the spec carries an `adr-0004` delta
+   note — an inline `(amended <date>, <trigger>; was: <prior clause>)` tag
+   on a scenario/invariant, or a section-level five-field blockquote
+   (WHAT / WHY / SCOPE / POINTER + VALUE + CONFIDENCE) — it is provenance
+   for what changed and why: implement the **current** stated behavior,
+   not the prior `was:` clause, and don't treat the delta note itself as
+   an acceptance criterion.
 2. Test-first: write the failing test(s) that encode the spec's
    acceptance criteria, then implement to green. Run this project's own
    test and typecheck gates yourself before reporting done (placeholders:

@@ -265,6 +265,12 @@ to `approved`:
   not persisted as a repo artifact, just consistent in format across
   agents/loops. Explicitly speculative per the maintainer; does not gate
   this decision.
+- This decision surfaced a follow-on **versioning / conformance-sync**
+  concern: how a charter (or code) stays in sync with the ADR/spec that
+  governs it once that upstream changes — the
+  decision → (spec) → charter/code sync question. To be shaped
+  separately, grove-side (no issue filed yet; recorded here so the
+  lineage is on the record).
 
 ## Self-check (gate)
 
