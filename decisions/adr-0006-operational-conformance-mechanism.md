@@ -13,20 +13,25 @@ updated: 2026-07-11
 > *primitive* as running machinery. Heavily front-loaded in the kodhama#31
 > conversation; see grove#34's comment thread for the full derivation.
 >
-> An independent `spec-adversary` pass (2026-07-11) returned
-> NEEDS-REVISION with two load-bearing findings — both confirmed against
-> source and fixed in this revision: **(1)** the "standing sweep" had no
-> firing mechanism and contradicted grove's own "never calendar sweeps"
-> doctrine → re-cast as a **triggered** check on `validator`'s existing
-> model + an ad-hoc corpus audit, with the v0 latency floor named;
-> **(2)** a whole-file content-hash false-positives on the *transformed*
-> (not byte-copied) charter copies → re-cast as a **generation stamp**
-> (regeneration-lag), explicitly *not* the byte-identity "can't-lie"
-> property. Two secondary findings (cross-repo v0 fetch limit; per-change
-> gate vs. pin-check) folded in as honest scope limits. The adversary's
-> four clean passes (no grove#20/#21 circularity; spec-0001 dependency
-> honestly gated; trellis#25 scope; no `changes:`/`depends_on` cycle)
-> stood.
+> Two independent `spec-adversary` rounds (2026-07-11), each verified
+> against source before acting:
+> - **Round 1** → NEEDS-REVISION, two load-bearing findings: **(F1)** the
+>   "standing sweep" had no firing mechanism and contradicted grove's own
+>   "never calendar sweeps" doctrine → re-cast as a **triggered** check
+>   (an upstream version bump joins `validator`'s trigger set) + an ad-hoc
+>   corpus audit, v0 latency floor named; **(F2)** a whole-file content-
+>   hash false-positives on the *transformed* (not byte-copied) charter
+>   copies → re-cast as a **generation stamp**. Plus two secondary scope
+>   limits (cross-repo v0 no-fetch; per-change gate vs. pin-check).
+> - **Round 2** (focused re-check) → F1/F3/F4 confirmed closed; caught
+>   that the F2 stamp, hashing the *canonical* only, still missed the
+>   **copy-divergence** direction — the very `SKILL.md` failure it cited —
+>   and had deferred it to an ADR-conformance review the copies (no
+>   `depends_on`) can't reach. Closed here with a **two-hash** stamp
+>   (`canonical@gen` catches lag, `copy-body@gen` catches divergence).
+> The adversary's clean passes (no grove#20/#21 circularity; spec-0001
+> dependency honestly gated; trellis#25 scope; no `changes:`/`depends_on`
+> cycle) stood across both rounds.
 
 # ADR-0006: the operational conformance/sync mechanism — a self-describing graph, per-role duties, and a triggered staleness check
 
@@ -86,11 +91,13 @@ updated: 2026-07-11
      decisions (append-only, no version).
    - `executor` — authors tests; declares + maintains the per-package test
      deps ledger.
-   - `validator` — an **upstream version bump landing** is a qualifying
-     drift-audit trigger (its existing "an upstream repair lands" class);
-     on it, `validator` walks the `depends_on` graph outward and flags
-     consumers whose pin now lags upstream-current. This is grove's
-     already-built triggered-audit shape, one more trigger — not a
+   - `validator` — an **upstream version bump landing** joins its trigger
+     set as a new named drift-audit trigger, of the same shape as its
+     existing ones ("an upstream repair lands", "a dependency refresh
+     happens"); on it, `validator` walks the `depends_on` graph outward
+     (its existing Method) and flags consumers whose pin now lags
+     upstream-current. Grove's already-built triggered-audit shape, one
+     more trigger the charter change (Consequences 3) adds — not a
      schedule.
    - `corpus-reviewer` — the corpus-wide pin-vs-current audit it already
      owns (`decision-0045`'s version/graph audit, extended to pins), run
@@ -135,22 +142,34 @@ updated: 2026-07-11
 8. **Charter (collapsed-case) specifics.** A charter is *dual-consumed* —
    vendored (the canonical ↔ `.claude/agents/` ↔ `plugins/reference/`
    copies) and behavioral (it implements an ADR). Therefore:
-   - It carries a **generation stamp** — each copy records the canonical
-     hash it was generated from — so `corpus-reviewer` detects
-     canonical↔copy **regeneration-lag** (canonical moved, a copy wasn't
-     re-generated). This is *not* the byte-identity "can't-lie" property a
-     true vendored `payload@hash` gets (`decision-0045` item 5): charters
-     are **transformed**, not byte-copied — the three copies differ by
-     design (whole-frontmatter swap `id/type/status`↔`name/description/
-     tools`, a third→second-person rewrite, resolved placeholders), so
-     `hash(canonical) ≠ hash(copy)` is the *normal* state and a whole-file
-     content-hash comparison would false-positive on every copy, forever.
-     The stamp catches the lag direction (canonical bumped, copy stale). A
-     hand-edit to a copy that also updates its stamp is *not* caught by the
-     stamp — that is the charter-vs-ADR review's job (below), not the
-     stamp's. (The byte-identical case a raw content-hash *does* fit — the
-     grove-status `SKILL.md` vendoring that drifted this session — differs
-     by exactly one header line; charters, differing by ~44 lines, do not.)
+   - It carries a **generation stamp** — a marker each copy records at
+     generation time, holding *two* hashes: `hash(canonical@gen)` (the
+     canonical body it was generated from) and `hash(copy-body@gen)` (this
+     copy's own generated body). `corpus-reviewer` re-hashes both and flags
+     **either** drift direction — the two-hash form is load-bearing,
+     because a single canonical-hash catches only one:
+     - **regeneration-lag** — `hash(canonical-now) ≠ hash(canonical@gen)`:
+       the canonical moved, this copy was never re-generated.
+     - **copy-divergence** — `hash(copy-body-now) ≠ hash(copy-body@gen)`:
+       this copy was edited directly, bypassing the canonical. *This is the
+       grove-status `SKILL.md` failure this session — a copy diverged
+       silently; the copy-body hash makes it a finding.* A canonical-only
+       stamp would miss exactly this case (the copies carry no `depends_on`,
+       so the ADR-conformance review below runs on the canonical alone and
+       cannot reach a diverged copy — the stamp must catch it).
+     Why two generation-snapshot hashes and not one whole-file
+     canonical-vs-copy compare: charters are **transformed**, not
+     byte-copied — the copies differ by design (whole-frontmatter swap
+     `id/type/status`↔`name/description/tools`, a third→second-person
+     rewrite, resolved placeholders; `hash(canonical) ≠ hash(copy)` is the
+     *normal* state, ~44 lines apart for `executor`), so a direct compare
+     would false-positive forever. Hashing each side against *its own*
+     generation snapshot sidesteps the transform. This is **drift**
+     detection, not the byte-identity "can't-lie" property a true vendored
+     `payload@hash` gets (`decision-0045` item 5): a deliberate edit that
+     *also* recomputes both stamp hashes evades it — the same "if nothing
+     lied" caveat item 1 and `decision-0045` already carry. It catches the
+     *accidental* drift that is the observed failure mode, both directions.
    - Its `depends_on` **lists the ADR(s) it implements** (bare,
      append-only) — making the charter→ADR edge graph-visible and giving
      the review a declared upstream.
@@ -226,12 +245,14 @@ grammar and the version field:
    whose pin now lags. No calendar sweep added.
 4. **`corpus-reviewer` charter** — + the ad-hoc corpus-wide pin-vs-current
    audit (its existing version/graph audit, extended to pins); + the
-   charter canonical↔copy generation-stamp drift check.
+   charter canonical↔copy generation-stamp drift check (both directions:
+   regeneration-lag *and* copy-divergence).
 5. **`conformance-reviewer` charter** — + re-derive and verdict on a
    flagged stale pin; + the "charter implements its `depends_on` ADR"
    review.
-6. **Charters gain** a generation stamp (the canonical hash they were
-   generated from) and a `depends_on` listing their governing ADR(s).
+6. **Charters gain** a generation stamp (two generation-snapshot hashes:
+   the canonical body and this copy's own body) and a `depends_on` listing
+   their governing ADR(s).
 7. **The per-package test deps ledger** convention is introduced.
 8. Each charter change propagates to its `.claude/agents/` and
    `plugins/grove/reference/` copies (the three-copy sync) — the
@@ -247,7 +268,8 @@ grammar and the version field:
       and the charter generation-stamp drift check.
 - [ ] `conformance-reviewer`'s charter states the stale-pin re-check and
       the charter-implements-its-ADR review.
-- [ ] Charters carry a generation stamp and a `depends_on` listing their
+- [ ] Charters carry a generation stamp (canonical-body + copy-body hashes,
+      catching both drift directions) and a `depends_on` listing their
       governing ADR(s) (at least the roles touched above).
 - [ ] A worked example of a per-package test deps ledger exists (proof the
       form is usable).
@@ -282,11 +304,15 @@ grammar and the version field:
   work (append-only binds *ratified* decisions, not a gated draft still
   converging). No ratified decision superseded (it *applies* decision-0045,
   extends the charters). PASS.
-- **Adversarial pass**: run (spec-adversary, 2026-07-11) → NEEDS-REVISION,
-  4 findings, all folded in (see top provenance note). The two load-bearing
-  ones were verified against source before fixing. A focused re-check of
-  the revised firing-model + generation-stamp is the next step before the
-  maintainer's approval. PASS (pass ran; re-check owed).
+- **Adversarial passes**: two rounds run (spec-adversary, 2026-07-11) —
+  round 1 (4 findings) then a focused re-check (round 2, caught the F2
+  copy-divergence gap). All findings folded in and verified against source
+  before fixing (see top provenance note). Round 2's sole remaining gap
+  (F2 copy-divergence) is closed here with the two-hash stamp; that fix
+  applies round 2's own stated fix-direction and is self-consistent with
+  the "if nothing lied" caveat, so it is presented to the maintainer for
+  the approval act rather than triggering an open-ended third round. PASS
+  (two independent rounds ran; the human owns whether to approve now).
 - **Approval mechanic**: left `gated`, not flipped. Ratification (the
   maintainer's act) is owed; this record does not pre-empt it. PASS.
 
