@@ -2,9 +2,10 @@
 id: spec-0001-contributing-guide
 type: spec
 status: approved  # bumped 2026-07-10: CONTRIBUTING.md (this spec's product) is already merged and governing the repo live
-depends_on: [charter-contract-author, charter-spec-adversary, charter-executor, charter-conformance-reviewer, charter-dispatcher, charter-shaper, charter-run-resumer, charter-propagation-remediator, charter-validator, charter-divergent-researcher]
+depends_on: [charter-contract-author, charter-spec-adversary, charter-executor, charter-conformance-reviewer, charter-dispatcher, charter-shaper, charter-run-resumer, charter-propagation-remediator, charter-validator, charter-divergent-researcher, charter-lifecycle]
 owner: agent
-updated: 2026-07-10
+updated: 2026-07-12
+version: 1  # counter initialized 2026-07-12 with the R2/R8 amendment (kodhama-0008) — forward-only from here; prior states uncounted/unpinnable
 ---
 
 # spec-0001 — CONTRIBUTING.md content requirements
@@ -76,13 +77,36 @@ R1. **Frontmatter contract.** CONTRIBUTING.md states the shared
     `charters/README.md`, `specs/README.md`, and `decisions/README.md`
     verbatim in meaning (not copy-pasted prose).
 
-R2. **The approved-by-human-merge rule, stated unambiguously.**
+R2. **The approval act, stated unambiguously.**
+
+    > Amended 2026-07-12 — WHAT: R2 (and R8's resting-state clause)
+    > rewritten from "approved = human merge, never set by hand" to the
+    > human-intent-act model, sourced from `charters/lifecycle.md`.
+    > WHY: kodhama-0008 superseded the merge-only mechanic family-wide;
+    > the mechanic's single home is the lifecycle companion
+    > (`adr-0008`). SCOPE: R2, R8; no other requirement's behavior
+    > changes. POINTER: kodhama/kodhama#35 (kodhama-0008),
+    > `charters/lifecycle.md`. VALUE: a contributor reading
+    > CONTRIBUTING.md learns the real gate — a recorded human act — and
+    > can't conclude a hand-flip without one is legitimate.
+    > CONFIDENCE: verified (the companion is `approved`, in-source).
+    > NB: significant change; the artifact predated the behavioral
+    > version counter (`trellis/decision-0045`, `adr-0006`), so this
+    > amendment **initializes it** at `version: 1` per the maintainer's
+    > rule (2026-07-12, recorded in `charters/contract-author.md`
+    > step 4): forward-only from materialization, prior states
+    > uncounted.
+
     CONTRIBUTING.md states explicitly that `approved` (specs, decisions)
-    is **never set by hand** — it is set only by a human merging the PR
-    — and that charters in the current wave sit at `gated` (self-checked,
-    not yet independently human-reviewed) per `charters/README.md`. A
-    contributor must not be able to read CONTRIBUTING.md and conclude
-    they can hand-edit a `status:` field to `approved`.
+    is set only on a **human intent act, recorded by the status flip**
+    — the merge is one way to perform the act, not the only way; an
+    in-PR flip recording the act is legitimate — sourcing the
+    transition rules from `charters/lifecycle.md` (the lifecycle
+    companion) rather than restating them; and that charters in the
+    current wave sit at `gated` (self-checked, not yet independently
+    human-reviewed) per `charters/README.md`. A contributor must not be
+    able to read CONTRIBUTING.md and conclude they can hand-edit a
+    `status:` field to `approved` **without a recorded human act**.
 
 R3. **Draft -> gated -> approved -> superseded walkthrough**, one
     subsection per transition, each naming: which role/person performs
@@ -145,8 +169,9 @@ R8. **PR mechanics.** States, as a checklist: what branch-naming pattern
     `chore(...)`), that a PR is never self-merged for an artifact whose
     contract requires human approval, and that the PR stays open exactly
     at the gate it has reached (a `gated` spec's PR stays open until a
-    human merges it — an open, unmerged PR at `gated` is the correct
-    state, not an unfinished task).
+    human performs the approval act — their merge, or an in-PR flip
+    recording it, per `charters/lifecycle.md`; an open, unmerged PR at
+    `gated` is a correct state, not an unfinished task).
 
 R9. **Where this doesn't apply.** CONTRIBUTING.md notes narrowly-scoped
     exceptions that exist in the charters as of this writing: `shaper`

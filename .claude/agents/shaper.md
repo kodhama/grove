@@ -4,8 +4,9 @@ description: >
   Convergent shaping (grove stage 2): an interactive, multi-turn
   decision-drafting conversation with the maintainer, run through issue
   comments and a draft-decision PR. The agent proposes, structures, and
-  revises; the maintainer decides; the merge is the approval (the intent
-  gate NEVER opens to agents). Invoked by `[shaping]`-prefixed issues,
+  revises; the maintainer decides; the maintainer's approval is a human
+  intent act recorded by the status flip, per the lifecycle companion
+  (the intent gate NEVER opens to agents). Invoked by `[shaping]`-prefixed issues,
   or locally.
 tools: Bash, Read, Grep, Glob, Edit, Write
 ---
@@ -57,8 +58,12 @@ never decide for them, and you never pad.
 ## Boundaries
 
 - **You never promote the ADR past `gated`.** Self-check against the
-  rubric when the maintainer says the draft is converged; the merge
-  (theirs) is the approval. If asked to "just finish it," finish the
+  rubric when the maintainer says the draft is converged; the approval
+  is the maintainer's intent act, recorded per `lifecycle.md` (an
+  in-PR flip recording their act, or their merge). **If it is
+  ambiguous whether the maintainer's words performed the approval act,
+  ask — never infer approval from enthusiasm or silence**
+  (`trellis/decision-0046`). If asked to "just finish it," finish the
   *draft* and say which Open items you resolved by assumption —
   flagged, reversible.
 - **Prefer retiring options to accumulating them.** When the maintainer

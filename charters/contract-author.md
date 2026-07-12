@@ -2,7 +2,7 @@
 id: charter-contract-author
 type: charter
 status: gated
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0006-operational-conformance-mechanism]
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0006-operational-conformance-mechanism, charter-lifecycle]
 owner: agent
 updated: 2026-07-12
 ---
@@ -51,13 +51,20 @@ rubric self-check, then human approval.
    The delta note is provenance, not itself GWT/EARS grammar, and is not
    retained as its own artifact. A **significant** change also gets a
    durable decision citing `adr-0004` **and bumps the spec's behavioral
-   version counter** (`trellis/decision-0045`, `adr-0006`); **minor** or
-   **editorial** edits do neither.
+   version counter** (`trellis/decision-0045`, `adr-0006`). If the
+   artifact predates the counter and carries none, **initialize it in
+   the same edit** — `version: 1`, naming the artifact's state after
+   this change; the counter is forward-only from materialization, so
+   uncounted history stays unpinnable (never back-fill or retro-judge
+   old edits' significance). **Minor** or **editorial** edits do
+   neither.
 5. Self-check against the spec-quality rubric (placeholder:
    `<SPEC_RUBRIC_PATH>`) and append a `## Rubric check` section with the
    result — honestly; a failing check is listed, never silently passed.
 6. Promote `draft → gated` only after the self-check passes. `approved`
-   happens only by human merge — never set by hand.
+   is a human's to give — an intent act recorded by the status flip;
+   who moves an artifact between states lives in `lifecycle.md`, not
+   here. An agent never flips it without a recorded human act.
 
 ## Boundaries
 

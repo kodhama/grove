@@ -198,16 +198,19 @@ person's name, a Slack channel, an internal URL).
   optional, until this repo records a decision saying otherwise.
 - **An open, unmerged PR at the artifact's current gate is a correct
   resting state, not a gap.** A `gated` spec's PR sits open until a
-  human merges it or requests changes — don't manufacture urgency to
-  merge something a human hasn't reviewed just to close the PR out.
+  human performs the approval act — their merge, or an in-PR flip
+  recording it, per `charters/lifecycle.md` — or requests changes;
+  don't manufacture urgency to merge something a human hasn't reviewed
+  just to close the PR out.
 
 ## Where this doesn't apply uniformly
 
 - **`shaper`** is explicitly interactive and PR-based (a draft decision
   on a change-request is the shared canvas), but the agent itself
-  **never promotes the decision past `gated`** — the maintainer's merge
-  is always the approval, even more tightly than the general rule above
-  (`charters/shaper.md`).
+  **never promotes the decision past `gated`** — the approval is always
+  the maintainer's own intent act (recorded per
+  `charters/lifecycle.md`), even more tightly than the general rule
+  above (`charters/shaper.md`).
 - **`dispatcher`**'s `.claude/agents/dispatcher.md` is a scoped
   one-shot advisor (workflow classification, next-dispatch
   recommendation only) — it is **not** a full port of
