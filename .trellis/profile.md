@@ -31,31 +31,4 @@ Each is a rule to follow, then the ✗ failure it prevents:
 - When something breaks or causes friction, fix the root cause so it can't happen twice — don't just re-run it and move on.
     ✗ the same pipeline step fails weekly and everyone just re-runs it, forever.
 
-(Generated from your profile — edit `.trellis/` and re-run `trellis setup` to change these.)
-
----
-
-## grove expression (authored 2026-07-07)
-
-How this project expresses the invariants above — its recorded dials and
-mappings. Rules here are project decisions, revisable by decision; the
-invariants themselves are not.
-
-### Lifecycle mapping (trellis decision-0037: statuses are methodology-defined)
-
-`draft → gated → approved (→ superseded)`, where:
-- `gated` = self-checked, agent-consumable. Consuming a `draft` remains
-  forbidden.
-- `approved` = human PR merge = trellis's own `ratified` (merge is the
-  ratification act; nobody sets `approved` by hand).
-- `superseded` = replaced; carries a forward pointer, original content
-  never edited in place.
-
-This is the same declared vocabulary math-quest's own `.trellis/profile.md`
-already carries (`ADR-0029`), and the one every other kodhama-family repo
-(`wisp`, `design-system`, `kodhama`) now declares too — one vocabulary
-for the whole family, per trellis's own open-lifecycle contract
-(`spec-0001`), not a bespoke one per repo. Trellis's own self-application
-(its own `decisions/`) keeps its native `draft → ratified` — that's the
-same act under `decision-0037`'s already-declared equivalence, not a
-separate thing to reconcile.
+(Generated from your profile — edit `.trellis/` and refresh the overlay (`/trellis:setup`, or the manual copy path) to change these.)
