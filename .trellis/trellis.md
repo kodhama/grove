@@ -5,6 +5,7 @@ You are working in a project that follows **Trellis** — a small, load-bearing 
 **How strictly to follow them:** **By default** — follow them unless you have a clear, specific reason not to, and when you deviate say so out loud rather than doing it silently.
 
 @profile.md
+@expression.md
 
 ---
-The reasoning and more examples behind each rule are in `.trellis/invariants.md`; the rules stand on their own.
+If a rule seems ambiguous, or in tension with this project's own instructions, read its entry in `.trellis/invariants.md` — the description and with/without examples — before deviating.
