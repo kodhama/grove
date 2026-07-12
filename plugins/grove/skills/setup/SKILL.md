@@ -13,13 +13,13 @@ values. Nothing here is invented from scratch, and nothing outside what's listed
 
 ## 1. Pick which agent roles to compose
 
-Ask which of the eleven agent roles to install; default to **all eleven** if the user has no
+Ask which of the twelve agent roles to install; default to **all twelve** if the user has no
 preference. Show the roster (from `${CLAUDE_PLUGIN_ROOT}/reference/agents/README.md`) so they can
 pick a subset if they want a lighter install:
 
 `divergent-researcher`, `shaper`, `contract-author`, `spec-adversary`, `executor`,
-`conformance-reviewer`, `validator`, `dispatcher`, `run-resumer`, `propagation-remediator`,
-`corpus-reviewer`.
+`conformance-reviewer`, `code-reviewer`, `validator`, `dispatcher`, `run-resumer`,
+`propagation-remediator`, `corpus-reviewer`.
 
 ## 2. Copy the chosen agent definitions
 
@@ -50,6 +50,9 @@ This project's copies carry these tokens (not all appear in every file):
 | `<TYPECHECK_CMD>` | `executor.md`, `conformance-reviewer.md` | this project's typecheck command (or "none — untyped" if genuinely none) |
 | `<PR_CONTRACT_SECTIONS>` | `conformance-reviewer.md`, `propagation-remediator.md`, `run-resumer.md` | which sections a PR body must carry (e.g. `## Propagation`, `## Recommended next task`) — first ask which VCS/host and issue tracker this project uses (GitHub PRs, GitLab MRs, plain git + no tracker, …), since the answer shapes how this resolves |
 | `<PARKED_ITEM_STORE>` | `conformance-reviewer.md`, `propagation-remediator.md` | where this project tracks deferred/parked items (a TODO/ROADMAP file, a `decisions/` entry, issue labels, …) |
+| `<CONVENTIONS_PATH>` | `code-reviewer.md` | where this project declares its code conventions — its CLAUDE.md, a style guide, or equivalent ("none exists yet" is a valid honest resolution; the charter's language-agnostic fallback then applies, and the role flags the absence as a finding) |
+| `<LINT_CMD>` | `code-reviewer.md` | this project's lint/formatter command (or "none — no linter configured" if genuinely none) |
+| `<QUALITY_RUBRIC_PATH>` | `code-reviewer.md` | this project's code-quality rubric path — optional by charter, so "none exists yet" is a fully valid resolution |
 | `<SPEC_RUBRIC_PATH>` | `contract-author.md` | this project's spec-quality rubric path |
 | `<RESEARCH_RUBRIC_PATH>` | `divergent-researcher.md` | this project's research-quality rubric path |
 | `<ARTIFACT_DIRS>` | `corpus-reviewer.md` | this project's corpus directories (family default: `decisions/`, `specs/`; add what the project keeps) |
@@ -97,7 +100,7 @@ forward pointer). Adapt, don't invent a heavier process than grove's own.
 Append this block to the project's `CLAUDE.md` (create the file if it doesn't exist). Touch
 **nothing else** in the file. **Before editing, save a pre-write copy** of the existing `CLAUDE.md`
 somewhere temporary (skip if the file doesn't exist yet) — the verification below diffs against it.
-Fill in `<ROLES_LIST>` with the roles actually installed (e.g. "all eleven roles" or a named
+Fill in `<ROLES_LIST>` with the roles actually installed (e.g. "all twelve roles" or a named
 subset) and `<SHA>` with the output of
 `git -C "${CLAUDE_PLUGIN_ROOT}" rev-parse --short HEAD` (if that command fails — not a git checkout
 — use `unknown`; an honest stamp beats none):

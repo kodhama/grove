@@ -19,13 +19,16 @@ the same door pattern Trellis uses for its own overlay.
 
 ## The team
 
-Grove charters seven agent roles, one per stage of the pipeline, plus
-the dispatcher that sequences them (it holds live run state across
-every stage rather than occupying one, so it carries no stage number of
-its own), plus two remediation roles that keep runs from silently
-dying, plus one standing audit role over the artifact record itself —
-eleven roles in all. Every role except the dispatcher and the shaper is a
-**stateless cold start**: all context travels through artifacts and their
+Grove charters eight agent roles across the stages of the pipeline —
+one per stage, except stage 4½, where two independent gates
+(conformance and code quality) ask their own questions of the same
+finished build — plus the dispatcher that sequences them (it holds live
+run state across every stage rather than occupying one, so it carries
+no stage number of its own), plus two remediation roles that keep runs
+from silently dying, plus one standing audit role over the artifact
+record itself — twelve roles in all. Every role except the dispatcher
+and the shaper is a **stateless cold start**: all context travels
+through artifacts and their
 `depends_on` graph, never through conversation history. A floundering cold
 role is evidence about the artifacts it was given, not just the agent.
 
@@ -37,6 +40,7 @@ role is evidence about the artifacts it was given, not just the agent.
 | spec-adversary | 3½ | breaks `gated` specs before human approval; verdict grammar `APPROVE-READY / NEEDS-REVISION / UNSOUND` | yes |
 | executor | 4 | test-first implementation from artifacts only; under-specification is a surfaced finding, never a silent choice | yes |
 | conformance-reviewer | 4½ | build gate vs. approved upstream, multi-round; drift taxonomy | yes |
+| code-reviewer | 4½ | code-quality gate vs. the project's own declared standards; severity-graded, blocking ≥ high (objective harm only), rest advisory; read-only | yes |
 | validator | 5 | per-PR critique + triggered drift audits; report-only | yes |
 | dispatcher | — | dispatch, sequencing, findings ledger, checkpoint-resume | the interactive session (v0) |
 | run-resumer | remediation | resumes a run that died at its turn cap from its checkpoint | yes |
@@ -85,7 +89,7 @@ The canonical route is the Claude Code plugin (kodhama-0002 §3):
 ```
 
 `/grove:setup` is a composing interview: it asks which agent roles to
-install (default: all eleven), copies their definitions into your project's
+install (default: all twelve), copies their definitions into your project's
 `.claude/agents/`, and resolves every placeholder (test/typecheck
 commands, your VCS/issue-tracker conventions, your parked-item store,
 your spec/research rubric paths) to your project's real values —

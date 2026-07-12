@@ -4,7 +4,7 @@ type: charter
 status: gated
 depends_on: []
 owner: agent
-updated: 2026-07-11
+updated: 2026-07-12
 ---
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
@@ -51,7 +51,14 @@ learn a command surface when inference already works.
 
 - **W1 new requirement**: intent → [`divergent-researcher`] → `shaper` ↔
   maintainer → `contract-author` → `spec-adversary` → HUMAN spec gate →
-  `executor` → conformance gate → HUMAN merge → `validator`.
+  `executor` → conformance gate ∥ code-review gate → HUMAN merge →
+  `validator`. The two stage-4½ gates (`conformance-reviewer`,
+  `code-reviewer`) take the same finished build, ask independent
+  questions, and can run in parallel; both feed the findings ledger. A
+  `code-reviewer` `BLOCK` verdict returns the change to the `executor`
+  exactly like a conformance `FAIL`; its advisory findings ride to the
+  human merge in the findings ledger; a human override of a `BLOCK` is
+  recorded with its rationale, never silent (`adr-0007`).
 - **W2 spec amendment**: classify the change first — a behavioral gap
   gets amended in place plus an adversary pass scoped to the delta's
   `depends_on` blast radius; a genuinely new scope routes to shaping

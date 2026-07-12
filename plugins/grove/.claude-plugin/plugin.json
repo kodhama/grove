@@ -1,5 +1,5 @@
 {
   "name": "grove",
-  "description": "A portable agent-swarm operating model for Claude Code: eleven chartered agent roles, a dispatch contract, and workflows, composed onto your project by an interactive setup skill — no binary, no service.",
+  "description": "A portable agent-swarm operating model for Claude Code: twelve chartered agent roles, a dispatch contract, and workflows, composed onto your project by an interactive setup skill — no binary, no service.",
   "author": { "name": "kodhama" }
 }

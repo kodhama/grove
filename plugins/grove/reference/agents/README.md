@@ -29,6 +29,7 @@ file's own "Why this file is narrower" section and
 | `spec-adversary.md` | 3½ | breaks `gated` specs before human approval |
 | `executor.md` | 4 | test-first implementation from artifacts only |
 | `conformance-reviewer.md` | 4½ | build gate vs. approved upstream |
+| `code-reviewer.md` | 4½ | code-quality gate vs. the project's declared standards; blocking ≥ high (objective harm only), rest advisory |
 | `validator.md` | 5 | per-PR critique + triggered drift audits |
 | `run-resumer.md` | remediation | resumes a run that died at its turn cap |
 | `propagation-remediator.md` | remediation | writes an honest missing propagation section |

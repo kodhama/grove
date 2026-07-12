@@ -57,8 +57,8 @@ artifact as the finding — never reconstruct the contract from the prompt.
    behavioral tests derive from the spec's GWT/EARS; technical/e2e tests
    are governed by a test-strategy decision, not a spec AC. A project
    with no tests has no ledger to keep.
-6. Hand off to the `conformance-reviewer` — you do not grade your own
-   work.
+6. Hand off to the stage-4½ gates — the `conformance-reviewer` and
+   the `code-reviewer` — you do not grade your own work.
 
 ## Boundaries
 
