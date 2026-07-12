@@ -43,12 +43,22 @@ findings is a reportable result — state it plainly.
 **Ad-hoc pin-currency sweep (`adr-0006`).** When run as a corpus sweep
 (a human audit, not the standing well-formedness pass), additionally
 check pin *currency*: where a `depends_on` entry carries a version pin
-(`repo/id@vN`, `trellis/decision-0045`), whether it still matches the
-upstream's current version. A lagging pin is a **staleness flag**
-surfaced for the `conformance-reviewer` to re-verdict — never a
-conformance verdict itself. Ad-hoc by design: the standing per-artifact
-checks above run every pass; this pin sweep runs when the corpus is
-swept.
+(`repo/id@vN` — semantics in `versioning.md`, the versioning companion,
+`adr-0010`), whether it still matches the upstream's current version. A
+lagging pin is a **staleness flag** surfaced for the
+`conformance-reviewer` to re-verdict — never a conformance verdict
+itself. Ad-hoc by design: the standing per-artifact checks above run
+every pass; this pin sweep runs when the corpus is swept.
+
+**`changes:` cross-check (`adr-0010`; ex trellis rubric check 12).**
+Where a significant-change decision carries `changes: [X@vN]`,
+reconcile against `X`'s version **record**, not `declared == current`
+(an append-only decision's `@vN` legitimately sits behind a later
+bump). **Hard FAIL = a declared change that never landed** (`X`'s
+current counter is behind `vN`); a bump in `X` with no accounting
+`changes:` decision is **soft, never a hard FAIL**. Scope:
+counter-versioned artifacts only — full semantics in `versioning.md`,
+not restated here beyond this duty.
 
 ## Honesty clause
 

@@ -37,8 +37,13 @@ amended): the artifact-lifecycle state enum, stated once, that every role and th
 `corpus-reviewer`'s lifecycle check source. It lands in grove's own `.grove/` namespace — not
 `.claude/agents/`, which is Claude Code's loader directory and parses files as subagents (the same
 move as trellis's `.trellis/` overlay). It is not an agent role and is not optional per role —
-every install gets it. If any copied file (a role's, the README, or
-the lifecycle companion) already exists at the destination, **never overwrite it silently** — ask
+every install gets it. Likewise copy
+`${CLAUDE_PLUGIN_ROOT}/reference/versioning.md` into
+`.grove/versioning.md` (same header-stripping) — the versioning
+companion (`adr-0010`): the conformance-detection semantics (version
+kinds and forms, `@version` pins, the `changes:` cross-check), stated
+once, that the versioning-touching roles source. If any copied file (a role's, the README, or a
+companion — lifecycle, versioning) already exists at the destination, **never overwrite it silently** — ask
 the user whether to overwrite, skip, or diff first, and honor their answer per file.
 
 ## 3. Resolve every placeholder, interactively

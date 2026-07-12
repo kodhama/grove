@@ -2,7 +2,7 @@
 id: charter-conformance-reviewer
 type: charter
 status: gated
-depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism]
+depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, charter-versioning]
 owner: agent
 updated: 2026-07-12
 ---
@@ -58,8 +58,10 @@ checklist. Read-only: it judges and reports, it does not fix.
    a trigger recorded in a decision, or a feedback artifact's
    disposition — that the PR failed to name and update? A false "None."
    is a FAIL with the missed item as evidence.
-7. **On a flagged stale pin** (`adr-0006`, surfaced by `validator` or
-   `corpus-reviewer`): re-derive the flagged consumer against the
+7. **On a flagged stale pin** (`adr-0006`; pin semantics in
+   `versioning.md`, the versioning companion — `adr-0010`; surfaced by
+   `validator` or `corpus-reviewer`): re-derive the flagged consumer
+   against the
    upstream's *current* version and verdict. The staleness signal only
    *fires* the check — conformance is this re-derivation, not the pin
    comparison. `PASS` if it still holds against current; `FAIL` with the
