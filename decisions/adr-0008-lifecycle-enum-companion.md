@@ -1,13 +1,13 @@
 ---
 id: adr-0008-lifecycle-enum-companion
 type: adr
-status: draft
+status: approved  # maintainer's intent act 2026-07-12 ("merge it", on the round-2 revision — recorded in PR #45's approval comment); the #45 merge landed it. This flip records that act (decision-0046); the flip was missed at merge time and corrected post-merge.
 depends_on: [adr-0004-spec-lifecycle-and-organization, trellis/decision-0037]
 owner: agent
 updated: 2026-07-12
 ---
 
-# ADR-0008 (DRAFT): the swarm carries the lifecycle enum — a dedicated shipped companion, not a README
+# ADR-0008: the swarm carries the lifecycle enum — a dedicated shipped companion, not a README
 
 ## Context
 
@@ -59,4 +59,4 @@ This ADR resolves the maintainer's shaping call: **a dedicated companion artifac
 
 ## Self-check (gate)
 
-Draft opening grove#44, revised twice: round 1 (F1 propagation/setup-seeding, F2 inventory, F3 append-only home, F4 scope — folded in) and round 2 (**the round-1 fix itself refuted**: the agents-README home conflated the enum-bearing README with the shipping roster README — retargeted to a dedicated shipped companion, one honest setup copy-line added; CONTRIBUTING.md + prose state-bullets ruled into the inventory; the fresh-consumer gap closed by the companion shipping). The companion home also records the **maintainer's shaping call** (2026-07-12): a README is human orientation; the methodology gets a named artifact. Frontmatter well-typed; `depends_on` resolves, none draft; kodhama-0008 remains a Context reference, not a `depends_on`. **Not ratified** — needs the maintainer's intent act; a round-3 adversary on this revision is recommended given round 2 caught the round-1 fix. The builder does not grade its own decision.
+Draft opening grove#44, revised twice: round 1 (F1 propagation/setup-seeding, F2 inventory, F3 append-only home, F4 scope — folded in) and round 2 (**the round-1 fix itself refuted**: the agents-README home conflated the enum-bearing README with the shipping roster README — retargeted to a dedicated shipped companion, one honest setup copy-line added; CONTRIBUTING.md + prose state-bullets ruled into the inventory; the fresh-consumer gap closed by the companion shipping). The companion home also records the **maintainer's shaping call** (2026-07-12): a README is human orientation; the methodology gets a named artifact. Frontmatter well-typed; `depends_on` resolves, none draft; kodhama-0008 remains a Context reference, not a `depends_on`. **Ratified** — the maintainer's intent act (2026-07-12, "merge it" on this revision, recorded in PR #45) is the approval; the merge landed it. The recommended round-3 adversary was **deliberately parked by the maintainer** (session-recorded; the execution PR's conformance review is the downstream verification net). The status flip was missed at merge time and corrected post-merge — recorded honestly rather than backdated. The builder does not grade its own decision.
