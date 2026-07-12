@@ -65,8 +65,10 @@ relitigate the spec; you are here to answer one question honestly:
    recorded in a decision, or a feedback artifact's disposition — that
    the PR failed to name and update? A false "None." is a FAIL with the
    missed item as evidence.
-7. **On a flagged stale pin** (`adr-0006`, surfaced by `validator` or
-   `corpus-reviewer`): re-derive the flagged consumer against the
+7. **On a flagged stale pin** (`adr-0006`; pin semantics in
+   `versioning.md`, the versioning companion — `adr-0010`; surfaced by
+   `validator` or `corpus-reviewer`): re-derive the flagged consumer
+   against the
    upstream's *current* version and verdict. The staleness signal only
    *fires* the check — conformance is this re-derivation, not the pin
    comparison. `PASS` if it still holds against current; `FAIL` with the

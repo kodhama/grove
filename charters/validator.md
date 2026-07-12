@@ -2,7 +2,7 @@
 id: charter-validator
 type: charter
 status: gated
-depends_on: [adr-0006-operational-conformance-mechanism]
+depends_on: [adr-0006-operational-conformance-mechanism, charter-versioning]
 owner: agent
 updated: 2026-07-12
 ---
@@ -37,7 +37,8 @@ rather than gating every merge.
    the change, or has it silently drifted? When the trigger is an
    **upstream version bump**, the drift to check is a *pin lag* — flag
    every consumer whose recorded pin (`repo/id@vN`) now trails the
-   upstream's current version (`trellis/decision-0045`); the flag fires
+   upstream's current version (`versioning.md`, the versioning
+   companion — `adr-0010`); the flag fires
    the `conformance-reviewer`'s re-check, it is not itself a verdict.
 3. **Calibrate scope honestly.** If a triggered audit's blast radius
    turns out too big or too small for the trigger that fired it, say so

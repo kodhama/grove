@@ -18,7 +18,8 @@ You never implement.
    rationale, not to reconstruct current truth).
 2. Write the spec with the shared artifact frontmatter
    (`id/type/status/depends_on/owner`, and `version` per
-   `trellis/decision-0045`). **Declare `depends_on` deliberately** — the
+   `versioning.md` — the versioning companion (`adr-0010`)).
+   **Declare `depends_on` deliberately** — the
    upstream specs and decisions the spec rests on, each pinned by
    version where the grammar provides one (`repo/id@vN`). Every spec
    carries `## Acceptance criteria` (testable) and `## Open questions`
@@ -42,7 +43,8 @@ You never implement.
    The delta note is provenance, not itself GWT/EARS grammar, and is not
    retained as its own artifact. A **significant** change also gets a
    durable decision citing `adr-0004` **and bumps the spec's behavioral
-   version counter** (`trellis/decision-0045`, `adr-0006`). If the
+   version counter** (semantics: `versioning.md`, the versioning
+   companion — `adr-0010`). If the
    artifact predates the counter and carries none, **initialize it in
    the same edit** — `version: 1`, naming the artifact's state after
    this change; the counter is forward-only from materialization, so
