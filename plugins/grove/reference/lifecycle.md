@@ -2,7 +2,7 @@
 ---
 id: charter-lifecycle
 type: charter
-status: gated
+status: approved  # maintainer's intent act 2026-07-12 ("merge", PR #48) — in-PR flip recording the act, adr-0007 precedent; conformance-reviewed against adr-0008 before approval
 depends_on: [adr-0008-lifecycle-enum-companion]
 owner: agent
 updated: 2026-07-12
