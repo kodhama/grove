@@ -2,9 +2,9 @@
 id: charter-validator
 type: charter
 status: gated
-depends_on: []
+depends_on: [adr-0006-operational-conformance-mechanism]
 owner: agent
-updated: 2026-07-07
+updated: 2026-07-12
 ---
 
 # validator — stage 5: per-PR critique + triggered drift audits
@@ -18,8 +18,9 @@ updated: 2026-07-07
 
 The lightweight per-change critique plus **TRIGGERED** spec-drift
 audits — never calendar sweeps. A trigger is a concrete event: an
-upstream repair lands (W4), a spec-gap bug closes (W3 path b), or an
-overlay/dependency refresh happens. Each trigger scopes ONE audit to
+upstream repair lands (W4), a spec-gap bug closes (W3 path b), an
+**upstream version bump lands** (`adr-0006`), or an overlay/dependency
+refresh happens. Each trigger scopes ONE audit to
 that event's blast radius (the artifacts that actually depend on what
 changed) — report-only, like the `conformance-reviewer`, but reactive
 rather than gating every merge.
@@ -33,7 +34,11 @@ rather than gating every merge.
 2. **Triggered audit.** On a qualifying trigger, walk the `depends_on`
    graph from the changed artifact outward, scoped to genuine dependents
    (not the whole archive). For each dependent: does it still hold given
-   the change, or has it silently drifted?
+   the change, or has it silently drifted? When the trigger is an
+   **upstream version bump**, the drift to check is a *pin lag* — flag
+   every consumer whose recorded pin (`repo/id@vN`) now trails the
+   upstream's current version (`trellis/decision-0045`); the flag fires
+   the `conformance-reviewer`'s re-check, it is not itself a verdict.
 3. **Calibrate scope honestly.** If a triggered audit's blast radius
    turns out too big or too small for the trigger that fired it, say so
    — that's a finding about the trigger definition, not just the audit.

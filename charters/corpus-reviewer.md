@@ -1,10 +1,10 @@
 ---
 id: charter-corpus-reviewer
 type: charter
-status: approved  # ratified by PR #6 merge (2026-07-08)
-depends_on: [adr-0001-corpus-reviewer-lift]
+status: approved  # ratified by PR #6 (2026-07-08); amended 2026-07-12 for adr-0006 duties (re-ratified on this PR's merge)
+depends_on: [adr-0001-corpus-reviewer-lift, adr-0006-operational-conformance-mechanism]
 owner: agent
-updated: 2026-07-08
+updated: 2026-07-12
 ---
 
 # corpus-reviewer — standing: the record audits itself honestly
@@ -66,6 +66,16 @@ Enumerate the corpus (placeholder: `<ARTIFACT_DIRS>`), run every check
 against every artifact, and report PASS/FAIL per check with file:line
 evidence for each failure. Zero findings is a reportable result; state
 it plainly rather than padding.
+
+**Ad-hoc pin-currency sweep (`adr-0006`).** When run as a corpus sweep
+(a human audit, not the standing well-formedness pass), additionally
+check pin *currency*: where a `depends_on` entry carries a version pin
+(`repo/id@vN`, `trellis/decision-0045`), whether it still matches the
+upstream's current version. A lagging pin is a **staleness flag**
+surfaced for the `conformance-reviewer` to re-verdict — never a
+conformance verdict itself. Ad-hoc by design: the standing per-artifact
+checks above run every pass; this pin sweep runs when the corpus is
+swept.
 
 ## Honesty clause
 

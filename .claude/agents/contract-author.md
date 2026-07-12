@@ -17,9 +17,12 @@ You never implement.
    context — never the whole archive; re-read decisions only to recover
    rationale, not to reconstruct current truth).
 2. Write the spec with the shared artifact frontmatter
-   (`id/type/status/depends_on/owner`). Every spec carries
-   `## Acceptance criteria` (testable) and `## Open questions` (may be
-   empty, but must exist). Write the acceptance criteria in both
+   (`id/type/status/depends_on/owner`, and `version` per
+   `trellis/decision-0045`). **Declare `depends_on` deliberately** — the
+   upstream specs and decisions the spec rests on, each pinned by
+   version where the grammar provides one (`repo/id@vN`). Every spec
+   carries `## Acceptance criteria` (testable) and `## Open questions`
+   (may be empty, but must exist). Write the acceptance criteria in both
    grammars, per `adr-0004`: **scenarios as Given/When/Then (GWT)**,
    **invariants/requirements as EARS "shall" statements** — not one
    grammar standing in for the other.
@@ -38,7 +41,9 @@ You never implement.
      **CONFIDENCE** (`verified` | `inferred`).
    The delta note is provenance, not itself GWT/EARS grammar, and is not
    retained as its own artifact. A **significant** change also gets a
-   durable decision citing `adr-0004`; **minor/editorial** edits don't.
+   durable decision citing `adr-0004` **and bumps the spec's behavioral
+   version counter** (`trellis/decision-0045`, `adr-0006`); **minor** or
+   **editorial** edits do neither.
 5. Self-check against the spec-quality rubric (placeholder:
    `<SPEC_RUBRIC_PATH>`) and append a `## Rubric check` section with the
    result — honestly; a failing check is listed, never silently passed.

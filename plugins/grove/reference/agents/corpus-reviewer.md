@@ -38,6 +38,16 @@ checklist from whoever produced the artifacts.
 PASS/FAIL per check, with file:line evidence for every failure. Zero
 findings is a reportable result — state it plainly.
 
+**Ad-hoc pin-currency sweep (`adr-0006`).** When run as a corpus sweep
+(a human audit, not the standing well-formedness pass), additionally
+check pin *currency*: where a `depends_on` entry carries a version pin
+(`repo/id@vN`, `trellis/decision-0045`), whether it still matches the
+upstream's current version. A lagging pin is a **staleness flag**
+surfaced for the `conformance-reviewer` to re-verdict — never a
+conformance verdict itself. Ad-hoc by design: the standing per-artifact
+checks above run every pass; this pin sweep runs when the corpus is
+swept.
+
 ## Honesty clause
 
 A failure you soften is a failure the record keeps. If a check cannot

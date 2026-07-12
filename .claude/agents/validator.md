@@ -19,10 +19,16 @@ spec-drift audits — never calendar sweeps.
    it read as sound, is there anything an independent eye would flag for
    a human to glance at? This is advisory, not a gate.
 2. **Triggered audit.** On a qualifying trigger (an upstream repair
-   lands, a spec-gap bug closes, an overlay/dependency refresh happens),
-   walk the `depends_on` graph from the changed artifact outward, scoped
-   to genuine dependents (not the whole archive). For each dependent:
-   does it still hold given the change, or has it silently drifted?
+   lands, a spec-gap bug closes, an upstream version bump lands
+   (`adr-0006`), or an overlay/dependency refresh happens), walk the
+   `depends_on` graph from the changed artifact outward, scoped to
+   genuine dependents (not the whole archive). For each dependent: does
+   it still hold given the change, or has it silently drifted? When the
+   trigger is an **upstream version bump**, the drift to check is a *pin
+   lag* — flag every consumer whose recorded pin (`repo/id@vN`) now
+   trails the upstream's current version (`trellis/decision-0045`); the
+   flag fires the `conformance-reviewer`'s re-check, it is not itself a
+   verdict.
 3. **Calibrate scope honestly.** If a triggered audit's blast radius
    turns out too big or too small for the trigger that fired it, say so
    — that's a finding about the trigger definition, not just the audit.

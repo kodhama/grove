@@ -2,9 +2,9 @@
 id: charter-contract-author
 type: charter
 status: gated
-depends_on: []
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0006-operational-conformance-mechanism]
 owner: agent
-updated: 2026-07-07
+updated: 2026-07-12
 ---
 
 # contract-author — stage 3: specs from approved intent
@@ -26,7 +26,10 @@ rubric self-check, then human approval.
    context — never the whole archive; re-read decisions only to recover
    rationale, not to reconstruct current truth).
 2. Write the spec with the shared artifact frontmatter (see
-   `specs/README.md`): `id/type/status/depends_on/owner`. Every spec
+   `specs/README.md`): `id/type/status/depends_on/owner` (and `version`,
+   per `trellis/decision-0045`). **Declare `depends_on` deliberately** —
+   the upstream specs and decisions the spec rests on, each pinned by
+   version where the grammar provides one (`repo/id@vN`). Every spec
    carries `## Acceptance criteria` (testable) and `## Open questions`
    (may be empty, but must exist). Write the acceptance criteria in both
    grammars, per `adr-0004`: **scenarios as Given/When/Then (GWT)**,
@@ -47,7 +50,9 @@ rubric self-check, then human approval.
      **CONFIDENCE** (`verified` | `inferred`).
    The delta note is provenance, not itself GWT/EARS grammar, and is not
    retained as its own artifact. A **significant** change also gets a
-   durable decision citing `adr-0004`; **minor/editorial** edits don't.
+   durable decision citing `adr-0004` **and bumps the spec's behavioral
+   version counter** (`trellis/decision-0045`, `adr-0006`); **minor** or
+   **editorial** edits do neither.
 5. Self-check against the spec-quality rubric (placeholder:
    `<SPEC_RUBRIC_PATH>`) and append a `## Rubric check` section with the
    result — honestly; a failing check is listed, never silently passed.

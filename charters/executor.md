@@ -2,7 +2,7 @@
 id: charter-executor
 type: charter
 status: gated
-depends_on: []
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism]
 owner: agent
 updated: 2026-07-12
 ---
@@ -57,7 +57,15 @@ artifact as the finding — never reconstruct the contract from the prompt.
    stuck agent.
 4. Every test names its upstream (a spec anchor, e.g. `spec-x AC3`, or a
    defect id) in its header/describe block.
-5. Hand off to the stage-4½ gates — the `conformance-reviewer` and
+5. **Where the consuming project maintains tests, keep a per-package
+   test-deps ledger** (`<TEST_DEPS_LEDGER>`) — a per-package (not
+   per-test-file) file declaring what that package's tests rest on: the
+   specs (pinned `@vN`) and the decisions they derive from (`adr-0006`,
+   tests-as-artifacts). Tests are a *superset* of a spec's ACs —
+   behavioral tests derive from the spec's GWT/EARS; technical/e2e tests
+   are governed by a test-strategy decision, not a spec AC. A project
+   with no tests has no ledger to keep.
+6. Hand off to the stage-4½ gates — the `conformance-reviewer` and
    the `code-reviewer` — you do not grade your own work.
 
 ## Boundaries
@@ -77,3 +85,5 @@ artifact as the finding — never reconstruct the contract from the prompt.
 
 - `<TEST_CMD>`, `<TYPECHECK_CMD>` — the consuming project's test and
   typecheck commands.
+- `<TEST_DEPS_LEDGER>` — the consuming project's per-package test-deps
+  ledger location/convention (`adr-0006`).
