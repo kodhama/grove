@@ -41,9 +41,10 @@ of exactly four values, in transition order:
   rubric or acceptance criteria; agent-consumable, but not yet
   independently reviewed. For specs, the `spec-adversary` runs against
   `gated` drafts before a human ever sees them.
-- **`approved`** — ratified by **human merge of the PR**. The merge
-  itself is the approval; **never set by hand** — no author, agent or
-  human, edits a `status:` field to `approved` directly.
+- **`approved`** — ratified by a **human intent act** (in review, in
+  conversation, or by merging); the status flip records that act. **An
+  agent never flips `approved` without a recorded human act**, and no
+  artifact's author approves their own work.
 - **`superseded`** — retired. A forward pointer at the top of the
   superseded text names the replacement's `id`; the original content is
   never edited away. Terminal.
@@ -55,14 +56,19 @@ of exactly four values, in transition order:
   artifact's type is present and the self-check has run and been
   recorded honestly — a failing self-check is listed, never silently
   passed.
-- **`gated` → `approved`:** a human, and only via merging the PR — the
-  merge IS the approval; there is no separate "flip the status field"
-  step, and no PR is merged by its own author when the artifact's
-  contract requires human approval.
+- **`gated` → `approved`:** a human — the approval is a human intent
+  act, recorded by the status flip; an in-PR flip recording that act is
+  legitimate (grove's recorded practice, `adr-0007`'s precedent), and
+  the merge is one way to perform the act, not the only way. No PR is
+  merged by its own author when the artifact's contract requires human
+  approval.
 - **`approved` → `superseded`:** whoever proposes the change that makes
   the old artifact obsolete — by writing the new artifact and marking
-  the old one `superseded` (or `superseded in part`) with a forward
-  pointer, never by editing the old one's content in place.
+  the old one `superseded` with a forward pointer. For **partial**
+  supersession the old artifact's status stays `approved` and the
+  outgrown part carries a forward pointer to its successor — the
+  `status` field itself never takes a fifth value. Never by editing the
+  old one's content in place.
 
 ## Per-type mutability — a pointer, not a copy
 

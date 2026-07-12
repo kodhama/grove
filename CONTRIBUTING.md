@@ -57,12 +57,15 @@ The lifecycle itself — the state enum, what each state means, and who
 moves an artifact between states — lives in
 [`charters/lifecycle.md`](charters/lifecycle.md), the lifecycle
 companion (`adr-0008`); this guide deliberately does not restate it.
-Two contribution-facing notes on top of it: what must be true *before*
-each promotion is type-specific and covered in the proposal sections
-below (required sections and an honest self-check before an author
-gates their own artifact; for specs, a converged `spec-adversary` pass
-before a human sees the PR), and the append-only supersession mechanics
-for decisions live in `decisions/README.md`.
+Two contribution-facing notes on top of it. First, what must be true
+*before* each promotion is type-specific: every type needs its required
+sections present and an honest self-check before an author gates their
+own artifact; **for a `decisions/` artifact, the shaping conversation
+with the maintainer must have converged** before `gated → approved`;
+for specs, a converged `spec-adversary` pass before a human sees the PR
+(the charter/spec specifics are in the proposal sections below).
+Second, the append-only supersession mechanics for decisions live in
+`decisions/README.md`.
 
 ## How to propose a new charter
 
@@ -139,8 +142,10 @@ human spec-gate pipeline:
    that nothing load-bearing was found) — not only in PR comments. PR
    comments don't travel with the artifact if it's read later outside
    the PR; the spec file is the artifact of record.
-5. Open the PR. A human reviews and merges to promote `gated` →
-   `approved` — never set by hand.
+5. Open the PR. A human's approval promotes `gated` → `approved` — a
+   human intent act recorded by the status flip (in-PR is legitimate,
+   `adr-0007`'s precedent; the merge is one way to perform it). Never
+   flipped by an agent without a recorded human act.
 
 ## The zero-nouns discipline
 

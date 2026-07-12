@@ -34,9 +34,9 @@ adapted in step 3 below along with everything else. And copy
 `${CLAUDE_PLUGIN_ROOT}/reference/lifecycle.md` into `.claude/agents/lifecycle.md` (same
 header-stripping) — the lifecycle companion (`adr-0008`): the artifact-lifecycle state enum, stated
 once, that every role and the `corpus-reviewer`'s lifecycle check source. It is not an agent role
-and is not optional per role — every install gets it. If any chosen role's file already exists at the
-destination, **never overwrite it silently** — ask the user whether to overwrite, skip, or diff
-first, and honor their answer per file.
+and is not optional per role — every install gets it. If any copied file (a role's, the README, or
+the lifecycle companion) already exists at the destination, **never overwrite it silently** — ask
+the user whether to overwrite, skip, or diff first, and honor their answer per file.
 
 ## 3. Resolve every placeholder, interactively
 
