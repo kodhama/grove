@@ -2,7 +2,7 @@
 ---
 id: charter-versioning
 type: charter
-status: gated  # self-checked by author 2026-07-12; the maintainer's intent act on the shipping PR is the gate to approved
+status: approved  # maintainer's intent act 2026-07-12 ("#51 approved", grove#51) — in-PR flip recording the act (charters/lifecycle.md, adr-0007 precedent); conformance-reviewed against adr-0010 before approval
 depends_on: [adr-0010-versioning-is-operational]
 owner: agent
 updated: 2026-07-12
