@@ -1,7 +1,7 @@
 ---
 id: adr-0009-security-specialist-parked
 type: adr
-status: gated  # self-checked (below); awaiting human ratification by PR approval/merge
+status: approved  # self-checked (gated), then approved by the maintainer in-session 2026-07-12 ("Ratify ADR-0009"), recorded in-PR per the adr-0007 precedent; ratified via #46
 depends_on: [adr-0007-code-reviewer-agent]
 owner: agent
 updated: 2026-07-12
