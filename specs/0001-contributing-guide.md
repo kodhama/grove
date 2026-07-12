@@ -5,6 +5,7 @@ status: approved  # bumped 2026-07-10: CONTRIBUTING.md (this spec's product) is 
 depends_on: [charter-contract-author, charter-spec-adversary, charter-executor, charter-conformance-reviewer, charter-dispatcher, charter-shaper, charter-run-resumer, charter-propagation-remediator, charter-validator, charter-divergent-researcher, charter-lifecycle]
 owner: agent
 updated: 2026-07-12
+version: 1  # counter initialized 2026-07-12 with the R2/R8 amendment (kodhama-0008) — forward-only from here; prior states uncounted/unpinnable
 ---
 
 # spec-0001 — CONTRIBUTING.md content requirements
@@ -89,10 +90,12 @@ R2. **The approval act, stated unambiguously.**
     > CONTRIBUTING.md learns the real gate — a recorded human act — and
     > can't conclude a hand-flip without one is legitimate.
     > CONFIDENCE: verified (the companion is `approved`, in-source).
-    > NB: significant change; the behavioral version counter this
-    > should bump (`trellis/decision-0045`, `adr-0006`) is not yet
-    > materialized in this corpus — deferred with grove#40, stated
-    > loudly rather than skipped silently.
+    > NB: significant change; the artifact predated the behavioral
+    > version counter (`trellis/decision-0045`, `adr-0006`), so this
+    > amendment **initializes it** at `version: 1` per the maintainer's
+    > rule (2026-07-12, recorded in `charters/contract-author.md`
+    > step 4): forward-only from materialization, prior states
+    > uncounted.
 
     CONTRIBUTING.md states explicitly that `approved` (specs, decisions)
     is set only on a **human intent act, recorded by the status flip**
