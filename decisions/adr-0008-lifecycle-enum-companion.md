@@ -4,10 +4,21 @@ type: adr
 status: approved  # maintainer's intent act 2026-07-12 ("merge it", on the round-2 revision — recorded in PR #45's approval comment); the #45 merge landed it. This flip records that act (decision-0046); the flip was missed at merge time and corrected post-merge.
 depends_on: [adr-0004-spec-lifecycle-and-organization, trellis/decision-0037]
 owner: agent
-updated: 2026-07-12
+updated: 2026-07-12  # amendment same day: install target -> .grove/lifecycle.md (append-only note below the title)
 ---
 
 # ADR-0008: the swarm carries the lifecycle enum — a dedicated shipped companion, not a README
+
+> **Amendment (2026-07-12, append-only — the maintainer's call during the
+> execution pass):** the consumer install target is **`.grove/lifecycle.md`**,
+> not `.claude/agents/lifecycle.md`. Wherever this decision's ratified text
+> below reads `.claude/agents/lifecycle.md` (Decision items 1–3, AC1), read
+> `.grove/lifecycle.md`. Why: `.claude/agents/` is Claude Code's loader
+> namespace — installing a non-agent file with corpus frontmatter there rides
+> undocumented loader behavior (the execution review's flag); a `.grove/`
+> directory is grove's own inert namespace, the same move as trellis's
+> `.trellis/` overlay, and eliminates the risk rather than mitigating it.
+> The ratified text below is unedited per the append-only rule.
 
 ## Context
 

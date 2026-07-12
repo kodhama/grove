@@ -31,10 +31,13 @@ its `---` frontmatter delimiter, not a comment above it).
 
 Also copy `reference/agents/README.md` into `.claude/agents/README.md` (same header-stripping),
 adapted in step 3 below along with everything else. And copy
-`${CLAUDE_PLUGIN_ROOT}/reference/lifecycle.md` into `.claude/agents/lifecycle.md` (same
-header-stripping) — the lifecycle companion (`adr-0008`): the artifact-lifecycle state enum, stated
-once, that every role and the `corpus-reviewer`'s lifecycle check source. It is not an agent role
-and is not optional per role — every install gets it. If any copied file (a role's, the README, or
+`${CLAUDE_PLUGIN_ROOT}/reference/lifecycle.md` into `.grove/lifecycle.md` (same header-stripping;
+create the `.grove/` directory if it doesn't exist) — the lifecycle companion (`adr-0008`, as
+amended): the artifact-lifecycle state enum, stated once, that every role and the
+`corpus-reviewer`'s lifecycle check source. It lands in grove's own `.grove/` namespace — not
+`.claude/agents/`, which is Claude Code's loader directory and parses files as subagents (the same
+move as trellis's `.trellis/` overlay). It is not an agent role and is not optional per role —
+every install gets it. If any copied file (a role's, the README, or
 the lifecycle companion) already exists at the destination, **never overwrite it silently** — ask
 the user whether to overwrite, skip, or diff first, and honor their answer per file.
 
@@ -97,7 +100,7 @@ grove's own (`decisions/README.md`, `specs/README.md` in the grove repo). Each s
 shared artifact frontmatter (`id/type/status/depends_on/owner/updated`) and — for `decisions/` —
 the append-only rule (never edit a ratified decision in place; supersede with a forward pointer).
 Do **not** seed the lifecycle state enum or its state semantics — those live in the lifecycle
-companion this install already landed at `.claude/agents/lifecycle.md` (step 2, `adr-0008`); a
+companion this install already landed at `.grove/lifecycle.md` (step 2, `adr-0008` as amended); a
 seeded README points there instead of restating them. Adapt, don't invent a heavier process than
 grove's own.
 

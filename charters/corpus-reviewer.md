@@ -42,9 +42,9 @@ from whoever produced the artifacts. The family core, in every repo:
 1. **Frontmatter** present on every artifact; `id` / `type` / `status` /
    `depends_on` / `owner` present and well-typed (`depends_on` a list).
 2. **Lifecycle membership:** `status` ∈ the state enum declared in the
-   lifecycle companion (`.claude/agents/lifecycle.md` in a consuming
-   project; the canonical `charters/lifecycle.md` in grove itself —
-   `adr-0008`), never a per-repo restatement.
+   lifecycle companion (`.grove/lifecycle.md` in a consuming project;
+   the canonical `charters/lifecycle.md` in grove itself — `adr-0008`
+   as amended), never a per-repo restatement.
 3. **Id uniqueness** across the corpus.
 4. **Reference resolution:** every `depends_on` entry resolves to an
    existing artifact `id` or a declared external-reference prefix.
