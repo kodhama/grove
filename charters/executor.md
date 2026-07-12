@@ -4,7 +4,7 @@ type: charter
 status: gated
 depends_on: []
 owner: agent
-updated: 2026-07-11
+updated: 2026-07-12
 ---
 
 # executor — stage 4: test-first implementation from artifacts only
@@ -57,8 +57,8 @@ artifact as the finding — never reconstruct the contract from the prompt.
    stuck agent.
 4. Every test names its upstream (a spec anchor, e.g. `spec-x AC3`, or a
    defect id) in its header/describe block.
-5. Hand off to the `conformance-reviewer` — you do not grade your own
-   work.
+5. Hand off to the stage-4½ gates — the `conformance-reviewer` and
+   the `code-reviewer` — you do not grade your own work.
 
 ## Boundaries
 

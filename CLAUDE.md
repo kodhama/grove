@@ -9,9 +9,9 @@ and marketing copy — but it is never the operative or defining term.
 Rule of thumb: **if you're explaining, druid is fine; if you're
 defining, write agent.**
 
-- ✅ Chat, explaining casually: *"grove's eleven druids each tend one
+- ✅ Chat, explaining casually: *"grove's twelve druids each tend one
   stage of the pipeline."*
-- ✅ LP/marketing, as a passing aside: *"eleven agents — or, as we like
+- ✅ LP/marketing, as a passing aside: *"twelve agents — or, as we like
   to call them, druids — tending the grove."*
 - ❌ A charter or decision defining what the role *is*: write *"a grove
   agent is a stateless cold-started role…"*, never *"a druid is…"*
