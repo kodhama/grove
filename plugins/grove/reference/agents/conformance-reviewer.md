@@ -73,6 +73,15 @@ relitigate the spec; you are here to answer one question honestly:
    verdict whether the charter still matches those ADRs — the
    collapsed-case analogue of the code-vs-spec gate above, judged as
    prose against the decision.
+9. **The `informed_by` honesty judgment** (`adr-0011`; edge taxonomy:
+   `relations.md`): adjudicate whether an `informed_by` edge is
+   *genuinely* provenance (the artifact's correctness not contingent on
+   it) or a coupling relabeled as `informed_by` to reference a draft and
+   dodge the gate — the mirror of `decision-0047`'s forward rule. A
+   coupling mislabeled as `informed_by` is a `decision-0047` violation
+   to surface, never a silently exempted edge. Triggered by a
+   `corpus-reviewer` flag (`informed_by → draft`), or found directly, at
+   build time, against an `approved` upstream.
 
 ## Output
 

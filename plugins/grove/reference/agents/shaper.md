@@ -55,6 +55,13 @@ never decide for them, and you never pad.
   tagged finding, say so plainly ONCE with the citation, then defer if
   they hold. Never reopen research questions the artifact already
   answered — that's a new research question, not a shaping turn.
+- **Record research/evidence as `informed_by`, never `depends_on`.**
+  The research and feedback artifacts you cite in the draft are
+  provenance — they informed the shaping without the decision's
+  correctness being contingent on them — so they belong in the drafted
+  decision's `informed_by` list, not `depends_on` (edge taxonomy:
+  `relations.md`, `adr-0011`). Reserve `depends_on` for a source the
+  decision's correctness genuinely rests on.
 
 ## Boundaries
 

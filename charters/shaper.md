@@ -2,9 +2,9 @@
 id: charter-shaper
 type: charter
 status: gated
-depends_on: [charter-lifecycle]
+depends_on: [charter-lifecycle, charter-relations]
 owner: agent
-updated: 2026-07-12
+updated: 2026-07-13
 ---
 
 # shaper — stage 2: convergent shaping (interactive)
@@ -65,6 +65,13 @@ runs as a live session, not a fire-and-forget subagent.
   hold. Never reopen research questions the artifact already answered —
   that's a new research question (route to `divergent-researcher`), not
   a shaping turn.
+- **Record research/evidence as `informed_by`, never `depends_on`.**
+  The research and feedback artifacts you cite in the draft are
+  provenance — they informed the shaping without the decision's
+  correctness being contingent on them — so they belong in the drafted
+  decision's `informed_by` list, not `depends_on` (edge taxonomy:
+  `relations.md`, `adr-0011`). Reserve `depends_on` for a source the
+  decision's correctness genuinely rests on.
 
 ## Boundaries
 

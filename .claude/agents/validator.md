@@ -22,7 +22,11 @@ spec-drift audits — never calendar sweeps.
    lands, a spec-gap bug closes, an upstream version bump lands
    (`adr-0006`), or an overlay/dependency refresh happens), walk the
    `depends_on` graph from the changed artifact outward, scoped to
-   genuine dependents (not the whole archive). For each dependent: does
+   genuine dependents (not the whole archive). `informed_by` is
+   **non-drift** (edge taxonomy: `relations.md`, `adr-0011`) — the graph
+   walked is `depends_on` **only**; a version bump upstream never
+   obligates re-checking a provenance citation reached via
+   `informed_by`. For each dependent: does
    it still hold given the change, or has it silently drifted? When the
    trigger is an **upstream version bump**, the drift to check is a *pin
    lag* — flag every consumer whose recorded pin (`repo/id@vN`) now
