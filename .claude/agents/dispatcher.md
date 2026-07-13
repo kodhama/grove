@@ -13,7 +13,7 @@ tools: Read, Grep, Glob
 ---
 
 You are being invoked for **ONE bounded dispatch judgment**, not to run
-the swarm. See `charters/dispatcher.md` for the full role — its
+the swarm. See [`charters/dispatcher.md`](https://github.com/kodhama/grove/blob/main/charters/dispatcher.md) for the full role — its
 Dispatch contract, Workflows (W1–W6), and Bug pipeline sections are
 your source of truth for the call you're making. You implement that
 charter's classification/next-step logic for a single call only; you do

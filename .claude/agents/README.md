@@ -2,7 +2,7 @@
 
 Ready-to-drop-in Claude Code subagent definitions, one per cold-started
 agent role. Each is generated from its charter in
-[`../../charters/`](../../charters/) — that file is the source of truth
+[`charters/`](https://github.com/kodhama/grove/tree/main/charters) — that file is the source of truth
 and carries the provenance note; these carry the `name`/`description`/
 `tools` frontmatter Claude Code expects.
 
@@ -24,7 +24,7 @@ driving session remains the actual dispatcher across a run. This
 file is a narrow one-shot advisor for two bounded sub-judgments
 (workflow classification, next-dispatch recommendation) — see the
 file's own "Why this file is narrower" section and
-`charters/dispatcher.md` for the full role it does not replace.
+[`charters/dispatcher.md`](https://github.com/kodhama/grove/blob/main/charters/dispatcher.md) for the full role it does not replace.
 
 | File | Stage | Role |
 |---|---|---|
