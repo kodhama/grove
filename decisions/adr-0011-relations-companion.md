@@ -1,7 +1,7 @@
 ---
 id: adr-0011-relations-companion
 type: adr
-status: gated  # self-checked by author 2026-07-13; the maintainer's intent act is the gate to approved
+status: approved  # maintainer's intent act 2026-07-13 ("#58 approved. Passes the gate.") — in-PR flip recording the act (adr-0007 / lifecycle-companion precedent); two adversary rounds preceded the gate; executed to the same PR
 depends_on: [adr-0006-operational-conformance-mechanism, adr-0008-lifecycle-enum-companion, adr-0010-versioning-is-operational, trellis/decision-0047]
 owner: agent
 updated: 2026-07-13

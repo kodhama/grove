@@ -26,8 +26,19 @@ checklist from whoever produced the artifacts.
 3. `id` unique across the corpus.
 4. Every `depends_on` resolves to an existing artifact `id` or a
    declared external-reference prefix. Flag dangling references.
+   `informed_by` entries resolve the same way (edge taxonomy:
+   `relations.md`, `adr-0011`) — but **first**, before stripping and
+   resolving, flag a `@version` pin on any `informed_by` entry as a
+   **category error** (`informed_by` is non-drift; a version pin has
+   nothing to compare against and would otherwise be silently swallowed
+   by the strip-and-resolve step).
 5. **Directional flow (load-bearing):** no `gated` or `approved`
-   artifact `depends_on` a `draft`.
+   artifact `depends_on` a `draft`. `informed_by` is **non-flow**
+   (`relations.md`, `adr-0011`): a draft `informed_by` referent does NOT
+   trip this check. Instead, flag an `informed_by → draft` edge as a
+   **flag** for the `conformance-reviewer`'s honesty judgment (a
+   coupling relabeled as `informed_by` to dodge this very gate is
+   non-conformant, `decision-0047`) — never a silent structural pass.
 6. Required body sections per type, as the contract declares them.
 7. Supersession integrity: `superseded` carries its forward pointer;
    partial supersessions name what replaced which part.

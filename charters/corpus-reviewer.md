@@ -1,10 +1,10 @@
 ---
 id: charter-corpus-reviewer
 type: charter
-status: approved  # ratified by PR #6 (2026-07-08); amended 2026-07-12 for adr-0006 duties (re-ratified on this PR's merge); amended 2026-07-12 per adr-0008 (lifecycle check sources the companion); amended 2026-07-12 per adr-0010 (changes: cross-check duty + pin-semantics repoint — re-ratified on this PR's merge)
-depends_on: [adr-0001-corpus-reviewer-lift, adr-0006-operational-conformance-mechanism, adr-0008-lifecycle-enum-companion, charter-versioning]
+status: approved  # ratified by PR #6 (2026-07-08); amended 2026-07-12 for adr-0006 duties (re-ratified on this PR's merge); amended 2026-07-12 per adr-0008 (lifecycle check sources the companion); amended 2026-07-12 per adr-0010 (changes: cross-check duty + pin-semantics repoint — re-ratified on this PR's merge); amended 2026-07-13 per adr-0011 (types + resolves informed_by; flags a @version pin on informed_by as a category error; flags informed_by → draft for the conformance-reviewer's honesty judgment)
+depends_on: [adr-0001-corpus-reviewer-lift, adr-0006-operational-conformance-mechanism, adr-0008-lifecycle-enum-companion, charter-versioning, charter-relations]
 owner: agent
-updated: 2026-07-12
+updated: 2026-07-13
 ---
 
 # corpus-reviewer — standing: the record audits itself honestly
@@ -48,9 +48,21 @@ from whoever produced the artifacts. The family core, in every repo:
 3. **Id uniqueness** across the corpus.
 4. **Reference resolution:** every `depends_on` entry resolves to an
    existing artifact `id` or a declared external-reference prefix.
-   Dangling references are findings, not footnotes.
+   Dangling references are findings, not footnotes. `informed_by`
+   entries resolve the same way (edge taxonomy: `relations.md`,
+   `adr-0011`) — but **first**, before stripping and resolving, flag a
+   `@version` pin on any `informed_by` entry as a **category error**
+   (`informed_by` is non-drift; a version pin has nothing to compare
+   against and would otherwise be silently swallowed by the
+   strip-and-resolve step).
 5. **Directional flow (load-bearing):** no `gated` or `approved`
    artifact `depends_on` a `draft` — consuming a draft is forbidden.
+   `informed_by` is **non-flow** (`relations.md`, `adr-0011`): a draft
+   `informed_by` referent does NOT trip this check. Instead, flag an
+   `informed_by → draft` edge as a **flag** for the
+   `conformance-reviewer`'s honesty judgment (a coupling relabeled as
+   `informed_by` to dodge this very gate is non-conformant,
+   `decision-0047`) — never a silent structural pass.
 6. **Required body sections per type**, as the project's contract
    declares them.
 7. **Supersession integrity:** a `superseded` artifact carries its

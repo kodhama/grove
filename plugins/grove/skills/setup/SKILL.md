@@ -42,8 +42,14 @@ every install gets it. Likewise copy
 `.grove/versioning.md` (same header-stripping) — the versioning
 companion (`adr-0010`): the conformance-detection semantics (version
 kinds and forms, `@version` pins, the `changes:` cross-check), stated
-once, that the versioning-touching roles source. If any copied file (a role's, the README, or a
-companion — lifecycle, versioning) already exists at the destination, **never overwrite it silently** — ask
+once, that the versioning-touching roles source. Likewise copy
+`${CLAUDE_PLUGIN_ROOT}/reference/relations.md` into
+`.grove/relations.md` (same header-stripping) — the relations companion
+(`adr-0011`): the artifact **edge taxonomy** (`depends_on`, `informed_by`,
+`superseded_by`/`superseded_in_part_by`, `changes:` — which is flow,
+which bears drift), stated once, that `shaper`, `corpus-reviewer`,
+`conformance-reviewer`, and `validator` source. If any copied file (a role's, the README, or a
+companion — lifecycle, versioning, relations) already exists at the destination, **never overwrite it silently** — ask
 the user whether to overwrite, skip, or diff first, and honor their answer per file.
 
 ## 3. Resolve every placeholder, interactively

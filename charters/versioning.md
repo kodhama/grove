@@ -1,10 +1,10 @@
 ---
 id: charter-versioning
 type: charter
-status: approved  # maintainer's intent act 2026-07-12 ("#51 approved", grove#51) — in-PR flip recording the act (charters/lifecycle.md, adr-0007 precedent); conformance-reviewed against adr-0010 before approval
-depends_on: [adr-0010-versioning-is-operational]
+status: approved  # maintainer's intent act 2026-07-12 ("#51 approved", grove#51) — in-PR flip recording the act (charters/lifecycle.md, adr-0007 precedent); conformance-reviewed against adr-0010 before approval; amended 2026-07-13 per adr-0011 (edge taxonomy split to relations.md — the `changes:` edge definition and all `depends_on`-class language moved out; version forms/pins/cross-check stay)
+depends_on: [adr-0010-versioning-is-operational, adr-0011-relations-companion]
 owner: agent
-updated: 2026-07-12
+updated: 2026-07-13
 ---
 
 # versioning — conformance-detection semantics, stated once
@@ -27,6 +27,15 @@ updated: 2026-07-12
 > (stale-pin re-checks) — instead of any per-repo restatement. Every
 > other statement of these semantics, in grove or a consuming project,
 > is a pointer to this file, never a copy.
+
+> **Amended 2026-07-13** (`adr-0011-relations-companion`): the artifact
+> **edge taxonomy** — which relations exist, and for each, whether it is
+> *flow* (walked by directional-flow) and whether it *bears drift* —
+> moved to a new sibling companion, `relations.md`. This file no longer
+> defines any edge class (the `changes:` edge definition and the
+> `depends_on`-class language formerly here are gone); it keeps version
+> forms, the `@version` pin grammar, and the `changes:` cross-check, and
+> points to `relations.md` wherever it names an edge.
 
 ## The two versioning kinds
 
@@ -73,6 +82,10 @@ duty lives in `contract-author`; this is the meaning.)
 
 ## The `@version` pin grammar
 
+`depends_on`'s edge class — coupling, flow, drift-bearing — is defined
+in `relations.md` (`adr-0011`), not here; this section states only the
+version qualifier a `depends_on` entry may carry.
+
 A `depends_on` entry pinning a **versioned** upstream may qualify the
 referent with the version it was built against:
 
@@ -100,10 +113,8 @@ On a **significant-change decision** only: `changes:` lists the
 versioned artifact(s) the decision changes, each pinned to the version
 it set (`id@version` / `<repo>/<id>@version`).
 
-- It is a **forward-pointer relation of the `superseded_by` class —
-  never a `depends_on`-class edge**, and never walked as a flow edge (a
-  decision depending on X while its `changes:` names X is a benign
-  two-relation pair, not a cycle).
+- `changes:` is a relation defined in `relations.md` (`adr-0011`); its
+  *version cross-check* is below.
 - **Cross-check semantics** (scope: counter-versioned artifacts only —
   the ordered `vN` form; hashes have no ordering, tags are the sync
   check's): reconcile `changes: [X@vN]` against `X`'s version
@@ -117,11 +128,16 @@ it set (`id@version` / `<repo>/<id>@version`).
 
 ## Boundaries
 
-- **Single home.** No grove-managed repo — grove itself included —
-  restates these semantics; every former restatement is a one-line
-  pointer here (`adr-0010`). Trellis's spine contract keeps shape-only,
-  methodology-defined clauses (the maintainer's Q1 ruling); the binding
-  to this file happens through the installed `.grove/versioning.md`.
+- **Single home — for version mechanics, not edge classes.** No
+  grove-managed repo — grove itself included — restates version
+  forms/pins/cross-check semantics; every former restatement is a
+  one-line pointer here (`adr-0010`). This file states **no** edge
+  class (`depends_on`, `informed_by`, `superseded_by`, `changes:`) —
+  that taxonomy's single home is `relations.md` (`adr-0011`); where this
+  file names an edge, it points there. Trellis's spine contract keeps
+  shape-only, methodology-defined clauses (the maintainer's Q1 ruling);
+  the binding to this file happens through the installed
+  `.grove/versioning.md`.
 - **Practices are the artifacts' own.** design-system cuts its git
   tags; the trellis payload stamps its content-hash — this file defines
   the *forms*, it does not operate anyone's release process.

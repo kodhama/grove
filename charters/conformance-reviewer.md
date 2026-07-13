@@ -2,9 +2,9 @@
 id: charter-conformance-reviewer
 type: charter
 status: gated
-depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, charter-versioning]
+depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, charter-versioning, charter-relations]
 owner: agent
-updated: 2026-07-12
+updated: 2026-07-13
 ---
 
 # conformance-reviewer — stage 4½: the independent build gate
@@ -71,6 +71,15 @@ checklist. Read-only: it judges and reports, it does not fix.
    verdict whether the charter still matches those ADRs — the
    collapsed-case analogue of the code-vs-spec gate above, judged as
    prose against the decision.
+9. **The `informed_by` honesty judgment** (`adr-0011`; edge taxonomy:
+   `relations.md`): adjudicate whether an `informed_by` edge is
+   *genuinely* provenance (the artifact's correctness not contingent on
+   it) or a coupling relabeled as `informed_by` to reference a draft and
+   dodge the gate — the mirror of `decision-0047`'s forward rule. A
+   coupling mislabeled as `informed_by` is a `decision-0047` violation
+   to surface, never a silently exempted edge. Triggered by a
+   `corpus-reviewer` flag (`informed_by → draft`), or found directly, at
+   build time, against an `approved` upstream.
 
 ## Output
 
