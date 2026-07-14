@@ -1,5 +1,5 @@
 ---
-id: research-0011-spec-lifecycle-prior-art
+id: research-0012-spec-lifecycle-prior-art
 type: research
 status: draft
 depends_on: []
@@ -9,14 +9,14 @@ updated: 2026-07-13
 
 # Prior art and adversarial validation: transient gated specs in AI-agent-driven development
 
-Deep-research report, 2026-07-13. Stage-1 evidence annex for `adr-0011` (draft). This annex is
+Deep-research report, 2026-07-13. Stage-1 evidence annex for `adr-0012` (draft). This annex is
 a moment-in-time claim about the literature as of its date — append-only by nature, never
 maintained; a decision that needs fresher evidence commissions a new annex rather than editing
 this one.
 
 > Provenance: commissioned in a maintainer conversation (2026-07-13, kodhama session);
 > originally parked in transit on a kodhama branch (id `research-0009-...` there), moved here —
-> its home — alongside the `adr-0011` draft, per the dependency-direction rule (grove cannot
+> its home — alongside the `adr-0012` draft, per the dependency-direction rule (grove cannot
 > cite a kodhama artifact).
 
 Method: deep-research workflow, 103 agents; 21 sources fetched; 74 claims extracted; top 25

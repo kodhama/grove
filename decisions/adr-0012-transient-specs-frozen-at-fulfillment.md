@@ -1,17 +1,24 @@
 ---
-id: adr-0011-transient-specs-frozen-at-fulfillment
+id: adr-0012-transient-specs-frozen-at-fulfillment
 type: adr
 status: draft  # DELIBERATELY parked at draft — validation-gated; see Consequences. Nothing builds on this.
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0008-lifecycle-enum-companion]
 owner: agent
-updated: 2026-07-13
+updated: 2026-07-14
 ---
 
-# ADR-0011 (draft): specs as transient gated contracts, frozen at fulfillment
+# ADR-0012 (draft): specs as transient gated contracts, frozen at fulfillment
+
+> Renumber note (2026-07-14): this draft was authored 2026-07-13 as
+> `adr-0011`, but `adr-0011` was taken the same day by the approved
+> `adr-0011-relations-companion` (a parallel session; this branch is behind
+> that merge, so the clash was invisible from here). Renumbered to
+> `adr-0012` — the next free id — with all references updated across the
+> study. The annex moved with it (`research-0011` → `research-0012`).
 
 > Provenance: shaped from a maintainer conversation (2026-07-13, kodhama
 > session) on corpus entropy and spec lifecycle in agent-driven
-> development. Evidence base: `research-0011-spec-lifecycle-prior-art`
+> development. Evidence base: `research-0012-spec-lifecycle-prior-art`
 > (deep-research annex, same date, in `decisions/research/`). This draft
 > is **not awaiting approval** — it is parked by explicit maintainer
 > intent pending pre-registered empirical validation (the experiment
