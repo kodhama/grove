@@ -41,9 +41,28 @@ of the decision here.
   made of more paragraphs is disqualified by construction — this is
   grove's own "triggers not vigilance" turned on the methodology itself
   (grove#59; endorsed as the framing the canvas is built on).
+- **Enforcement architecture: C — both layers** (maintainer, 2026-07-15).
+  A **structural default** in dispatch (the lazy path is the correct one)
+  **backstopped by a mechanical red check** (for when the default is
+  violated). Rejected: A-alone (CI only, no default) and B-alone
+  (structural default only) — B-alone leans on the dispatching agent
+  following its default, the exact thing that failed in the reported
+  session, so it does not clear the "machinery, not vigilance" bar on its
+  own. Both proposals 1–3 now resolve into a default layer *and* a check
+  layer.
 
 ### Open (the live questions)
 
+- **O0 — the keystone primitive: the gate-verdict artifact.** Under C,
+  all three proposals resolve into a default layer + a check layer, and
+  the check layer rests on one primitive: *the thing a gate emits, that
+  the red check reads, that the freshness rule binds to a commit.* Define
+  it once and O2 (missing → red), O3 (subject moved → stale → red), and
+  O1's disclosed-deviation marker all become instances of it. **Note:**
+  grove's `dispatcher.md` W1 already encodes the gate *sequence*
+  (conformance ∥ code-review at 4½; spec-adversary before the human spec
+  gate) — so the B-layer is a *tightening of an existing default*, not new
+  prose; the genuinely new machinery is this artifact + the check on it.
 - **O1 — Proposal 1: role separation as the default execution path.**
   Make separate cold-started author → builder → reviewer the structural
   default; *combining* them becomes the explicit, disclosed deviation.
