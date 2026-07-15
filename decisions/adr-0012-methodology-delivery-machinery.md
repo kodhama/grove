@@ -168,6 +168,28 @@ of the decision here.
   skill compiles them into the `type → owed-slots` mapping; the check reads
   each changed artifact's `type` at PR time (run-time, never trusting an
   agent's word).
+- **A non-pass verdict leaves the slot unfilled; the verdict *grammar*
+  routes the fix** (2026-07-15). The gate-verdict skill records *every*
+  verdict (pass and non-pass) for the audit trail; the check counts a slot
+  filled only on a **fresh PASS-class** verdict. A non-pass neither fills the
+  slot (check stays red) nor lingers (any revision moves HEAD and D5
+  staleness drops it). Its grammar carries the routing, already chartered:
+  `spec-adversary` `NEEDS-REVISION` → the immediate producer
+  (`contract-author`) revises; `UNSOUND` → back to the *upstream* producer
+  (`shaper`), the flaw being in the decision (`spec-adversary.md` §Method 4).
+  So dispatch derives from the slot's **verdict state** — no verdict → run
+  the supplier; non-pass → run the producer the grammar names; fresh pass →
+  advance — never from a memorized flow. grove's constrained verdict
+  grammars double as routing labels.
+- **The subject of a verdict is the artifact-at-HEAD + its declared
+  upstream — not the diff** (2026-07-15). A reviewer certifies the whole
+  artifact's current state against the upstream it builds its checklist from
+  (`conformance-reviewer` / `spec-adversary` derive ground-truth from the
+  upstream, not the delta); the **diff is a focusing/scoping aid**, chiefly
+  to scope a re-review round to "what changed since my last verdict"
+  (`spec-adversary.md` §Method 5). Two channels: the **SHA-bound verdict
+  status** is the machine channel to the check; the **findings** (the *why*
+  of a non-pass) travel as PR records/comments back to the producer.
 
 ### Open (the live questions)
 
@@ -213,6 +235,18 @@ of the decision here.
     shaper's lean) vs **producer-named handoff** (the producer declares
     "hand to `spec-adversary` next"). Slot-driven makes adding/swapping a
     reviewer a one-line registration with zero producer edits.
+- **O7 — freshness granularity (surfaced by the "is it the diff?" question).**
+  D4 said "SHA-bound." But binding a verdict to the **whole-commit SHA**
+  means *any* commit — even a typo in an unrelated file — invalidates *every*
+  verdict and forces spurious re-reviews. The alternative binds each verdict
+  to a **content-hash of its subject-set** (the artifact + upstream it
+  certifies; for conformance, code + the spec). Fork:
+  - **whole-commit SHA** — cheapest, literally free from GitHub's per-SHA
+    commit statuses; over-invalidates (friction on every unrelated edit).
+  - **subject-content-hash** *(shaper's lean)* — precise, no spurious
+    re-reviews; a refinement of D4 (the skill computes a subject hash rather
+    than using the bare SHA — a modest cost, still machine-checkable, but no
+    longer literally free from the commit status).
 
 ### Parked (deferred, with why)
 
