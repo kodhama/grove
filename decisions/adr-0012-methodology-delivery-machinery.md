@@ -405,6 +405,26 @@ math-quest PR #278 (C1-S2), read as what should not happen:
 - **A2** → Proposal 2 (O2): the owed gate set is defined and its absence turns the contract check red.
 - **A3** → Proposal 3 (O3): a spec edit voids the conformance verdict automatically; "re-run on final state" is the rule, not a human catch.
 
+## Worked replay — #278 under the new machine (2026-07-15)
+
+The same change (amend spec S + implement it), run through the emergent
+rules. `c1…c4` are commits; each row shows the terminal check's state.
+
+| # | Action | Owed slots on HEAD | Check | What killed the anti-pattern |
+|---|---|---|---|---|
+| 0 | Approved decision needs the amendment → **trigger** dispatches `contract-author` (a cold specialist, *not* whoever will build) | — | — | **A1**: the build trigger later dispatches a *separate* `executor`; fusing them is a disclosed deviation, structurally |
+| 1 | `contract-author` amends spec S (`c1`) | spec → `spec-adversary` | **RED** (slot empty) | **A2**: the owed slot's absence is red — no human needed to notice |
+| 2 | Approved spec → **trigger** dispatches `executor`; test-first build (E0 red-first) impl+tests (`c2`) | spec → `spec-adversary`; code → `conformance` + `code-review` | **RED** (3 empty) | **A2**: all three owed slots enumerated by the check, not remembered |
+| 3 | Slot-driven dispatch runs the suppliers on `c2`. `spec-adversary` → **NEEDS-REVISION** (the false oracle claim); conformance + code-review → pass@c2 | spec-adversary filled=NO; others pass@c2 | **RED** | verdict *grammar* routes: NEEDS-REVISION → the `contract-author` (E0 "fix the test"), no human names it |
+| 4 | `contract-author` revises spec (`c3`) | subject-hash of *spec* changed → `spec-adversary` **stale**; **conformance subject = code+spec → also stale**; `code-review` subject = code only → **still fresh** | **RED** | **A3**: the conformance pass auto-voids because the spec is in its subject — mechanical, not a human catch. O7 precision: code-review is *not* spuriously re-run |
+| 5 | Re-dispatch on `c3`: `spec-adversary` → APPROVE-READY; `conformance` → **NEEDS-REVISION** (code must follow revised spec) | spec-adversary pass@c3; conformance filled=NO | **RED** | fix-the-test again, now one layer down (spec ok, code indicted) |
+| 6 | `executor` updates code test-first (`c4`) | code changed → `conformance` + `code-review` re-owed; spec unchanged → `spec-adversary` **still fresh** | re-dispatch → all pass@c4 → **GREEN** | E0: only the indicted layer re-runs; the fresh spec-adversary verdict is *not* redone |
+| 7 | **Human merge** (E6) | all slots fresh-pass on HEAD | **GREEN** | the human's one act is intent (merge), never "did the gates run" |
+
+Convergence took two fix-the-test rounds; had it ping-ponged, the **E7**
+generation-2 bound fires a loud stop. Every catch that was a *human* in the
+real #278 (steps 5, 8 of the anti-pattern trace) is here a *mechanism*.
+
 ## Constraints (carried from the brief — bounds on any resolution)
 
 - The fix must be **machinery or a structural default**, not more
