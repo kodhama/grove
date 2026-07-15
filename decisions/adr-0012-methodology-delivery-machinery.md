@@ -296,6 +296,17 @@ it does not belong.
   is mechanically enforced, so the maintainer spends attention only on
   intent — approving a decision, or overriding a block with recorded
   rationale — never on "did the process run."
+- **E7 — The whole process is bounded: it converges or escalates, never
+  loops** (maintainer, 2026-07-15). Free iteration (E2) and emergent
+  dispatch (E5) are the engine; this is the governor. A revise ↔ re-review
+  cycle that does not converge within a small fixed number of rounds — and
+  the emergent dispatch more broadly — **stops loudly and hands to the
+  human** (E6), never spinning or spending without limit. This is grove's
+  own discipline applied here: repair cascades and auto-resumes already
+  **bound at generation 2, then demand a loud maintainer stop**
+  (`dispatcher.md` W4; `run-resumer`). The bound's *number and form* are
+  shaper-owned (spec-altitude); the *effect* — bounded, escalating, never
+  infinite — is the maintainer's.
 
 ## Worked trace (the anti-pattern the proposals prevent)
 
