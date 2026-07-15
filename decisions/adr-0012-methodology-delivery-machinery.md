@@ -84,31 +84,41 @@ of the decision here.
   for each changed file it reads the artifact-contract frontmatter `type`
   (`spec` / `adr` / `charter` / …); a file with no artifact frontmatter (or
   outside the artifact dirs) **is code**. Type → owed gates. This reuses the
-  existing artifact contract rather than inventing a parser. *Sharpens D5:*
-  because owed-gates is derived from what changed, "conformance always"
-  resolves to "conformance whenever the change carries **code implementing a
-  contract**" — a pure-artifact PR (no code) owes its artifact's gate, not
-  conformance. (Flagged, not silently overwriting D5 — see O2 for the
-  mapping table that pins this.)
+  existing artifact contract rather than inventing a parser.
+- **Conformance is a layer-to-upstream check, owed at every layer with an
+  approved upstream** (maintainer, 2026-07-15 — corrects an earlier
+  mis-scoping of mine). Conformance asks "does this artifact faithfully
+  implement its **approved upstream**?" — not a code-only question. So it is
+  owed wherever a changed artifact has an approved upstream: **code →
+  conforms to spec**, **spec → conforms to ADR** (the upstream is what
+  `depends_on` names). The spec→ADR check is not optional: the ADR and spec
+  are typically both written by the spec-author, who cannot self-verify that
+  fidelity — it needs the independent gate exactly as code does. This
+  **vindicates D5's "conformance always"** and **retires my earlier "only
+  when code present" proposal** (now in Considered-and-rejected): a
+  spec-only PR still owes conformance (spec→ADR). A **decision** tops out at
+  human intent — no approved *artifact* upstream — so it owes the human
+  gate, not a bot conformance. Clean symmetry falls out: each layer owes
+  **{conformance-to-its-upstream, its own adversary}** — code
+  {conformance→spec, code-review}; spec {conformance→ADR, spec-adversary}.
 
 ### Open (the live questions)
 
-- **O2 — the `type` → owed-gate mapping table** (derivation *mechanism*
-  settled in Decided; this is the table it drives). Proposed, for
-  confirmation:
-  - changed file `type: spec` → **spec-adversary** (+ **conformance** if the
-    PR also carries code implementing it)
+- **O2 — the `type` → owed-gate mapping table** (derivation *mechanism* and
+  the layer-to-upstream conformance rule settled in Decided; this table
+  applies them). Corrected per the conformance generalization:
   - changed file is **code** (untyped / outside artifact dirs) →
-    **code-review + conformance**
-  - changed file `type: adr` (decision) → **no automated gate** — decisions
-    are shaped + human-gated (the intent gate), not adversaried by a bot
-  - changed file `type: charter` → maintainer's call: in grove's collapsed
-    case a charter *is* spec+code (`adr-0006` §7), so it plausibly owes the
-    full set; in a consuming project it may differ
-  - The one judgment call inside the table: how "conformance always" (D5)
-    resolves for a **pure-artifact PR** — proposal above is *conformance is
-    owed only when code is present*, so a decisions-only PR owes nothing
-    mechanical. Confirm or adjust.
+    **conformance (→ spec) + code-review**
+  - changed file `type: spec` → **conformance (→ ADR) + spec-adversary**
+    (owed even with no code in the PR)
+  - changed file `type: adr` (decision) → **no automated gate** — a decision
+    tops out at human intent; the human intent gate is its check
+  - changed file `type: charter` → **the one open call**: in grove's
+    collapsed case a charter *is* spec+code (`adr-0006` §7), so it plausibly
+    owes the full set {conformance, code-review, spec-adversary}; in a
+    consuming project charters may not exist or may behave differently —
+    pin it now, or leave a consuming-project placeholder and settle only
+    code/spec/decision here.
 - **O4 — landing surface.** Under C the decision now has three homes to
   assign: the **dispatcher charter** (the tightened default + owed-set
   derivation), a **gate-verdict skill** (emission), and **`pr-contract.yml`
@@ -208,6 +218,11 @@ math-quest PR #278 (C1-S2), read as what should not happen:
 - **A content-classifier for owed-set derivation** — rejected in favour of
   reading the artifact-contract frontmatter `type` (a file with no such
   frontmatter is code): reuses the existing contract, no parser invented.
+- **Conformance owed "only when the PR carries code"** (a proposal of the
+  shaper's, 2026-07-15) — rejected: it mis-scoped conformance as a
+  code-only check. Conformance is layer-to-upstream, so a spec change owes
+  conformance to its ADR with or without code present. Recorded so the
+  narrowing is not silently reintroduced.
 
 ## Consequences
 
