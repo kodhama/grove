@@ -71,6 +71,14 @@ of the decision here.
   **code-review is owed iff the diff touches code**; spec-adversary iff the
   diff touches spec. The owed set is **derived from what changed**, not
   from pipeline position.
+- **Role separation (Proposal 1) survives — justified by specialization,
+  not independence** (maintainer, 2026-07-15). A cold `contract-author`
+  and a cold `executor` each run a sharp, role-specific prompt;
+  *combining* them runs one agent on blended instructions — a worse author
+  *and* a worse builder. The terminal gates check output *consistency*;
+  they do **not** recover the *depth/quality* lost by not letting each
+  specialist run cold. So the reframe does not subsume Proposal 1 (1a,
+  "drop it," rejected); the open part is only its *enforcement shape*.
 
 ### Open (the live questions)
 
@@ -81,15 +89,19 @@ of the decision here.
   conformance); touches `decisions/` → …; and how "conformance always"
   composes with it. This is the derivation rule the check and the
   gate-verdict skill both read.
-- **O1 — Proposal 1: does role separation survive as a *separate*
-  mechanism, or does terminal-consistency absorb it?** The reframe changed
-  this question. If fresh, independent gates run on the terminal state, the
-  "someone other than the author checked it" guarantee is already met at
-  the *output*, regardless of whether author == builder. Role separation
-  was about the *process* (author bias leaking into the build) — a
-  different concern the gates do not obviously cover. Open: drop proposal 1
-  (gates subsume it), keep it as a light default-only nudge, or keep it
-  fully (default + a who-did-what check).
+- **O1 — Proposal 1's enforcement shape: default-only (1b) or
+  default + check (1c)?** Separation is settled as owed (Decided above);
+  the question is whether a mechanical backstop enforces it. The tension:
+  the **default** (dispatcher cold-starts separate specialist runs) is what
+  delivers the specialization quality; a **check** can only verify
+  separation *happened* (author ≠ builder, via role-stamped commits) — a
+  structural proxy, since it cannot measure the depth the default buys.
+  **But** 1b (default, no check) is *B-alone wearing a new hat* — a default
+  the agent can silently skip — which the C decision above already rejected
+  for exactly this failure. If separation matters (it does), C-consistency
+  points to **1c**. Sub-question deferred to 1c: what attribution signal the
+  check reads (role-stamped commit trailers? the gate-verdict skill
+  recording the acting role? ledger run-ids?).
 - **O4 — landing surface.** Under C the decision now has three homes to
   assign: the **dispatcher charter** (the tightened default + owed-set
   derivation), a **gate-verdict skill** (emission), and **`pr-contract.yml`
@@ -149,8 +161,15 @@ math-quest PR #278 (C1-S2), read as what should not happen:
 
 ## Considered and rejected
 
-- *(populated as the shaping conversation retires options — each with its
-  one-line why-not.)*
+- **A-alone / B-alone enforcement** (only CI, or only a structural
+  default) — rejected for C: B-alone leans on the agent following its
+  default, the exact thing that failed in the reported session.
+- **1a — drop role separation, let terminal-consistency subsume it** —
+  rejected (maintainer, 2026-07-15): the gates check output consistency,
+  not the specialization depth a cold `contract-author` + cold `executor`
+  each deliver; a fused pass runs blended instructions and is a worse
+  author *and* builder. Separation earns its keep independently of the
+  gates.
 
 ## Consequences
 
