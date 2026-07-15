@@ -660,6 +660,53 @@ review. A third solo rework would repeat the loop the profile warns against
 call by the maintainer — retrench to what is buildable today, commit to the
 infrastructure program, or park — not another shaper patch.
 
+## Reframe v3 — what the findings ACTUALLY block (maintainer step-back, 2026-07-15)
+
+The maintainer pushed back on the "park it" over-rotation: *what are the
+findings actually blocking?* Precisely: they block **authenticity + full
+autonomy**, not **completeness + freshness**. Split the machinery in two:
+
+- **Layer A — completeness + freshness (the bookkeeping #278 actually
+  failed).** "Are all owed reviews present, and each fresh against what it
+  certified?" **Deterministic — CI computes it with zero trust in any
+  agent**, and two moves make it buildable today:
+  - **Consumer/resource model (maintainer's framing) dissolves the confused
+    deputy (F1-finding-2) and the non-existent store (F2/R2).** A verdict is
+    an **artifact** — `.grove/verdicts/<slot>` carrying checklist + evidence +
+    the subject-hash it certified. No credentialed emitter to abuse; CI
+    *reads* the resource and *recomputes* the subject-hash from HEAD itself;
+    **git is the store**. Producer produces resources, the check consumes
+    them.
+  - **Auto-generated config is fine; the bug was *where it is read from*
+    (F1/R3).** Generate the check from declarations, but resolve that policy
+    from the **default branch (protected)** while verdict-artifacts live in
+    the PR. Self-amending gate gone.
+- **Layer B — authenticity + full autonomy: "did a *genuine, independent*
+  review actually happen, with no human in the loop?"** *This* is what needs
+  the attestation infra grove lacks (F3, F4, F10, the cross-run bound
+  F2/F12/F13). **And it was always the human's to own** — the human merge gate
+  reads the verdict artifacts and judges genuineness. #278 did not fail on the
+  human's *judgment*; it failed on *bookkeeping* — the layer CI now takes.
+
+**Consequence — this is buildable today, honestly scoped:**
+- **A2 (only 1 of 3 gates ran) and A3 (stale PASS) become deterministically
+  mechanizable now** — the two failures that started #59. Layer A delivers
+  them with no attestation.
+- **A1 (author ≠ builder) stays partial**: separation by *dispatch* + a
+  disclosed, human-visible attribution in the verdict-artifact; a *forgery-
+  proof* separation check waits on identity infra (Layer B).
+- **Not overclaimed (third time's the discipline):** Layer A guarantees
+  *present + fresh*, NOT *genuine*. An agent can still write a fake verdict
+  file; CI cannot tell. Genuineness is the human's judgment at merge (E6),
+  and full autonomy — trusting verdicts with no human — is a later,
+  infra-gated increment, disclosed not pretended.
+
+This reframes the strategic fork: not "ambitious vs modest vs park," but
+**"ship Layer A now (buildable, fixes A2/A3, honest about A1/authenticity),
+Layer B is a later infra increment."** Effects E0–E7 stand as the target;
+Layer A is the mechanized subset that needs no infra. Proposed — to be
+re-adversaried on the *narrow* Layer-A claim before any gate.
+
 ## Constraints (carried from the brief — bounds on any resolution)
 
 - The fix must be **machinery or a structural default**, not more
