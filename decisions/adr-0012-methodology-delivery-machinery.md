@@ -85,40 +85,56 @@ of the decision here.
   (`spec` / `adr` / `charter` / …); a file with no artifact frontmatter (or
   outside the artifact dirs) **is code**. Type → owed gates. This reuses the
   existing artifact contract rather than inventing a parser.
-- **Conformance is a layer-to-upstream check, owed at every layer with an
-  approved upstream** (maintainer, 2026-07-15 — corrects an earlier
-  mis-scoping of mine). Conformance asks "does this artifact faithfully
-  implement its **approved upstream**?" — not a code-only question. So it is
-  owed wherever a changed artifact has an approved upstream: **code →
-  conforms to spec**, **spec → conforms to ADR** (the upstream is what
-  `depends_on` names). The spec→ADR check is not optional: the ADR and spec
-  are typically both written by the spec-author, who cannot self-verify that
-  fidelity — it needs the independent gate exactly as code does. This
-  **vindicates D5's "conformance always"** and **retires my earlier "only
-  when code present" proposal** (now in Considered-and-rejected): a
-  spec-only PR still owes conformance (spec→ADR). A **decision** tops out at
-  human intent — no approved *artifact* upstream — so it owes the human
-  gate, not a bot conformance. Clean symmetry falls out: each layer owes
-  **{conformance-to-its-upstream, its own adversary}** — code
-  {conformance→spec, code-review}; spec {conformance→ADR, spec-adversary}.
+- **Each layer's output is independently checked against its upstream —
+  but the *instrument* is layer-specific** (grounded in the charters this
+  turn, correcting two memory-based errors of mine). The principle is "the
+  builder does not grade itself" (`conformance-reviewer.md`,
+  `inv-independent-judgment`); the gate that enforces it differs by layer:
+  - **spec → decision:** the **`spec-adversary`**, *not* a conformance run.
+    It "derive[s] your OWN checklist from the upstream decision" and hunts
+    for "silent scope beyond the decision" (`spec-adversary.md` §Method 2–3),
+    pre-approval — so a spec's fidelity-to-decision *and* soundness are one
+    gate.
+  - **code → spec:** **`conformance-reviewer`** (fidelity, stage 4½) +
+    **`code-reviewer`** (quality).
+  - **charter → ADR:** **`conformance-reviewer`** already owns it — "a
+    charter is prose implementing the ADR(s) in its `depends_on`… the
+    collapsed-case analogue of the code-vs-spec gate" (`conformance-reviewer.md`
+    §Method 8).
+  - **decision → human intent:** no approved *artifact* upstream; the
+    independent check is the **maintainer, in the loop throughout
+    interactive shaping** (`shaper.md`, "runs as a live session"),
+    backstopped *late* by `spec-adversary`'s `UNSOUND` verdict, which routes
+    decision-level flaws back to the `shaper` (`spec-adversary.md` §Method 4).
+  - **Corrects two earlier claims of mine:** (a) that the ADR and spec share
+    an author — they do **not**; `shaper` authors decisions, `contract-author`
+    authors specs, so independence is structural, not author-self-check; and
+    (b) a double-count of a separate conformance run for specs — the spec's
+    upstream check is the `spec-adversary`'s job.
 
 ### Open (the live questions)
 
-- **O2 — the `type` → owed-gate mapping table** (derivation *mechanism* and
-  the layer-to-upstream conformance rule settled in Decided; this table
-  applies them). Corrected per the conformance generalization:
+- **O2 — the `type` → owed-gate mapping table** (mostly closed from the
+  charters this turn; one open call). Each verdict must be *fresh on HEAD*:
   - changed file is **code** (untyped / outside artifact dirs) →
     **conformance (→ spec) + code-review**
-  - changed file `type: spec` → **conformance (→ ADR) + spec-adversary**
-    (owed even with no code in the PR)
-  - changed file `type: adr` (decision) → **no automated gate** — a decision
-    tops out at human intent; the human intent gate is its check
-  - changed file `type: charter` → **the one open call**: in grove's
-    collapsed case a charter *is* spec+code (`adr-0006` §7), so it plausibly
-    owes the full set {conformance, code-review, spec-adversary}; in a
-    consuming project charters may not exist or may behave differently —
-    pin it now, or leave a consuming-project placeholder and settle only
-    code/spec/decision here.
+  - changed file `type: spec` → **spec-adversary** (checks spec → its
+    decision *and* soundness; `spec-adversary.md` §Method 2–3)
+  - changed file `type: charter` → **conformance-reviewer** (charter → ADR,
+    `conformance-reviewer.md` §Method 8); **+ code-review** in grove's
+    collapsed case where a charter also carries code
+  - changed file `type: adr` (decision) → **human intent gate** (interactive
+    shaping is the in-loop check). **The one open call → see O5.**
+- **O5 — does `type: adr` owe an independent adversary of its own?**
+  (surfaced by the maintainer this turn). Specs get `spec-adversary`;
+  decisions get only the interactive human + a *late* backstop (a flawed
+  decision surfaces downstream when `spec-adversary` returns `UNSOUND`,
+  and only if a spec is ever written on it). A real asymmetry. Open: **(a)**
+  keep decisions on human co-shaping + the UNSOUND backstop (smallest thing;
+  a decision-adversary is arguably *out of scope* — this ADR is about making
+  the *three named failures'* existing gates fire, not adding a new
+  decision-layer gate), and spin the idea to its own `[consider]` issue; or
+  **(b)** fold a decision-adversary gate into this decision.
 - **O4 — landing surface.** Under C the decision now has three homes to
   assign: the **dispatcher charter** (the tightened default + owed-set
   derivation), a **gate-verdict skill** (emission), and **`pr-contract.yml`
