@@ -50,48 +50,54 @@ of the decision here.
   session, so it does not clear the "machinery, not vigilance" bar on its
   own. Both proposals 1–3 now resolve into a default layer *and* a check
   layer.
+- **O0 keystone: the verdict artifact is a SHA-bound status, emitted
+  through a skill** (maintainer, 2026-07-15). Semantics of option 3 — the
+  verdict is bound to the commit it ran on, so the platform carries
+  freshness — but the emission is abstracted behind a **gate-verdict
+  skill** (sibling to `grove-status`), which contains the GitHub coupling
+  and keeps the scheme portable (a non-GitHub runtime swaps the skill's
+  implementation). This captures option 2's portability and option 3's
+  freshness-for-free at once.
+- **The invariant is terminal-state consistency, NOT a fixed flow**
+  (maintainer, 2026-07-15). The check does not enforce an order of
+  operations; in-flow iteration (spec revised, code churned, gates run and
+  invalidated) is unconstrained. It evaluates only HEAD, and requires:
+  *the terminal commit carries a fresh (HEAD-bound) verdict from every gate
+  its diff owes.* This **unifies former gate-completeness (O2) and
+  gate-freshness (O3)** into one condition — a verdict bound to an earlier
+  commit is *absent at HEAD*, so "stale" and "missing" are the same red.
+  **Conformance is always owed** (the decision→spec→code consistency gate;
+  a HEAD-bound conformance status is the proof it "ran last");
+  **code-review is owed iff the diff touches code**; spec-adversary iff the
+  diff touches spec. The owed set is **derived from what changed**, not
+  from pipeline position.
 
 ### Open (the live questions)
 
-- **O0 — the keystone primitive: the gate-verdict artifact.** Under C,
-  all three proposals resolve into a default layer + a check layer, and
-  the check layer rests on one primitive: *the thing a gate emits, that
-  the red check reads, that the freshness rule binds to a commit.* Define
-  it once and O2 (missing → red), O3 (subject moved → stale → red), and
-  O1's disclosed-deviation marker all become instances of it. **Note:**
-  grove's `dispatcher.md` W1 already encodes the gate *sequence*
-  (conformance ∥ code-review at 4½; spec-adversary before the human spec
-  gate) — so the B-layer is a *tightening of an existing default*, not new
-  prose; the genuinely new machinery is this artifact + the check on it.
-- **O1 — Proposal 1: role separation as the default execution path.**
-  Make separate cold-started author → builder → reviewer the structural
-  default; *combining* them becomes the explicit, disclosed deviation.
-  Open: what is the concrete **mechanism** that makes the lazy path the
-  correct one (charter-default dispatch shape? a red-check backstop when
-  commits show author == builder without a disclosed-deviation marker?
-  both?) — since "structural default" must resolve to something checkable,
-  not a restated rule.
-- **O2 — Proposal 2: a per-workflow gate set, mechanically checked.**
-  Define which gates each work-type owes (execution build → conformance +
-  code-review; spec authoring → spec-adversary before the human gate) and
-  make it checkable, not remembered: gate verdicts posted as PR artifacts,
-  and the contract check goes **red** when a required verdict is absent.
-  Open: the gate-set-per-work-type table, and the verdict-artifact format
-  the check keys off.
-- **O3 — Proposal 3: gate freshness (genuinely new).** A verdict is bound
-  to the commit it ran on; any change to its subject voids it — and for a
-  conformance review the subject is **code *and* spec** (a spec-only edit
-  still voids a prior conformance PASS). Gates run last, on the final
-  state, in dependency order. Open: confirm this lands as a
-  **dispatcher-charter corollary** of "don't skip review," **not** a new
-  trellis invariant (keep the invariant set lean; promote to trellis only
-  on the maintainer's explicit cross-project call).
-- **O4 — landing surface.** The brief proposes all three land in
-  `charters/dispatcher.md` as operational content. Open: confirm the
-  dispatcher charter is the home (vs. splitting the mechanical check into
-  `pr-contract.yml` / adr-0006 machinery and keeping the charter as the
-  operational statement), and confirm that any text **consolidates or
-  replaces, never accretes.**
+- **O2 — owed-set derivation (what remains of former O2+O3, now unified).**
+  The terminal check needs to compute *which gates a diff owes* from what
+  changed. Open: the content→owed-gate mapping — e.g. diff touches code →
+  code-review + conformance; touches `specs/` → spec-adversary (+
+  conformance); touches `decisions/` → …; and how "conformance always"
+  composes with it. This is the derivation rule the check and the
+  gate-verdict skill both read.
+- **O1 — Proposal 1: does role separation survive as a *separate*
+  mechanism, or does terminal-consistency absorb it?** The reframe changed
+  this question. If fresh, independent gates run on the terminal state, the
+  "someone other than the author checked it" guarantee is already met at
+  the *output*, regardless of whether author == builder. Role separation
+  was about the *process* (author bias leaking into the build) — a
+  different concern the gates do not obviously cover. Open: drop proposal 1
+  (gates subsume it), keep it as a light default-only nudge, or keep it
+  fully (default + a who-did-what check).
+- **O4 — landing surface.** Under C the decision now has three homes to
+  assign: the **dispatcher charter** (the tightened default + owed-set
+  derivation), a **gate-verdict skill** (emission), and **`pr-contract.yml`
+  / adr-0006 machinery** (the terminal red check). Open: confirm that
+  split, and confirm any charter text **consolidates or replaces, never
+  accretes**. (Former O3's trellis-vs-dispatcher question is moot — the
+  unified invariant is machinery + a skill, not a new invariant; nothing
+  is proposed for trellis.)
 
 ### Parked (deferred, with why)
 
