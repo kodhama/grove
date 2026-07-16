@@ -1134,3 +1134,40 @@ check. Reconciliation outcome:
   `conformance` as function (ii) only, or drop it. To fold into spec-0002 +
   reason-grammar edits after the call; then the spec-adversary pass runs on
   everything, including all dispatcher edits.
+
+## Reopened by the maintainer: two "settled" things re-reasoned (2026-07-16)
+
+Maintainer: "my rules, even previously established ones, are not gospel" —
+don't take the charter text or the just-written decision wording as fixed.
+Two re-derivations, recommendations pending the maintainer's call:
+
+1. **Fidelity/quality split (recommended).** The spec-adversary's fused
+   design (fidelity-to-decision + intrinsic quality) was COMPENSATION for the
+   missing decision-adversary (its UNSOUND verdict was the only decision
+   backstop); adr-0012 charters a real decision-adversary, removing the
+   fusion's reason. Recommend: conformance-reviewer = the fidelity instrument
+   at ALL layers (spec→decision, code→spec, charter→ADR) + graph integrity
+   (edge fidelity); per-layer quality gates = decision-adversary,
+   spec-adversary (narrowed to intrinsic quality), code-reviewer. Wins: the
+   owed-map collapses to ONE rule (fidelity-conformance iff artifact upstream
+   exists + the layer's quality gate — no per-type table); fewer spurious
+   re-reviews (quality verdict's subject = artifact alone, survives upstream
+   edits; fidelity verdict's subject = artifact+upstream); code layer already
+   proves the pattern (adr-0007's own boundary). Cost: two dispatches per spec
+   change, each cheaper. Consequence: spec-adversary charter narrows
+   (consolidate/replace).
+2. **Verdict record home reopened (files were not gospel either).** The check
+   needs only {verdict token, subject manifest+fingerprint, producer/reviewer,
+   findings pointer} per (artifact × owed review). Real contest: (a)
+   per-review files in the branch (platform-agnostic, tree-native; but a new
+   artifact kind, merge-residue into main, a standing exempt-path attack
+   surface, two write channels, push contention) vs (b) **structured verdict
+   comments on the PR** (the verdict IS a message — the maintainer's original
+   instinct; no tree residue, the entire carve-out attack surface vanishes,
+   zero write contention, one channel, append-only = overwrite-gaming visible
+   by construction; cost: platform-coupled read path — symmetric with grove's
+   existing "any tracker with threaded comments" portability baseline).
+   Shaper leans (b). Either way the mechanics (memoization, fingerprint
+   recompute from HEAD, reason grammar, owed-assembly from charters) are
+   storage-agnostic. Amending the decision's "verdict files / .grove/verdicts"
+   wording is why it was left gated.
