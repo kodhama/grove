@@ -1,13 +1,13 @@
 ---
 id: spec-0002-review-bookkeeping-check
 type: spec
-status: gated
+status: approved  # gated → approved: the maintainer's explicit intent act ("approved. merge", 2026-07-16), bundled with adr-0012's approval on the same PR per Open Q5's sequencing; recorded in-PR by the shaper per lifecycle.md
 implements: adr-0012-methodology-delivery-machinery  # the realized contract (adr-0012 implements-edge); machine-readable fidelity selector
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism]  # builds-on; adr-0012 retained here too so depends_on-walking machinery keeps the edge until it learns `implements`
 owner: agent
 updated: 2026-07-16
 version: 1  # counter initialized at materialization (versioning.md); forward-only from here — held at 1 through this second pre-approval revision, see Rubric check
-status_note: promoted draft → gated on the passing self-check (contract-author Method 6); approved remains the human intent act (lifecycle.md), and adr-0012 (this spec's authorizing decision) is itself only gated — see Open Q5. Re-derived 2026-07-16 (second time) against adr-0012 at HEAD, absorbing the fifth-pass revisions, the `implements:` field, and the spec-adversary + conformance findings that ran against this spec.
+status_note: promoted draft → gated on the passing self-check (contract-author Method 6); re-derived twice against adr-0012 at HEAD (fifth-pass revisions, `implements:` field, split-pair findings); round-2 spec-adversary APPROVE-READY. The Q5 provisional-upstream deviation RESOLVED 2026-07-16 — adr-0012 was approved by the maintainer's intent act, and this spec's approval was bundled with it on the same PR (Q5's anticipated sequencing). Buildable now.
 ---
 
 # spec-0002 — the review-bookkeeping check (Layer A)

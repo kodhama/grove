@@ -1,7 +1,7 @@
 ---
 id: adr-0012-methodology-delivery-machinery
 type: adr
-status: gated
+status: approved  # gated → approved: the maintainer's explicit intent act ("approved. merge", 2026-07-16), recorded in-PR by the shaper per lifecycle.md — the flip records the human act, it does not perform it
 depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism]
 informed_by: [adr-0007-code-reviewer-agent]
 owner: agent
