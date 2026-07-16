@@ -106,8 +106,19 @@ from the verdict):
    `depends_on` list: resolve each **direct** dependency id (strip any
    `@version` per `versioning.md`) to its path via the index; add it to
    `U`. Transitive closure is **not** taken (Open Q3).
-3. A subject with no frontmatter (code) contributes nothing to `U`
-   (Open Q2 — the code→upstream gap).
+3. A subject with no frontmatter (**code**) resolves its upstream from the
+   **per-package test-deps ledger** (`adr-0006` dec 4, placeholder
+   `<TEST_DEPS_LEDGER>`): locate the ledger for the subject's package, read
+   its declared `depends_on` (the specs `@vN` and decisions the package's
+   tests rest on) at `C`, resolve each id to a path via the index, and add it
+   to `U`. The ledger is an artifact the `executor` maintains — so code's
+   upstream is **check-derived from a durable, reviewable artifact**, not from
+   the reviewer's per-verdict manifest. A code package with no ledger entry
+   has no derivable upstream → `conformance`'s "no reviewable upstream ⇒ FAIL"
+   backstop (`adr-0005` dec 3) applies (fail-closed). A change to the ledger
+   itself changes `U`'s membership → stale, like any upstream change.
+   *(Resolves former Open Q2, folding in `adr-0006` dec 4 — dispatcher edit,
+   2026-07-16; to be confirmed by the `spec-adversary`.)*
 
 **Fingerprint input `I = sorted(dedup(S ∪ U(S, C)))`.**
 
@@ -409,16 +420,19 @@ These are named, not pretended. Authenticity and policy changes remain
    behavior** (S10) but not the token set. The charter authoring (a
    separate `adr-0012` deliverable) must declare it before the
    decision-layer gate can ever go green. Not invented here.
-2. **Code → upstream resolution (the freshness gap for code, §A.3
-   step 3).** Code files carry no frontmatter `depends_on`, so the check
-   cannot mechanically derive their upstream (their spec) into `U`. The
-   spec-revised-underneath freshness case (S2) fires cleanly for
-   frontmatter-bearing subjects; for code it relies on the reviewer
-   listing the spec in `S` **and** on `conformance`'s "no reviewable
-   upstream ⇒ FAIL" backstop (`adr-0005` dec 3). Whether code should gain
-   a declared upstream (e.g. via the per-package test-deps ledger of
-   `adr-0006` dec 4) so the check can derive `U` deterministically is
-   unresolved by `adr-0012` and parked here rather than guessed.
+2. **Code → upstream resolution — RESOLVED (2026-07-16).** Code files carry
+   no frontmatter `depends_on`, so the check cannot derive their upstream
+   from the code itself. Resolved by folding in the **per-package test-deps
+   ledger** (`adr-0006` dec 4, already approved): code's upstream is read from
+   the ledger the `executor` maintains (§A.3 step 3), so `U` for code is
+   check-derived from a durable, reviewable artifact — not the reviewer's
+   per-verdict manifest — and the spec-revised-underneath case (S2) fires for
+   code too. A package with no ledger entry falls to the fail-closed FAIL
+   backstop (`adr-0005` dec 3). No new machinery: the `executor`'s existing
+   ledger duty is the stamping mechanism. (Note: fundamentally *some*
+   declaration is required — code cannot self-describe which spec it
+   implements — so this moves the declaration to the best available home, a
+   maintained artifact, rather than eliminating it.)
 3. **Direct vs. transitive upstream closure (§A.3 step 2).** `U` is pinned
    to **direct** `depends_on` only, to keep freshness bounded and match
    "the review judged against its direct upstream." A change two hops up
