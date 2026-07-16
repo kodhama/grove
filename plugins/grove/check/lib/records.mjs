@@ -73,8 +73,11 @@ export function parseRecord(comment) {
   try {
     parsed = parseYaml(blocks[0]);
   } catch (e) {
-    if (e instanceof YamlError) return { status: 'inert', cause: 'malformed' };
-    throw e;
+    // Fail-closed: ANY parser throw yields an inert record, never an escape.
+    // A YamlError is a malformed block; a non-YamlError (e.g. a RangeError
+    // from deeply nested input overflowing the recursive parser) must not
+    // crash runCheck — it too becomes inert.
+    return { status: 'inert', cause: e instanceof YamlError ? 'malformed' : 'parse-error' };
   }
   const record = validate(parsed);
   if (record == null) return { status: 'inert', cause: 'schema' };

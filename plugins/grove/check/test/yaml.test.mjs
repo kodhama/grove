@@ -4,7 +4,7 @@
 // its own tests are technical (no npm YAML dep — see report).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseYaml } from '../lib/yaml.mjs';
+import { parseYaml, YamlError } from '../lib/yaml.mjs';
 
 test('scalars: int vs string, and integer schema field', () => {
   const v = parseYaml('schema: 1\nreview: conformance\nverdict: PASS');
@@ -48,6 +48,30 @@ test('block scalar with | preserves body', () => {
   const v = parseYaml('findings: |\n  line one\n  line two\nreviewer: bob');
   assert.equal(v.findings, 'line one\nline two');
   assert.equal(v.reviewer, 'bob');
+});
+
+// code-review BLOCK: stripComment must not run inside a block scalar.
+// A findings body is markdown; a line whose first non-space char is `#`
+// (a `## heading`, a `# note`) was wrongly blanked, corrupting the payload.
+test('block scalar preserves interior # lines and blank lines verbatim (spec-0002 §A.2)', () => {
+  const v = parseYaml('findings: |\n  ## Findings\n  - high: real bug\n\n  # note\nreviewer: bob');
+  assert.equal(v.findings, '## Findings\n- high: real bug\n\n# note');
+  assert.equal(v.reviewer, 'bob');
+});
+
+// A heading-only body must NOT collapse to "" (that false-positives
+// match.mjs `vacuous-evidence` on a genuinely-reviewed record).
+test('block scalar of only #-prefixed lines does not collapse to empty (spec-0002 §A.2)', () => {
+  const v = parseYaml('findings: |\n  ## Findings\n  ## more\nreviewer: bob');
+  assert.equal(v.findings, '## Findings\n## more');
+  assert.notEqual(v.findings.trim(), '');
+});
+
+// code-review medium: duplicate mapping keys are a parse-vs-display
+// divergence (a human reads the first `verdict:`, last-wins parsed the
+// second). Reject fail-closed.
+test('duplicate mapping keys are rejected (YamlError) (spec-0002 §A.2)', () => {
+  assert.throws(() => parseYaml('verdict: PASS\nverdict: FAIL'), YamlError);
 });
 
 test('frontmatter-shaped input with trailing comments on several keys', () => {

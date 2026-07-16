@@ -95,6 +95,27 @@ test('malformed yaml inside the block => inert (S7)', () => {
   assert.equal(parseRecord(comment({ body })).status, 'inert');
 });
 
+// code-review fix #1: the fail-closed contract wants ANY parser throw
+// converted to inert. A non-YamlError (e.g. RangeError from deep nesting)
+// must NOT escape parseRecord and crash runCheck.
+test('a non-YamlError parser throw yields an inert record, never escapes (fail-closed)', () => {
+  // Deeply nested mapping overflows the recursive parser with a RangeError
+  // (not a YamlError). The fail-closed contract must catch it too.
+  let inner = '';
+  for (let d = 0; d < 30000; d++) inner += ' '.repeat(d) + 'a:\n';
+  inner += ' '.repeat(30000) + 'b: 1';
+  const body = '```grove-verdict\n' + inner + '\n```';
+  assert.doesNotThrow(() => parseRecord(comment({ body })));
+  assert.equal(parseRecord(comment({ body })).status, 'inert');
+});
+
+// code-review fix #2 composition: a duplicate-key record becomes an inert
+// record (surfaced as record-rejected), not a silent last-wins mis-parse.
+test('a record with a duplicate mapping key is inert, not a silent mis-parse', () => {
+  const body = '```grove-verdict\n' + validBody().slice('```grove-verdict\n'.length, -('\n```'.length)) + '\nverdict: FAIL\n```';
+  assert.equal(parseRecord(comment({ body })).status, 'inert');
+});
+
 test('empty findings parses as a record (vacuity is decided downstream, §D)', () => {
   const r = parseRecord(comment({ body: validBody({ findings: '' }) }));
   assert.equal(r.status, 'record');

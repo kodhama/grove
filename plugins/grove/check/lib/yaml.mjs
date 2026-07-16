@@ -141,6 +141,11 @@ function parseMap(lines, start, indent) {
     const colon = findKeyColon(body);
     if (colon < 0) throw new YamlError(`expected "key: value": "${body}"`);
     const key = body.slice(0, colon).trim();
+    // Duplicate keys in one mapping are a parse-vs-display divergence: a human
+    // reads the first, a last-wins parser keeps the last. Reject fail-closed.
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      throw new YamlError(`duplicate mapping key: "${key}"`);
+    }
     const rest = body.slice(colon + 1).trim();
     if (rest === '') {
       const [val, next] = parseBlock(lines, i + 1, indent + 1);
@@ -162,15 +167,23 @@ function parseMap(lines, start, indent) {
 }
 
 function parseBlockScalar(lines, start, parentIndent, folded) {
+  // Block-scalar interiors are preserved verbatim: comment-stripping (the
+  // up-front `content` map) must NOT apply here — a `#`-prefixed line inside
+  // a `|`/`>` body (a markdown heading, a `# note`) is literal text, not a
+  // comment. So blank/indent decisions read `raw`, never the stripped
+  // `content` (which would mis-detect a comment-only line as blank and blank
+  // it out, corrupting `findings`). Comments are only stripped in flow/plain
+  // context (parseMap/parseSeq/parseScalar), which read `content`.
   const out = [];
   let i = start;
   let scalarIndent = null;
   while (i < lines.length) {
-    const line = lines[i];
-    if (line.content.trim() === '') { out.push(''); i++; continue; }
-    if (line.indent <= parentIndent) break;
-    if (scalarIndent === null) scalarIndent = line.indent;
-    out.push(line.raw.slice(scalarIndent));
+    const raw = lines[i].raw;
+    if (raw.trim() === '') { out.push(''); i++; continue; }
+    const indent = indentOf(raw);
+    if (indent <= parentIndent) break;
+    if (scalarIndent === null) scalarIndent = indent;
+    out.push(raw.slice(scalarIndent));
     i++;
   }
   // trim trailing blank lines
