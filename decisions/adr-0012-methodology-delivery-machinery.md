@@ -1,7 +1,7 @@
 ---
 id: adr-0012-methodology-delivery-machinery
 type: adr
-status: gated
+status: draft
 depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism]
 informed_by: [adr-0007-code-reviewer-agent]
 owner: agent
@@ -37,11 +37,12 @@ bookkeeping**, not judgment.
 **What we're deciding.** Make the *bookkeeping* mechanical so the human is left
 with *judgment*. Ship this now (the buildable part, "Layer A"):
 
-1. **Reviews become files.** When a reviewer (conformance, code-review,
-   spec-adversary, and a new **decision-adversary**) reviews something, it
-   writes a small **verdict file** into the pull request: the verdict, its
-   evidence, a fingerprint of exactly what it reviewed, and who produced vs.
-   reviewed. Reviews are artifacts in git, not trust-me signals.
+1. **A work-item keeps a status ledger, not a pile of files.** Each PR carries
+   one **status ledger** — a row per review it owes (from a reviewer:
+   conformance, code-review, spec-adversary, or the new **decision-adversary**)
+   recording the verdict, a fingerprint of exactly what was reviewed, and who
+   produced vs. reviewed. One record per work-item, not a file per review;
+   detailed findings stay in PR comments, pointed to from the row.
 2. **An automated check does the bookkeeping.** On every PR a check — reading
    its rules from the protected main branch, so a PR can't weaken its own gate
    — asks and goes red on any "no": *completeness* (does everything that owes a
@@ -51,7 +52,7 @@ with *judgment*. Ship this now (the buildable part, "Layer A"):
    *separation* (was the reviewer a different agent than the producer?). It
    recomputes the fingerprints itself and trusts no agent's word.
 3. **What the machine does NOT do — and says so out loud.** It cannot tell
-   whether a review was *genuine* (an agent could write a fake verdict file),
+   whether a review was *genuine* (an agent could write a fake ledger row),
    and the separation check reads *self-reported* author/reviewer tags — so it
    catches the **accidental** fusion that actually happened, but not a
    **deliberate** forgery. And it does not run unattended. **A green check
@@ -156,9 +157,17 @@ approval:
 
 - **A spec is written** defining the verdict-file format, the
   `type → owed-review` map, and the check's logic.
-- **A verdict-artifact convention** is introduced (`.grove/verdicts/…`) — a
-  reviewer's output is a file carrying verdict + evidence + the fingerprint of
-  what it certified + producer/reviewer attribution.
+- **A status-ledger convention** is introduced — **one ledger per PR** (e.g.
+  `.grove/ledger.*`), a row per owed review carrying verdict + subject-
+  fingerprint + producer/reviewer attribution, with detailed findings pointed
+  to (PR comments), not inlined. Concurrent updates are handled by append-
+  structured rows or dispatcher-serialized writes (spec detail). The owed rows
+  are derived from what the PR changed (the owed-map, pinned here):
+  - research / feedback-only change → **nothing owed**;
+  - a decision (shaping) → **decision-adversary**;
+  - a spec → **spec-adversary + conformance**;
+  - code → **code-reviewer + conformance**;
+  - a new/undefined `type` → **the full set** (fail-closed, AC4).
 - **Each produced artifact carries a self-reported author tag** (which agent
   produced it); the check verifies author ≠ reviewer for each owed review.
 - **A new automated check** is added (grove has none today) that reads its
@@ -197,9 +206,10 @@ approval:
 - **AC4 — fail-closed.** A changed file of a new or undefined `type` owes the
   **full** review set, never nothing.
 - **AC5 — policy integrity.** The owed-review policy resolves from the
-  protected default branch, never PR HEAD; the exemption for verdict files and
-  declared non-behavioral paths is an explicit allowlist, and `.grove/verdicts/`
-  rejects non-verdict content so it cannot become a review-free zone.
+  protected default branch, never PR HEAD; the ledger file and declared
+  non-behavioral paths are an explicit exemption allowlist (so the ledger
+  doesn't itself owe reviews), and that allowlist is not a review-free zone for
+  code (code-bearing paths still owe code-review, fail-closed).
 - **AC6 — green is non-authorizing.** A green check surfaces the verdict files
   for human reading and is presented as "bookkeeping done," never "reviewed /
   safe to merge."
