@@ -1289,3 +1289,27 @@ The decision's own split, applied to its spec, both cold:
 spec-0002 (conformance deltas 1–10 + adversary findings 1–15 + the
 implements-field concretization), then a scoped adversary re-round on the
 delta.
+
+## Convergence: round-2 scoped adversary — APPROVE-READY (2026-07-16)
+
+The consolidated revision closed all five round-1 load-bearing findings
+(verified one by one); the new sections (§A.4 record admissibility, §C.6
+approved-upstream gate, §C.7 graph resolution, implements-edge rebasing,
+five new reasons) survived their first adversarial read with no internal
+contradiction, no untestable clause, no executor-guess; every unpinned input
+has a named, deterministic, fail-closed interim (Q7 policy carrier, Q8
+ledger convention). Three non-blocking observations recorded in the pass
+output (aggregate pre-wave redness derivable-not-stated; a
+never-reviewed/record-rejected reason overlap; slashed-id v0 scope), plus
+one decision-scope fact worth a future look: deleting an artifact that
+unchanged files depend on goes green (AC13 checks changed artifacts only).
+
+**Final state of the run:** adr-0012 shaped through FIVE adversarial passes
+(two broke ambitious versions; one validated Layer A; one broke the ledger
+detour; one NEEDS-REVISION on the amendments, revised in) + a live
+UPSTREAM-INDICTED from the spec's conformance review (fixed as the
+`implements:` field). spec-0002 authored cold, revised twice, reviewed by
+the decision's own split pair (spec-adversary NEEDS-REVISION → revision →
+APPROVE-READY; conformance FAIL on disclosed lag → deltas absorbed).
+Both artifacts `gated`. What remains is exclusively the human's: the intent
+gate on adr-0012, then on spec-0002 (Q5 sequencing). No agent flips either.
