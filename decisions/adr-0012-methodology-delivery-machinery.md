@@ -180,11 +180,15 @@ approval:
   research passes, shaping runs, specs, code, in any mix. The owed-set is the
   **union** of what *everything* it changed owes; the check goes green only
   when all of it is present, fresh, covering, passed, and — for any
-  decision-layer artifact — human-approved, **all at HEAD**. One unresolved
-  tension: a bundled *draft* upstream + a downstream built on it in the same
-  PR weakens E1's "build on an *approved* upstream" (the downstream is reviewed
-  before the upstream is approved). Freshness catches a *revision* of the
-  upstream during approval, not the ordering weakening — see Open questions.
+  decision-layer artifact — human-approved, **all at HEAD**. This does **not**
+  weaken "build on an *approved* upstream" (E1), and needs **no new rule**
+  (maintainer, 2026-07-15): each layer's upstream-check already requires an
+  approved upstream (the spec-adversary reads *approved* decisions; conformance
+  FAILs a change with no approved upstream — adr-0005 dec 3). So a bundled
+  *draft* upstream simply keeps the downstream's gate red until the human
+  approves the upstream **in-PR** — the staged-approval ordering enforces
+  itself through the existing gates. Bundling is allowed; skipping an
+  upstream's approval by bundling is not.
 - **Each produced artifact carries a self-reported author tag** (which agent
   produced it); the check verifies author ≠ reviewer for each owed review.
 - **A new automated check** is added (grove has none today) that reads its
@@ -257,12 +261,6 @@ approval:
   verifier (possibly the `decision-adversary`) + append-only guardrails, so
   older decisions can be trimmed the way this one's trail was split out.
   Surfaced during this decision's own restructure; its own `[consider]`.
-- **Free-form PRs vs. build-on-approved-upstream** (unresolved intent call). A
-  PR may touch anything, but bundling a *draft* upstream with a downstream
-  built on it means the downstream is reviewed against an un-approved upstream,
-  the human approving the whole stack at merge. Resolve: **accept** it (rely on
-  freshness re-review + the human's bundled judgment) or **restrict** (a
-  downstream artifact may not be bundled with a not-yet-approved upstream).
 
 ## Self-check (gate)
 
