@@ -1093,3 +1093,44 @@ files (the validated, race-free version); make the status "ledger" a
 mutate — which gives the maintainer the single status surface they wanted
 without the write race. F-L5 (free-form PRs vs approved-upstream) is the one
 open intent call remaining.
+
+## Maintainer's agent-model walk-through + reconciliation (2026-07-16)
+
+The maintainer independently re-derived the agent model (trigger → action →
+output per agent, format-only validation per producer) as a comprehension
+check. Reconciliation outcome:
+
+- **Confirmed equivalences:** "unreviewed code in diff" = unfilled owed slot;
+  "reviewer signals issues" = fresh non-PASS verdict (grammar routes);
+  "unfulfilled contract" = approved spec@vN unreflected in a package manifest;
+  "manifest stands in for code" = the adr-0006 test-deps ledger as code's
+  declared upstream (already folded into spec-0002 §A.3).
+- **Uniformity correction:** no agent owns a validation — agents only produce
+  artifacts (outputs / verdict files); the CHECK derives all validations
+  (format tier = corpus-reviewer's contract computed in CI; content tier =
+  owed verdicts); the dispatcher's routing is likewise a projection of
+  declarations, not a private switch. `feedback` is an artifact type, not an
+  agent.
+- **Discarded (by the maintainer's own compute-f(A) rule):** a STORED
+  dirty-flag on artifacts — dirty state is derivable (owed minus
+  fresh-covering-PASS), a stored flag can drift/lie, and writing it into the
+  artifact would change the artifact's own fingerprint (self-invalidating
+  bookkeeping). Also discarded: "conformance runs first as tagger" — no
+  ordering exists; the check is the tagger, every run.
+- **Added (shaper): the memoization frame.** A verdict = a cached review
+  result keyed by content-hash of subject ∪ upstream; freshness = cache
+  invalidation; the gate = "no cache misses at HEAD"; re-review scoping =
+  cache-key diff. Dirty-with-reason grammar (never-reviewed / self-changed /
+  upstream-changed(X) / review-failed→findings / self-reviewed / vacuous) is
+  computable per file × slot and serves check, status view, dispatch, and
+  reviewer work-order from ONE derivation. Failed reviews are also memoized —
+  same-content re-rolls are visible in the verdict file's git history (human
+  judges at v1).
+- **Open (maintainer's call pending):** the `spec → … + conformance` owed-map
+  row vs. per-layer instrumentation. Reconciliation proposed: the
+  conformance-reviewer has two functions — (i) upstream fidelity (code→spec,
+  charter→ADR; NOT specs) and (ii) graph integrity (pins resolve, propagation
+  section true; applies to any artifact change). Keep the spec row's
+  `conformance` as function (ii) only, or drop it. To fold into spec-0002 +
+  reason-grammar edits after the call; then the spec-adversary pass runs on
+  everything, including all dispatcher edits.
