@@ -4,7 +4,7 @@ type: adr
 status: approved  # 2026-07-11, direct maintainer approval (intent act) after two adversarial rounds — see Self-check
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, trellis/decision-0045, trellis/decision-0044]
 owner: agent
-updated: 2026-07-11
+updated: 2026-07-16  # forward pointer to adr-0012 added at the dec-5 conformance-reviewer bullet (adr-0012 AC11) — annotation only, no content edit
 ---
 
 > Shaped interactively with the maintainer (2026-07-11), resolving
@@ -106,6 +106,7 @@ updated: 2026-07-11
      against the current upstream and verdicts** (this is the
      `trellis#25` conformance-to-upstream check, which it already *is* —
      no new agent).
+     *(Forward pointer, 2026-07-16: `adr-0012-methodology-delivery-machinery` extends this role to fidelity at **every** layer — spec→decision joins the code→spec and charter→ADR duties here — territory this decision leaves unassigned; an extension, no supersession.)*
 
    **v0 latency floor (stated, not papered over):** a consumer whose
    upstream never re-bumps *and* which itself never changes is re-checked
