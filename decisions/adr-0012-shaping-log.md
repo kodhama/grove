@@ -1313,3 +1313,19 @@ the decision's own split pair (spec-adversary NEEDS-REVISION → revision →
 APPROVE-READY; conformance FAIL on disclosed lag → deltas absorbed).
 Both artifacts `gated`. What remains is exclusively the human's: the intent
 gate on adr-0012, then on spec-0002 (Q5 sequencing). No agent flips either.
+
+## Program acceptance milestone — the math-quest pilot (maintainer, 2026-07-16)
+
+The maintainer's stated end-to-end acceptance test: run the built check on
+**math-quest** — the real, non-collapsed consumer (and the origin of the
+grove#59 finding). grove-self is the unit test (bookkeeping, records, check
+logic on the collapsed prose case); math-quest is the integration test —
+the first place the test-deps ledger fires against real test packages,
+separate decision→spec→code layers exist, `<TEST_CMD>`/`<TYPECHECK_CMD>`
+resolve to real commands, and the setup-skill install path is exercised on a
+project that is not grove. Sequenced as **wave 3** (pilot), after wave 2
+(harness + setup step). math-quest is a different repo (`gundisalwa/math-quest`,
+outside grove's session scope) — the pilot is the maintainer's to drive
+there; the build stays portable to it (placeholder door, no grove-specific
+assumptions in the check) so adoption is a `setup` run, not a port.
+"Would this install cleanly on math-quest?" is the design test for wave 2b.
