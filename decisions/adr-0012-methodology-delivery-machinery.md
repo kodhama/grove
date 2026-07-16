@@ -748,6 +748,71 @@ re-adversaried on the *narrow* Layer-A claim before any gate.
 is internally coherent, honestly bounded, and **deterministically delivers
 A2 (completeness) and A3 (freshness)** — the two failures that started #59.
 
+### Layer-A adversarial pass — result + closes (2026-07-15)
+
+Third grounded pass, aimed only at the narrow claim (Layer B conceded).
+**Result — the turn the design earned a path forward:** the reframe is
+**validated**. The consumer/resource model + recompute-from-HEAD +
+policy-from-default-branch **dissolve all three prior killers** (confused
+deputy, non-existent store, self-amending gate). **A3 (freshness) is
+deterministically delivered against the declared manifest** — closing F8's
+"deterministic upstream-set" concern, Layer A's strongest real gain. **A2
+(completeness) is NOT delivered as worded** — a fixable coverage gap, no
+fabricated verdict needed. Crucially, the verdict: *"blocked on finishing the
+spec, not on infrastructure grove can't conjure."* Seven closes, adjudicated:
+
+- **C1 (F-A1, CRITICAL, decision-level correction) — add the coverage
+  check.** As worded, item 3 recomputes the hash over the *manifest* but never
+  asserts the manifest *covers* the owed set — so a genuinely-run review with
+  an under-covering manifest, or a new changed file of an owing type, passes
+  GREEN unreviewed (the #278 "1 of N ran" failure, no fake verdict). **Fix:
+  the check derives the owed-coverage set from HEAD's diff (every changed file
+  of an owing type) and asserts, per owed slot, that the union of fresh
+  verdict manifests ⊇ the owed-coverage set**; any changed owing-file not
+  covered by a fresh verdict = RED. Manifest serves both jobs — freshness
+  hashes it, completeness checks it covers the diff.
+- **C2 (F-A2, spec-altitude AC) — pin the `type → owed-slots` map,
+  fail-closed.** The map is spec-altitude, but the spec MUST pin it and set
+  the default for a new/undefined `type` to **owes the full review set
+  (fail-closed)**, never "owes nothing" — so a `type: rubric`/`plan` code file
+  cannot escape review.
+- **C3 (F-A3, decision-level) — specified carve-out, not a silent one.**
+  Verdict artifacts (`.grove/verdicts/`) and declared non-behavioral paths are
+  exempt from *owing* reviews via an **explicit allowlist**; anything
+  code-bearing outside the artifact dirs still owes code-review (the C2
+  fail-closed default). The check rejects non-verdict content under
+  `.grove/verdicts/` so it can't become a review-free zone.
+- **C4 (F-A6, decision-level principle) — green is non-authorizing.** A green
+  check means **"bookkeeping OK — present + fresh; now the human judges
+  genuineness,"** explicitly NOT "reviewed / safe to merge." The merge
+  affordance surfaces the verdict artifacts for the human to read; green must
+  not substitute for that reading, or #278's false-confidence re-enters
+  through the A/B seam. **Folded into E6.**
+- **C5 (F-A4, disclose) — policy changes are human-owned.** A charter/
+  declaration edit *is* a policy edit; CI cannot gate a policy-weakening as
+  such — only the human merge gate can. Disclosed, not folded into
+  "deterministic." Bootstrap (new type / first install, no default-branch
+  entry) is **fail-closed** (owes the full set) until the policy adds it.
+- **C6 (F-A7, adjudicated — clarification, NOT a change).** Verified against
+  source (adr-0006 assigns `conformance-reviewer` code→spec and charter→ADR,
+  never spec→decision). R4's per-layer instrumentation is **consistent with
+  approved adr-0006** → a forward pointer / `informed_by` note suffices, **no
+  supersession**. The legacy "conformance always owed" (D5) wording is
+  corrected to **"an upstream-conformance *check* is always owed, instrumented
+  per layer"** to kill the conformance-reviewer-always implication.
+- **C7 (F-A5, correct wording) — "no new *platform* infra."** grove has zero
+  CI today and the setup skill currently says "check by hand," so Layer A is
+  **net-new grove code** (a CI workflow, a setup compile-step, the
+  verdict-artifact convention, branch protection) on **existing GitHub
+  primitives** (protected branches + Actions reading the base ref). Not
+  infra-*blocked*; a real build.
+
+**Status: reframe validated; decision architecturally sound; remaining work is
+spec-completion, not infrastructure.** C1/C3/C4/C6/C7 resolved at
+decision-altitude above; C2/C5 are acceptance criteria the authorized spec
+must meet. **This is the first state from which the decision can honestly
+converge.**
+
 ## Constraints (carried from the brief — bounds on any resolution)
 
 - The fix must be **machinery or a structural default**, not more
