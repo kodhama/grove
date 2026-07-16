@@ -168,6 +168,15 @@ approval:
   - a spec → **spec-adversary + conformance**;
   - code → **code-reviewer + conformance**;
   - a new/undefined `type` → **the full set** (fail-closed, AC4).
+- **A PR may touch anything — no single-stage rule.** It can carry several
+  research passes, shaping runs, specs, code, in any mix. The owed-set is the
+  **union** of what *everything* it changed owes; the check goes green only
+  when all of it is present, fresh, covering, passed, and — for any
+  decision-layer artifact — human-approved, **all at HEAD**. "Build on an
+  approved upstream" (E1) holds at the terminal state: at merge the whole
+  stack is in its approved, conformant form. The only natural consequence of a
+  bigger PR is a bigger human judgment load at merge; nothing escapes its
+  guardrails.
 - **Each produced artifact carries a self-reported author tag** (which agent
   produced it); the check verifies author ≠ reviewer for each owed review.
 - **A new automated check** is added (grove has none today) that reads its
