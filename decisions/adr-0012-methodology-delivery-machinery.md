@@ -244,7 +244,16 @@ approval:
   ADR. Mere *builds-on* citations are not it: a decision's `depends_on` names
   decisions it builds on and owes **no** fidelity review (its upstream is
   human intent) — without this distinction the rule would misfire on
-  decisions, this one included. The **mechanical half of graph integrity** —
+  decisions, this one included. **The edge is machine-readable** (added on the
+  spec-0002 conformance pass's upstream indictment, 2026-07-16 — the
+  type-realization definition gave the check no selector when `depends_on`
+  lists several same-type ids): an artifact that realizes a contract names it
+  in an explicit **`implements:` frontmatter field** (one id — the
+  `adr-0011` relations-taxonomy pattern, which split `informed_by` out of
+  `depends_on` the same way); **code names its specs via the test-deps
+  ledger**, as already pinned. A fidelity-owing artifact with **no**
+  `implements` declaration has no reviewable upstream → **red** (`adr-0005`
+  dec 3, fail-closed). The **mechanical half of graph integrity** —
   every changed artifact's `depends_on` ids resolve — is computed by the
   check itself for all types (pure f(A)); the judgment half (propagation
   claims true) rides the fidelity review where owed, else the human. The
@@ -302,7 +311,9 @@ approval:
   mechanical pins-resolve half is the check's own, above); the
   **`spec-adversary` narrows to intrinsic quality** (testability, internal
   consistency, ambiguity an executor would guess at, edge coverage).
-  **Producers / artifact types** declare the reviews they owe.
+  **Producers / artifact types** declare the reviews they owe, and an
+  artifact that realizes a contract declares it in the `implements:`
+  frontmatter field (code: via the test-deps ledger).
 - **A `decision-adversary` role is chartered** — the real independent
   soundness-adversary for decisions (retiring the spec-adversary stand-in); a
   decision owes its verdict *plus* the human intent gate. **Its remit,
@@ -432,9 +443,13 @@ approval:
   append-only-as-convention + record-integrity rules; F3 UPSTREAM-INDICTED;
   F4 approval-trust disclosure; F5 implements-edge; F6 quality-input horn;
   F7 record-as-separation-authority; F8 decision-adversary remit in-body).
-  The revisions themselves are shaper-authored and NOT yet independently
-  re-passed — disclosed; the spec-side passes (spec-adversary + conformance,
-  per this decision's own split) run next. DISCLOSED.
+  The spec-side split-pair then ran (spec-adversary: NEEDS-REVISION on
+  intrinsic gaps; conformance: FAIL enumerating the fifth-pass deltas + one
+  **upstream indictment** — no mechanical implements-edge selector — fixed
+  here as the `implements:` field). The fifth-pass revisions and the
+  `implements:` addition are shaper-authored and NOT independently re-passed —
+  disclosed; the consolidated spec revision and a scoped re-review close the
+  loop. DISCLOSED.
 - **Human-approval boundary:** promoted `draft → gated` on this self-check.
   `approved` is the maintainer's intent act — an in-PR flip or merge — **never
   set by the agent** (`lifecycle.md`, `floor-intent-gate`). The design being

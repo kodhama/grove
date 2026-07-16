@@ -1245,3 +1245,47 @@ authority) — deliberately left for the split-pair review to enumerate.
 reviews in parallel — `spec-adversary` (intrinsic quality) + 
 `conformance-reviewer` (fidelity to the amended adr-0012 + graph integrity,
 including enumerating the fifth-pass deltas the spec doesn't carry yet).
+
+## Split-pair verdicts on spec-0002 + the live UPSTREAM-INDICTED (2026-07-16)
+
+The decision's own split, applied to its spec, both cold:
+
+- **spec-adversary (intrinsic quality): NEEDS-REVISION.** Five load-bearing
+  gaps an executor would guess through: (1) the projection table's
+  "research/feedback → none because no reviewer declares them" contradicts
+  the fail-closed override (unclaimed → full set) — needs a positive
+  reviewless declaration distinct from unclaimed; (2) the policy/declaration
+  carrier (charter declarations, PASS-class table, allowlist) has no pinned
+  schema/location; (3) the §C.5 human-gate red has no reason in the §D enum;
+  (4) "code-bearing" undefined and collides with no-frontmatter⇒code
+  (a README could never be allowlisted); (5) the test-deps-ledger step has no
+  path/format/package-mapping convention. Plus 5 moderates (dangling
+  depends_on ids fail OPEN; id collisions undefined; "approved class"
+  undefined; two verdict blocks in one comment; renames) and 5 minors.
+  No untestable criteria beyond those — fingerprint/selection/reason ordering
+  judged genuinely mechanical.
+- **conformance-reviewer (fidelity to the decision at HEAD): FAIL, as
+  expected and disclosed** — the spec conforms cleanly to the 13:23 amendment
+  but predates the fifth-pass fixes. Ten enumerated deltas (AC12
+  approved-upstream gate incl. unchanged-upstream case; AC13 graph-resolution
+  by the check; AC14 record-integrity + §E row rewrite; UPSTREAM-INDICTED in
+  grammar+routing; AC7 producer-field authority — delete the mandatory
+  frontmatter cross-check, rename author→producer; implements-edge
+  definition; vacuous unflag (now decision-backed); decision-adversary
+  PASS-class = SOUND; traceability to AC14; F11/F12 minors). Verified
+  conforming as-is: carrier block, latest-covering selection,
+  manifest_hashes-for-reasons-only, class-split fingerprints, one-rule
+  owed-map, ledger-based code upstream.
+- **The live UPSTREAM-INDICTED:** conformance item 6 found the spec faithful
+  but the DECISION broken — no mechanical selector for the implements edge
+  when depends_on lists several same-type ids. Routed upstream and fixed in
+  the decision: an explicit **`implements:` frontmatter field** (adr-0011
+  relations-taxonomy pattern; code via the test-deps ledger; fidelity-owing
+  artifact with no declaration → red per adr-0005 dec 3, fail-closed). The
+  review machinery performed the exact routing the decision defines, before
+  the token ships.
+
+**Routing:** all findings → ONE consolidated contract-author revision of
+spec-0002 (conformance deltas 1–10 + adversary findings 1–15 + the
+implements-field concretization), then a scoped adversary re-round on the
+delta.
