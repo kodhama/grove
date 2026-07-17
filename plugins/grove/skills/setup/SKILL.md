@@ -153,7 +153,54 @@ diff, and the intended block, and say plainly that the write misfired. **Never l
 armed trigger in grove's `decisions/adr-0003-managed-block-routing-rule.md`: report it as an issue
 on `kodhama/grove`, so this prose edit gets replaced by a bundled deterministic upsert script.
 
-## 7. Telemetry (optional — grove never requires it)
+## 7. Optionally install the GitHub bookkeeping check
+
+grove ships a **review-bookkeeping check** (`spec-0002`, `adr-0012` Layer A) — a zero-dependency
+CI job that renders a read-only status view of a PR's verdict-record comments and goes red on any
+completeness / freshness / coverage / separation / approved-upstream / graph-resolution /
+record-integrity gap. **Green is not approval** — a human still judges genuineness and merges.
+
+**Gate on both**: (a) this project uses **GitHub** — you already learned the VCS/host in step 3
+(the `<PR_CONTRACT_SECTIONS>` question); if it's GitLab, plain git, or anything but GitHub Actions,
+**skip this step** and say so, and (b) the user **opts in** — offer it, don't force it. If they
+decline, skip and move on.
+
+If they opt in, compose three pieces (augment-never-clobber; **ask before overwriting** any
+existing file, honoring their answer per file):
+
+1. **The check runtime.** Copy `${CLAUDE_PLUGIN_ROOT}/check/` — its `lib/`, `shell/`, `bin/`, and
+   `package.json` — into this project's **`.grove/check/`** (grove's own `.grove/` namespace, the
+   same place this install already put the companions). It is **zero-dependency** (`type: module`,
+   no runtime packages), so **do not run `npm install`**. Do **not** copy grove's own `test/` dir or
+   `test-deps.md` — those are grove's test suite and its test-deps ledger, not part of the consumer
+   runtime.
+
+2. **The workflow.** Copy `${CLAUDE_PLUGIN_ROOT}/reference/ci/grove-review-bookkeeping.yml` into
+   this project's **`.github/workflows/grove-review-bookkeeping.yml`**, resolving its two
+   placeholders (same inline-resolution idiom as step 3): `<INSTALL_PATH>` → `.grove/check` (where
+   piece 1 above put the runtime), and `<NODE_VERSION>` → this project's Node version (ask — e.g. `20`).
+   Drop no other content; the workflow's permissions are already minimal (`contents: read`,
+   `pull-requests: read`).
+
+3. **The policy carrier.** Copy `${CLAUDE_PLUGIN_ROOT}/reference/ci/review-policy.md` (strip its
+   leading `<!-- adapted … -->` vendoring header, same as step 2's agent copies) into this
+   project's **`.grove/review-policy.md`**. A consumer has no `charters/`, so this is where the
+   check's **auto-discovery** finds the non-charter policy inputs (`spec-0002` §C.0 precedence:
+   `charters/review-policy.md` else `.grove/review-policy.md`). Tell the user to **review its
+   `artifact_dirs` and `non_behavioral_allowlist`** against their own corpus layout — the vendored
+   defaults are a starting point, and an allowlist entry that matches no file is simply inert.
+
+**Say plainly how the check reads policy** (`adr-0012` "assemble `f(A)`, never compile it"): the
+owed-review map is **assembled LIVE at runtime** from the reviewer-agent declarations installed in
+`.claude/agents/` (step 2) on the protected default branch — the check auto-discovers that
+directory and reads it fresh every run. Setup wires **where** the check reads (the `.claude/agents/`
+declarations + `.grove/review-policy.md`); it **never bakes a compiled owed-map** into a stored
+table. Editing what a type owes is an agent-declaration edit, not a regenerate step.
+
+Confirm exactly what was written (the `.grove/check/` runtime, the workflow file, and
+`.grove/review-policy.md`), and note that `/grove:remove` reverses all three.
+
+## 8. Telemetry (optional — grove never requires it)
 
 Ask whether [wisp](https://github.com/kodhama/wisp) is vendored or otherwise available in this
 project.
@@ -165,7 +212,7 @@ project.
 - **If no:** don't install the skill. Mention `github.com/kodhama/wisp` as where it lives if they
   want live dashboard telemetry later, and move on — grove's agent roles work fully without it.
 
-## 8. Recommend, don't install, Trellis
+## 9. Recommend, don't install, Trellis
 
 Close by telling the user grove pairs with the governance layer it runs under, but do **not**
 install it yourself:
@@ -174,10 +221,11 @@ install it yourself:
 > it runs under. If you want that too: `/plugin install trellis@kodhama` then `/trellis:setup`.
 > Recommended, not required — grove works standalone.
 
-## 9. Confirm
+## 10. Confirm
 
 Tell the user exactly what you wrote: which roles landed in `.claude/agents/` (and which existing
 files, if any, you skipped rather than overwrote), every placeholder you resolved and to what value
 (or the honest "none exists yet" statements you wrote instead), whether `decisions/`/`specs/` were
-seeded, the `CLAUDE.md` block, and whether the telemetry skill was composed. They can remove all of
-it any time with `/grove:remove`.
+seeded, the `CLAUDE.md` block, whether the GitHub bookkeeping check was installed (the `.grove/check/`
+runtime, the workflow, and `.grove/review-policy.md`), and whether the telemetry skill was composed.
+They can remove all of it any time with `/grove:remove`.
