@@ -86,6 +86,23 @@ is **not** authorization; a human still judges genuineness and merges.
 > pinned (prefix match, blob-under-prefix), INV13 given the scoped-mode
 > marker, S21's Given made carrier-resolving. The adversary has **not**
 > re-judged this revision; the gates do.
+> **Revision round 3 (2026-07-17, appended — trigger: the
+> spec-adversary and conformance verdicts at `340c0b3` (would-improve
+> W1/W2; the flagged-concretization bookkeeping asymmetry) plus the
+> maintainer's same-day ratification of the amendment package; the
+> notes above stand unedited):** the step-0 **type-basis pin recorded
+> as maintainer-ratified 2026-07-17 — provisionally**, ratified-to-move
+> with the math-quest pilot (adr-0013 Consequence 4) as its named
+> empirical test (verbatim record at the §C.2 step-0 type row; the
+> amendment self-check's concretization row now lists the pin); the §D
+> **remedy hint** for INV7 unclaimed-type reds added
+> (presentation-layer, ratified with the package); W1 — the deletion
+> rule stated where the derivation lives (§C.2 step 0: a deleted path,
+> a rename's old path included, generates no owed-derivation entry —
+> S12's ABSENT clause governs it); W2 — an unrecognized `scope` value
+> named in the §D header on every run (§D + INV22, the §C.1 row's
+> self-surfacing rationale cross-referenced). No verdict-changing
+> edit; no re-judgment of any verdict claimed — the gates'.
 
 > **Amendment (2026-07-16, `adr-0012` at HEAD — the fifth adversarial
 > pass's revisions (F1–F8) + the `implements:` frontmatter field; this is
@@ -507,7 +524,7 @@ operative for any input absent at check time.)*
 
 | Key | Values | Absent ⇒ |
 |---|---|---|
-| `scope` | `strict` \| `scoped` (§B) | `strict` — the fail-closed silence default (adr-0013 dec 2); never a silent softening. An **unrecognized value** (e.g. `scope: stricd`) likewise resolves to `strict` — strict is maximal jurisdiction, so a misparse can never soften the gate, and the mistake self-surfaces as unexpected reds (concretization, flagged: the decision pins silence ⇒ `strict`; invalid-value handling is this spec's fail-closed spelling of the same principle) |
+| `scope` | `strict` \| `scoped` (§B) | `strict` — the fail-closed silence default (adr-0013 dec 2); never a silent softening. An **unrecognized value** (e.g. `scope: stricd`) likewise resolves to `strict` — strict is maximal jurisdiction, so a misparse can never soften the gate, and the mistake self-surfaces — as unexpected reds and, per round 3 (W2), as a §D header note naming the unrecognized value on every run (concretization, flagged: the decision pins silence ⇒ `strict`; invalid-value handling is this spec's fail-closed spelling of the same principle) |
 | `check_runtime_dir` | path of the installed check runtime dir (carrier-of-record) | the install default `.grove/check/` — never silent exclusion |
 | `check_workflow_path` | path of the installed workflow file (carrier-of-record) | the install default `.github/workflows/grove-review-bookkeeping.yml` — never silent exclusion |
 
@@ -527,6 +544,13 @@ a deletion — and its new path — an addition):
 **Step 0 — jurisdiction filter (`scoped` mode only; added per
 `adr-0013` dec 1).** When `scope` is `strict` (or absent), every diff
 file enters steps 1–3 — no filter exists and this step is a no-op.
+In **both** modes the derivation walks **HEAD-present paths only**: a
+deleted path — including a rename's old path — generates no
+owed-derivation entry and is never classified; deletion's governance
+lives in freshness (S12's ABSENT-sentinel clause), not here (pinned
+round 3, W1 — the preamble's rename parenthetical enumerates the old
+path as a diff member for freshness, never as a file this derivation
+classifies).
 When `scoped`, `f` enters steps 1–3 **only if in scope**; an
 out-of-scope file generates **zero owed pairs and zero reasons** —
 outside the check's jurisdiction, not exempted — and its only trace is
@@ -536,7 +560,7 @@ is the **union** of:
 | Basis | `f` is in scope when |
 |---|---|
 | **path** | `f` is under a policy `artifact_dirs` directory (the governed corpus). |
-| **type** | `f`'s HEAD frontmatter carries a `type:` declaration — pinned fail-closed as **any `type:` value, recognized or not**: an unrecognized `type: widget` outside `artifact_dirs` is in scope by type and, unclaimed, owes the full set per INV7 — an unknown spelling is never an exit door. Jurisdiction follows the artifact's own self-declaration **wherever it lives**, so mislocating a typed artifact outside `artifact_dirs` is not an exit door either; §C.7 graph resolution runs for every changed artifact by this definition. Out-of-scope therefore genuinely means: no frontmatter `type:`, not under `artifact_dirs`, unledgered, and no carrier. |
+| **type** | `f`'s HEAD frontmatter carries a `type:` declaration — pinned fail-closed as **any `type:` value, recognized or not**: an unrecognized `type: widget` outside `artifact_dirs` is in scope by type and, unclaimed, owes the full set per INV7 — an unknown spelling is never an exit door. Jurisdiction follows the artifact's own self-declaration **wherever it lives**, so mislocating a typed artifact outside `artifact_dirs` is not an exit door either; §C.7 graph resolution runs for every changed artifact by this definition. Out-of-scope therefore genuinely means: no frontmatter `type:`, not under `artifact_dirs`, unledgered, and no carrier. *(Pin **maintainer-ratified 2026-07-17 — provisionally**, in the maintainer's own words: "I'm not completely convinced, but I think we need to move ahead… some of these questions will only be actually answered when we start testing this in proper products and repositories." Ratified-to-move: the math-quest pilot (adr-0013 Consequence 4) is the named empirical test of exactly this edge — incidental non-grove frontmatter, e.g. a Hugo/Jekyll `type: post`.)* |
 | **opted-in code** | `f` belongs to a package that opted in via a test-deps ledger (`adr-0006` dec 4; the ledger's concrete spelling is the ledger artifact's to pin, per Q8 — cited by reference, not respelled here). |
 | **gate carriers** | `f` is one of the gate's own carriers, machinery included: a **reviewer-declaration file** (INV21's term — a file the §C.1 policy assembly reads a `grove-review-declaration` block from, discovered at the protected-branch commit), the review-policy file itself, any test-deps ledger, or the installed check runtime dir / installed workflow file per the `check_runtime_dir` / `check_workflow_path` carrier keys (§C.1) — in scope **in both modes** (adr-0013 AC4). |
 
@@ -724,6 +748,12 @@ entirely from the record stream + the check's own recomputation —
   old path) contributes no entry, jurisdiction being about owed-pair
   generation while deletion-staleness lives in freshness (S12) — and
   the numerator is that set's in-scope members (the step-0 union).
+  In **either** mode, when the protected-branch `scope` value was
+  unrecognized and resolved to `strict` (§C.1, INV19), the header
+  additionally carries a note naming the value and the resolution on
+  **every** run, green or red — e.g. *"scope: 'scopped' unrecognized —
+  resolved to strict (fail-closed)"* — so the misparse is visible even
+  on a diff with no out-of-jurisdiction files (added round 3, W2).
 - The view never carries the words "approved," "reviewed," or "safe to
   merge" for a green result (AC6, S8).
 
@@ -744,6 +774,19 @@ from this enum (all applicable reasons, in this order):
 | `unresolvable-reference` | A changed artifact's `depends_on` or `implements` id is dangling or collided at HEAD (§C.7) — file-level, owed pair or not. | The id(s); for a collision, both claiming paths. |
 | `record-rejected` | A pair's only covering records are inadmissible (§A.4 — edited comment or unauthorized poster). | The rejected record(s) + cause (`edited` / `unauthorized`). |
 | `carrier-unresolved` | `scoped` mode only (§C.2 step 0, added per adr-0013 dec 1/AC4): a carrier-of-record path — `check_runtime_dir` or `check_workflow_path`, whether written in policy or fallen to its install default — does not exist at the protected-branch commit. File-level row, owed pair or not. (Semantics are the decision's; the token **spelling** is this spec's — flagged, the `upstream-indicted`/`vacuous-evidence` precedent.) | The key, the path it resolved to, and whether that path was `written` or `defaulted`. |
+
+**Remedy hint for unclaimed types (presentation-layer; added round 3,
+ratified with the adr-0013 package 2026-07-17).** Where a red row's
+reason stems from an **unclaimed type** — the full set owed via INV7's
+fail-closed override — the rendered view names the two cures in
+context, approximately: *"unclaimed type `<type>` — declare it in
+`reviewless_types` (`charters/review-policy.md`) if it is not
+review-bearing, or add a reviewer declaration claiming it."* This
+changes no verdict and no reason token — rendered text only, keyed off
+the derivation's own §C.2 step-1 classification — per the maintainer's
+recorded self-guiding principle (2026-07-17 call, the same sitting as
+the deferred-install path): products surface the salient next step in
+context.
 
 Reason **naming** uses the record's `manifest_hashes` and the check's
 own recomputation; the **verdict** never depends on the recorded hashes
@@ -938,7 +981,11 @@ These are named, not pretended. Authenticity and policy changes remain
   contributes no entry) and whose numerator **shall** be that set's
   in-scope members — on green and red alike, in one line; the check
   **shall not** render per-file exemption rows; and the
-  non-authorizing banner language (INV11) **shall** be unchanged.
+  non-authorizing banner language (INV11) **shall** be unchanged. In
+  **either** mode, where the protected-branch `scope` value was
+  unrecognized and resolved to `strict` (INV19), the §D header
+  **shall** name that value and its `strict` resolution on every run,
+  green or red (added round 3, W2).
 
 ### Scenarios (GWT)
 
@@ -1313,7 +1360,7 @@ sitting); this dated subsection is the amendment's own check.
 | Derives only from the approved decision | PASS | Every delta cites `adr-0013` (Decisions 1–5, the conceded-class disclosure, Consequence 1, AC1–AC8); nothing added beyond it. Illustrative example paths in S21/S23 are examples, not new requirements. |
 | Append-only amendment discipline | PASS | New section-level delta note (five fields + VALUE + CONFIDENCE) prepended; prior notes unedited (the round-2 addendum is appended below the note, never rewriting it); no INV/S renumbered; meaning-changing edits to approved text (INV7, INV13, INV15, §C.0 policy row, §C.8, §D banner) carry explicit `(amended per adr-0013)` / dated inline markers with prior-state `was:` clauses. Round-2 edits to material this amendment itself introduced (step-0 table, INV19–INV22, S21–S23, §C.1 key table) carry no `was:` markers — they are not approved text; the delta-note addendum is their provenance. |
 | Both grammars extended (`adr-0004`) | PASS | 22 EARS invariants (INV19–INV22 added) + 23 GWT scenarios (S21–S23 added); neither grammar stands in for the other. |
-| Concretization beyond the decision | PARTIAL-DISCLOSED | One token spelling pinned here, flagged in §D per the `upstream-indicted`/`vacuous-evidence` precedent: **`carrier-unresolved`** (the decision names the semantics and uses "carrier-unresolved reason" descriptively; the enum token is this spec's spelling). The `written`/`defaulted` payload provenance values are likewise this spec's spelling of the decision's "written or defaulted" distinction. Round 2 adds two more flagged pins: **unrecognized `scope` values resolve to `strict`** (§C.1/INV19 — the decision pins silence ⇒ `strict` and softness-never-inferred; invalid-value handling is this spec's fail-closed spelling of that principle; red-error was the decision-compatible alternative, not chosen because `strict` is maximal jurisdiction and the mistake self-surfaces as unexpected reds) and the **carrier existence semantics** (prefix match after trailing-slash normalization; dir-exists = at least one blob under the prefix — §C.2, this spec's spelling of the decision's "exists at the protected-branch commit"). |
+| Concretization beyond the decision | PARTIAL-DISCLOSED | One token spelling pinned here, flagged in §D per the `upstream-indicted`/`vacuous-evidence` precedent: **`carrier-unresolved`** (the decision names the semantics and uses "carrier-unresolved reason" descriptively; the enum token is this spec's spelling). The `written`/`defaulted` payload provenance values are likewise this spec's spelling of the decision's "written or defaulted" distinction. Round 2 adds two more flagged pins: **unrecognized `scope` values resolve to `strict`** (§C.1/INV19 — the decision pins silence ⇒ `strict` and softness-never-inferred; invalid-value handling is this spec's fail-closed spelling of that principle; red-error was the decision-compatible alternative, not chosen because `strict` is maximal jurisdiction and the mistake self-surfaces as unexpected reds) and the **carrier existence semantics** (prefix match after trailing-slash normalization; dir-exists = at least one blob under the prefix — §C.2, this spec's spelling of the decision's "exists at the protected-branch commit"). Round 3 lists here — closing the bookkeeping asymmetry the conformance pass at `340c0b3` named — the third round-2 pin, previously absent from this row: the **step-0 type basis** (any `type:` value, recognized or not — MF1, §C.2/S22); **maintainer-ratified 2026-07-17, provisionally** (verbatim record at the §C.2 step-0 type row), with the math-quest pilot (adr-0013 Consequence 4) as its named empirical test. |
 | Traceability | PASS-DISCLOSED | adr-0013 AC1–AC8 all mapped; AC5 honestly mapped as a setup-skill deliverable outside this check's contract (with this spec's fail-closed floor named), never claimed covered. |
 | Versioning discipline (`versioning.md`) | PASS | Significant testable-clause change ⇒ `version` bumped 1 → 2; the durable decision the bump requires is `adr-0013` itself. |
 | Status honesty (`lifecycle.md`) | PASS-DISCLOSED | `status: approved` stands on the recorded 2026-07-16 human act; this amendment claims no fresh spec approval — it rides the maintainer's 2026-07-17 `adr-0013` approval, and the bundle goes to their merge gate (stated in the delta note's citation line). No agent flipped any state. |
@@ -1341,3 +1388,31 @@ is **not** claiming the adversary's validation — the re-judgment is
 the gates', and `status: approved` still rests solely on the recorded
 2026-07-16 human act plus the adr-0013 ride-along stated in the delta
 note.
+
+**Round-3 revision (2026-07-17, same day, appended).** Trigger: the
+spec-adversary and conformance verdicts at `340c0b3` and the
+maintainer's same-day ratification of the amendment package —
+including, **provisionally**, the step-0 type-basis pin (verbatim
+maintainer wording recorded at the §C.2 step-0 type row) and the §D
+remedy hint. Four edits, all recorded in the round-3 delta-note
+addendum: (1) the ratification record (§C.2 step-0 type row + the
+concretization row above, closing the flagged bookkeeping asymmetry);
+(2) the §D remedy hint (presentation-layer — no verdict, no reason
+token, keyed off the derivation's existing classification); (3) W1,
+the §C.2 step-0 deletion clause (harmonizing the preamble's rename
+parenthetical — the old path is a diff member for freshness, never a
+classified file); (4) W2, the §D header note plus an INV22 sentence —
+INV22 chosen over the §C.1 row as the normative home because the
+visibility duty is a testable render obligation and belongs in EARS;
+since the note fires precisely in strict-resolved runs, the sentence
+is stated mode-independent, and the §C.1 row's "self-surfaces as
+unexpected reds" rationale is cross-referenced to it rather than left
+claiming reds alone suffice. Counts stand: 22 EARS + 23 GWT, nothing
+renumbered, no reason token added; `version: 2` is not re-bumped —
+this round is the same amendment package converging pre-merge, and the
+one new testable clause (the INV22 sentence) pins visibility of an
+already-pinned resolution, riding the package's ratification rather
+than constituting a fresh behavioral contract. No re-judgment of the
+adversary or conformance verdicts is claimed; `status: approved` still
+rests on the recorded 2026-07-16 human act plus the adr-0013
+ride-along.
