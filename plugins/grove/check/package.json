@@ -6,6 +6,6 @@
   "description": "Layer A review-bookkeeping check core (spec-0002). Pure functions over explicit inputs; no network. Wave 2b wires the GitHub/CI shell.",
   "scripts": {
     "test": "node --test",
-    "typecheck": "node --check lib/*.mjs && node --check test/*.mjs"
+    "typecheck": "node --check lib/*.mjs && node --check shell/*.mjs && node --check bin/*.mjs && node --check test/*.mjs"
   }
 }
