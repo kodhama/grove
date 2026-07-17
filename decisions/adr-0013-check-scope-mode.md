@@ -66,13 +66,19 @@ conversation):
      - **the gate's own carriers, machinery included** — the discovered
        reviewer-declaration directory's files, the review-policy file
        itself, every test-deps ledger, **the installed check runtime
-       path** (default `.grove/check/`, as recorded at install), and
-       **the installed workflow file**. The gate's inputs *and its
+       dir**, and **the installed workflow file**. The two machinery
+       paths have a named **carrier-of-record**: the
+       `check_runtime_dir` / `check_workflow_path` keys setup writes
+       into the `grove-review-policy` block alongside `scope`
+       (Decision 4); an absent key falls to the install defaults
+       (`.grove/check/`; `.github/workflows/grove-review-bookkeeping.yml`)
+       — never to silent exclusion. The gate's inputs *and its
        implementation* are never ungoverned, in either mode: an edit to
        the check's own machinery is never silent in `scoped` — the same
        tripwire `strict` provides. (The run-from-PR-HEAD limit is
-       inherent in both modes for a *malicious* PR — the wave-2
-       code-review finding, conceded in `spec-0002` §E; this carrier
+       inherent in both modes for a *malicious* PR — a wave-2
+       code-review finding not yet recorded as a `spec-0002` §E row;
+       the Consequence-1 amendment adds it, per AC8. This carrier
        scoping preserves the *non-malicious* tripwire. Disclosed
        friction: a legitimate runtime re-install will show red rows and
        the human merges over them knowingly; a smoother update path is
@@ -165,17 +171,25 @@ later.
 
 1. **`spec-0002` is amended** (contract-author, after this decision is
    approved): §B/INV7 gain the scope-mode semantics above; the §C.2
-   owed-derivation states the jurisdiction filter; a scenario covers
-   out-of-scope-silent + in-scope-fail-closed. Append-only: the spec
-   amendment cites this ADR.
+   owed-derivation states the jurisdiction filter; **§D** gains the
+   mode-naming header line (Decision 5/AC7); **§E** gains two new
+   disclosed rows — the producer-controlled ledger-presence proxy
+   (AC8) and the run-from-PR-HEAD limit (both modes, wave-2 finding);
+   one clause states that type-based scope membership does not imply
+   artifact-index membership (the index still globs `artifact_dirs`
+   only; inbound references to a mislocated artifact red as
+   `unresolvable-reference` — fail-closed, unchanged). A scenario
+   covers out-of-scope-silent + in-scope-fail-closed. Append-only: the
+   spec amendment cites this ADR.
 2. **The check implements the filter** (executor, test-first): `scoped`
    short-circuits owed-pair generation for out-of-jurisdiction files;
    absent-key and `strict` paths byte-identical to today's behavior.
 3. **The vendored `review-policy.md` template and the setup/remove
    skill steps are updated**: the template carries the `scope` key with
    the plain-language comment; setup asks the question and writes the
-   answer; grove-self's `charters/review-policy.md` gains explicit
-   `scope: strict`.
+   answer **plus the `check_runtime_dir` / `check_workflow_path`
+   carrier keys** (Decision 1); grove-self's
+   `charters/review-policy.md` gains explicit `scope: strict`.
 4. **The math-quest pilot exercises the whole path** (adr-0012's
    program acceptance milestone): a real consumer install, the real
    setup question, `scoped` behavior on real app code.
@@ -208,10 +222,11 @@ later.
 - **AC7 (mode visibility).** In `scoped` mode the §D header states the
   mode and the aggregate jurisdiction count (Decision 5) on green and
   red alike; the non-authorizing banner language (INV11) is unchanged.
-- **AC8 (the concession is written down).** The spec amendment carries
-  the conceded class (producer-controlled ledger presence) in its
-  disclosed-limits section (`spec-0002` §E class), naming the three
-  backstops — never implied, never omitted.
+- **AC8 (the concessions are written down).** The spec amendment
+  carries BOTH conceded classes in its disclosed-limits section
+  (`spec-0002` §E): the producer-controlled ledger-presence proxy
+  (naming the three backstops) and the run-from-PR-HEAD limit — never
+  implied, never left in session history.
 
 ## Self-check (rubric)
 
@@ -233,3 +248,18 @@ convention cited by reference) applied; F5b (the review-policy carrier
 is itself `gated` on main — pre-existing) surfaced to the maintainer,
 not fixed here. The revision is NOT claiming round 1's validation —
 a scoped round 2 re-review of the deltas precedes the human gate.
+
+**Adversary round 2 (2026-07-17): NEEDS-REVISION, narrow** — F1/F2/F4/
+F5a resolutions held; the F3 fix carried two one-clause breaks, both
+applied in this revision: R2-F1 (the machinery carriers had no named
+carrier-of-record → the `check_runtime_dir`/`check_workflow_path` keys
+with install defaults, written by setup), R2-F2 (the run-from-PR-HEAD
+limit was cited as an existing §E row that does not exist → recited as
+a wave-2 finding the Consequence-1 amendment ADDS, AC8 extended to
+carry both concessions). Notes R2-N1 (amendment scope now names §D/§E)
+and R2-N2 (index-membership clause) folded into Consequence 1; R2-N3
+(the executor charter — concession backstop 1's home — is itself
+`gated` on main, F5b-adjacent) surfaced to the maintainer with F5b.
+This revision is NOT claiming round 2's validation — a round-3
+re-review scoped to Decision 1's carriers clause and the recitation
+precedes the human gate.
