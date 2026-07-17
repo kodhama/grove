@@ -103,11 +103,27 @@ export async function buildTree({ gitRunner, head, artifactDirs, changed = [] })
 // carrier (assemblePolicy ignores files with no declaration block).
 export async function readProtectedPolicy({ gitRunner, defaultBranch, remote = 'origin' }) {
   const ref = `${remote}/${defaultBranch}`;
-  let charterPaths = [];
+  // Do NOT swallow a read FAILURE to an empty charter set. A genuinely
+  // empty/absent `charters` dir makes `git ls-tree <ref> -- charters` exit 0
+  // with no output — listTree returns [] and that legitimately degrades to an
+  // empty policy. But an actual git command FAILURE (nonzero exit / rejection —
+  // e.g. `origin/<default>` not fetched in a shallow Actions checkout) is NOT
+  // "empty policy": swallowing it produced a downstream "reviews missing" red
+  // instead of the truth ("couldn't read the protected branch"). Surface it as
+  // a distinct hard error so bin/check.mjs exits 2 with a clear message (§C.0 /
+  // INV1 — policy MUST come from the protected branch).
+  let charterPaths;
   try {
     charterPaths = await listTree({ gitRunner, ref, path: 'charters' });
-  } catch {
-    charterPaths = [];
+  } catch (e) {
+    throw new Error(
+      `grove check: cannot read policy from the protected branch — ` +
+        `\`git ls-tree ${ref} -- charters\` failed: ${e && e.message ? e.message : e}. ` +
+        `The protected branch must be fetched (a shallow checkout in Actions ` +
+        `needs its default branch available as ${ref}). ` +
+        `Refusing to treat an unreadable protected branch as an empty policy.`,
+      { cause: e },
+    );
   }
   const mdPaths = charterPaths.filter((p) => p.endsWith('.md'));
   let reviewPolicyText = '';

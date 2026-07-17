@@ -143,3 +143,39 @@ test('readProtectedPolicy reads charters + review-policy from origin/<default>, 
     if (a[0] === 'show') assert.ok(a[1].startsWith('origin/main:'));
   }
 });
+
+// --- Finding 1: a FAILED protected-branch read must NOT be swallowed to an
+//     empty charter set (indistinguishable from a genuinely empty dir, which
+//     downstream misreads as "reviews missing"). A git command FAILURE (the
+//     ref not fetched in a shallow Actions checkout) must propagate as a hard
+//     error so bin/check.mjs exits 2 with a clear message. §C.0 / INV1. ---
+
+test('readProtectedPolicy: a git ls-tree FAILURE on the protected branch propagates, never degrades to empty', async () => {
+  // Simulate origin/main not fetched (shallow checkout): ls-tree rejects.
+  const gitRunner = fakeRunner((args) => {
+    if (args[0] === 'ls-tree') return undefined; // fakeRunner turns this into a rejection
+    return undefined;
+  });
+  await assert.rejects(
+    () => readProtectedPolicy({ gitRunner, defaultBranch: 'main' }),
+    (err) => {
+      // A clear, protected-branch-read message — not a silent empty policy.
+      assert.match(err.message, /protected branch|origin\/main|charters/i);
+      return true;
+    },
+  );
+});
+
+test('readProtectedPolicy: a genuinely EMPTY charters listing (ls-tree exits 0, no output) degrades to empty, no throw', async () => {
+  // The legitimate degrade path: the read SUCCEEDED and the dir is empty/absent.
+  const gitRunner = fakeRunner((args) => {
+    if (args[0] === 'ls-tree') return ''; // success, empty output
+    return undefined;
+  });
+  const { reviewPolicyText, charterTexts } = await readProtectedPolicy({
+    gitRunner,
+    defaultBranch: 'main',
+  });
+  assert.equal(reviewPolicyText, '');
+  assert.deepEqual(charterTexts, []);
+});
