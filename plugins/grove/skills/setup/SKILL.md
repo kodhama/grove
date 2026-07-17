@@ -162,10 +162,16 @@ record-integrity gap. **Green is not approval** — a human still judges genuine
 
 **Gate on both**: (a) this project uses **GitHub** — you already learned the VCS/host in step 3
 (the `<PR_CONTRACT_SECTIONS>` question); if it's GitLab, plain git, or anything but GitHub Actions,
-**skip this step** and say so, and (b) the user **opts in** — offer it, don't force it. If they
-decline, skip and move on.
+**skip this step** and say so, and (b) the user **opts in** — offer it, don't force it.
 
-If they opt in, compose three pieces (augment-never-clobber; **ask before overwriting** any
+**If they decline, never dead-end them** (maintainer call, 2026-07-17: the product teaches itself
+at the moment of relevance — name the next step here, in the conversation, rather than relying on
+the user having read docs). Your reply must name both: what the check does is written up in this
+plugin's `${CLAUDE_PLUGIN_ROOT}/reference/ci/README.md` (offer to show it), and they can install
+it any time later — standalone, without re-running setup — with **`/grove:check-install`**. Then
+move on.
+
+If they opt in, compose **four** pieces (augment-never-clobber; **ask before overwriting** any
 existing file, honoring their answer per file):
 
 1. **The check runtime.** Copy `${CLAUDE_PLUGIN_ROOT}/check/` — its `lib/`, `shell/`, `bin/`, and
@@ -189,6 +195,35 @@ existing file, honoring their answer per file):
    `charters/review-policy.md` else `.grove/review-policy.md`). Tell the user to **review its
    `artifact_dirs` and `non_behavioral_allowlist`** against their own corpus layout — the vendored
    defaults are a starting point, and an allowlist entry that matches no file is simply inert.
+   The copied block ships with three unresolved slots — `<SCOPE>`, `<CHECK_RUNTIME_DIR>`,
+   `<CHECK_WORKFLOW_PATH>` — which piece 4 resolves; zero literal slots may remain when step 7 is
+   done.
+
+4. **The scope mode — ask one question, write three keys** (`adr-0013` Decisions 1, 2, 4; the
+   same maintainer call as above: the choice is surfaced here, at the moment it's relevant, never
+   left to documentation). Ask the user ONE plain-language question:
+
+   > Should the check watch only grove-managed artifacts (**scoped** — recommended to start), or
+   > hold the whole repo to review-required (**strict**)?
+
+   Recommend **`scoped`** as the starting default — it keeps the check's jurisdiction to what's
+   declared into the methodology (artifacts, typed files, opted-in code, the gate's own
+   machinery), so ordinary application code in an ordinary PR doesn't go red; `strict` is the
+   ratchet for a repo whose changes are mostly grove-run work. Then resolve the three slots in
+   the `grove-review-policy` block of the `.grove/review-policy.md` piece 3 just wrote (same
+   inline-resolution idiom as step 3):
+
+   - `<SCOPE>` → `scoped` or `strict` — the user's answer, verbatim;
+   - `<CHECK_RUNTIME_DIR>` → the path piece 1 actually used (`.grove/check/`);
+   - `<CHECK_WORKFLOW_PATH>` → the path piece 2 actually used
+     (`.github/workflows/grove-review-bookkeeping.yml`).
+
+   **Every install writes all three keys explicitly — no install path leaves any of them absent
+   silently** (`adr-0013` AC5; an install that writes `scope` but not the carrier keys fails that
+   criterion). Tell the user the fail-closed backstop plainly: if `scope` is later deleted or
+   hand-edited to an unrecognized value, the check falls back to **`strict`** — a hand-edit can
+   never soften the gate — and absent carrier keys fall to the install defaults, never to silent
+   exclusion.
 
 **Say plainly how the check reads policy** (`adr-0012` "assemble `f(A)`, never compile it"): the
 owed-review map is **assembled LIVE at runtime** from the reviewer-agent declarations installed in
@@ -198,7 +233,8 @@ declarations + `.grove/review-policy.md`); it **never bakes a compiled owed-map*
 table. Editing what a type owes is an agent-declaration edit, not a regenerate step.
 
 Confirm exactly what was written (the `.grove/check/` runtime, the workflow file, and
-`.grove/review-policy.md`), and note that `/grove:remove` reverses all three.
+`.grove/review-policy.md` — including the recorded `scope` mode and the two carrier-path keys),
+and note that `/grove:remove` reverses all of it.
 
 ## 8. Telemetry (optional — grove never requires it)
 
@@ -227,5 +263,6 @@ Tell the user exactly what you wrote: which roles landed in `.claude/agents/` (a
 files, if any, you skipped rather than overwrote), every placeholder you resolved and to what value
 (or the honest "none exists yet" statements you wrote instead), whether `decisions/`/`specs/` were
 seeded, the `CLAUDE.md` block, whether the GitHub bookkeeping check was installed (the `.grove/check/`
-runtime, the workflow, and `.grove/review-policy.md`), and whether the telemetry skill was composed.
-They can remove all of it any time with `/grove:remove`.
+runtime, the workflow, and `.grove/review-policy.md` with its recorded `scope` mode and carrier
+keys) — or, if it was declined, that `/grove:check-install` installs it later — and whether the
+telemetry skill was composed. They can remove all of it any time with `/grove:remove`.
