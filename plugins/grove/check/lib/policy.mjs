@@ -16,6 +16,11 @@ export const ALL_REVIEWS = ['conformance', 'code-reviewer', 'spec-adversary', 'd
 const DEFAULT_ARTIFACT_DIRS = ['decisions', 'specs', 'charters'];
 const DEFAULT_PROSE_EXTENSIONS = ['.md', '.txt', '.rst'];
 
+// adr-0013 dec 1 install defaults for the carrier-of-record keys (§C.1):
+// an absent key falls to these, NEVER to silent exclusion.
+const DEFAULT_CHECK_RUNTIME_DIR = '.grove/check/';
+const DEFAULT_CHECK_WORKFLOW_PATH = '.github/workflows/grove-review-bookkeeping.yml';
+
 function toList(v) {
   if (v == null) return [];
   if (Array.isArray(v)) return v.map(String);
@@ -27,7 +32,34 @@ function toList(v) {
 export function parseReviewPolicy(text) {
   const blocks = extractFencedBlocks(text, 'grove-review-policy');
   const obj = blocks.length ? (parseYaml(blocks[0]) || {}) : {};
+
+  // §C.1 scope key (adr-0013 dec 1/2; INV19): absent ⇒ strict (fail-closed
+  // silence default); an UNRECOGNIZED value likewise resolves to strict — a
+  // misparse never softens jurisdiction — with the raw value preserved so the
+  // §D header can name it on every run (INV22, round-3 W2).
+  let scope = 'strict';
+  let scopeRaw = null;
+  let scopeUnrecognized = false;
+  if (obj.scope != null) {
+    scopeRaw = String(obj.scope);
+    if (scopeRaw === 'strict' || scopeRaw === 'scoped') scope = scopeRaw;
+    else scopeUnrecognized = true; // resolves to strict
+  }
+
+  // §C.1 carrier-of-record keys (adr-0013 dec 1): absent ⇒ install default,
+  // never silent exclusion; provenance (written|defaulted) feeds the
+  // carrier-unresolved payload (§D).
+  const carrier = (key, dflt) =>
+    obj[key] != null
+      ? { path: String(obj[key]), provenance: 'written' }
+      : { path: dflt, provenance: 'defaulted' };
+
   return {
+    scope,
+    scopeRaw,
+    scopeUnrecognized,
+    checkRuntimeDir: carrier('check_runtime_dir', DEFAULT_CHECK_RUNTIME_DIR),
+    checkWorkflowPath: carrier('check_workflow_path', DEFAULT_CHECK_WORKFLOW_PATH),
     artifactDirs: obj.artifact_dirs != null ? toList(obj.artifact_dirs) : DEFAULT_ARTIFACT_DIRS,
     reviewlessTypes: toList(obj.reviewless_types),
     allowlist: toList(obj.non_behavioral_allowlist).map(normalizePath).filter(Boolean),
@@ -49,13 +81,26 @@ export function parseReviewDeclaration(text) {
   };
 }
 
-// assemblePolicy({ reviewPolicyText, charterTexts }) -> resolved policy.
-export function assemblePolicy({ reviewPolicyText = '', charterTexts = [] } = {}) {
+// assemblePolicy({ reviewPolicyText, reviewPolicyPath?, charterTexts }) ->
+// resolved policy. `charterTexts` entries may be bare strings (back-compat) or
+// { path, text } objects — the paths of entries carrying a
+// grove-review-declaration block become `declarationPaths`, the
+// "reviewer-declaration files" of INV21's gate-carriers scope basis.
+export function assemblePolicy({ reviewPolicyText = '', reviewPolicyPath = null, charterTexts = [] } = {}) {
   const rp = parseReviewPolicy(reviewPolicyText);
   const declarations = [];
-  for (const t of charterTexts) {
-    const d = parseReviewDeclaration(t);
-    if (d) declarations.push(d);
+  const declarationPaths = [];
+  for (const entry of charterTexts) {
+    const isEntry = entry != null && typeof entry === 'object';
+    const text = isEntry ? entry.text : entry;
+    const d = parseReviewDeclaration(text);
+    if (d) {
+      declarations.push(d);
+      if (isEntry && entry.path != null) {
+        const p = normalizePath(entry.path);
+        if (p != null) declarationPaths.push(p);
+      }
+    }
   }
   const passClassByReview = new Map();
   const typesByReview = new Map();
@@ -79,6 +124,8 @@ export function assemblePolicy({ reviewPolicyText = '', charterTexts = [] } = {}
   return {
     ...rp,
     declarations,
+    declarationPaths,
+    reviewPolicyPath: reviewPolicyPath != null ? normalizePath(reviewPolicyPath) : null,
     reviewlessTypesSet: reviewlessTypes,
     owed,
     passClass: (review) => (passClassByReview.has(review) ? passClassByReview.get(review) : null),
