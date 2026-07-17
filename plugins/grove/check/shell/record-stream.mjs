@@ -83,7 +83,27 @@ export async function readRecordStream({
   const headers = requestHeaders(token);
   const comments = [];
 
+  // Pagination cycle guard (Finding 2). A self-referential or looping
+  // `Link: rel="next"` (a URL already visited) must not spin forever; a
+  // monotonically-increasing but never-terminating cursor is bounded by the
+  // page cap. Either breach is a hard RecordStreamError — never a partial
+  // stream (INV9), same fail-closed teeth as a truncated read.
+  const visited = new Set();
+  const MAX_PAGES = 10000;
+
   while (url) {
+    if (visited.has(url)) {
+      throw new RecordStreamError(`record-stream pagination cycle detected: Link rel="next" revisited ${url}`, {
+        url,
+      });
+    }
+    visited.add(url);
+    if (visited.size > MAX_PAGES) {
+      throw new RecordStreamError(
+        `record-stream exceeded ${MAX_PAGES} pages without terminating — aborting rather than returning a partial`,
+        { url },
+      );
+    }
     let res;
     try {
       res = await fetchImpl(url, { headers });

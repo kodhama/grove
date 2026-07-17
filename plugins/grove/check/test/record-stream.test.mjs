@@ -150,3 +150,37 @@ test('INV9: the first page failing errors outright — no comments returned', as
     (err) => err instanceof RecordStreamError && err.status === 403,
   );
 });
+
+// --- Finding 2: a self-referential / looping `Link: rel="next"` must not spin
+//     forever. A detected cycle is a hard RecordStreamError (never a partial —
+//     INV9), and the normal multi-page walk still terminates cleanly. ---
+
+test('INV9: a self-referential rel="next" Link is a hard error (cycle guard), never an infinite loop', async () => {
+  // Every page points its `next` at the same URL: without a guard this spins
+  // forever. With one it must throw a RecordStreamError.
+  const loopUrl = 'https://api.github.com/repos/o/r/issues/1/comments?per_page=100&page=2';
+  const fetchImpl = async () =>
+    fakeRes({ body: [ghComment({ id: 1 })], link: `<${loopUrl}>; rel="next"` });
+  await assert.rejects(
+    () => readRecordStream({ fetchImpl, owner: 'o', repo: 'r', prNumber: 1, token: 't' }),
+    (err) => {
+      assert.ok(err instanceof RecordStreamError);
+      assert.match(err.message, /cycle|loop/i);
+      return true;
+    },
+  );
+});
+
+test('the normal multi-page walk (distinct next URLs) still terminates cleanly under the cycle guard', async () => {
+  const p2 = 'https://api.github.com/repos/o/r/issues/7/comments?per_page=100&page=2';
+  const p3 = 'https://api.github.com/repos/o/r/issues/7/comments?per_page=100&page=3';
+  const fetchImpl = async (url) => {
+    if (!url.includes('page=2') && !url.includes('page=3')) {
+      return fakeRes({ body: [ghComment({ id: 1 })], link: `<${p2}>; rel="next"` });
+    }
+    if (url.includes('page=2')) return fakeRes({ body: [ghComment({ id: 2 })], link: `<${p3}>; rel="next"` });
+    return fakeRes({ body: [ghComment({ id: 3 })], link: null });
+  };
+  const comments = await readRecordStream({ fetchImpl, owner: 'o', repo: 'r', prNumber: 7, token: 't' });
+  assert.deepEqual(comments.map((c) => c.id), [1, 2, 3]);
+});
