@@ -5,7 +5,7 @@ status: gated
 implements: spec-0002-review-bookkeeping-check  # the realized contract: this file is the Q7 non-charter policy carrier that spec defines
 depends_on: [spec-0002-review-bookkeeping-check, adr-0012-methodology-delivery-machinery]
 owner: agent
-updated: 2026-07-16
+updated: 2026-07-17
 ---
 
 # review-policy — the non-charter policy inputs for the bookkeeping check
@@ -40,6 +40,12 @@ artifact-dir list means the stated default; an absent
 
 ```grove-review-policy
 schema: 1
+
+# §B scope mode (adr-0013 Consequence 3) — grove-self is the whole-repo
+# case: every changed file is the check's business, fail-closed. Stated
+# explicitly per adr-0013 Decision 4 ("every install declares its mode;
+# the silence default exists only as the fail-closed backstop").
+scope: strict
 
 # §A.3 step 1 — the directories globbed to build the artifact index
 # (frontmatter `id` → path).
