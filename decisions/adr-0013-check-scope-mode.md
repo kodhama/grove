@@ -72,7 +72,15 @@ conversation):
        into the `grove-review-policy` block alongside `scope`
        (Decision 4); an absent key falls to the install defaults
        (`.grove/check/`; `.github/workflows/grove-review-bookkeeping.yml`)
-       — never to silent exclusion. The gate's inputs *and its
+       — never to silent exclusion. **Carrier silence fail-closes like
+       scope silence (Decision 2):** in `scoped` mode, a carrier path
+       (written or defaulted) that does not exist at the
+       protected-branch commit is a **red** with a named
+       carrier-unresolved reason (the Consequence-1 amendment carries
+       it) — so a non-default hand install with absent keys, and
+       relocated machinery whose keys never followed the move, stay red
+       until the keys name the real paths; the assumption is never
+       silently wrong. The gate's inputs *and its
        implementation* are never ungoverned, in either mode: an edit to
        the check's own machinery is never silent in `scoped` — the same
        tripwire `strict` provides. (The run-from-PR-HEAD limit is
@@ -213,9 +221,11 @@ later.
   the review-policy file, every ledger, the installed check runtime
   path, and the installed workflow file are in scope **in both modes**.
 - **AC5 (the choice is recorded).** Setup writes an explicit `scope`
-  key on every CI-check install; the question is one plain-language
-  prompt with a recommended default; no install path leaves the key
-  absent silently.
+  key on every CI-check install — **and the
+  `check_runtime_dir` / `check_workflow_path` carrier keys in the same
+  act** (an install that writes `scope` but not the carriers fails this
+  criterion); the question is one plain-language prompt with a
+  recommended default; no install path leaves the keys absent silently.
 - **AC6 (S6 intact).** The `scope` value is read from the protected
   default branch only; a PR editing its own scope does not change the
   rules its gate runs under.
@@ -263,3 +273,15 @@ and R2-N2 (index-membership clause) folded into Consequence 1; R2-N3
 This revision is NOT claiming round 2's validation — a round-3
 re-review scoped to Decision 1's carriers clause and the recitation
 precedes the human gate.
+
+**Adversary round 3 (2026-07-17): NEEDS-REVISION, one clause** —
+R2-F2's recitation held fully; R2-F1's mechanism held but its
+guarantee overclaimed for one configuration class (R3-F1: a
+non-default hand install with absent keys fell to defaults that exist
+nowhere — silent exclusion; and relocated machinery's keys were never
+forced to follow). Applied: carrier silence now fail-closes like scope
+silence — a carrier path that does not exist at the protected-branch
+commit is a red with a named carrier-unresolved reason. R3-N1 applied:
+AC5 now fails an install that writes `scope` without the carrier keys.
+A round-4 re-review scoped to these two clauses precedes the human
+gate.
