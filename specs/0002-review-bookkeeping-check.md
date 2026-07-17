@@ -73,6 +73,19 @@ is **not** authorization; a human still judges genuineness and merges.
 > **CONFIDENCE:** `verified` — every delta traces to `adr-0013`'s
 > Decisions 1–5, its conceded-class disclosure, Consequence 1, and
 > AC1–AC8, read at HEAD this sitting.
+> **Revision round 2 (2026-07-17, appended — spec-adversary
+> NEEDS-REVISION against this amendment; the note above stands
+> unedited):** MF1 — the §C.2 step-0 type basis pinned to *any*
+> frontmatter `type:` declaration, recognized or not (S22 extended
+> with the unrecognized-type-outside-`artifact_dirs` half-scenario);
+> MF2 — an unrecognized `scope` value resolves to `strict` (§C.1 key
+> table, INV19, §B cross-ref; a flagged fail-closed concretization);
+> MF3 — the banner's aggregate jurisdiction count pinned to the §C.2
+> step-0 iteration set (§D, INV22, S21); WI1–WI4 — the
+> reviewer-declaration-file term defined, carrier existence semantics
+> pinned (prefix match, blob-under-prefix), INV13 given the scoped-mode
+> marker, S21's Given made carrier-resolving. The adversary has **not**
+> re-judged this revision; the gates do.
 
 > **Amendment (2026-07-16, `adr-0012` at HEAD — the fifth adversarial
 > pass's revisions (F1–F8) + the `implements:` frontmatter field; this is
@@ -430,7 +443,7 @@ S6 stays closed, adr-0013 AC6):
 
 | `scope` at the protected branch | Meaning |
 |---|---|
-| `strict` — and **absent** (the fail-closed silence default, adr-0013 dec 2) | Every changed file is the check's business: the rule above applies to the whole diff. With no `scope` key, behavior is **byte-identical** to this spec pre-amendment (adr-0013 AC1); softness is never inferred from silence. |
+| `strict` — and **absent** (the fail-closed silence default, adr-0013 dec 2; an unrecognized value likewise resolves to `strict`, §C.1) | Every changed file is the check's business: the rule above applies to the whole diff. With no `scope` key, behavior is **byte-identical** to this spec pre-amendment (adr-0013 AC1); softness is never inferred from silence. |
 | `scoped` | The check governs **only what is declared into the methodology**: the rule above applies only to in-jurisdiction files (§C.2 step 0). Everything else generates **no owed pairs and no reasons** — not red, not exempted: *outside the check's jurisdiction* (adr-0013 dec 1). |
 
 - **Scope narrows jurisdiction, never softens the gate** (adr-0013
@@ -494,7 +507,7 @@ operative for any input absent at check time.)*
 
 | Key | Values | Absent ⇒ |
 |---|---|---|
-| `scope` | `strict` \| `scoped` (§B) | `strict` — the fail-closed silence default (adr-0013 dec 2); never a silent softening |
+| `scope` | `strict` \| `scoped` (§B) | `strict` — the fail-closed silence default (adr-0013 dec 2); never a silent softening. An **unrecognized value** (e.g. `scope: stricd`) likewise resolves to `strict` — strict is maximal jurisdiction, so a misparse can never soften the gate, and the mistake self-surfaces as unexpected reds (concretization, flagged: the decision pins silence ⇒ `strict`; invalid-value handling is this spec's fail-closed spelling of the same principle) |
 | `check_runtime_dir` | path of the installed check runtime dir (carrier-of-record) | the install default `.grove/check/` — never silent exclusion |
 | `check_workflow_path` | path of the installed workflow file (carrier-of-record) | the install default `.github/workflows/grove-review-bookkeeping.yml` — never silent exclusion |
 
@@ -523,9 +536,9 @@ is the **union** of:
 | Basis | `f` is in scope when |
 |---|---|
 | **path** | `f` is under a policy `artifact_dirs` directory (the governed corpus). |
-| **type** | `f`'s HEAD frontmatter declares a grove artifact type — **wherever it lives**: jurisdiction follows the artifact's own self-declaration, so mislocating a typed artifact outside `artifact_dirs` is not an exit door; §C.7 graph resolution runs for every changed artifact by this definition. |
+| **type** | `f`'s HEAD frontmatter carries a `type:` declaration — pinned fail-closed as **any `type:` value, recognized or not**: an unrecognized `type: widget` outside `artifact_dirs` is in scope by type and, unclaimed, owes the full set per INV7 — an unknown spelling is never an exit door. Jurisdiction follows the artifact's own self-declaration **wherever it lives**, so mislocating a typed artifact outside `artifact_dirs` is not an exit door either; §C.7 graph resolution runs for every changed artifact by this definition. Out-of-scope therefore genuinely means: no frontmatter `type:`, not under `artifact_dirs`, unledgered, and no carrier. |
 | **opted-in code** | `f` belongs to a package that opted in via a test-deps ledger (`adr-0006` dec 4; the ledger's concrete spelling is the ledger artifact's to pin, per Q8 — cited by reference, not respelled here). |
-| **gate carriers** | `f` is one of the gate's own carriers, machinery included: a discovered reviewer-declaration-directory file, the review-policy file itself, any test-deps ledger, or the installed check runtime dir / installed workflow file per the `check_runtime_dir` / `check_workflow_path` carrier keys (§C.1) — in scope **in both modes** (adr-0013 AC4). |
+| **gate carriers** | `f` is one of the gate's own carriers, machinery included: a **reviewer-declaration file** (INV21's term — a file the §C.1 policy assembly reads a `grove-review-declaration` block from, discovered at the protected-branch commit), the review-policy file itself, any test-deps ledger, or the installed check runtime dir / installed workflow file per the `check_runtime_dir` / `check_workflow_path` carrier keys (§C.1) — in scope **in both modes** (adr-0013 AC4). |
 
 - **In scope, nothing softens** (adr-0013 dec 3): steps 1–3 and every
   downstream rule — INV7's fail-closed unclaimed types, the INV14
@@ -535,7 +548,12 @@ is the **union** of:
   carrier-of-record path — `check_runtime_dir` or `check_workflow_path`,
   whether written in policy or fallen to its install default — that
   does **not exist at the protected-branch commit** is a **red** with
-  reason `carrier-unresolved` (§D): a non-default hand install with
+  reason `carrier-unresolved` (§D). Existence semantics, pinned: a file
+  is a runtime-dir carrier iff its normalized path (§Terms) is **under**
+  `check_runtime_dir` — prefix match after trailing-slash normalization
+  — and the runtime dir exists at the protected-branch commit iff **at
+  least one blob** lies under that prefix; `check_workflow_path` exists
+  iff its blob does. So a non-default hand install with
   absent keys, and relocated machinery whose keys never followed the
   move, stay red until the keys name the real paths — the assumption
   is never silently wrong, and the gate's machinery is never silently
@@ -699,7 +717,13 @@ entirely from the record stream + the check's own recomputation —
   human still judges genuineness and merges. This is NOT approval."* —
   **one line, never per-file exemption rows**; the non-authorizing
   banner language (INV11) is unchanged, so a green is never read as a
-  whole-repo verdict by the human at merge.
+  whole-repo verdict by the human at merge. The count is pinned to the
+  **§C.2 step-0 iteration set**: the denominator is the diff entries
+  the owed-derivation walks at HEAD — after the §C.2 preamble's rename
+  expansion, the HEAD-present paths; a deletion (including a rename's
+  old path) contributes no entry, jurisdiction being about owed-pair
+  generation while deletion-staleness lives in freshness (S12) — and
+  the numerator is that set's in-scope members (the step-0 union).
 - The view never carries the words "approved," "reviewed," or "safe to
   merge" for a green result (AC6, S8).
 
@@ -834,9 +858,13 @@ These are named, not pretended. Authenticity and policy changes remain
   the PR record stream + its metadata via the platform API — and **shall
   not** depend on run-attestation, an identity service, or a
   forge-resistant store.
-- **INV13 (union owed-set).** For a PR touching multiple files, the check
+- **INV13 (union owed-set)** *(amended 2026-07-17, adr-0013; was: the
+  union ranged over every changed file unconditionally — no scope mode
+  existed).* For a PR touching multiple files, the check
   **shall** require the union of every changed file's owed reviews, all
-  satisfied at HEAD.
+  satisfied at HEAD; in `scoped` mode an out-of-scope file **shall**
+  contribute the empty set to that union (§C.2 step 0) — jurisdiction,
+  never a softened owed-set, matching INV7's treatment.
 - **INV14 (sole path exemption, AC5).** The declared non-behavioral
   allowlist **shall** be the only path exemption the check honors; its
   entries **shall** be explicit repo-relative paths (never a class,
@@ -882,10 +910,11 @@ These are named, not pretended. Authenticity and policy changes remain
   check **shall** read the `scope` key and the
   `check_runtime_dir` / `check_workflow_path` carrier keys from the
   `grove-review-policy` block at the protected default branch only —
-  never PR HEAD — and **shall** treat an absent `scope` key as
-  `strict`; with no `scope` key, the check's behavior **shall** be
-  byte-identical to this spec's pre-amendment `strict` behavior on
-  every input.
+  never PR HEAD — and **shall** treat an absent `scope` key, **and any
+  `scope` value other than exactly `strict` or `scoped`**, as `strict`
+  (a misparse never softens jurisdiction); with no `scope` key, the
+  check's behavior **shall** be byte-identical to this spec's
+  pre-amendment `strict` behavior on every input.
 - **INV20 (jurisdiction without softening; adr-0013 AC2/AC3).** In
   `scoped` mode the check **shall** generate owed pairs only for
   in-scope files (the §C.2 step-0 union: path / type / opted-in code /
@@ -903,10 +932,13 @@ These are named, not pretended. Authenticity and policy changes remain
   the protected-branch commit — it **shall not** silently exclude the
   gate's own machinery from its jurisdiction.
 - **INV22 (mode visibility; adr-0013 AC7).** In `scoped` mode the §D
-  header **shall** state the mode and the aggregate jurisdiction count,
-  on green and red alike, in one line; the check **shall not** render
-  per-file exemption rows; and the non-authorizing banner language
-  (INV11) **shall** be unchanged.
+  header **shall** state the mode and the aggregate jurisdiction count
+  — whose denominator **shall** be the §C.2 step-0 iteration set (the
+  HEAD-present diff entries after rename expansion; a deletion
+  contributes no entry) and whose numerator **shall** be that set's
+  in-scope members — on green and red alike, in one line; the check
+  **shall not** render per-file exemption rows; and the
+  non-authorizing banner language (INV11) **shall** be unchanged.
 
 ### Scenarios (GWT)
 
@@ -1045,13 +1077,19 @@ These are named, not pretended. Authenticity and policy changes remain
   owed and unsatisfiable until the edge is declared; `depends_on`
   entries never substitute for the implements edge.
 - **S21 (out-of-scope is silent, adr-0013 AC2/AC7).** *Given* policy on
-  the protected branch declares `scope: scoped`, *and* a PR changes
-  `src/app/main.py` — no frontmatter, not under `artifact_dirs`, its
-  package has no test-deps ledger, and it is no carrier path — *When*
-  the check runs, *Then* that file generates **zero owed pairs and zero
-  reasons**: no row, no exemption entry; its only trace is the §D
-  header's aggregate jurisdiction count (e.g. "0 of 1 changed files in
-  jurisdiction") — where `strict` mode would have owed
+  the protected branch declares `scope: scoped`, *and* the
+  install-default carrier paths resolve at the protected-branch commit
+  (at least one blob under the `.grove/check/` prefix; the
+  `.github/workflows/grove-review-bookkeeping.yml` blob present — §C.2
+  step 0), *and* a PR changes `src/app/main.py` — no frontmatter `type:`,
+  not under `artifact_dirs`, its package has no test-deps ledger, and
+  it is no carrier path — *and* the same PR **deletes**
+  `src/app/legacy.py`, *When* the check runs, *Then* the changed file
+  generates **zero owed pairs and zero reasons**: no row, no exemption
+  entry, no carrier-unresolved row; its only trace is the §D header's
+  aggregate jurisdiction count, which reads "0 of **1** changed files
+  in jurisdiction" — the deletion contributes no entry to the step-0
+  iteration set — where `strict` mode would have owed
   `conformance` + `code-reviewer` and gone red
   (`no-reviewable-upstream`) on the identical PR.
 - **S22 (in-scope stays fail-closed, adr-0013 AC3 + Consequence 1).**
@@ -1068,7 +1106,12 @@ These are named, not pretended. Authenticity and policy changes remain
   artifact index (which globs `artifact_dirs` only, both modes), so an
   inbound `depends_on`/`implements` reference to its id from another
   changed artifact is **red** with `unresolvable-reference` —
-  fail-closed, unchanged.
+  fail-closed, unchanged. *And given* a changed `notes/gadget.md` whose
+  HEAD frontmatter declares `type: widget` — **unrecognized, and
+  outside `artifact_dirs`** — *Then* it is in scope **by type** all the
+  same (any `type:` declaration counts, §C.2 step 0) and, unclaimed,
+  owes the **full** review set (INV7): an unrecognized type outside the
+  artifact dirs is never a silent exit door.
 - **S23 (carrier fail-close, adr-0013 AC4).** *Given* `scope: scoped`,
   *and* the policy block writes no
   `check_runtime_dir` / `check_workflow_path` keys, *and* the
@@ -1268,9 +1311,9 @@ sitting); this dated subsection is the amendment's own check.
 | Criterion | Result | Note |
 |---|---|---|
 | Derives only from the approved decision | PASS | Every delta cites `adr-0013` (Decisions 1–5, the conceded-class disclosure, Consequence 1, AC1–AC8); nothing added beyond it. Illustrative example paths in S21/S23 are examples, not new requirements. |
-| Append-only amendment discipline | PASS | New section-level delta note (five fields + VALUE + CONFIDENCE) prepended; prior notes unedited; no INV/S renumbered; meaning-changing edits (INV7, INV15, §C.0 policy row, §C.8, §D banner) carry explicit `(amended per adr-0013)` / dated inline markers with prior-state `was:` clauses. |
+| Append-only amendment discipline | PASS | New section-level delta note (five fields + VALUE + CONFIDENCE) prepended; prior notes unedited (the round-2 addendum is appended below the note, never rewriting it); no INV/S renumbered; meaning-changing edits to approved text (INV7, INV13, INV15, §C.0 policy row, §C.8, §D banner) carry explicit `(amended per adr-0013)` / dated inline markers with prior-state `was:` clauses. Round-2 edits to material this amendment itself introduced (step-0 table, INV19–INV22, S21–S23, §C.1 key table) carry no `was:` markers — they are not approved text; the delta-note addendum is their provenance. |
 | Both grammars extended (`adr-0004`) | PASS | 22 EARS invariants (INV19–INV22 added) + 23 GWT scenarios (S21–S23 added); neither grammar stands in for the other. |
-| Concretization beyond the decision | PARTIAL-DISCLOSED | One token spelling pinned here, flagged in §D per the `upstream-indicted`/`vacuous-evidence` precedent: **`carrier-unresolved`** (the decision names the semantics and uses "carrier-unresolved reason" descriptively; the enum token is this spec's spelling). The `written`/`defaulted` payload provenance values are likewise this spec's spelling of the decision's "written or defaulted" distinction. |
+| Concretization beyond the decision | PARTIAL-DISCLOSED | One token spelling pinned here, flagged in §D per the `upstream-indicted`/`vacuous-evidence` precedent: **`carrier-unresolved`** (the decision names the semantics and uses "carrier-unresolved reason" descriptively; the enum token is this spec's spelling). The `written`/`defaulted` payload provenance values are likewise this spec's spelling of the decision's "written or defaulted" distinction. Round 2 adds two more flagged pins: **unrecognized `scope` values resolve to `strict`** (§C.1/INV19 — the decision pins silence ⇒ `strict` and softness-never-inferred; invalid-value handling is this spec's fail-closed spelling of that principle; red-error was the decision-compatible alternative, not chosen because `strict` is maximal jurisdiction and the mistake self-surfaces as unexpected reds) and the **carrier existence semantics** (prefix match after trailing-slash normalization; dir-exists = at least one blob under the prefix — §C.2, this spec's spelling of the decision's "exists at the protected-branch commit"). |
 | Traceability | PASS-DISCLOSED | adr-0013 AC1–AC8 all mapped; AC5 honestly mapped as a setup-skill deliverable outside this check's contract (with this spec's fail-closed floor named), never claimed covered. |
 | Versioning discipline (`versioning.md`) | PASS | Significant testable-clause change ⇒ `version` bumped 1 → 2; the durable decision the bump requires is `adr-0013` itself. |
 | Status honesty (`lifecycle.md`) | PASS-DISCLOSED | `status: approved` stands on the recorded 2026-07-16 human act; this amendment claims no fresh spec approval — it rides the maintainer's 2026-07-17 `adr-0013` approval, and the bundle goes to their merge gate (stated in the delta note's citation line). No agent flipped any state. |
@@ -1278,3 +1321,23 @@ sitting); this dated subsection is the amendment's own check.
 **Amendment self-check verdict: PASS with disclosures** (the flagged
 token spelling and the AC5 mapping, both stated in place). Conformance
 is not self-declared here — the gates judge.
+
+**Round-2 revision (2026-07-17, same sitting).** A spec-adversary pass
+against this amendment returned **NEEDS-REVISION**; this revision
+applies its findings — MF1 (step-0 type basis pinned: any `type:`
+declaration counts, recognized or not; S22 extended with the
+unrecognized-type-outside-`artifact_dirs` half-scenario), MF2
+(unrecognized `scope` ⇒ `strict`, §C.1 + INV19 + §B cross-ref; a
+flagged concretization, choice rationale in the row above), MF3 (the
+aggregate jurisdiction count defined against the §C.2 step-0 iteration
+set — §D, INV22, and S21's count now exercises the
+deletion-contributes-no-entry clause), and WI1–WI4 (the
+reviewer-declaration-file term, carrier existence semantics, INV13's
+scoped-mode marker, S21's carrier-resolving Given). Counts stand: still
+22 EARS invariants + 23 GWT scenarios, nothing renumbered; INV13 gains
+a dated amendment marker; `version: 2` already names this amendment's
+state and is not re-bumped for its own revision round. This revision
+is **not** claiming the adversary's validation — the re-judgment is
+the gates', and `status: approved` still rests solely on the recorded
+2026-07-16 human act plus the adr-0013 ride-along stated in the delta
+note.
