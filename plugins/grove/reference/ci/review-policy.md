@@ -37,7 +37,10 @@ A missing key in the block falls to the spec's named fail-closed interim
 the full set; an absent allowlist exempts nothing; an absent
 artifact-dir list means the stated default; an absent
 `record_poster_allowlist` means the platform-role default of `spec-0002`
-§A.4. No absence is ever a silent pass.
+§A.4. An absent — or unrecognized — `scope` means `strict` (`adr-0013`
+dec 2, `spec-0002` §C.1: fail-closed, never a silent softening); absent
+carrier keys fall to the install defaults, never to silent exclusion.
+No absence is ever a silent pass.
 
 ## Policy block (machine-readable)
 
@@ -72,6 +75,38 @@ prose_extensions: [.md, .txt, .rst]
 # the spec's default (platform author_association ∈ {OWNER, MEMBER,
 # COLLABORATOR}). Add a `record_poster_allowlist:` list of identities
 # here to override it.
+
+# adr-0013 / spec-0002 §B, §C.1 — the check's scope mode, chosen at
+# install time (the one setup question) and recorded here.
+#   strict — every changed file in a PR is the check's business:
+#            anything not positively declared reviewless owes the full
+#            review set, fail-closed over the whole repo.
+#   scoped — the check governs only what is declared into the
+#            methodology (files under artifact_dirs, files whose
+#            frontmatter declares a type, code opted in via a test-deps
+#            ledger, and the gate's own carriers below); everything
+#            else is outside its jurisdiction — not red, not exempted.
+# ABSENT OR UNRECOGNIZED ⇒ strict (fail-closed): deleting or
+# misspelling this key can only widen jurisdiction, never soften the
+# gate. The <SCOPE> slot is resolved to `scoped` or `strict` by
+# /grove:setup or /grove:check-install at install time — no install
+# leaves it absent.
+scope: <SCOPE>
+
+# adr-0013 dec 1 — carriers-of-record for the gate's own machinery:
+# where the installed check runtime and workflow actually live. In
+# scoped mode these paths (with this policy file, the reviewer
+# declarations, and every test-deps ledger) stay in the check's
+# jurisdiction in both modes, so an edit to the check's own machinery
+# is never silent. The slots are resolved to the real install paths by
+# /grove:setup or /grove:check-install. If a key is absent it falls to
+# the install default (`.grove/check/`;
+# `.github/workflows/grove-review-bookkeeping.yml`) — never to silent
+# exclusion — and in scoped mode a carrier path that does not exist on
+# the protected branch is a red (`carrier-unresolved`), so a relocated
+# install must update these keys to match.
+check_runtime_dir: <CHECK_RUNTIME_DIR>
+check_workflow_path: <CHECK_WORKFLOW_PATH>
 ```
 
 ## Boundaries
