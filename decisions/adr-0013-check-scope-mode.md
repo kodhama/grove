@@ -219,7 +219,10 @@ later.
   jurisdiction.
 - **AC4 (the gate governs itself).** The reviewer-declaration files,
   the review-policy file, every ledger, the installed check runtime
-  path, and the installed workflow file are in scope **in both modes**.
+  path, and the installed workflow file are in scope **in both modes**
+  — and in `scoped` mode a carrier path (written or defaulted) that
+  does not exist at the protected-branch commit reds with the
+  carrier-unresolved reason.
 - **AC5 (the choice is recorded).** Setup writes an explicit `scope`
   key on every CI-check install — **and the
   `check_runtime_dir` / `check_workflow_path` carrier keys in the same
@@ -285,3 +288,15 @@ commit is a red with a named carrier-unresolved reason. R3-N1 applied:
 AC5 now fails an install that writes `scope` without the carrier keys.
 A round-4 re-review scoped to these two clauses precedes the human
 gate.
+
+**Adversary round 4 (2026-07-17): SOUND.** Both R3 resolutions held
+(the fail-close closes both instances plus the typo'd-key sibling; the
+different-runner corner is fail-closed-and-visible, not incoherent —
+and an "unwatchable machinery" opt-out would be an INV14-shaped door,
+so its absence is a defense; protected-branch existence is the right
+side of S6). Non-blocking note R4-N1 (the fail-close red lacked an AC
+of its own) applied to AC4 **verbatim in the adversary's own proposed
+wording** — no round 5 run, disclosed here on exactly that ground.
+Ready for the human intent gate; the gate itself — whether
+scoped-by-question is the wanted direction — is the maintainer's
+alone.
