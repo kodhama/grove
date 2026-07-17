@@ -7,11 +7,16 @@
 // the protected-branch policy inputs behind an injectable git-runner.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   parseChangedPaths,
   computeChanged,
   buildTree,
   readProtectedPolicy,
+  makeExecGitRunner,
 } from '../shell/git-adapter.mjs';
 
 // --- parseChangedPaths (§C.2): name-status -> owed-review paths at HEAD ---
@@ -178,4 +183,35 @@ test('readProtectedPolicy: a genuinely EMPTY charters listing (ls-tree exits 0, 
   });
   assert.equal(reviewPolicyText, '');
   assert.deepEqual(charterTexts, []);
+});
+
+// --- Finding 3: makeExecGitRunner must pass `-c core.quotepath=false` so a
+//     non-ASCII artifact path comes back LITERAL (not octal-escaped + quoted),
+//     otherwise parseChangedPaths yields a mangled path and readAt can't
+//     resolve it. Exercised against real git (the otherwise-untested edge). ---
+
+test('makeExecGitRunner returns non-ASCII paths literal (core.quotepath=false), so computeChanged/readAt resolve them', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'grove-quotepath-'));
+  const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 't@t');
+  git('config', 'user.name', 'tester');
+  git('commit', '-q', '--allow-empty', '-m', 'base');
+  const base = git('rev-parse', 'HEAD').trim();
+
+  const fname = 'specs/föö.md'; // non-ASCII: git quotes+octal-escapes it by default
+  mkdirSync(join(dir, 'specs'));
+  writeFileSync(join(dir, fname), 'body');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'add unicode-named artifact');
+  const head = git('rev-parse', 'HEAD').trim();
+
+  const gitRunner = makeExecGitRunner({ cwd: dir });
+  const changed = await computeChanged({ gitRunner, base, head });
+  // Literal UTF-8 path, NOT `"specs/f\303\266\303\266.md"`.
+  assert.deepEqual(changed, [fname]);
+  // And readAt resolves that literal path at HEAD (it would 404 on the mangled form).
+  const { readAt } = await import('../shell/git-adapter.mjs');
+  const content = await readAt({ gitRunner, ref: head, path: changed[0] });
+  assert.equal(content, 'body');
 });

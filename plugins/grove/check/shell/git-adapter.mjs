@@ -142,7 +142,11 @@ export async function readProtectedPolicy({ gitRunner, defaultBranch, remote = '
 export function makeExecGitRunner({ cwd } = {}) {
   return (args) =>
     new Promise((resolve, reject) => {
-      execFile('git', args, { cwd, maxBuffer: 256 * 1024 * 1024 }, (err, stdout) => {
+      // `-c core.quotepath=false` makes git emit non-ASCII path bytes LITERAL
+      // (UTF-8) rather than double-quoted + octal-escaped (`"specs/f\303\266.md"`).
+      // Without it, parseChangedPaths yields a mangled, quoted path and readAt
+      // can't resolve `<ref>:<path>` — non-ASCII/space artifact paths misparse.
+      execFile('git', ['-c', 'core.quotepath=false', ...args], { cwd, maxBuffer: 256 * 1024 * 1024 }, (err, stdout) => {
         if (err) reject(err);
         else resolve(stdout);
       });
