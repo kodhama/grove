@@ -16,6 +16,7 @@ import {
   computeChanged,
   buildTree,
   readProtectedPolicy,
+  readProtectedCarrierPaths,
   makeExecGitRunner,
 } from '../shell/git-adapter.mjs';
 
@@ -375,4 +376,89 @@ test('policy auto-discovery: a git ls-tree FAILURE (protected ref not fetched) s
       return true;
     },
   );
+});
+
+// --- readProtectedCarrierPaths (§C.2 carrier fail-close, adr-0013 AC4): supply
+//     the protected-branch existence facts runCheck's resolveCarriers needs.
+//     The core stays pure — this shell probe lists blobs under each carrier
+//     path at origin/<default>, never PR HEAD. ---
+
+test('readProtectedCarrierPaths lists blobs under each carrier path at the protected branch (runtime dir + workflow file)', async () => {
+  const files = {
+    '.grove/check/lib/check.mjs': 'core',
+    '.grove/check/bin/check.mjs': 'cli',
+    '.github/workflows/grove-review-bookkeeping.yml': 'wf',
+    'src/app/main.py': 'app', // NOT a carrier — never listed
+  };
+  const gitRunner = treeRunner(files);
+  const paths = await readProtectedCarrierPaths({
+    gitRunner,
+    defaultBranch: 'main',
+    carrierPaths: ['.grove/check/', '.github/workflows/grove-review-bookkeeping.yml'],
+  });
+  assert.ok(paths.includes('.grove/check/lib/check.mjs'));
+  assert.ok(paths.includes('.grove/check/bin/check.mjs'));
+  assert.ok(paths.includes('.github/workflows/grove-review-bookkeeping.yml'));
+  assert.ok(!paths.includes('src/app/main.py'));
+  // every read targeted the protected ref (treeRunner asserts it internally)
+  for (const a of gitRunner.calls) {
+    if (a[0] === 'ls-tree') assert.equal(a[3], 'origin/main');
+  }
+});
+
+test('readProtectedCarrierPaths returns an empty listing when a carrier path exists nowhere (fail-close substrate)', async () => {
+  const files = { 'src/app/main.py': 'app' };
+  const gitRunner = treeRunner(files);
+  const paths = await readProtectedCarrierPaths({
+    gitRunner,
+    defaultBranch: 'main',
+    carrierPaths: ['.grove/check/', '.github/workflows/grove-review-bookkeeping.yml'],
+  });
+  assert.deepEqual(paths, []);
+});
+
+// --- readProtectedPolicy now also surfaces the reviewer-declaration file PATHS
+//     and the review-policy path (INV21 gate-carrier scope needs them). Bare
+//     charterTexts stays for back-compat. ---
+
+test('readProtectedPolicy surfaces charterEntries {path,text} and reviewPolicyPath for the gate-carrier scope basis (INV21)', async () => {
+  const files = {
+    'charters/review-policy.md': '```grove-review-policy\nschema: 1\nscope: scoped\n```',
+    'charters/conformance-reviewer.md': 'CANONICAL\n' + DECL_BLOCK,
+  };
+  const gitRunner = treeRunner(files);
+  const res = await readProtectedPolicy({ gitRunner, defaultBranch: 'main', env: {} });
+  assert.equal(res.reviewPolicyPath, 'charters/review-policy.md');
+  assert.ok(Array.isArray(res.charterEntries));
+  assert.ok(res.charterEntries.some((e) => e.path === 'charters/conformance-reviewer.md' && e.text.includes('CANONICAL')));
+  // back-compat: bare charterTexts still present
+  assert.ok(res.charterTexts.some((t) => t.includes('CANONICAL')));
+});
+
+// --- Real-git integration (the existing makeExecGitRunner style): the probe
+//     resolves carriers committed on the protected branch. ---
+
+test('readProtectedCarrierPaths resolves carriers committed on the protected branch (real git)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'grove-carrier-'));
+  const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 't@t');
+  git('config', 'user.name', 'tester');
+  mkdirSync(join(dir, '.grove/check/lib'), { recursive: true });
+  mkdirSync(join(dir, '.github/workflows'), { recursive: true });
+  writeFileSync(join(dir, '.grove/check/lib/check.mjs'), 'core');
+  writeFileSync(join(dir, '.github/workflows/grove-review-bookkeeping.yml'), 'wf');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'install machinery');
+  // simulate the protected branch as origin/main (a local ref suffices for ls-tree)
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+
+  const gitRunner = makeExecGitRunner({ cwd: dir });
+  const paths = await readProtectedCarrierPaths({
+    gitRunner,
+    defaultBranch: 'main',
+    carrierPaths: ['.grove/check/', '.github/workflows/grove-review-bookkeeping.yml'],
+  });
+  assert.ok(paths.includes('.grove/check/lib/check.mjs'));
+  assert.ok(paths.includes('.github/workflows/grove-review-bookkeeping.yml'));
 });

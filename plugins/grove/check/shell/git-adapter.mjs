@@ -169,6 +169,7 @@ export async function readProtectedPolicy({
   // fail-closed-vs-error distinction the hardened code drew (§C.0 / INV1).
   const dirCandidates = env.GROVE_POLICY_DIR ? [env.GROVE_POLICY_DIR] : DECLARATION_DIR_CANDIDATES;
   let charterTexts = [];
+  let charterEntries = [];
   try {
     for (const dir of dirCandidates) {
       const entries = await readDirMd({ gitRunner, ref, dir, excludePath: reviewPolicyPath });
@@ -176,6 +177,7 @@ export async function readProtectedPolicy({
         (e) => extractFencedBlocks(e.text, 'grove-review-declaration').length > 0,
       );
       if (hasDeclaration) {
+        charterEntries = entries;
         charterTexts = entries.map((e) => e.text);
         break;
       }
@@ -192,7 +194,42 @@ export async function readProtectedPolicy({
     );
   }
 
-  return { reviewPolicyText, charterTexts, ref };
+  // `charterEntries` carries the reviewer-declaration file PATHS the scoped-mode
+  // gate-carrier basis needs (INV21); `charterTexts` stays for back-compat.
+  return { reviewPolicyText, reviewPolicyPath, charterTexts, charterEntries, ref };
+}
+
+// readProtectedCarrierPaths({ gitRunner, defaultBranch, remote?, carrierPaths })
+//   -> Promise<string[]>  (the protected-branch blob paths under the carriers)
+// Supplies the protected-branch existence facts runCheck's `resolveCarriers`
+// needs (§C.2 carrier fail-close, adr-0013 AC4) — the core stays pure. Lists
+// blobs under each carrier path at `origin/<default>` (NEVER PR HEAD, §C.0 /
+// INV1): a runtime-dir prefix yields its files (≥1 ⇒ the dir exists), a
+// workflow file yields itself when present. An absent carrier path makes
+// `git ls-tree -- <path>` exit 0 with no output (listTree returns []), so the
+// carrier resolves to nothing and the core reds it (fail-close, never silent
+// exclusion). A genuine git FAILURE propagates (bin exits red), consistent with
+// readProtectedPolicy — but by then origin/<default> is already known fetched.
+export async function readProtectedCarrierPaths({
+  gitRunner,
+  defaultBranch,
+  remote = 'origin',
+  carrierPaths = [],
+} = {}) {
+  const ref = `${remote}/${defaultBranch}`;
+  const seen = new Set();
+  const out = [];
+  for (const p of carrierPaths) {
+    if (!p) continue;
+    const listed = await listTree({ gitRunner, ref, path: p });
+    for (const x of listed) {
+      if (!seen.has(x)) {
+        seen.add(x);
+        out.push(x);
+      }
+    }
+  }
+  return out;
 }
 
 // The thin, untested real edge: a git-runner backed by execFile('git', ...).

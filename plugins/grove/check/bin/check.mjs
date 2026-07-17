@@ -19,6 +19,7 @@ import {
   computeChanged,
   buildTree,
   readProtectedPolicy,
+  readProtectedCarrierPaths,
   makeExecGitRunner,
 } from '../shell/git-adapter.mjs';
 import { readRecordStream } from '../shell/record-stream.mjs';
@@ -43,11 +44,13 @@ async function main() {
   const gitRunner = makeExecGitRunner();
 
   // Policy from the PROTECTED default branch (§C.0 / INV1), never PR HEAD.
-  const { reviewPolicyText, charterTexts } = await readProtectedPolicy({
+  // charterEntries + reviewPolicyPath feed the scoped-mode gate-carrier basis
+  // (INV21 — the reviewer-declaration files and the review-policy file).
+  const { reviewPolicyText, reviewPolicyPath, charterEntries } = await readProtectedPolicy({
     gitRunner,
     defaultBranch: ctx.defaultBranch,
   });
-  const policy = assemblePolicy({ reviewPolicyText, charterTexts });
+  const policy = assemblePolicy({ reviewPolicyText, reviewPolicyPath, charterTexts: charterEntries });
 
   // changed + tree from HEAD content.
   const changed = await computeChanged({ gitRunner, base: ctx.base, head: ctx.head });
@@ -69,7 +72,20 @@ async function main() {
     apiBase: ctx.apiBase,
   });
 
-  const derivation = runCheck({ changed, tree, comments, policy });
+  // §C.2 carrier fail-close (scoped mode only, adr-0013 AC4): probe the
+  // protected branch for the two machinery carriers' existence. In strict/
+  // absent scope the probe is skipped and `protectedPaths` stays undefined —
+  // byte-identical to pre-amendment (INV19).
+  let protectedPaths;
+  if (policy.scope === 'scoped') {
+    protectedPaths = await readProtectedCarrierPaths({
+      gitRunner,
+      defaultBranch: ctx.defaultBranch,
+      carrierPaths: [policy.checkRuntimeDir.path, policy.checkWorkflowPath.path],
+    });
+  }
+
+  const derivation = runCheck({ changed, tree, comments, policy, protectedPaths });
   const { text, structured } = render(derivation);
 
   process.stdout.write(text + '\n');
