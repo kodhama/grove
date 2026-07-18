@@ -1,23 +1,24 @@
 ---
 id: adr-0014-install-is-invisible-and-ungated
 type: adr
-status: draft
+status: gated  # self-checked converged 2026-07-18 (shaper); awaiting decision-adversary + the maintainer intent act
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0013-check-scope-mode]
 informed_by: [adr-0005-tdd-and-artifact-gated-dispatch]  # cross-repo trellis drafts (decision-0048/0049) cited in prose below, NOT as frontmatter edges — they are drafts + cross-repo (shape-check only), so no machine edge is asserted (mirrors trellis's own handling)
 owner: agent
-updated: 2026-07-17
+updated: 2026-07-18
 ---
 
-# ADR-0014 (DRAFT): installing grove is invisible to the consumer's tooling, and grove does not gate its own arrival
+# ADR-0014: installing grove is invisible to the consumer's tooling, and grove does not gate its own arrival
 
-> **STATUS: DRAFT — not shaped to convergence, not adversary-checked, not
-> at any human gate.** Opened as a shaping change-request so a parallel
-> session reviewing `/trellis:setup` can cross-read it: several findings
-> below are **shared-pattern** (they apply to `trellis`'s setup skill the
-> same way, since grove's setup was modeled on trellis's
-> augment-never-clobber composition idiom), not grove-only. This draft
-> records the grove side of that conversation; it will be shaped +
-> adversary-broken before any approval.
+> **STATUS: `gated` — self-checked converged, awaiting the decision-adversary
+> pass and the maintainer's intent act** (`draft → approved`; the shaper
+> never sets `approved`). Opened as a shaping change-request cross-read by
+> the parallel `/trellis:setup` session; that cross-review is settled (its
+> sibling decisions `trellis/decision-0048` and `decision-0049` carry the
+> shared-pattern findings back into trellis, and their refinements are
+> folded here — the revision trail below is the record). Shared-pattern
+> findings (moves 1a, 2, 3) apply to trellis's setup the same way; move 1b
+> is grove-check-specific.
 >
 > **Revision 2026-07-17 — folded trellis PR #159 (`trellis/decision-0048`).**
 > That review caught a real flaw in this draft's first cut: its move 1
@@ -207,9 +208,12 @@ red CI on grove's own files — the opposite of "just works."
   flags today," not the namespace boundary; not future-proof. Rejected in
   favor of the whole `.grove/`.
 - **Ship the runtime with a Node-env lint marker instead of ignoring.**
-  Belt-and-suspenders at best, and version/flat-config-fragile; does not
-  address the "you shouldn't lint a dependency" principle. May ride
-  *alongside* the ignore, not instead of it — open for shaping.
+  Belt-and-suspenders at best, version/flat-config-fragile, and it does not
+  address the "you shouldn't lint a dependency" principle at all (it only
+  quiets `no-undef`, not the format-mutation/checksum class of move 2).
+  Rejected as the mechanism; **parked** as an optional future add *alongside*
+  the ignore if a consumer's config resists directory-ignore — not blocking,
+  not built now.
 
 ## Consequences (draft — to be built after approval)
 
@@ -256,16 +260,34 @@ red CI on grove's own files — the opposite of "just works."
 - Whether "grove does not gate its own install" wants to be its own tiny
   charter/companion line or stays a consequence of this decision.
 
-## Self-check
+## Self-check (rubric)
 
-DRAFT — deliberately not self-checked to `gated`. Recorded as the shaping
-canvas so a parallel trellis-setup review can cross-read the shared-pattern
-findings before this converges. **Revised 2026-07-17** to fold
-`trellis/decision-0048` (PR #159): move 1 split into git-neutral hand-back
-(1a) + landing-agnostic self-detect (1b), the injected-landing-opinion
-added to Considered-and-rejected, move 3 deepened with the inline-prose-leak
-mechanism, M2 generative-morph isolation parked. `trellis/decision-0048` is
-carried as `informed_by` (cross-repo provenance — it informed the correction
-without grove's correctness being contingent on another repo's artifact;
-edge form per `adr-0011` / `decision-0044`). Next: shape to `gated` →
-decision-adversary → human gate.
+Self-checked to `gated` 2026-07-18. Problem stated from an **observed**
+failure (the math-quest pilot's two install-time reds — linter on the
+vendored runtime, and the install PR self-redding on grove's own
+machinery), not a hypothetical. The three moves are settled and mutually
+independent (1a git-neutral hand-back; 1b landing-agnostic workflow
+self-detect; 2 tooling-invisible ignore; 3 live-session placement); each
+alternative is rejected with a reason, including this draft's *own* first
+cut (the injected landing recommendation). The `adr-0013` F3 interaction is
+addressed head-on (the self-detect does not weaken the tripwire, argued
+explicitly). Consequences name the artifacts and the executing surfaces;
+the remaining opens (M2 generative-morph isolation; `.trellis`/`.grove`
+folder consolidation; the optional Node-env marker) are **parked with
+rationale**, not unresolved core.
+
+**Cross-review settled, both directions.** Revised 2026-07-17
+(`trellis/decision-0048`, PR #159 — split move 1, corrected the injected
+landing opinion, deepened move 3, parked M2) and 2026-07-18
+(`trellis/decision-0049`, PR #160 — the format-mutation/checksum sharpening,
+the consented scope-exception, the prose-provenance correction, the
+symmetric `/grove:remove`). Cross-repo draft provenance is carried in prose,
+**never as frontmatter edges** (`adr-0011` / `decision-0044` — the referents
+are drafts and cross-repo/shape-check-only; asserting a machine edge would
+overclaim). `depends_on` is only genuine coupling (`adr-0012` the check this
+governs; `adr-0013` the scope mode + F3 tripwire + carrier keys it builds
+on); `adr-0005` is `informed_by`.
+
+Not claiming the adversary has validated this — the decision-adversary pass
+precedes the human gate; the `approved` intent act is the maintainer's
+(`gated → approved` flip), never the shaper's.
