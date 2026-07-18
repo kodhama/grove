@@ -1,7 +1,7 @@
 ---
 id: adr-0018-gate-profile-and-trigger-split
 type: adr
-status: gated  # self-checked to gated 2026-07-18 (shaper); routes to decision-adversary + HUMAN intent gate. NOT approved — the merge is the maintainer's act (floor-intent-gate)
+status: approved  # maintainer's intent act (in-session approval), 2026-07-18 — recorded flip per lifecycle.md; decision-adversary SOUND on scoped re-review (c3cbcc8); author (shaper) ≠ approver (maintainer)
 depends_on: [adr-0012-methodology-delivery-machinery, trellis/signature-catalog-v1]
 informed_by: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0014-install-is-invisible-and-ungated]
 owner: agent
