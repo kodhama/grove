@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { parseJudgment, extractJudgmentBlocks } from '../lib/judgment.mjs';
-import { parseReviewPolicy } from '../lib/policy.mjs';
+import { parseReviewPolicy, synthesizePolicyBlock } from '../lib/policy.mjs';
 import { emitFromJudgment } from '../shell/emitter.mjs';
 import { makeExecGitRunner } from '../shell/git-adapter.mjs';
 
@@ -32,7 +32,11 @@ import { makeExecGitRunner } from '../shell/git-adapter.mjs';
 // PROTECTED-branch policy; the emitter runs on the PR checkout and reads HEAD's
 // policy. artifact_dirs is stable install config, so HEAD and base agree in
 // practice; a PR that edits its own artifact_dirs is out of scope for this fix.)
-const REVIEW_POLICY_CANDIDATES = ['charters/review-policy.md', '.grove/review-policy.md'];
+// grove-self carries a markdown YAML-block carrier; a consumer carries the
+// adr-0018 D10 split TOML (`.grove/review.toml`). The emitter only needs
+// `artifact_dirs`, which lives in review.toml, so the consumer candidate reads
+// that file (synthesized into a policy block in readLocalPolicyText).
+const REVIEW_POLICY_CANDIDATES = ['charters/review-policy.md', '.grove/review.toml'];
 const DEFAULT_ARTIFACT_DIRS = ['decisions', 'specs', 'charters'];
 
 function readStdin() {
@@ -76,7 +80,11 @@ function readLocalPolicyText({ cwd = process.cwd() } = {}) {
     const p = join(cwd, rel);
     if (existsSync(p)) {
       try {
-        return readFileSync(p, 'utf8');
+        const text = readFileSync(p, 'utf8');
+        // adr-0018 D10: the consumer carrier is TOML — synthesize the
+        // grove-review-policy block parseReviewPolicy expects (wiring omitted;
+        // artifact_dirs comes from review.toml). grove-self's .md is used as-is.
+        return rel.endsWith('.toml') ? synthesizePolicyBlock({ reviewToml: text, wiringToml: null }) : text;
       } catch {
         /* fall through to the next candidate / default */
       }

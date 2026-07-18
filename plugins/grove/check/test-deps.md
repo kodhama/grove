@@ -3,7 +3,7 @@ id: ledger-grove-review-bookkeeping-check
 type: ledger
 status: gated
 implements: spec-0002-review-bookkeeping-check
-depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary]
+depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0018-gate-profile-and-trigger-split]
 owner: agent
 updated: 2026-07-18
 ---
@@ -75,6 +75,16 @@ verifies. `spec-0002` §A.3's whole-`S` basis prose has since been
 the `@v2 → @v3` pin bump below is a **mechanical re-verification, not an
 owed code change**.
 
+The **review-policy split** tests (`test/policy-toml.test.mjs`, and the
+`.grove/review.toml` discovery + carrier fail-close cases in
+`test/git-adapter.test.mjs`) rest on `adr-0018` D10: the consumer carrier
+splits into `.grove/review.toml` (scope + corpus policy, TOML) +
+`.grove/internal/review-wiring.toml` (the carrier keys). The check reads
+the split by synthesizing the equivalent `grove-review-policy` block, so
+`adr-0013` AC4's protected-branch carrier fail-close is preserved
+byte-identically. `adr-0018` D5 also relocates the consumer check runtime
+to `.grove/internal/check/` (the carrier-dir default).
+
 ```grove-test-deps
 schema: 1
 specs:
@@ -86,4 +96,5 @@ decisions:
   - adr-0013-check-scope-mode
   - adr-0014-install-is-invisible-and-ungated
   - adr-0015-reviewer-machine-boundary
+  - adr-0018-gate-profile-and-trigger-split
 ```

@@ -124,15 +124,15 @@ test('§D — a carrier-unresolved file-level row renders its key, resolved path
   const text = renderView({
     green: false,
     rows: [{
-      kind: 'file', review: null, subject: '.grove/check/', latestVerdict: null, fresh: null, covers: null, separated: null,
-      recordSequence: [], reasons: [{ code: 'carrier-unresolved', token: 'carrier-unresolved', payload: { key: 'check_runtime_dir', path: '.grove/check/', provenance: 'defaulted' } }],
+      kind: 'file', review: null, subject: '.grove/internal/check/', latestVerdict: null, fresh: null, covers: null, separated: null,
+      recordSequence: [], reasons: [{ code: 'carrier-unresolved', token: 'carrier-unresolved', payload: { key: 'check_runtime_dir', path: '.grove/internal/check/', provenance: 'defaulted' } }],
     }],
     rejectedRecords: [],
     scope: { mode: 'scoped', jurisdiction: { inScope: 0, total: 0 } },
   });
   assert.ok(text.includes('carrier-unresolved'));
   assert.ok(text.includes('check_runtime_dir'));
-  assert.ok(text.includes('.grove/check/'));
+  assert.ok(text.includes('.grove/internal/check/'));
   assert.ok(text.includes('defaulted'));
 });
 

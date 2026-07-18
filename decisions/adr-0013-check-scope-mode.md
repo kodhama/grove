@@ -4,10 +4,33 @@ type: adr
 status: approved  # maintainer intent act 2026-07-17 ("approved") after adversary rounds 1-4 (SOUND at 736264b/b44acb9); in-conversation flip recording the act, adr-0011 precedent
 depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery]
 owner: agent
-updated: 2026-07-17
+updated: 2026-07-18  # append-only amendment (adr-0018 D10): consumer review-policy.md carrier split -> .grove/review.toml + .grove/internal/review-wiring.toml; AC4 carrier fail-close preserved
 ---
 
 # ADR-0013: the check's scope mode — `strict` | `scoped`, chosen at setup, never assumed
+
+> **Amendment (2026-07-18, append-only — superseded in part by
+> `adr-0018` D10, the review-policy split).** This decision's artifact is
+> the single consumer `review-policy.md` carrier — one file holding the
+> `scope` choice *and* the `check_runtime_dir` / `check_workflow_path`
+> carrier-of-record keys. `adr-0018` D10 **splits that carrier by
+> authority** (`adr-0018` D5) and format (`adr-0018` D9, uniform TOML):
+> the consumer `scope` choice + corpus policy move to **`.grove/review.toml`**
+> (consumer-authoritative), and the two grove-wiring carrier keys move to
+> **`.grove/internal/review-wiring.toml`** (grove-authoritative). Wherever
+> this decision's ratified text below refers to the consumer
+> `.grove/review-policy.md`, read that split pair; grove-self's own
+> `charters/review-policy.md` is unchanged.
+>
+> **AC4's protected-branch carrier fail-close is PRESERVED verbatim
+> across the move — this is a mechanism relocation, not a softening.** A
+> carrier key absent from the wiring file still falls to the install
+> default (never silent exclusion), and in `scoped` mode a carrier path
+> that does not exist on the protected-branch commit is still the
+> `carrier-unresolved` red. The check reads the split by synthesizing the
+> equivalent policy block from the two TOML sources, so the fail-close
+> code path is byte-identical. The ratified text below is unedited per the
+> append-only rule; `adr-0018` is the authoritative record.
 
 ## Context
 

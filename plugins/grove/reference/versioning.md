@@ -16,7 +16,7 @@ updated: 2026-07-13
 > grove. Origin decision: `trellis/decision-0045` (stays as the historical
 > record; semantics evolve here). Canonical at `charters/versioning.md`,
 > vendored to `plugins/grove/reference/versioning.md`, installed by
-> `/grove:setup` to each consuming project's `.grove/versioning.md`
+> `/grove:setup` to each consuming project's `.grove/internal/versioning.md`
 > (grove's inert namespace — the `adr-0008` axis pattern, one file per
 > config axis).
 
@@ -138,7 +138,7 @@ it set (`id@version` / `<repo>/<id>@version`).
   file names an edge, it points there. Trellis's spine contract keeps
   shape-only, methodology-defined clauses (the maintainer's Q1 ruling);
   the binding to this file happens through the installed
-  `.grove/versioning.md`.
+  `.grove/internal/versioning.md`.
 - **Practices are the artifacts' own.** design-system cuts its git
   tags; the trellis payload stamps its content-hash — this file defines
   the *forms*, it does not operate anyone's release process.

@@ -4,7 +4,7 @@ type: adr
 status: approved  # maintainer's intent act 2026-07-12 ("merge it", on the round-2 revision — recorded in PR #45's approval comment); the #45 merge landed it. This flip records that act (decision-0046); the flip was missed at merge time and corrected post-merge.
 depends_on: [adr-0004-spec-lifecycle-and-organization, trellis/decision-0037]
 owner: agent
-updated: 2026-07-12  # amendment same day: install target -> .grove/lifecycle.md (append-only note below the title)
+updated: 2026-07-18  # append-only amendment (adr-0018 D5): install target -> .grove/internal/lifecycle.md; prior 2026-07-12 note (-> .grove/lifecycle.md) kept below title
 ---
 
 # ADR-0008: the swarm carries the lifecycle enum — a dedicated shipped companion, not a README
@@ -19,6 +19,20 @@ updated: 2026-07-12  # amendment same day: install target -> .grove/lifecycle.md
 > directory is grove's own inert namespace, the same move as trellis's
 > `.trellis/` overlay, and eliminates the risk rather than mitigating it.
 > The ratified text below is unedited per the append-only rule.
+
+> **Amendment (2026-07-18, append-only — superseded in part by
+> `adr-0018` D5, the install-path split):** the lifecycle companion's
+> consumer install target moves from `.grove/lifecycle.md` to
+> **`.grove/internal/lifecycle.md`**. `adr-0018` D5 splits the consumer
+> `.grove/` namespace by **authority**: the grove-authoritative subtree
+> (companions, the `check/` runtime, the C1 `enforcement.toml`) lives
+> under `.grove/internal/` (copied/regenerated verbatim on update),
+> while the consumer-authoritative config (`gates.toml`, `review.toml`)
+> keeps the `.grove/` root. Wherever this decision's ratified text and
+> the 2026-07-12 amendment above read `.grove/lifecycle.md`, read
+> `.grove/internal/lifecycle.md`. The ratified text below is unedited
+> per the append-only rule; `adr-0018` is the authoritative record of
+> this change.
 
 ## Context
 

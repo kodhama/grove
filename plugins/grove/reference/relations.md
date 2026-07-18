@@ -18,7 +18,7 @@ updated: 2026-07-18
 > `inv-directional-flow`'s own use of "cites" for the flow/dependency
 > edge). Canonical at `charters/relations.md`, vendored to
 > `plugins/grove/reference/relations.md`, installed by `/grove:setup` to
-> each consuming project's `.grove/relations.md` (the `adr-0008` axis
+> each consuming project's `.grove/internal/relations.md` (the `adr-0008` axis
 > pattern, one file per config axis).
 
 > **This file is not an agent role.** Like `lifecycle.md` and

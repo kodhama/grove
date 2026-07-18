@@ -4,11 +4,23 @@ type: adr
 status: approved  # maintainer's intent act 2026-07-12 ("approved", on grove#50 after ruling Q1/Q2) — in-PR flip recording the act (charters/lifecycle.md, adr-0007 precedent); the #50 merge performs the delivery
 depends_on: [adr-0006-operational-conformance-mechanism, adr-0008-lifecycle-enum-companion, trellis/decision-0045, kodhama/kodhama-0008-family-inheritance-restate-nothing]
 owner: agent
-updated: 2026-07-12
+updated: 2026-07-18  # append-only amendment (adr-0018 D5): install target -> .grove/internal/versioning.md
 provenance: shaped from the maintainer's call on trellis#149 (2026-07-12) — "versioning is not a principle … the principle is just making sure [artifacts] are in sync; whatever mechanism is used is not relevant," plus the follow-up constraint "trellis only has the ADR [decision-0045] and no reflection of that ADR in trellis actual content." Adversary round 1 (independent, same day) — NEEDS-REVISION, eight drafting-level findings (both inventories incomplete; "form-follows-kind" slogan 0045 had retracted; pointer/forward-pointer mechanics unspecified; AC3 unverifiable; two citation slips), all folded; premise held on attack. DRAFT-gated — the maintainer's approval (a human intent act, per charters/lifecycle.md) is pending.
 ---
 
 # ADR-0010: versioning is operational content — grove homes its semantics, in a shipped companion
+
+> **Amendment (2026-07-18, append-only — superseded in part by
+> `adr-0018` D5, the install-path split):** the versioning companion's
+> consumer install target moves from `.grove/versioning.md` to
+> **`.grove/internal/versioning.md`**. `adr-0018` D5 splits the consumer
+> `.grove/` namespace by **authority** — the grove-authoritative
+> companions live under `.grove/internal/` (regenerated verbatim on
+> update); the consumer-authoritative config (`gates.toml`,
+> `review.toml`) keeps the `.grove/` root. Wherever this decision's
+> ratified text below reads `.grove/versioning.md` (Decision item 2),
+> read `.grove/internal/versioning.md`. The ratified text is unedited
+> per the append-only rule; `adr-0018` is the authoritative record.
 
 ## Context
 

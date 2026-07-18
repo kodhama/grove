@@ -16,8 +16,9 @@ List the agent files present in `.claude/agents/` (the thirteen possible roles:
 `propagation-remediator`, `corpus-reviewer`, plus their `README.md`), and check whether
 `.claude/skills/grove-status/` exists. Also check whether the **GitHub bookkeeping check** was
 installed — whether via setup step 7 or the standalone `/grove:check-install`, both write the same
-pieces: the `.grove/check/` runtime directory, the workflow file
-`.github/workflows/grove-review-bookkeeping.yml`, and `.grove/review-policy.md`.
+pieces: the `.grove/internal/check/` runtime directory, the workflow file
+`.github/workflows/grove-review-bookkeeping.yml`, and the split policy carrier — `.grove/review.toml`
+plus `.grove/internal/review-wiring.toml` (`adr-0018` D10).
 
 Also look for the **tooling-ignore entry** setup (or `/grove:check-install`) may have added: a
 `.grove/` line (or a `.grove/**` glob) in any of the consumer's ignore files — `.eslintignore`,
@@ -61,22 +62,42 @@ If the check was installed (setup step 7 or `/grove:check-install` — same piec
 reverse exactly those three pieces (augment-never-clobber in reverse — remove only what the
 install wrote, and **ask before deleting anything unexpected**):
 
-- **`.grove/check/`** — the vendored check runtime. Safe to delete if it matches the vendored copy;
+- **`.grove/internal/check/`** — the vendored check runtime. Safe to delete if it matches the vendored copy;
   if the user has hand-edited it, ask before removing. (Zero deps were installed, so there is no
   `node_modules` to clean up.)
 - **`.github/workflows/grove-review-bookkeeping.yml`** — the workflow file. Remove **only** this
   file; **touch no other workflow** in `.github/workflows/`. If the directory is left empty and
   grove created it, removing the empty directory is fine; if it holds other workflows, leave it.
-- **`.grove/review-policy.md`** — the policy carrier. This file also holds the install-recorded
-  `scope` mode and the `check_runtime_dir` / `check_workflow_path` carrier keys (`adr-0013`), so
-  deleting it removes the recorded scope choice with it — nothing else carries those keys, and
-  nothing further needs cleaning up for them. If the user has since edited its `artifact_dirs` /
-  allowlist / `reviewless_types` / `scope` for their own corpus, **ask first** (same as step 2)
-  rather than discarding their tuning; an untouched install-written copy is safe to remove on
-  confirmation.
+- **`.grove/review.toml`** — the consumer policy carrier (`adr-0018` D10). Holds the install-recorded
+  `scope` mode and the corpus policy (`artifact_dirs` / allowlist / `reviewless_types`). If the user
+  has since edited any of those for their own corpus, **ask first** (same as step 2) rather than
+  discarding their tuning; an untouched install-written copy is safe to remove on confirmation.
+- **`.grove/internal/review-wiring.toml`** — the grove-authoritative wiring carrying the
+  `check_runtime_dir` / `check_workflow_path` keys (`adr-0013` / `adr-0018` D10). Grove-managed, so
+  safe to remove on confirmation; nothing else carries those keys.
 
-Leave the rest of `.grove/` (the `lifecycle.md` / `versioning.md` / `relations.md` companions,
-handled with the agents above) exactly as it was. If the check was never installed, skip this step.
+Leave the rest of `.grove/` (the `internal/lifecycle.md` / `internal/versioning.md` /
+`internal/relations.md` companions and the gate-profile pieces below) exactly as it was here — they
+are removed in step 5b, not with the check. If the check was never installed, skip this step.
+
+## 5b. Remove the gate-profile and companions (core `.grove/` payload)
+
+Every install lands these (`adr-0018`), so unless the user is keeping grove's other pieces, reverse
+them too — same augment-never-clobber-in-reverse discipline, **asking before deleting anything the
+user may have tuned**:
+
+- **`.grove/gates.toml`** — the consumer-authoritative gate-profile. If the user has switched presets
+  or hand-edited a row for their own oversight preferences, **ask first** (as in step 2) rather than
+  discarding their choice; an untouched install-written copy is safe to remove on confirmation.
+- **`.grove/internal/gates/`** — the vendored floor-guard machinery. Safe to delete if it matches the
+  vendored copy; if hand-edited, ask.
+- **`.grove/internal/enforcement.toml`** — the grove-managed C1 defaults. Grove-authoritative
+  (regenerated on update), so safe to remove on confirmation.
+- **`.grove/internal/lifecycle.md` / `versioning.md` / `relations.md`** — the companions. Reference
+  prose; safe to remove on confirmation unless the user hand-edited them.
+
+If `.grove/internal/` is left empty after removals and grove created it, removing the empty directory
+is fine; likewise `.grove/` itself once nothing grove-owned remains.
 
 ## 6. Strip the `.grove/` tooling-ignore entry, if setup added one
 
@@ -96,6 +117,7 @@ file. Discipline, per ignore file:
 ## 7. Confirm
 
 Tell the user exactly what you removed (which agent files, the `grove-status` skill if present, the
-GitHub bookkeeping check pieces — `.grove/check/`, the workflow, `.grove/review-policy.md` — if they
+GitHub bookkeeping check pieces — `.grove/internal/check/`, the workflow, `.grove/review.toml` +
+`.grove/internal/review-wiring.toml` — if they
 were installed, any `.grove/` tooling-ignore line stripped and from which file, and the `CLAUDE.md`
 block). If nothing was present, say so plainly — **do not invent changes**.

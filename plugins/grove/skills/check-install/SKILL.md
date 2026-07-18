@@ -41,13 +41,14 @@ skill applies, and nothing was written.
 ## 3. Run setup's own install procedure
 
 Read `${CLAUDE_PLUGIN_ROOT}/skills/setup/SKILL.md`, **step 7 only**,
-and execute its opt-in path: all **four pieces** — the `.grove/check/`
+and execute its opt-in path: all **four pieces** — the `.grove/internal/check/`
 runtime copy, the workflow copy with its `<INSTALL_PATH>` /
 `<NODE_VERSION>` resolution (ask for the Node version, same as there),
-the `.grove/review-policy.md` policy carrier, and **the scope question
-with its three-key write** (`scope` + `check_runtime_dir` +
-`check_workflow_path` — every install writes all three explicitly,
-`adr-0013` AC5). That step's text is the **canonical install
+the split policy carrier — `.grove/review.toml` (scope) +
+`.grove/internal/review-wiring.toml` (the carrier keys), `adr-0018` D10 —
+and **the scope question with its three-key write** (`scope` in review.toml
++ `check_runtime_dir` + `check_workflow_path` in the wiring file — every
+install writes all three explicitly, `adr-0013` AC5). That step's text is the **canonical install
 procedure**; this skill deliberately executes it by reference rather
 than carrying a second copy, so the two entry points can never drift.
 
@@ -64,7 +65,7 @@ inside setup:
 
 ## 4. Offer the tooling-ignore for `.grove/`
 
-This install writes the runtime into `.grove/check/`, so grove's
+This install writes the runtime into `.grove/internal/check/`, so grove's
 vendored namespace is now (or already was) present. Run setup's
 **step 8** (make grove invisible to the consumer's tooling) by
 reference: **detect** the project's linters/formatters by config
@@ -78,9 +79,9 @@ line were touched in the confirm below.
 
 ## 5. Confirm and hand back
 
-Confirm exactly what was written — the `.grove/check/` runtime, the
-workflow file, `.grove/review-policy.md` including the recorded `scope`
-mode and the two carrier-path keys, and **which tooling-ignore files and
+Confirm exactly what was written — the `.grove/internal/check/` runtime, the
+workflow file, `.grove/review.toml` with the recorded `scope` mode and
+`.grove/internal/review-wiring.toml` with the two carrier-path keys, and **which tooling-ignore files and
 lines step 4 touched** (or that none were, or that the offer was
 declined) — and which existing files, if any, were skipped rather than
 overwritten. Name the exits too, so the user isn't left hunting: removal

@@ -31,26 +31,84 @@ its `---` frontmatter delimiter, not a comment above it).
 
 Also copy `reference/agents/README.md` into `.claude/agents/README.md` (same header-stripping),
 adapted in step 3 below along with everything else. And copy
-`${CLAUDE_PLUGIN_ROOT}/reference/lifecycle.md` into `.grove/lifecycle.md` (same header-stripping;
-create the `.grove/` directory if it doesn't exist) — the lifecycle companion (`adr-0008`, as
-amended): the artifact-lifecycle state enum, stated once, that every role and the
-`corpus-reviewer`'s lifecycle check source. It lands in grove's own `.grove/` namespace — not
-`.claude/agents/`, which is Claude Code's loader directory and parses files as subagents (the same
-move as trellis's `.trellis/` overlay). It is not an agent role and is not optional per role —
-every install gets it. Likewise copy
+`${CLAUDE_PLUGIN_ROOT}/reference/lifecycle.md` into `.grove/internal/lifecycle.md` (same
+header-stripping; create the `.grove/internal/` directory if it doesn't exist) — the lifecycle
+companion (`adr-0008`, as amended by `adr-0018` D5): the artifact-lifecycle state enum, stated once,
+that every role and the `corpus-reviewer`'s lifecycle check source. It lands in grove's own
+**`.grove/internal/`** namespace — the grove-authoritative subtree (copied/regenerated verbatim on
+update; `adr-0018` D5), kept apart from the consumer-authoritative `.grove/` root (`gates.toml`,
+`review.toml`) and from `.claude/agents/`, which is Claude Code's loader directory and parses files
+as subagents (the same overlay move as trellis's `.trellis/`). It is not an agent role and is not
+optional per role — every install gets it. Likewise copy
 `${CLAUDE_PLUGIN_ROOT}/reference/versioning.md` into
-`.grove/versioning.md` (same header-stripping) — the versioning
+`.grove/internal/versioning.md` (same header-stripping) — the versioning
 companion (`adr-0010`): the conformance-detection semantics (version
 kinds and forms, `@version` pins, the `changes:` cross-check), stated
 once, that the versioning-touching roles source. Likewise copy
 `${CLAUDE_PLUGIN_ROOT}/reference/relations.md` into
-`.grove/relations.md` (same header-stripping) — the relations companion
+`.grove/internal/relations.md` (same header-stripping) — the relations companion
 (`adr-0011`): the artifact **edge taxonomy** (`depends_on`, `informed_by`,
 `superseded_by`/`superseded_in_part_by`, `changes:` — which is flow,
 which bears drift), stated once, that `shaper`, `corpus-reviewer`,
 `conformance-reviewer`, and `validator` source. If any copied file (a role's, the README, or a
 companion — lifecycle, versioning, relations) already exists at the destination, **never overwrite it silently** — ask
 the user whether to overwrite, skip, or diff first, and honor their answer per file.
+
+### 2a. The gate-profile — every install gets one (`adr-0018`)
+
+The **gate-profile** assigns **C2** — who is *required* at each of grove's four
+gates (`intent` / `spec` / `build` / `ship`), `human` or `agent` — and is core,
+not optional: every install gets it (like the companions above). Three pieces:
+
+1. **The floor-guard machinery.** Copy `${CLAUDE_PLUGIN_ROOT}/gates/` — its
+   `lib/`, `bin/`, and `package.json` — into this project's
+   **`.grove/internal/gates/`** (grove-authoritative; regenerated on update).
+   Zero-dependency, so **no `npm install`**. Do **not** copy grove's own `test/`
+   dir or `test-deps.md`. This is the load-time floor-guard (`adr-0018` D8):
+   whatever sequences a run reads `.grove/gates.toml` through
+   `node .grove/internal/gates/bin/resolve-profile.mjs` and gets a `guardian`
+   fallback + loud warning on any missing / unreadable / floor-violating profile.
+
+2. **The C1 enforcement defaults.** Copy
+   `${CLAUDE_PLUGIN_ROOT}/reference/gates/enforcement.toml` into
+   **`.grove/internal/enforcement.toml`** (grove-managed C1; `adr-0018` D4 — the
+   profile configures only C2, C1 is grove-fixed and not a user surface).
+
+3. **The gate-profile itself — ask ONE optional question, then write the rows.**
+   The preset choice is an **optional question with `steward` as the default** —
+   **never a forced pick** (honors `adr-0014`: install is invisible and ungated;
+   `adr-0018` D1/D6). Offer the three, one line each, and take `steward` if the
+   user has no preference:
+
+   - **steward** *(default)* — "you approve direction + final result; agents
+     handle spec and build";
+   - **guardian** — "you also approve the spec before build";
+   - **initiator** — "you kick off intent and approve only the final result".
+
+   Then write **`.grove/gates.toml`** (consumer-authoritative — the `.grove/`
+   root, not `internal/`) as an **explicit full table** seeded from the chosen
+   preset (`adr-0018` D7). Use `${CLAUDE_PLUGIN_ROOT}/reference/gates/gates.toml`
+   as the shape and set the four `[gates]` rows + `seeded_from` to the chosen
+   preset's values:
+
+   | Preset | intent | spec | build | ship |
+   |---|---|---|---|---|
+   | **steward** | human | agent | agent | human |
+   | **guardian** | human | human | agent | human |
+   | **initiator** | agent | agent | agent | human |
+
+   Keep the template's `[trigger]` and `[intent_external]` sections verbatim.
+   The four rows are the **source of truth**; `seeded_from` is provenance only.
+   **Non-clobber:** if `.grove/gates.toml` already exists, ask before
+   overwriting (same discipline as the companions). Then **validate the write**
+   with `node .grove/internal/gates/bin/resolve-profile.mjs .grove/gates.toml` —
+   it must exit `0` (a clean, floor-satisfying profile); exit `2` means the
+   guard fell back to `guardian`, which a fresh preset seed should never trigger
+   — fix the file rather than leave it. Tell the user they can switch presets
+   later with **`/grove:set-profile <preset>`** or hand-edit a single row, and
+   that the **floor** (`adr-0018`) always holds: at least one human intent-locus
+   gate (`intent = human` OR `ship = human`), enforced on every run-sequencing
+   read.
 
 ## 3. Resolve every placeholder, interactively
 
@@ -111,7 +169,7 @@ grove's own (`decisions/README.md`, `specs/README.md` in the grove repo). Each s
 shared artifact frontmatter (`id/type/status/depends_on/owner/updated`) and — for `decisions/` —
 the append-only rule (never edit a ratified decision in place; supersede with a forward pointer).
 Do **not** seed the lifecycle state enum or its state semantics — those live in the lifecycle
-companion this install already landed at `.grove/lifecycle.md` (step 2, `adr-0008` as amended); a
+companion this install already landed at `.grove/internal/lifecycle.md` (step 2, `adr-0008` as amended); a
 seeded README points there instead of restating them. Adapt, don't invent a heavier process than
 grove's own.
 
@@ -175,33 +233,38 @@ If they opt in, compose **four** pieces (augment-never-clobber; **ask before ove
 existing file, honoring their answer per file):
 
 1. **The check runtime.** Copy `${CLAUDE_PLUGIN_ROOT}/check/` — its `lib/`, `shell/`, `bin/`, and
-   `package.json` — into this project's **`.grove/check/`** (grove's own `.grove/` namespace, the
-   same place this install already put the companions). It is **zero-dependency** (`type: module`,
-   no runtime packages), so **do not run `npm install`**. Do **not** copy grove's own `test/` dir or
-   `test-deps.md` — those are grove's test suite and its test-deps ledger, not part of the consumer
-   runtime.
+   `package.json` — into this project's **`.grove/internal/check/`** (the grove-authoritative
+   `.grove/internal/` subtree, the same place this install already put the companions; `adr-0018`
+   D5). It is **zero-dependency** (`type: module`, no runtime packages), so **do not run
+   `npm install`**. Do **not** copy grove's own `test/` dir or `test-deps.md` — those are grove's
+   test suite and its test-deps ledger, not part of the consumer runtime.
 
 2. **The workflow.** Copy `${CLAUDE_PLUGIN_ROOT}/reference/ci/grove-review-bookkeeping.yml` into
    this project's **`.github/workflows/grove-review-bookkeeping.yml`**, resolving its two
-   placeholders (same inline-resolution idiom as step 3): `<INSTALL_PATH>` → `.grove/check` (where
-   piece 1 above put the runtime), and `<NODE_VERSION>` → this project's Node version (ask — e.g. `20`).
+   placeholders (same inline-resolution idiom as step 3): `<INSTALL_PATH>` → `.grove/internal/check`
+   (where piece 1 above put the runtime), and `<NODE_VERSION>` → this project's Node version (ask —
+   e.g. `20`).
    Drop no other content; the workflow's permissions are already minimal (`contents: read`,
    `pull-requests: read`).
 
-3. **The policy carrier.** Copy `${CLAUDE_PLUGIN_ROOT}/reference/ci/review-policy.md` (strip its
-   leading `<!-- adapted … -->` vendoring header, same as step 2's agent copies) into this
-   project's **`.grove/review-policy.md`**. A consumer has no `charters/`, so this is where the
-   check's **auto-discovery** finds the non-charter policy inputs (`spec-0002` §C.0 precedence:
-   `charters/review-policy.md` else `.grove/review-policy.md`). Tell the user to **review its
-   `artifact_dirs` and `non_behavioral_allowlist`** against their own corpus layout — the vendored
-   defaults are a starting point, and an allowlist entry that matches no file is simply inert.
-   The copied block ships with three unresolved slots — `<SCOPE>`, `<CHECK_RUNTIME_DIR>`,
-   `<CHECK_WORKFLOW_PATH>` — which piece 4 resolves; zero literal slots may remain when step 7 is
-   done.
+3. **The policy carrier — split by authority** (`adr-0018` D10). Copy **two** files (no vendoring
+   header to strip — both are `.toml`):
 
-4. **The scope mode — ask one question, write three keys** (`adr-0013` Decisions 1, 2, 4; the
-   same maintainer call as above: the choice is surfaced here, at the moment it's relevant, never
-   left to documentation). Ask the user ONE plain-language question:
+   - `${CLAUDE_PLUGIN_ROOT}/reference/ci/review.toml` → this project's **`.grove/review.toml`** (the
+     consumer surface: the scope choice + corpus policy). A consumer has no `charters/`, so this is
+     where the check's **auto-discovery** finds the non-charter policy inputs (`spec-0002` §C.0
+     precedence: `charters/review-policy.md` else `.grove/review.toml`). Tell the user to **review
+     its `artifact_dirs` and `non_behavioral_allowlist`** against their own corpus layout — the
+     vendored defaults are a starting point, and an allowlist entry that matches no file is inert.
+     It ships with one unresolved slot — `<SCOPE>` — which piece 4 resolves.
+   - `${CLAUDE_PLUGIN_ROOT}/reference/ci/review-wiring.toml` → this project's
+     **`.grove/internal/review-wiring.toml`** (grove-authoritative wiring: the two carrier keys). It
+     ships with two unresolved slots — `<CHECK_RUNTIME_DIR>`, `<CHECK_WORKFLOW_PATH>` — which piece 4
+     resolves. **Zero literal slots may remain across both files when step 7 is done.**
+
+4. **The scope mode — ask one question, write three keys across the two files** (`adr-0013`
+   Decisions 1, 2, 4; the choice is surfaced here, at the moment it's relevant, never left to
+   documentation). Ask the user ONE plain-language question:
 
    > Should the check watch only grove-managed artifacts (**scoped** — recommended to start), or
    > hold the whole repo to review-required (**strict**)?
@@ -209,32 +272,32 @@ existing file, honoring their answer per file):
    Recommend **`scoped`** as the starting default — it keeps the check's jurisdiction to what's
    declared into the methodology (artifacts, typed files, opted-in code, the gate's own
    machinery), so ordinary application code in an ordinary PR doesn't go red; `strict` is the
-   ratchet for a repo whose changes are mostly grove-run work. Then resolve the three slots in
-   the `grove-review-policy` block of the `.grove/review-policy.md` piece 3 just wrote (same
+   ratchet for a repo whose changes are mostly grove-run work. Then resolve the slots (same
    inline-resolution idiom as step 3):
 
-   - `<SCOPE>` → `scoped` or `strict` — the user's answer, verbatim;
-   - `<CHECK_RUNTIME_DIR>` → the path piece 1 actually used (`.grove/check/`);
-   - `<CHECK_WORKFLOW_PATH>` → the path piece 2 actually used
+   - in **`.grove/review.toml`**: `<SCOPE>` → `scoped` or `strict` — the user's answer, verbatim;
+   - in **`.grove/internal/review-wiring.toml`**: `<CHECK_RUNTIME_DIR>` → the path piece 1 actually
+     used (`.grove/internal/check/`); `<CHECK_WORKFLOW_PATH>` → the path piece 2 actually used
      (`.github/workflows/grove-review-bookkeeping.yml`).
 
    **Every install writes all three keys explicitly — no install path leaves any of them absent
    silently** (`adr-0013` AC5; an install that writes `scope` but not the carrier keys fails that
    criterion). Tell the user the fail-closed backstop plainly: if `scope` is later deleted or
    hand-edited to an unrecognized value, the check falls back to **`strict`** — a hand-edit can
-   never soften the gate — and absent carrier keys fall to the install defaults, never to silent
-   exclusion.
+   never soften the gate — and absent carrier keys (in the wiring file) fall to the install
+   defaults, never to silent exclusion (`adr-0013` AC4, preserved across the `adr-0018` D10 split).
 
 **Say plainly how the check reads policy** (`adr-0012` "assemble `f(A)`, never compile it"): the
 owed-review map is **assembled LIVE at runtime** from the reviewer-agent declarations installed in
 `.claude/agents/` (step 2) on the protected default branch — the check auto-discovers that
 directory and reads it fresh every run. Setup wires **where** the check reads (the `.claude/agents/`
-declarations + `.grove/review-policy.md`); it **never bakes a compiled owed-map** into a stored
-table. Editing what a type owes is an agent-declaration edit, not a regenerate step.
+declarations + `.grove/review.toml` + `.grove/internal/review-wiring.toml`); it **never bakes a
+compiled owed-map** into a stored table. Editing what a type owes is an agent-declaration edit, not a
+regenerate step.
 
-Confirm exactly what was written (the `.grove/check/` runtime, the workflow file, and
-`.grove/review-policy.md` — including the recorded `scope` mode and the two carrier-path keys),
-and note that `/grove:remove` reverses all of it.
+Confirm exactly what was written (the `.grove/internal/check/` runtime, the workflow file,
+`.grove/review.toml` with the recorded `scope` mode, and `.grove/internal/review-wiring.toml` with
+the two carrier-path keys), and note that `/grove:remove` reverses all of it.
 
 ## 8. Offer to make grove invisible to the consumer's tooling (whole `.grove/`)
 
@@ -242,7 +305,7 @@ and note that `/grove:remove` reverses all of it.
 installed in step 7) the runtime. It is a **dependency, not the consumer's own source**, so the
 consumer's linters and formatters have no business reading it. A *formatter* is the acute danger,
 not just lint noise: `.grove/`'s companions and the policy carrier are **markdown**, and any
-integrity the vendored runtime later relies on (a manifest/checksum over `.grove/check/**`) is
+integrity the vendored runtime later relies on (a manifest/checksum over `.grove/internal/check/**`) is
 **corrupted**, not merely flagged, when a formatter rewrites those files. So **offer** — never
 impose — to add the whole `.grove/` namespace to each detected tool's ignore.
 
@@ -274,7 +337,7 @@ augment-never-clobber exception**, and in the step 11 confirm name precisely whi
 which line you touched (or that none were, or that the offer was declined). Never a silent write.
 
 (This ignore is a *separate tool* from grove's own check: ignoring `.grove/` in ESLint, Prettier,
-Biome, or markdownlint does **not** affect grove's check gating edits to `.grove/check/` — the check
+Biome, or markdownlint does **not** affect grove's check gating edits to `.grove/internal/check/` — the check
 reads those files at runtime regardless, from the protected branch.)
 
 ## 9. Telemetry (optional — grove never requires it)
@@ -302,10 +365,13 @@ install it yourself:
 
 Tell the user exactly what you wrote: which roles landed in `.claude/agents/` (and which existing
 files, if any, you skipped rather than overwrote), every placeholder you resolved and to what value
-(or the honest "none exists yet" statements you wrote instead), whether `decisions/`/`specs/` were
-seeded, the `CLAUDE.md` block, whether the GitHub bookkeeping check was installed (the `.grove/check/`
-runtime, the workflow, and `.grove/review-policy.md` with its recorded `scope` mode and carrier
-keys) — or, if it was declined, that `/grove:check-install` installs it later — whether the
+(or the honest "none exists yet" statements you wrote instead), the **gate-profile** — which preset
+you seeded `.grove/gates.toml` from (or `steward` by default) and that the floor-guard machinery
+(`.grove/internal/gates/`) and C1 defaults (`.grove/internal/enforcement.toml`) landed — whether
+`decisions/`/`specs/` were seeded, the `CLAUDE.md` block, whether the GitHub bookkeeping check was installed (the `.grove/internal/check/`
+runtime, the workflow, `.grove/review.toml` with its recorded `scope` mode, and
+`.grove/internal/review-wiring.toml` with the carrier keys) — or, if it was declined, that
+`/grove:check-install` installs it later — whether the
 telemetry skill was composed, and **which tooling-ignore files and lines step 8 touched** (naming
 each `.grove/` line and its file — or that no linter/formatter was found, or that the offer was
 declined). They can remove all of it any time with `/grove:remove`.

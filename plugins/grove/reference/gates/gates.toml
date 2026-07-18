@@ -1,0 +1,40 @@
+# .grove/gates.toml — consumer-authoritative gate-profile (C2 only; adr-0018 D4/D5/D7)
+#
+# The four [gates] rows ARE the source of truth — no runtime inheritance to
+# resolve (D7). Each row is C2: who is REQUIRED at that gate — "human" or
+# "agent". `human` sets who is *required*, not who is *allowed* (a human may
+# always weigh in at an agent-owned gate). A preset SEEDS these rows at install;
+# `seeded_from` is provenance only — non-authoritative, the rows win if they
+# diverge from the named preset.
+#
+# Change the whole profile with /grove:set-profile <preset> (a wholesale switch
+# that shows the diff and confirms first), or hand-edit a single row here.
+#
+# THE FLOOR (adr-0018, floor-intent-gate) is validated on every read that
+# sequences a run: at least one human-owned intent-locus gate must exist —
+# intent = "human" OR ship = "human". A profile with neither (both "agent") is
+# illegal and falls back to the `guardian` preset with a loud warning.
+#
+# C1 (enforcement STRENGTH per gate) is NOT here — it is grove-fixed and lives
+# in .grove/internal/enforcement.toml (D4). This file configures only C2.
+
+seeded_from = "steward"
+
+[gates]
+intent = "human"   # who ratifies DIRECTION (an intent-locus gate)
+spec   = "agent"   # who approves the spec before build
+build  = "agent"   # who owns the build / conformance gate
+ship   = "human"   # who ratifies the final RESULT (an intent-locus gate)
+
+[trigger]
+# K2 — what IGNITES a run, held separately from who ratifies intent. NOT
+# floor-bound; sources may be agentic (grove already runs agentic triggers —
+# remediation roles, the validator's drift audits, inference-first dispatch).
+sources = ["human-ask", "cron", "ci-event", "backprop-interrupt"]
+
+[intent_external]
+# Reserved slot (design constraint; grove#36) — EMPTY for in-domain profiles.
+# The parked cross-domain external-intent case flips this on once the
+# cross-domain SEAL contract exists. Visible-but-reserved so a future reader
+# sees the seam; nothing in-domain fills it.
+enabled = false

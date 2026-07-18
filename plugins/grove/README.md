@@ -29,6 +29,12 @@ throughout, and idempotent on re-run.
 - **`skills/setup`** — `/grove:setup`: compose the thirteen agent roles onto your project.
 - **`skills/remove`** — `/grove:remove`: cleanly un-compose (delete the composed files, strip the
   `CLAUDE.md` block — asks before deleting anything).
+- **`skills/set-profile`** — `/grove:set-profile <preset>`: switch the gate-profile
+  (`.grove/gates.toml`) to a named preset (`steward` / `guardian` / `initiator`), wholesale, with a
+  diff + confirm and a re-run of the intent-locus floor validator (`adr-0018`).
+- **`gates/`** — the zero-dependency gate-profile machinery (`adr-0018`): preset expansion, the
+  intent-locus floor validator, and the load-time floor-guard with its `guardian` fallback. Setup
+  copies it to a consumer's `.grove/internal/gates/`.
 - **`reference/agents/`** — the thirteen agent definitions plus their `README.md`, vendored from this
   repo's own `.claude/agents/` — the payload `/grove:setup` copies from and resolves.
 - **`reference/skills/grove-status/`** — the runtime-telemetry skill, vendored from this repo's own
