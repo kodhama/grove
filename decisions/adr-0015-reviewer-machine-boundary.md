@@ -1,7 +1,7 @@
 ---
 id: adr-0015-reviewer-machine-boundary
 type: adr
-status: gated  # self-checked against the rubric 2026-07-18 (shaper); awaiting decision-adversary + the maintainer intent act
+status: approved  # maintainer intent act 2026-07-18 ("approved") after decision-adversary rounds 1-3 (SOUND at 83c1751); in-conversation flip, adr-0011 precedent
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0006-operational-conformance-mechanism]
 informed_by: [adr-0005-tdd-and-artifact-gated-dispatch]
 owner: agent
