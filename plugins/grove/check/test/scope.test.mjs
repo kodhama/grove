@@ -358,6 +358,7 @@ test('INV21 — gate carriers are in scope in scoped mode: declaration file, pol
   const changed = [
     '.claude/agents/conformance-reviewer.md', // reviewer-declaration file
     '.grove/review.toml',                     // the review-policy file itself
+    '.grove/internal/review-wiring.toml',     // the carrier-key wiring (adr-0018 D10) — machinery
     'pkg/test-deps.md',                       // a test-deps ledger
     '.grove/internal/check/lib/match.mjs',             // under check_runtime_dir (default)
     '.github/workflows/grove-review-bookkeeping.yml', // check_workflow_path (default)
@@ -365,7 +366,7 @@ test('INV21 — gate carriers are in scope in scoped mode: declaration file, pol
   ];
   const tree = new Map(changed.map((p) => [p, p.endsWith('.md') ? '# doc\n' : 'code\n']));
   const d = runCheck({ changed, tree, comments: [], policy: declPolicy, protectedPaths: CARRIERS_OK });
-  assert.deepEqual(d.scope.jurisdiction, { inScope: 5, total: 6 });
+  assert.deepEqual(d.scope.jurisdiction, { inScope: 6, total: 7 });
   // the out-of-scope file has no rows at all
   assert.ok(!d.rows.some((r) => r.subject === 'src/app/main.py'));
   // the in-scope carriers generate owed pairs per their classification

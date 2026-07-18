@@ -15,6 +15,11 @@ import { findLedger } from './ledger.mjs';
 import { normalizePath } from './normalize.mjs';
 
 const LEDGER_FILENAME = 'test-deps.md';
+// adr-0018 D10 — the internal wiring file carrying the check_runtime_dir /
+// check_workflow_path keys. Recognized as a gate carrier by filename (the same
+// by-basename precedent as the ledger), so an edit to the check's own carrier
+// wiring is never silent in scoped mode (adr-0013 §C.2: machinery edits gated).
+const REVIEW_WIRING_FILENAME = 'review-wiring.toml';
 
 function treeGet(tree, path) {
   if (tree == null) return undefined;
@@ -49,6 +54,7 @@ export function isGateCarrier(path, policy) {
   if (policy.reviewPolicyPath != null && norm === policy.reviewPolicyPath) return true;
   const base = norm.slice(norm.lastIndexOf('/') + 1);
   if (base === LEDGER_FILENAME) return true;
+  if (base === REVIEW_WIRING_FILENAME) return true;
   if (policy.checkRuntimeDir && underRuntimeDir(norm, policy.checkRuntimeDir.path)) return true;
   if (policy.checkWorkflowPath && norm === normalizePath(policy.checkWorkflowPath.path)) return true;
   return false;
