@@ -23,32 +23,61 @@ updated: 2026-07-18
 ## Decision state
 
 ### Decided
-*(turn 1 — nothing converged yet. The presets, the floor validator, and
-the schema below are all proposals for the maintainer to accept, reject,
-or tune. Items move here as the maintainer decides them, each with
-who/when.)*
+- **D1 — `steward` is the shipped default preset** *(maintainer,
+  2026-07-18)*. A fresh install gets `steward` (human owns **intent** +
+  **ship**; agents own **spec** + **build**). Rationale: (a) `steward`
+  already keeps **two** human gates, so the default is conservative on
+  its own — the "force an explicit pick for safety" alternative buys
+  little; (b) forcing an explicit profile choice at install would make
+  grove **gate its own arrival**, contradicting `adr-0014` (install is
+  invisible and ungated). `guardian` and `initiator` remain **opt-in**
+  presets on top. *(Resolves former Open item 1.)*
+- **D2 — a human-owned gate (C2 = `human`) is channel-agnostic**
+  *(maintainer, 2026-07-18: "I'm not restricting to a specific
+  channel")*. The floor requires the intent gate be human-**owned**; it
+  does **not** dictate *by what act* the human satisfies it. Any
+  authentic channel counts equally — an **explicit in-session
+  approval**, a **direct merge**, **or** a **tracker/GitHub comment**.
+  grove must **not** hardcode "the merge is the approval"; the merge is
+  **one channel among several**.
+  - **In-session approval is first-class, not a fallback.** A human may
+    always weigh in at a gate the profile assigns to an *agent* — e.g.
+    the maintainer approves specs in-session today even though `steward`
+    makes the spec gate agent-owned. **The profile sets who is
+    *required* at a gate, not who is *allowed*.**
+  - **Reconciling existing language:** where the shaper charter and
+    `floor-intent-gate` say "the merge is the approval/ratification,"
+    that is the **reference convention for a GitHub-based repo**, not a
+    channel restriction. This decision states channel-agnosticism
+    explicitly so that phrasing is not misread as merge-only. *(See the
+    propagation flag in `## Consequences / propagation`.)*
 
 ### Open
-1. **The shipped default preset** — is `steward` (human owns intent +
-   ship; agents own spec + build — grove's current de-facto behavior)
-   the profile a fresh install gets, or does setup force an explicit
-   choice with no default? *(Most consequential — see the turn's
-   question. Everything a consumer inherits on day one rides this.)*
-2. **The preset set** — do all three (`guardian` / `steward` /
+1. **The preset set** — do all three (`guardian` / `steward` /
    `initiator`) ship, or a subset? Retiring an option beats carrying it.
-3. **Which dials are per-gate configurable** — both C1 (enforcement
+2. **Which dials are per-gate configurable** — both C1 (enforcement
    strength) and C2 (owner), or is C1 fixed per gate by grove and only
    C2 (who owns it) tunable per profile?
-4. **Where the gate-profile artifact lives and its format** — a
+3. **Where the gate-profile artifact lives and its format** — a
    `.grove/` companion file, a managed `CLAUDE.md` block, or frontmatter
    on an existing artifact; YAML vs. a companion-doc table.
-5. **How the trigger row is represented** alongside the four gate rows
+4. **How the trigger row is represented** alongside the four gate rows
    (K2) — same table, separate section, what its cells hold.
-6. **What the floor validator checks, and when it fires** — presumably
+5. **What the floor validator checks, and when it fires** — presumably
    "reject any profile with 0 human-owned intent gates" at setup and on
    every hand-edit, but the exact check surface and firing points are
    open (does it read only C2 on the intent row, or also the external
    slot once that lands?).
+6. **Approval authenticity per channel (in-domain).** D2 leaves the
+   approval *channel* unrestricted — but the approval must genuinely
+   originate from the accountable human, and **channels differ in
+   forgeability**: a tracker/GitHub comment "can be faked," whereas a
+   merge (needs write access) or an in-session approval (the human is
+   present) is much harder to spoof. How does grove establish that a
+   claimed approval is authentic, **per channel**? Kept **in-domain**
+   (how *this* domain trusts its *own* approval channels); adjacent to
+   grove#36's O3 (cross-domain seal verification) but **not** folded
+   into it.
 
 ### Parked
 - **The `autonomous/standing`-across-domains preset** — all of a repo's
@@ -103,15 +132,21 @@ then defers.
 ### K1 — gate-profile mechanism + presets
 
 A **gate-profile** assigns C1/C2 to each of grove's four gates, is
-**installed at setup**, and is **hand-editable after**. Candidate
-presets (proposals):
+**installed at setup**, and is **hand-editable after**. The shipped
+default is **`steward`** (**D1**). Candidate presets:
 
 | Preset | intent | spec | build | ship | one-line character |
 |---|---|---|---|---|---|
 | **guardian** | human | human | agent | human | max oversight — human at intent + spec + ship |
-| **steward** | human | agent | agent | human | human at intent + ship; agents own the middle *(grove's current de-facto behavior)* |
+| **steward** *(default, D1)* | human | agent | agent | human | human at intent + ship; agents own the middle *(grove's current de-facto behavior)* |
 | **initiator** | human *(expressed at kickoff)* | agent | agent | human *(ratifies)* | human expresses intent at kickoff, ratifies at ship; mid-pipeline agent-owned |
 
+- **`human` sets who is *required*, not who is *allowed* (D2).** A cell
+  reading `agent` means no human is *required* at that gate — a human
+  may still weigh in there (in-session spec approval under `steward` is
+  the live example). And a `human` cell is satisfied by **any authentic
+  channel** — in-session approval, merge, or tracker comment alike — not
+  by a merge specifically.
 - **Per-gate override.** On top of a chosen preset, the human may flip
   any single gate's dial(s) — the preset is a starting point, not a
   cage.
@@ -166,9 +201,26 @@ presets (proposals):
 
 ## Options / rejected
 
-*(Empty for now — populated as the maintainer rejects options, each with
-its one-line why-not, so the decision records why-nots and the
-conversation does not re-argue them.)*
+- **Force an explicit profile choice at install (no default).** Rejected
+  (**D1**, maintainer 2026-07-18): `steward` already keeps two human
+  gates, so the safety argument is weak; and a required setup choice
+  would make grove **gate its own arrival**, contradicting `adr-0014`.
+- **Hardcode "the merge is the approval" as the intent-gate act.**
+  Rejected (**D2**, maintainer 2026-07-18): the merge is one authentic
+  channel among several (in-session approval, merge, tracker comment);
+  hardcoding it would forbid the in-session approvals the maintainer
+  already performs.
+
+## Consequences / propagation (draft — flagged, not chased here)
+
+- **Propagation flag (record, do not chase in this canvas).** The shaper
+  charter and `floor-intent-gate` phrase ratification as "the merge is
+  the approval." Under **D2** that is the **GitHub-repo reference
+  convention**, not a channel restriction — the wording may want a later
+  clarifying touch so it is not misread as merge-only. Noted for a future
+  propagation pass; **not** edited here (`inv-graph-maintenance` — surfaced,
+  its dependents named, deliberately deferred rather than silently
+  patched).
 
 ## Open questions
 
@@ -195,7 +247,8 @@ consequential first; the rest wait their turn in the Open list.
 - **Scope guard**: the across-domains preset is parked to grove#36, not
   shaped; the schema leaves its slot. New ideas mid-shaping go to Open or
   Parked, never silently into a Decided.
-- **Not converged**: Decided is empty by design (turn 1). This is a
-  canvas, not a finished decision.
+- **Not converged**: 2 Decided (D1 default preset, D2 channel-agnostic
+  intent gate) / 6 Open / 1 Parked as of 2026-07-18. Still a canvas, not
+  a finished decision — the shaper does not promote past `draft`.
 </content>
 </invoke>
