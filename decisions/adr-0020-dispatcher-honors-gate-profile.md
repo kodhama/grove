@@ -1,7 +1,7 @@
 ---
 id: adr-0020-dispatcher-honors-gate-profile
 type: adr
-status: draft
+status: gated  # self-checked by the shaper 2026-07-18 (see ## Self-check) — NOT an approval; routes to decision-adversary then the human intent gate; the maintainer's merge/recorded act is the ratification (floor-intent-gate)
 depends_on: [adr-0018-gate-profile-and-trigger-split]
 informed_by: [adr-0012-methodology-delivery-machinery, adr-0005-tdd-and-artifact-gated-dispatch]
 owner: agent
@@ -10,32 +10,33 @@ updated: 2026-07-18
 
 # ADR-0020: the run-sequencer honors the gate-profile at run time
 
-> **`draft` — shaping in progress.** This canvas activates `adr-0018` at
-> run time: `adr-0018` built the gate-profile machinery (`gates.toml`, the
-> floor validator, the `guardian` fallback, `resolveProfile` + the
-> `resolve-profile` CLI) but **nothing reads it when sequencing a run** — a
-> repo-wide grep finds no consumer of `resolve-profile` outside `gates/`,
-> `setup`, and `set-profile`. So the gate-profile is today **configuration
-> without enforcement**: a consumer can pick `initiator`, but the swarm
-> still runs as if gate ownership were hardcoded, because the dispatcher
-> never consults the profile. This decision frames **how the run stops
-> assuming hardcoded ownership and starts reading it**. Read
-> `## Decision state` first — it is the live state of the decision in one
-> place.
+> **`gated` — converged, awaiting review.** This decision activates
+> `adr-0018` at run time: `adr-0018` built the gate-profile machinery
+> (`gates.toml`, the floor validator, the `guardian` fallback,
+> `resolveProfile` + the `resolve-profile` CLI) but **nothing read it when
+> sequencing a run** — a repo-wide grep found no consumer of
+> `resolve-profile` outside `gates/`, `setup`, and `set-profile`; the
+> gate-profile was **configuration without enforcement**. This decision
+> makes the **dispatcher** the single run-time reader and enforcer. All
+> questions are Decided (**D1–D6**); the shaper self-checked this to
+> `gated` (see `## Self-check`) and does **not** promote further — it
+> routes to the `decision-adversary` and then the **human intent gate**;
+> the maintainer's recorded approval/merge is the ratification act
+> (`floor-intent-gate`), never the shaper's flip. Read `## Decision state`
+> first — it is the live state of the decision in one place.
 >
-> **The crux (Q1) is Decided — D1: dispatcher-central**, refined so the
-> gate fires **post-convergence** (the independent check always runs; the
-> profile only decides whether a human ratification is *additionally*
-> required); refined by **D2** (per-handover resolution, snapshotted at run
-> start); extended by **D3** (backprop cascades serialize on any
-> ratification edge, batch only human gates); and grounded by **D4** (the
-> gate→stage mapping — `intent`/`spec`/`build` are per-artifact stage
-> gates, `ship` is the run-level landing gate on the run's terminal
-> artifact, and one act may perform several coincident gates' ratifications
-> with a record per gate). The remaining Open items: guardian-fallback
-> surfacing (Q6) and whether #77 operationalizes D11's channels (Q7). Every
-> other entry is either an inherited **Given** (from `adr-0018`, cited, not
-> reopened) or an **Open** question.
+> The shape in one breath: **D1** dispatcher-central, gate fires
+> post-convergence (the independent check always runs; the profile only
+> decides whether a human ratification is *additionally* required); **D2**
+> per-handover resolution, snapshotted at run start; **D3** backprop
+> cascades serialize on any ratification edge, batch only human gates;
+> **D4** `intent`/`spec`/`build` are per-artifact stage gates, `ship` is
+> the run-level landing gate, one act may perform coincident gates with a
+> record per gate; **D5** channel authentication defers to grove#74 with
+> `adr-0018` D11 as the named interim; **D6** the guardian fallback
+> surfaces per-handover on the run's status surface and the next gate
+> prompt, repeating until restored. **D6 was drafted by the shaper under
+> the maintainer's explicit delegation** — flagged, reversible at review.
 
 ## Decision state
 
@@ -203,21 +204,52 @@ updated: 2026-07-18
     the shortest run; and under a custom `intent=human, ship=agent`
     profile the **human approval record lands first, then an agent
     performs the merge** — approval-first, then landing.
+- **D5 — channel authentication defers to grove#74, with a cited
+  interim** *(maintainer, 2026-07-18)*. Resolves Q7.
+  - **This decision stays purely "the dispatcher reads the profile and
+    routes."** The **human-approval-record mechanism — its shape AND its
+    channel-authentication rule — is specified together in grove#74** (one
+    home per kind, `decision-0040`; splitting "what the record is" from
+    "which channels produce it" across two decisions is the rejected
+    alternative — see `## Rejected options`).
+  - **Named interim (a citation, not a new definition):** until grove#74
+    lands, the dispatcher at a `C2 = human` gate applies **`adr-0018` D11
+    as already approved there** — only an **in-session approval or a
+    merge** counts as the gate's human approval; a **bare tracker comment
+    never counts**. One pointer sentence; when #74 lands it retargets,
+    nothing here needs unwriting.
+  - *(Rejected: Option A — operationalize the channel rule here; and
+    pure-B — defer with no interim — see `## Rejected options`.)*
+- **D6 — how the guardian fallback surfaces at run time** *(drafted by
+  the shaper under the maintainer's explicit delegation, 2026-07-18 —
+  "resolve Q6 yourself"; flagged as such, reversible at review)*. Resolves
+  Q6, minimally, consistent with `adr-0018` D8 and D2 here. No new
+  machinery — the CLI already emits the loud warning on stderr and exits
+  `2` on any fallback (`resolve-profile.mjs`); D6 only states *when the
+  dispatcher checks and where the warning goes*:
+  - **Detection is D2's per-handover re-resolution.** The dispatcher
+    checks the `resolve-profile` exit code **at every gate/handover**; a
+    mid-run breakage (file goes missing/unreadable/floor-violating) is
+    therefore caught **at the next gate**, never later than that.
+  - **On exit `2`:** the run **continues under `guardian`** (`adr-0018`
+    D8 — never a silent stop, never a proceed-on-broken-profile), and the
+    dispatcher surfaces the CLI's warning **verbatim** in the two places
+    attention already is: (a) the **run's status/log surface** — the same
+    surface that carries D2's run-start profile snapshot, so
+    snapshot-vs-now divergence is visible side by side; and (b) **the next
+    gate prompt itself** — and since `guardian` puts a human at
+    intent/spec/ship, a human sees the warning **no later than the next
+    human gate** of the fallback run.
+  - **The warning repeats at every subsequent handover** while the profile
+    remains unusable — each per-handover re-resolution re-fires it
+    (`floor-transparency`: a degraded state is re-surfaced, not
+    acknowledged once and then silent). It stops when `resolve-profile`
+    exits `0` again (file restored / `set-profile` re-run).
 
 ### Open
-- **Q6 — guardian fallback at run time.** When/how does the dispatcher
-  detect a **missing/unreadable/floor-violating** profile mid-sequencing
-  and surface the loud D8 warning + run under `guardian`? The CLI already
-  emits the warning to stderr and exits `2` on any fallback
-  (`resolve-profile.mjs`) — the open part is *when the dispatcher checks
-  the exit code* and *how the warning reaches the maintainer* in the
-  interactive session.
-- **Q7 — D11 at run time.** `adr-0018` D11 (honor only self-authenticating
-  approval channels — in-session/merge, **not** a bare tracker comment)
-  was left as prose. Is #77 where the dispatcher **operationalizes** D11
-  at human gates (checks the channel is self-authenticating before
-  counting the gate satisfied), or does that stay **separate** (candidate
-  grove#74)?
+- **None.** All questions are Decided (D1–D6). Q1→D1, Q2→D2, Q9→D3,
+  Q3→D4, Q7→D5, Q6→D6; former Q4/Q5 folded into D1; former Q8 discharged
+  by D1. The canvas is converged.
 
 ### Parked
 - **Implementation.** This is a decision; the `executor` pass (charter
@@ -325,35 +357,71 @@ across N readers. Options B and C are retired in `## Rejected options`.
   (`build=agent, ship=human`). The common-case single merge click under
   both-human is handled by the coincidence rule (one act, N per-gate
   records), not by collapsing the gates.
+- **Operationalize D11's channel rule in this decision (Q7 Option A).**
+  Add a dispatcher rule here defining which channels count at a human
+  gate. **Rejected (D5, maintainer 2026-07-18):** it would split one
+  mechanism across two homes — D1 already delegates the
+  human-approval-record *shape* to grove#74, and separating "what the
+  record is" from "which channels produce it" violates one-home-per-kind
+  (`decision-0040`).
+- **Defer to grove#74 with NO interim (pure Q7 Option B).** Cite D11 as a
+  Given and say nothing about human-gate channels until #74 lands.
+  **Rejected (D5, maintainer 2026-07-18):** it would leave the dispatcher
+  with **no stated rule at a human gate** until #74 — exactly the
+  "someone typed 'approved' in a comment" hole `adr-0018` D11 exists to
+  close. The accepted variant cites D11 as the named interim.
 
-## Consequences / propagation (draft — POST-approval executor work, NOT part of this canvas)
+## Consequences / propagation (POST-approval executor work, NOT part of this canvas)
 
 Flagged now so no dependent is silently missed (`inv-graph-maintenance`);
 the actual edits are a post-approval `executor` pass. Under **D1
-(dispatcher-central)** the set is now firm:
+(dispatcher-central)** the set is firm:
 
 - **`charters/dispatcher.md`** — the **primary edit**: gains the run-time
-  profile-read (`resolve-profile`) + per-gate pause/proceed sequencing (the
-  D1 routing table), and its Boundaries line "the intent gate (decisions,
-  specs) never fully opens to agents" is rewritten to *read* ownership from
-  the profile rather than assert it. It is `gated` and ships to consumers
-  who vendor it — so the enforcement, once expressed there, is what makes
-  `adr-0018` pay off for adopters.
-- **Stage charters shed their ownership assertions** — `charters/shaper.md`
-  ("the merge is the approval; the intent gate never opens to agents"), and
-  any equivalent assertion in `contract-author`/`executor`. They shift from
-  *asserting* ownership to deferring to the dispatcher's profile-read. **This
-  discharges `adr-0018`'s D2 "merge is the approval" wording flag** (D1 /
-  former Q8) — the source of the merge-only phrasing is removed, not
-  patched around.
-- **Any run-sequencing skill/entry** that should now call
-  `resolve-profile` (the setup skill already documents the intended path
-  `node .grove/internal/gates/bin/resolve-profile.mjs`, lines 68-70 — but
-  nothing at run time calls it).
-- **Append-only discipline.** Where the executor pass touches ratified
-  text of `adr-0018` or a `gated` charter (e.g. the D2 wording discharge),
-  it follows `decisions/README.md` (forward pointer on the superseded
-  text, same change) — not an in-place rewrite of ratified rationale.
+  enforcement section — per-handover `resolve-profile` invocation + the
+  run-start snapshot (D2), the post-convergence routing table (D1), the
+  cascade ordering rule (D3), the gate→stage mapping + ship-as-run-terminal
+  + coincidence rule (D4), the D11-interim pointer (D5), and the fallback
+  surfacing rule (D6). Its Boundaries line **"The intent gate (decisions,
+  specs) never fully opens to agents"** (line 191) is rewritten to *read*
+  ownership from the profile (the floor — `intent = human` OR
+  `ship = human` — is what never opens, not every intent-layer gate). It
+  is `gated` and ships to consumers who vendor it — the enforcement, once
+  expressed there, is what makes `adr-0018` pay off for adopters.
+- **Stage charters shed their ownership assertions** (shift from
+  *asserting* who owns their gate to deferring to the dispatcher's
+  profile-read). Named lines found by grep:
+  - `charters/shaper.md` line 26: "(`floor-intent-gate` — the intent gate
+    never opens to agents)" and the Boundaries phrasing of approval as the
+    in-PR flip/merge;
+  - `charters/contract-author.md` line 21: "Gate: rubric self-check, then
+    **human approval**" — hardcodes a human at the spec gate, which
+    contradicts `steward`/`initiator` (`spec = agent`);
+  - `charters/executor.md` — audit for equivalents (none found by grep;
+    verify in the pass).
+- **The vendored reference copies** under
+  `plugins/grove/reference/agents/` (what `setup` installs into consumer
+  repos) mirror every charter edit above — e.g.
+  `reference/agents/shaper.md` line 10: "(the intent gate NEVER opens to
+  agents)"; `reference/agents/dispatcher.md`. The reference payload must
+  not diverge from `charters/`.
+- **`adr-0018`'s D2 "merge is the approval" wording flag is discharged**
+  by these edits (D1 / former Q8) — the source of the merge-only phrasing
+  is removed, not patched around. The executor pass adds the forward
+  pointer on `adr-0018`'s propagation-flag text (append-only).
+- **`grove#74` retarget seam (D5):** the dispatcher charter's human-gate
+  channel rule is written as a **pointer** — interim: `adr-0018` D11
+  (in-session approval or merge only); when grove#74 lands it retargets
+  with no unwriting here.
+- **Run-sequencing entry points:** whatever launches/sequences a run must
+  invoke `node .grove/internal/gates/bin/resolve-profile.mjs` per
+  handover — the setup skill already documents exactly this path
+  (`skills/setup/SKILL.md` lines 68-70) as the intended read; this pass
+  makes the dispatcher charter actually mandate it.
+- **Append-only discipline.** Where the pass touches ratified text of
+  `adr-0018` or a `gated` charter, it follows `decisions/README.md`
+  (forward pointer on the superseded text, same change) — never an
+  in-place rewrite of ratified rationale.
 
 ## Design constraints (honor while shaping — not open questions)
 
@@ -369,3 +437,104 @@ the actual edits are a post-approval `executor` pass. Under **D1
 - **Do not re-open `adr-0018`'s Decided set.** #77 activates the shipped
   presets at run time; it does not re-litigate which presets ship, the
   floor shape, or the `intent=agent` semantics — those are Given above.
+
+## Acceptance criteria (for the post-approval executor pass)
+
+The decision is the Decided list (D1–D6); these are the checkable outcomes
+the executor pass must satisfy **after** approval. The canvas itself edits
+no charter.
+
+- [ ] `charters/dispatcher.md` mandates: per-handover
+      `resolve-profile` invocation, run-start profile snapshot logged
+      (D2); the post-convergence ordering (producer → convergence always →
+      gate on the converged artifact; `C2=agent` ⇒ the convergence verdict
+      record IS the gate record, `C2=human` ⇒ an additional
+      post-convergence human-approval record) (D1); exit-`2` handling =
+      continue under `guardian` + surface the warning verbatim on the run
+      status surface and the next gate prompt, repeating per handover
+      until restored (D6).
+- [ ] The charter carries the gate→stage mapping (D4): `intent`/`spec`/
+      `build` per-artifact stage gates; `ship` the run-level landing gate
+      on the run's terminal artifact; the coincidence rule (one act, a
+      record PER gate); build and ship distinct on a code change.
+- [ ] Cascade rule present (D3): a downstream re-syncs only after the
+      upstream's ratification record exists (any owner); human gates in an
+      antichain batch into one prompt; consistent with the W4
+      backprop-interrupt handling and its generation-2 bound.
+- [ ] Human-gate channel rule is a **pointer**: interim = `adr-0018` D11
+      (in-session approval or merge only; bare tracker comment never);
+      retargets to grove#74 when it lands (D5).
+- [ ] Every named ownership assertion is shed, in `charters/` AND the
+      vendored `plugins/grove/reference/agents/` copies (dispatcher line
+      191, shaper line 26, contract-author line 21, reference shaper line
+      10; executor audited); no gate advances on dispatcher memory — only
+      on a posted record.
+- [ ] `adr-0018`'s D2 wording flag is discharged with an append-only
+      forward pointer; no ratified text rewritten in place.
+
+## Self-check (gate → `gated`)
+
+Self-checked to **`gated`** by the shaper, 2026-07-18, modeled on
+`adr-0018`'s self-check (no standalone rubric exists). Not an approval —
+the `decision-adversary` and the human intent gate follow; the
+maintainer's recorded approval/merge is the ratification act
+(`floor-intent-gate`); the shaper does **not** promote past `gated`.
+
+- **Frontmatter**: `id`/`type`/`status`/`depends_on`/`informed_by`/
+  `owner`/`updated` present, well-typed; `status: gated`. PASS.
+- **`depends_on` resolution / directional flow**: the single dependency
+  `adr-0018-gate-profile-and-trigger-split` resolves and is **`approved`**
+  — settled ground; this decision's correctness genuinely rests on its
+  machinery (presets, floor, D8 fallback, D11). PASS.
+- **`informed_by`** (provenance, not correctness-bearing): `adr-0012` (the
+  emergent gate structure the profile configures), `adr-0005`
+  (artifact-gated dispatch — never dispatch on conversation alone).
+  Correctly `informed_by`, not `depends_on` (`adr-0011` edge discipline).
+  PASS.
+- **Decision recorded + why-nots kept**: the operative decision is D1–D6;
+  every rejected alternative (stage-distributed, hybrid, once-per-run,
+  human-only cascade serialization, speculative re-sync, build/ship
+  collapse, in-decision channel rule, no-interim deferral) is in
+  `## Rejected options` with its one-line reason. PASS.
+- **Floor honored (the load-bearing check)**: enforcement never weakens
+  the floor — the floor is validated on **every** per-handover read (D2 +
+  `adr-0018` D8); an unusable profile falls back to `guardian` loudly
+  (D6), never silently and never proceed-on-broken; a human gate advances
+  only on a posted human-approval record through a self-authenticating
+  channel (D1 + D5 interim = `adr-0018` D11); convergence always runs
+  (`inv-independent-verification`), so `C2=agent` ratification is always
+  an *independent* agent's verdict, adversary ≠ producer. PASS.
+- **Consistency with upstream**: D4's ship-as-run-terminal keeps the F1
+  floor sound for the shortest run (the floor's `ship = human` locus
+  exists in every run because every run has a terminal artifact); the
+  coincidence rule preserves record-per-gate (record-not-memory); D3 is
+  owner-agnostic exactly where `inv-ratifiable-artifacts` is. PASS.
+- **Scope guard**: implementation parked; `adr-0018` P1/P2 stay in their
+  homes; the human-approval-record mechanism routed to grove#74 (D5), not
+  absorbed. No new idea landed silently in a Decided. PASS.
+- **Append-only**: new artifact; supersedes nothing in place; the
+  `adr-0018` wording-flag discharge and any charter-text sheds are flagged
+  as append-only executor work. PASS.
+- **Minimal-first**: no new machinery — the decision wires the *existing*
+  CLI into the *existing* dispatcher charter; D6 adds surfacing rules
+  only, no new tool; the channel-authentication mechanism deferred to its
+  own home rather than grown here. PASS.
+- **Residual caveats (flagged, not blockers)**:
+  1. **D6 was drafted by the shaper under the maintainer's explicit
+     delegation** ("resolve Q6 yourself"), not decided interactively —
+     flagged in D6 and the banner; reversible at review.
+  2. The stage-charter assertion inventory (dispatcher 191, shaper 26,
+     contract-author 21, reference shaper 10) is a **grep-day snapshot**;
+     the executor pass re-greps before editing (`executor.md` showed no
+     hit but is named for audit).
+  3. grove#74 does not exist yet as a landed decision — D5's interim
+     (adr-0018 D11) carries until it does; if #74 never lands, the
+     interim simply persists (safe: it is the stricter rule).
+  4. The D2 run-start snapshot's concrete form (log line vs ledger entry)
+     is executor-level detail — the decision fixes *that* it is logged
+     and visible, not its format.
+
+**Overall: internally sound, consumable, and `gated`** — **6 Decided / 0
+Open / 3 Parked** (implementation; adr-0018 P1; adr-0018 P2). Routes to
+the `decision-adversary`, then the **human intent gate**; the shaper does
+**not** promote past `gated`.
