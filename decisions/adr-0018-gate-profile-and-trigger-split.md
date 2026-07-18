@@ -113,23 +113,44 @@ updated: 2026-07-18
     result";
 
     and points to **`.grove/gates.toml`** for finer per-gate overrides.
+- **D7 — `gates.toml` is shape (B): explicit full table, preset-as-seed**
+  *(maintainer, 2026-07-18)*.
+  - **The four gate rows are always listed explicitly** (`intent` /
+    `spec` / `build` / `ship`, each C2 = `human` | `agent`). **The rows
+    are the source of truth** — no runtime inheritance to resolve; the
+    floor validator and every reader read rows directly.
+  - **A preset is a seed-time operation, not a file abstraction.** At
+    install, setup **expands** the chosen preset into the explicit rows.
+    Provenance is a **non-authoritative** `seeded_from = "<preset>"`
+    marker — **the rows win if they diverge** from the named preset.
+  - **Presets are re-applicable post-install via a dedicated skill**
+    (candidate `/grove:set-profile <preset>` — *name not load-bearing,
+    flagged*). Behavior: re-expands that preset's four rows, updates
+    `seeded_from`, and **re-runs the floor validator**. **Semantics: a
+    wholesale switch** — it **replaces** current rows (including
+    hand-edits) with the preset's; per grove's non-clobber discipline it
+    **shows the effective diff and confirms before writing, never
+    silent**. *(Rejected alt: "preserve hand-overrides on top of the new
+    preset" — the simpler mental model won; see Options.)* The skill's
+    **implementation is post-approval executor work** (like the file
+    moves) — this canvas records the decision, not the skill code.
+  - **The trigger row (K2) and the reserved "intent satisfied
+    externally" slot are explicit sibling sections/keys** in
+    `gates.toml` — **visible, not hidden defaults**. The external slot's
+    whole purpose is that a future reader *sees* it is reserved (design
+    constraint; grove#36). Illustrative shape in `## Framing → K1`.
 
 ### Open
-1. **The `gates.toml` format / schema** — the *location* is settled
-   (`.grove/gates.toml`, consumer-authoritative, D5) and it configures
-   **only C2** (D4); open is the file's *shape*: how the four gate rows
-   (intent/spec/build/ship) + the trigger row (Open 2) + the
-   external-intent slot (design constraint) are expressed as TOML, and
-   how a per-gate override reads.
-2. **How the trigger row is represented** alongside the four gate rows
-   (K2) — same table/section, what its cells hold (a `gates.toml` shape
-   question paired with Open 1).
-3. **What the floor validator checks, and when it fires** — presumably
-   "reject any profile with 0 human-owned intent gates" at setup and on
-   every hand-edit, but the exact check surface and firing points are
-   open (does it read only C2 on the intent row, or also the external
-   slot once that lands?).
-4. **Approval authenticity per channel (in-domain).** D2 leaves the
+1. **Floor-validator coverage of manual hand-edits.** D7 settles that
+   the floor validator (a) reads the four gate rows **directly** and
+   rejects any profile with **0 `human` intent gates** (`floor-intent-gate`),
+   and (b) fires at **setup** and on **every `set-profile`**. Open: does
+   it **also guard a manual hand-edit** of `gates.toml` (the file is
+   consumer-authoritative and hand-editable, D5) — and if so, by what
+   trigger (a pre-commit/CI check, a `check/`-time read, a load-time
+   assert)? Left open because it needs a firing mechanism grove may or
+   may not already have.
+2. **Approval authenticity per channel (in-domain).** D2 leaves the
    approval *channel* unrestricted — but the approval must genuinely
    originate from the accountable human, and **channels differ in
    forgeability**: a tracker/GitHub comment "can be faked," whereas a
@@ -139,7 +160,7 @@ updated: 2026-07-18
    (how *this* domain trusts its *own* approval channels); adjacent to
    grove#36's O3 (cross-domain seal verification) but **not** folded
    into it.
-5. **`review-policy.md` mixes consumer-choice + grove-wiring.** It is
+3. **`review-policy.md` mixes consumer-choice + grove-wiring.** It is
    consumer-authoritative in *purpose* (the strict|scoped scope mode,
    `adr-0013`) — which is why D5 keeps it on the `.grove/` root surface —
    but `adr-0013` has setup **also** write machinery keys into it
@@ -227,6 +248,52 @@ setup with the **`steward`** default (**D1**, **D6**), and is
   it with a human-owned intent gate **at ship** (ratification) — which
   is why K2 matters.
 
+**Illustrative `gates.toml` shape (B — explicit full table, D7).** Field
+names are illustrative; the executor finalizes the exact keys. The
+load-bearing shape is: four explicit rows (source of truth), a
+non-authoritative `seeded_from` marker, and the trigger + external-intent
+sections written out visibly.
+
+```toml
+# .grove/gates.toml — consumer-authoritative gate-profile (C2 only; D4/D5/D7)
+seeded_from = "steward"      # provenance only — non-authoritative; the rows below win
+
+[gates]                      # the four rows ARE the source of truth (no inheritance)
+intent = "human"             # floor: floor validator requires >=1 human intent gate
+spec   = "agent"
+build  = "agent"
+ship   = "human"
+
+[trigger]                    # K2 — what IGNITES a run, held SEPARATELY from who ratifies
+                             # intent. Not floor-bound; may be agentic (grove already runs
+                             # agentic triggers). Names the ignition source(s).
+sources = ["human-ask", "cron", "ci-event", "backprop-interrupt"]
+
+[intent_external]            # reserved slot (design constraint; grove#36) — EMPTY in-domain
+enabled = false              # in-domain profiles leave this off; the parked autonomous/
+# satisfied_by = "..."       # standing preset fills it once the cross-domain SEAL exists
+```
+
+- **Trigger row (closes Open — K2 representation).** The trigger is its
+  own `[trigger]` section, **not** an owner-typed gate row: it records
+  *what ignites a run*, a different question from *who ratifies intent*.
+  It is **not floor-bound** (the floor pins the intent *gate*, never the
+  trigger) and its sources may be agentic — matching grove's existing
+  agentic triggers (remediation roles, validator drift audits,
+  inference-first dispatch). An agentic first *gate* stays legal (K2)
+  because intent is ratified at ship (initiator) or by a standing
+  in-domain decision — the trigger row does not change that.
+- **External-intent slot (design constraint held).** Written out
+  explicitly as `[intent_external]`, `enabled = false` in every in-domain
+  profile — visible-but-reserved, so a future reader sees the seam. The
+  parked `autonomous/standing` preset (grove#36) is the only thing that
+  flips it on; nothing in this canvas fills it.
+- **Floor validator (Open-1 partly closed by D7).** Reads the four
+  `[gates]` rows **directly** and rejects any profile with **0 `human`
+  intent gates**; fires at **setup** and on **every `set-profile`**.
+  Whether it *also* guards a manual hand-edit of `gates.toml`, and by
+  what firing mechanism, is the remaining Open-1.
+
 > **guardian vs steward vs initiator — the load-bearing difference.**
 > steward and initiator both put a human only at intent + ship, but
 > differ on *where the human-owned intent gate physically sits*: steward
@@ -291,6 +358,18 @@ setup with the **`steward`** default (**D1**, **D6**), and is
   maintainer 2026-07-18): `review-policy.md`'s strict/scoped mode is a
   **consumer choice**, so that axis mis-classifies it as machinery. The
   correct axis is **authority** (who is authoritative on the contents).
+- **`gates.toml` shape (A): terse `preset =` + sparse overrides, with
+  runtime inheritance.** Rejected (**D7**, maintainer 2026-07-18) in
+  favor of the explicit full table (shape B): the rows should be the
+  self-describing source of truth a reader and the floor validator read
+  directly, with no preset-expansion to resolve at read time. *(Not to be
+  confused with the rejected C1 "Model B" above — different axis: this is
+  file layout, that was the dial count.)*
+- **`set-profile` preserves hand-overrides on top of the newly applied
+  preset.** Rejected (**D7**, maintainer 2026-07-18): the simpler mental
+  model won — `set-profile` is a **wholesale switch** that replaces the
+  rows (showing the diff and confirming first, never silent). Preserving
+  overrides would make "what profile am I on?" ambiguous.
 
 ## Consequences / propagation (draft — POST-approval executor work, NOT part of this canvas)
 
@@ -308,6 +387,12 @@ dependent is silently missed (`inv-graph-maintenance`).
   - The paths are referenced by the **setup, check-install, remove,
     record-verdict skills** and **`reference/ci/`** — all must be updated
     when the layout lands.
+- **D7 new machinery to build (executor, post-approval):** the
+  `gates.toml` writer + preset-expansion in **setup**; the floor
+  validator; and the **`set-profile`** skill (candidate name, not
+  load-bearing) that re-expands a preset, updates `seeded_from`, shows
+  the diff, confirms, and re-runs the floor validator. Skill *code* is
+  out of this canvas; the *decision* is recorded here.
 - **D2 wording flag (record, do not chase in this canvas).** The shaper
   charter and `floor-intent-gate` phrase ratification as "the merge is
   the approval." Under **D2** that is the **GitHub-repo reference
@@ -317,12 +402,12 @@ dependent is silently missed (`inv-graph-maintenance`).
 
 ## Open questions
 
-The five live items are enumerated in `## Decision state → Open` above
-(single source of truth): (1) the `gates.toml` schema, (2) trigger-row
-representation, (3) floor-validator check surface + firing points, (4)
-per-channel approval authenticity, (5) `review-policy.md`
-choice-vs-wiring mix. They are surfaced one per turn, most consequential
-first; the rest wait their turn in the Open list.
+The three live items are enumerated in `## Decision state → Open` above
+(single source of truth): (1) floor-validator coverage of manual
+hand-edits, (2) per-channel approval authenticity, (3) `review-policy.md`
+choice-vs-wiring mix. D7 closed the former Opens on `gates.toml` schema
+and trigger-row representation, and most of the floor-validator surface.
+They are surfaced one per turn, most consequential first.
 
 ## Self-check (draft — not a gate pass)
 
@@ -343,8 +428,10 @@ first; the rest wait their turn in the Open list.
 - **Scope guard**: the across-domains preset is parked to grove#36, not
   shaped; the schema leaves its slot. New ideas mid-shaping go to Open or
   Parked, never silently into a Decided.
-- **Not converged**: 6 Decided (D1 default preset; D2 channel-agnostic
+- **Not converged**: 7 Decided (D1 default preset; D2 channel-agnostic
   intent gate; D3 ship all three presets; D4 C1 grove-fixed, profile is
   C2-only; D5 `.grove/` layout split by authority; D6 optional preset
-  setup question) / 5 Open / 1 Parked as of 2026-07-18. Still a canvas,
-  not a finished decision — the shaper does not promote past `draft`.
+  setup question; D7 `gates.toml` explicit-table shape + preset-as-seed +
+  `set-profile` wholesale switch) / 3 Open / 1 Parked as of 2026-07-18.
+  Still a canvas, not a finished decision — the shaper does not promote
+  past `draft`.
