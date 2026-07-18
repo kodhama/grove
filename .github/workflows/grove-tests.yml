@@ -1,0 +1,58 @@
+# grove — test + typecheck CI (grove#78).
+#
+# The mechanical backstop the review process structurally can't be: runs
+# grove's own test suites and typechecks on every PR (and on push to main),
+# independent of whether a grove review flow ran. It catches the cases reviews
+# can't — a human-authored PR, an agent that skipped or misreported tests, a
+# regression that slipped a review.
+#
+# GREEN HERE IS NOT APPROVAL — it only proves the code builds and its tests
+# pass. The review-bookkeeping check and a human still gate the merge; this
+# does not displace reviews as the gate, it backstops them.
+#
+# Both packages are zero-dependency (`type: module`, no deps): `npm test` is
+# `node --test`, `npm run typecheck` is `node --check` over the .mjs sources —
+# so no install step is needed.
+
+name: grove tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  # A push to main (e.g. a direct landing) runs the suites too — the honesty
+  # backstop shouldn't depend on a PR having been opened.
+  push:
+    branches: [main]
+
+# Read-only: it checks out and runs tests; it posts nothing.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test — ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      # Report both packages independently — one failing suite shouldn't mask
+      # the other's result.
+      fail-fast: false
+      matrix:
+        package:
+          - plugins/grove/gates
+          - plugins/grove/check
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Test
+        working-directory: ${{ matrix.package }}
+        run: npm test
+
+      - name: Typecheck
+        working-directory: ${{ matrix.package }}
+        run: npm run typecheck
