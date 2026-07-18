@@ -244,6 +244,18 @@ total (comment-id-major, block-index-minor), and no contradiction with
 false-RED, not "the opposite of fail-closed") was applied to Decision point 2.
 A round-2 pass scoped to the INV9 addition precedes the human gate.
 
+**Decision-adversary round 2 (2026-07-18, scoped to the INV9 revision):
+SOUND.** The adversary swept the spec for every clause declaring a
+multi-block comment inert and found **exactly four** — §A.1, INV9, S7, and
+the §D `never-reviewed` note — **all four now named** in Consequence 1 and
+AC1; no other normative clause forbids it (the remaining "one-record-per-
+comment" mentions are provenance/meta-text pointing at §A.1). INV9's other
+guarantees (full-pagination, the absent/unknown-`schema` inert case,
+session-context-never-counts, no-mutation/append-only) are confirmed
+untouched by the scoped amendment. The point-2 wording fix reads accurately
+(false-RED, not fail-closed) and per-block isolation stays fail-closed
+against false-GREEN. No round-1 regression. Ready for the human intent gate.
+
 **Not claiming adversary validation** — the decision-adversary pass precedes
 the human gate; the `approved` intent act is the maintainer's
 (`gated → approved` flip), never the shaper's.
