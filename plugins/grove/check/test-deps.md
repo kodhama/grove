@@ -3,7 +3,7 @@ id: ledger-grove-review-bookkeeping-check
 type: ledger
 status: gated
 implements: spec-0002-review-bookkeeping-check
-depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary]
+depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0019-batched-verdict-records]
 owner: agent
 updated: 2026-07-18
 ---
@@ -72,13 +72,26 @@ verifies. `spec-0002` §A.3's whole-`S` basis prose has since been
 `fingerprint` shorthand now state the per-owed-pair-path basis (`[f]` /
 `[f] ∪ U(f, C)`), closing the discrepancy this note once flagged. Because
 `match.mjs` already computes per-file, the corrected INV3 already holds —
-the `@v2 → @v3` pin bump below is a **mechanical re-verification, not an
+the `@v2 → @v3` pin bump was a **mechanical re-verification, not an
 owed code change**.
+
+The **batched-verdict-records** tests (the `records.mjs` multi-block
+read — each well-formed `grove-verdict` block in a comment is its own
+record; a malformed block is inert per-block, not per-comment — and the
+`match.mjs` within-comment **block-index tiebreak** in latest-covering
+selection) rest on `adr-0019-batched-verdict-records` (approved
+2026-07-18): the lift of the "one comment = one record" packaging cap.
+`spec-0002`'s §A.1 carrier/selection rules, **INV9**, and **S7** were
+re-cast by the 2026-07-18 `adr-0019` amendment (`spec-0002@v3 → @v4`) —
+so the pin below advances to `@v4`. Unlike the `@v2 → @v3` bump, this one
+**owes a code change**: `lib/records.mjs`'s `blocks.length > 1 ⇒ inert`
+rejection is removed (one record per well-formed block) and `lib/match.mjs`
+selection gains the block-index minor key (`adr-0019` Consequence 2–3).
 
 ```grove-test-deps
 schema: 1
 specs:
-  - spec-0002-review-bookkeeping-check@v3
+  - spec-0002-review-bookkeeping-check@v4
 decisions:
   - adr-0012-methodology-delivery-machinery
   - adr-0005-tdd-and-artifact-gated-dispatch
@@ -86,4 +99,5 @@ decisions:
   - adr-0013-check-scope-mode
   - adr-0014-install-is-invisible-and-ungated
   - adr-0015-reviewer-machine-boundary
+  - adr-0019-batched-verdict-records
 ```

@@ -3,10 +3,10 @@ id: spec-0002-review-bookkeeping-check
 type: spec
 status: approved  # gated → approved: the maintainer's explicit intent act ("approved. merge", 2026-07-16), bundled with adr-0012's approval on the same PR per Open Q5's sequencing; recorded in-PR by the shaper per lifecycle.md
 implements: adr-0012-methodology-delivery-machinery  # the realized contract (adr-0012 implements-edge); machine-readable fidelity selector
-depends_on: [adr-0012-methodology-delivery-machinery, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary]  # builds-on; adr-0012 retained here too so depends_on-walking machinery keeps the edge until it learns `implements`; adr-0013 added by the 2026-07-17 scope-mode amendment; adr-0014 added by the 2026-07-18 §E pre-install non-gating disclosure (genuine coupling — the disclosed limit tracks adr-0014's move-1b behavior); adr-0015 added by the 2026-07-18 §A reviewer/machine-boundary amendment (genuine coupling — §A's record-author actor and the §A.3 per-file basis both track adr-0015)
+depends_on: [adr-0012-methodology-delivery-machinery, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0019-batched-verdict-records]  # builds-on; adr-0012 retained here too so depends_on-walking machinery keeps the edge until it learns `implements`; adr-0013 added by the 2026-07-17 scope-mode amendment; adr-0014 added by the 2026-07-18 §E pre-install non-gating disclosure (genuine coupling — the disclosed limit tracks adr-0014's move-1b behavior); adr-0015 added by the 2026-07-18 §A reviewer/machine-boundary amendment (genuine coupling — §A's record-author actor and the §A.3 per-file basis both track adr-0015); adr-0019 added by the 2026-07-18 batched-verdict-records amendment (genuine coupling — §A.1 multi-block admissibility + INV9 + S7 track adr-0019's lifting of the one-comment-per-record cap)
 owner: agent
 updated: 2026-07-18
-version: 3  # bumped 1 → 2 by the 2026-07-17 adr-0013 scope-mode amendment (INV7/INV15 amended; INV19–INV22, S21–S23 added); bumped 2 → 3 by the 2026-07-18 adr-0015 reviewer/machine-boundary amendment — a testable-clause change (INV3's freshness basis reconciled to the per-owed-pair-path form §A.3/match.mjs enforce; the whole-`S` form was fail-open for multi-path records), versioning.md's significance bar; the durable decision the bump requires is adr-0015 itself
+version: 4  # bumped 1 → 2 by the 2026-07-17 adr-0013 scope-mode amendment (INV7/INV15 amended; INV19–INV22, S21–S23 added); bumped 2 → 3 by the 2026-07-18 adr-0015 reviewer/machine-boundary amendment — a testable-clause change (INV3's freshness basis reconciled to the per-owed-pair-path form §A.3/match.mjs enforce; the whole-`S` form was fail-open for multi-path records), versioning.md's significance bar; the durable decision the bump requires is adr-0015 itself; bumped 3 → 4 by the 2026-07-18 adr-0019 batched-verdict-records amendment — a testable-clause change (§A.1 carrier/selection re-cast + INV9 + S7: the "one comment = one record" packaging cap lifted, each well-formed grove-verdict block read as its own record, malformed blocks inert per-block not per-comment, selection gains a within-comment block-index tiebreak); the durable decision the bump requires is adr-0019 itself
 status_note: promoted draft → gated on the passing self-check (contract-author Method 6); re-derived twice against adr-0012 at HEAD (fifth-pass revisions, `implements:` field, split-pair findings); round-2 spec-adversary APPROVE-READY. The Q5 provisional-upstream deviation RESOLVED 2026-07-16 — adr-0012 was approved by the maintainer's intent act, and this spec's approval was bundled with it on the same PR (Q5's anticipated sequencing). Buildable now.
 ---
 
@@ -29,6 +29,79 @@ is **not** authorization; a human still judges genuineness and merges.
 > approved` field's claim of a human act, record *deletion*). The values
 > it trusts are the Layer B surface (§E), named here, not pretended away.
 
+> **Amendment (2026-07-18, `adr-0019-batched-verdict-records` — a comment
+> may carry several verdict records; the "one comment = one record"
+> packaging cap is lifted. A testable-clause change — §A.1 + INV9 + S7
+> re-cast — so a version bump.)**
+> **WHAT:** the §A.1 "a comment with **more than one** `grove-verdict`
+> block is **wholly inert**" concretization is **reversed** (`adr-0019`
+> Decision 1–2): a comment **may carry several** `grove-verdict` blocks
+> and the check reads **each well-formed block as its own record**,
+> admitted / selected / freshness-verified **independently** on its own
+> `subject` + `fingerprint`; a block that fails §A.2 recognition is
+> **inert on its own** and **never inerts its well-formed siblings** in
+> the same comment (per-block isolation, not per-comment poison — a
+> per-comment rule would let one typo silently un-record N good reviews).
+> The §A.1 **selection rule** and **INV9**'s selection clause gain a
+> deterministic **within-comment block-index tiebreak** (order:
+> comment-id-major, block-index-minor). **INV9** loses "or a multi-block
+> comment" from its inert clause (the absent/unknown-`schema` inert case
+> **stays**); **S7** is re-cast so a multi-block comment is no longer the
+> inert case (a **malformed block** is, its siblings surviving); the
+> **§D `never-reviewed`** note drops "multi-block comment" as an inert
+> cause (a malformed block stays one). `adr-0019` added to `depends_on`;
+> `updated:` unchanged (already 2026-07-18).
+> **WHY:** grove#76 / PR #75 measured the friction the packaging cap
+> forces — the check owes one record **per reviewed file**, so under the
+> old cap `record-verdict` had to post **one comment per record**
+> (~15–20 comments on a normal multi-file PR): a wall of bookkeeping
+> comments or a wall of red `never-reviewed` checks, an adoption tax for
+> a check whose green is explicitly "bookkeeping, not approval." The cost
+> is the packaging cap, **not** the per-file record model — which is
+> load-bearing (surgical per-file freshness, INV3 / §A.3) and stays.
+> **SCOPE:** §A.1 (the opening record bullet's "one act" framing, the
+> carrier bullet, and the selection bullet), INV9, S7, and the §D
+> `never-reviewed` note only — the four clauses that declared a
+> multi-block comment inert, moved **together** so no standing clause
+> forbids what another now permits (`adr-0019` Consequence 1;
+> decision-adversary round-1 finding). **Deliberately unchanged:** the
+> per-file record model and surgical invalidation (§A.3 / INV3); the §A.2
+> record schema; the §A.3 fingerprint basis (single fingerprint per
+> record, per owed-pair path); the §C.0 / §C trust model (the check
+> recomputes everything, trusts no emitted value — `manifest_hashes`
+> stays reason-naming only); §A.4 poster/edit admissibility —
+> **edit-rejection stays whole-comment** (an edit to a batched comment
+> rejects **all** its records, which is correct and fail-closed: records
+> are never legitimately edited, a correction is always a **new**
+> comment). INV9's full-pagination, session-context-never-counts, and
+> no-mutation/append-only clauses are untouched, as are every other INV\*
+> and S\*. The `record-verdict` skill's batching (one comment per review)
+> and the `lib/records.mjs` / `lib/match.mjs` changes are `adr-0019`
+> Consequence 2–4 — downstream deliverables, not this spec.
+> **POINTER:** current truth is the §A / INV9 / S7 / §D body below — this
+> note is provenance only, not itself an acceptance criterion.
+> **VALUE:** as a consumer, a normal multi-file PR carries ~2 batched
+> bookkeeping comments instead of ~20 — the check's green stops greeting
+> me with a wall; as the maintainer, nothing about the record model,
+> fingerprint basis, or trust boundary got softer — a malformed block is
+> still fail-closed inert, only its blast radius shrank from the whole
+> comment to the block.
+> **CONFIDENCE:** `verified` — every delta traces to `adr-0019` Decision
+> 1–5, Consequence 1, and AC1/AC3, read at HEAD this sitting; the four
+> inert-clause targets are the decision's own round-2 sweep (§A.1, INV9,
+> S7, §D), confirmed the exhaustive set this sitting.
+> **Versioning judgment:** **version-significant per `versioning.md`**
+> (behavioral spec → agent-judged significance counter): a testable
+> clause changed — §A.1's carrier rule, INV9, and S7 are re-cast (an
+> admissibility/selection change, in the permit direction but pinned
+> deterministic by the block-index tiebreak). `version` **bumped 3 → 4**;
+> the durable decision the bump requires is **`adr-0019`** itself.
+> Cascade: the ledger pin `plugins/grove/check/test-deps.md`
+> (`spec-0002@v3` → `@v4`) is updated in the same wave; unlike the
+> adr-0015 pin bump (which owed no code change), the `lib/records.mjs`
+> multi-block rejection removal and the `match.mjs` block-index tiebreak
+> are the **owed code change** (`adr-0019` Consequence 2–3).
+>
 > **Amendment (2026-07-18, `adr-0015-reviewer-machine-boundary` — the
 > reviewer/machine boundary; §A machine-stamped clarification + §A.3
 > per-file basis reconciliation. A documentation/interface amendment,
@@ -354,11 +427,15 @@ normalized to this form **matches nothing** (fail-closed by non-match).
 
 ### A.1 The record and its carrier
 
-- A verdict record is a **structured comment on the PR** — one comment
-  per reviewed path (§A.3 basis granularity), carrying the full §A.2
-  envelope in **one act** (verdict + subject + `manifest_hashes` +
-  fingerprint + producer/reviewer + findings together; no second
-  channel). The record is **machine-assembled, not hand-authored**
+- A verdict record is a **structured `grove-verdict` block on a PR
+  comment** — one record per reviewed path (§A.3 basis granularity),
+  carrying the full §A.2 envelope in **one act** (verdict + subject +
+  `manifest_hashes` + fingerprint + producer/reviewer + findings
+  together; no second channel). A single comment **may carry several
+  such records** (`adr-0019`; the carrier bullet below) — `adr-0012`'s
+  "one act" binds **the block's atomicity, never a one-record-per-comment
+  cap** (batching groups whole records; it never fragments one). The
+  record is **machine-assembled, not hand-authored**
   (`adr-0015`): the **reviewer** supplies only its CI-agnostic
   **judgment** — the verdict token, the subject it reviewed, the
   findings, and the producer/reviewer attribution (the separation
@@ -373,12 +450,20 @@ normalized to this form **matches nothing** (fail-closed by non-match).
 - **Carrier (concretization, flagged):** the machine-parseable part is a
   fenced code block tagged `grove-verdict` containing YAML per §A.2. A
   comment may carry surrounding prose; only the block is the record. Any
-  comment (or block) that does not parse against §A.2 is **inert** — it
-  is never a record and never satisfies anything (S7; fail-closed by
-  non-recognition). A comment containing **more than one**
-  `grove-verdict` block is **wholly inert** — one comment is one record,
-  matching the decision's one-act rule (fail-closed by non-recognition;
-  concretization, flagged).
+  **block** that does not parse against §A.2 is **inert** — it is never a
+  record and never satisfies anything (S7; fail-closed by
+  non-recognition). A comment **may carry several** `grove-verdict`
+  blocks (`adr-0019`): the check reads **each well-formed block as its
+  own record**, admitted, selected, and freshness-verified
+  **independently** on its own `subject` + `fingerprint`. A block that
+  fails §A.2 recognition is **inert on its own** — it satisfies nothing,
+  and it **never inerts its well-formed siblings** in the same comment (a
+  per-comment poison rule would let one typo silently un-record N good
+  reviews — a **false-RED** erasing genuine bookkeeping; `adr-0019`
+  Decision 2). Each block is still **one whole record** — verdict +
+  subject + `manifest_hashes` + fingerprint + producer/reviewer +
+  findings together — so `adr-0012`'s "one act" binds **the block, not
+  the comment**: batching groups whole records, it never fragments one.
 - **Append-only.** A re-review yields a **new** record; nothing is
   overwritten or deleted. Editing a record's comment **rejects** the
   record (§A.4, AC14) — a record comment is never edited; a correction
@@ -396,8 +481,13 @@ normalized to this form **matches nothing** (fail-closed by non-match).
   spec pins the deterministic form — for each owed pair `(f, R)`, the
   **latest admissible schema-valid record for `R` whose `S` contains
   `f`** counts, ordered by the platform's comment creation order
-  (monotone comment id). A later record supersedes earlier ones **for
-  the paths it covers**; it never uncovers paths it does not mention.
+  (monotone comment id), **tie-broken by block index within a comment**
+  when two such records share one comment (`adr-0019`): the order is
+  **comment-id-major, block-index-minor**. (The emitter's
+  one-block-per-file fan-out makes an intra-comment `(f, R)` collision
+  rare, but the order is pinned, not left to chance.) A later record
+  supersedes earlier ones **for the paths it covers**; it never uncovers
+  paths it does not mention.
 
 ### A.2 Schema (structured data only — YAML, inside the `grove-verdict` block)
 
@@ -932,7 +1022,7 @@ from this enum (all applicable reasons, in this order):
 
 | Reason | Fires when | Payload |
 |---|---|---|
-| `never-reviewed` | No admissible schema-valid record for `R` covers `f` — including a review run only in session (S15) or a malformed / multi-block comment (S7). | — |
+| `never-reviewed` | No admissible schema-valid record for `R` covers `f` — including a review run only in session (S15) or a malformed `grove-verdict` block (S7). | — |
 | `changed-since-review` | Latest covering record is stale and a **subject** path's HEAD hash differs from its recorded `manifest_hashes` entry. | The changed subject path(s). Where attribution is impossible — a subject path absent from `manifest_hashes`, or every recorded entry matching HEAD while the recomputed fingerprint still differs — the payload is `unattributed` **plus the record's full subject manifest**; the reason is never suppressed for want of attribution. |
 | `upstream-<path>-changed` | Latest covering record (fidelity) is stale and an **upstream** path's content or membership differs at HEAD. | The upstream file, **named** (e.g. `upstream-decisions/adr-0012….md-changed`). |
 | `review-failed` | Latest covering record is fresh but `verdict ∉ PASS-class(R)` (and is not `UPSTREAM-INDICTED`). | A link/anchor to that record's inline findings. Routing: the **subject's** producing layer. |
@@ -1055,16 +1145,21 @@ These are named, not pretended. Authenticity and policy changes remain
   the single separation authority at every layer — and **shall not**
   read any artifact frontmatter author tag as a separation input or a
   red condition (such tags are optional provenance only).
-- **INV9 (record channel, AC10).** The check **shall** read verdict
+- **INV9 (record channel, AC10)** *(amended 2026-07-18, adr-0019; was:
+  treated "a multi-block comment" as inert and selected by comment order
+  alone).* The check **shall** read verdict
   records only from the PR's comment stream via the platform API, read
   **in full** (paginated to exhaustion — a truncated read **shall** be a
-  red error, never a partial verdict); **shall** treat any content that
+  red error, never a partial verdict); **shall** treat any **block** that
   does not parse against the §A.2 schema (including an absent/unknown
-  `schema` value or a multi-block comment) as inert; **shall** itself
-  select the latest covering admissible record per owed pair from the
-  platform's comment order; **shall not** count any review not recorded
-  on the PR (session context is never a record); and **shall not**
-  mutate, or require mutation of, any existing record.
+  `schema` value) as inert **on its own, without inerting its well-formed
+  siblings in the same comment** (`adr-0019` — a comment may carry
+  several records, each read independently); **shall** itself select the
+  latest covering admissible record per owed pair from the platform's
+  comment order, **tie-broken by block index within a comment**; **shall
+  not** count any review not recorded on the PR (session context is never
+  a record); and **shall not** mutate, or require mutation of, any
+  existing record.
 - **INV10 (decision human gate, AC9).** For a changed decision-layer
   artifact, the check **shall** require a PASS-class `decision-adversary`
   record **and** the artifact's `status` at HEAD to be exactly
@@ -1199,12 +1294,22 @@ These are named, not pretended. Authenticity and policy changes remain
   longer owes `conformance`, *When* the check runs, *Then* it still
   assembles the owed-map from the protected-branch charters and the
   dropped review is still owed.
-- **S7 (non-record content is inert, AC10/AC1).** *Given* a PR comment
-  containing prose claiming "conformance passed" plus a malformed
-  `grove-verdict` block that fails the §A.2 parse (or a comment carrying
-  two `grove-verdict` blocks), *When* the check runs, *Then* neither
-  counts as a record and the owed pair stays **red** with reason
+- **S7 (non-record content is inert, AC10/AC1)** *(amended 2026-07-18,
+  adr-0019; was: a comment carrying two `grove-verdict` blocks was itself
+  wholly inert — "one comment is one record").* *Given* a PR comment
+  containing prose claiming "conformance passed" plus a **malformed**
+  `grove-verdict` block that fails the §A.2 parse, *When* the check runs,
+  *Then* the malformed block does not count as a record and, absent any
+  covering admissible record, the owed pair stays **red** with reason
   `never-reviewed` (fail-closed by non-recognition). *And given* a
+  comment carrying a **malformed block alongside a well-formed
+  `grove-verdict` block**, *Then* the malformed block is inert **on its
+  own** while its well-formed sibling **still counts as a record** — a
+  malformed block never inerts its siblings (per-block isolation, never
+  per-comment poison; `adr-0019`). *And given* a comment carrying **two
+  well-formed `grove-verdict` blocks**, *Then* the check reads **each as
+  its own record**, admitted / selected / freshness-verified
+  independently on its own subject + fingerprint. *And given* a
   schema-valid PASS record whose `findings` body is empty, *Then* it
   satisfies nothing and the pair's reason is `vacuous-evidence`.
 - **S8 (green non-authorizing, AC6).** *Given* every owed pair satisfied
@@ -1709,3 +1814,114 @@ single INV3 (+ §Terms `fingerprint`) alignment that completes it — with
 the trust model, separation authority, AC10, and every other EARS/GWT
 clause untouched. Conformance is not self-declared here — the gates
 judge, and `approved` is the maintainer's to give.
+
+### Amendment self-check (2026-07-18, adr-0019 batched-records amendment)
+
+The checks above are the prior sittings' provenance and stand unedited;
+this dated subsection is the adr-0019 amendment's own check. The
+amendment lifts the **"one comment = one record" packaging cap**: a
+comment may now carry several `grove-verdict` blocks, each read as its
+own record. It is a **testable-clause change** — §A.1's carrier rule,
+INV9, and S7 are re-cast — and carries the `version` bump 3 → 4, durable
+decision `adr-0019`.
+
+**What changed (clause by clause).**
+
+- **§A.1 — opening record bullet.** The record is re-framed from "a
+  **structured comment on the PR** — one comment per reviewed path" to "a
+  **structured `grove-verdict` block on a PR comment** — one **record**
+  per reviewed path," with the note that a single comment **may carry
+  several such records** and that `adr-0012`'s "one act" binds **the
+  block's atomicity, never a one-record-per-comment cap**. The per-file
+  record granularity (§A.3) is unchanged — only the block/comment
+  relationship is corrected.
+- **§A.1 — carrier bullet.** The "a comment containing **more than one**
+  `grove-verdict` block is **wholly inert** — one comment is one record"
+  concretization is **reversed**: the check reads **each well-formed
+  block as its own record**, admitted / selected / freshness-verified
+  independently on its own `subject` + `fingerprint`; a block that fails
+  §A.2 recognition is **inert on its own** and **never inerts its
+  well-formed siblings** (per-block isolation, a **false-RED** avoided —
+  `adr-0019` Decision 2); each block stays **one whole record**
+  (`adr-0012`'s "one act" at the block, not the comment).
+- **§A.1 — selection rule.** Gains a deterministic **within-comment
+  block-index tiebreak** for when two records for the same `(f, R)` share
+  a comment: order is **comment-id-major, block-index-minor**
+  (`adr-0019` Decision 4).
+- **INV9.** "or a multi-block comment" is **removed** from its inert
+  clause — an unparseable **block** stays inert (including the
+  absent/unknown-`schema` case, which is **kept**), but a multi-block
+  comment is now several independently-read records; the selection clause
+  gains the **block-index tiebreak**. Carries an inline
+  `(amended 2026-07-18, adr-0019; was: …)` marker. Its full-pagination,
+  session-context-never-counts, and no-mutation/append-only clauses are
+  **byte-unchanged**.
+- **S7.** Re-cast so a multi-block comment is **no longer** the inert
+  case: the inert path is now tested via a **malformed block** (which
+  reds absent any covering record), a malformed-block-alongside-a-
+  well-formed-sibling case (malformed inert, sibling survives), and a
+  two-well-formed-blocks case (two records). The empty-`findings`
+  vacuity half is unchanged. Carries an inline amendment marker.
+- **§D — `never-reviewed` note.** "multi-block comment" is dropped from
+  its inert causes; a **malformed `grove-verdict` block** stays one.
+- **Frontmatter.** `adr-0019-batched-verdict-records` added to
+  `depends_on`; `version` **3 → 4**; `updated:` already `2026-07-18`. A
+  top-of-file five-field delta note (+ VALUE + CONFIDENCE + versioning
+  judgment) is prepended; prior notes unedited.
+
+**Why it is faithful to adr-0019.** The multi-block admissibility is
+`adr-0019` Decision 1 verbatim ("the check reads every well-formed
+`grove-verdict` block in a comment as its own record, admitted /
+selected / freshness-verified independently on its own `subject` +
+`fingerprint`"); the per-block isolation and the false-RED rationale are
+Decision 2; the block-index tiebreak (comment-id-major, block-index-
+minor) is Decision 4; the four moved-together clauses are the decision's
+Consequence 1 and round-2 sweep (§A.1, INV9, S7, §D) — moved together so
+no standing clause forbids what another permits (the round-1 finding,
+AC1). Each block staying "one whole record" is `adr-0012`'s "one act"
+preserved at the block level per the Relationship section.
+
+**What was deliberately NOT changed.**
+
+- **The §A.2 record schema** — the field table, `schema: 1`
+  inert-on-unknown, and the per-record single `fingerprint`/`subject`
+  model are untouched (a record is still one whole block).
+- **The §A.3 fingerprint basis** — the per-owed-pair-path basis (`[f]` /
+  `[f] ∪ U(f, C)`, one fingerprint per record) is untouched; per-file
+  surgical freshness (INV3) is exactly why the per-file record model
+  stays and only the comment packaging changed.
+- **The §C.0 / §C trust model** — the check still recomputes everything
+  and trusts no emitted value; `manifest_hashes` stays reason-naming
+  only. No trust-boundary row changed.
+- **§A.4 poster/edit admissibility** — **edit-rejection stays
+  whole-comment**: an edit to a batched comment rejects **all** its
+  records, which is correct and fail-closed (records are never
+  legitimately edited; a correction is always a **new** comment). Poster
+  admissibility is per-comment and applies uniformly to every block.
+- **INV9's other clauses** — full-pagination (truncated read reds),
+  session-context-never-counts, and no-mutation/append-only — byte-
+  unchanged.
+- **Every other EARS invariant and GWT scenario** is byte-unedited; only
+  the four clauses that declared a multi-block comment inert (§A.1, INV9,
+  S7, §D) moved.
+- **The emitter/skill batching** (`record-verdict` one-comment-per-review)
+  and the `lib/records.mjs` / `lib/match.mjs` code changes are `adr-0019`
+  Consequence 2–4 — downstream executor deliverables, not authored here.
+
+| Criterion | Result | Note |
+|---|---|---|
+| Derives only from the approved decision | PASS | Every delta cites `adr-0019` Decision 1–2/4, Consequence 1, or AC1/AC3; nothing added beyond the four mandated clauses. |
+| Append-only amendment discipline | PASS | New section-level delta note (five fields + VALUE + CONFIDENCE + versioning judgment) prepended; prior notes unedited; no INV/S renumbered. INV9 and S7 carry inline `(amended 2026-07-18, adr-0019; was: …)` markers per `adr-0004`'s scenario-level delta form; the §A.1 prose bullets and the §D note carry their provenance in the delta note and this self-check. |
+| Both grammars intact (`adr-0004`) | PASS | INV9 (EARS) and S7 (GWT) each re-cast in their own grammar; neither stands in for the other. Every other INV/S byte-unchanged. |
+| Cross-consistency (no standing multi-block-inert clause) | PASS | The decision's round-2 sweep found exactly four clauses (§A.1, INV9, S7, §D); all four amended together. A post-edit read finds no remaining "multi-block comment ⇒ inert" claim — the surviving "one act" mentions now bind the block, and the top-of-file notes' "one comment = one record" strings are dated provenance, not standing rules. |
+| Concretization beyond the decision | PASS | No new requirement invented — multi-block admissibility, per-block isolation, and the block-index tiebreak are `adr-0019`'s own Decisions; the `false-RED` framing is Decision 2's wording. |
+| Traceability | PASS | Decision 1 → §A.1 carrier + INV9 inert clause; Decision 2 → per-block isolation (§A.1, INV9, S7); Decision 4 → §A.1/INV9 tiebreak; Consequence 1 → the four-clause move; preservation (schema/basis/trust/§A.4) asserted and located. |
+| Versioning discipline (`versioning.md`) | PASS | **Version-significant** — §A.1's carrier rule, INV9, and S7 are re-cast (an admissibility/selection change); `version` **bumped 3 → 4**, durable decision `adr-0019`. Cascade: the ledger pin `plugins/grove/check/test-deps.md` `spec-0002@v3` → `@v4`, its note reconciled. Unlike the adr-0015 bump, this one **owes a code change** (`records.mjs` multi-block rejection removal + `match.mjs` tiebreak — `adr-0019` Consequence 2–3). |
+| Status honesty (`lifecycle.md`) | PASS-DISCLOSED | `status: approved` stands on the recorded 2026-07-16 human act; this amendment claims no fresh spec approval — it rides the maintainer's 2026-07-18 `adr-0019` approval, and the bundle goes to their merge gate. No agent flipped any state. |
+
+**Amendment self-check verdict: PASS.** A bounded four-clause lift of the
+packaging cap — §A.1, INV9, S7, and the §D `never-reviewed` note moved
+together — with the §A.2 schema, the §A.3 fingerprint basis, the §C.0
+trust model, §A.4 admissibility, and every other EARS/GWT clause
+untouched. Conformance is not self-declared here — the gates judge, and
+`approved` is the maintainer's to give.
