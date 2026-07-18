@@ -1,32 +1,24 @@
-# grove — review-bookkeeping check (spec-0002, Layer A).
+# grove — review-bookkeeping check (spec-0002, Layer A) — grove-self's own copy.
+#
+# STAGED, NOT ACTIVE: this file lives at `.github/grove-review-bookkeeping.yml`
+# (not `.github/workflows/`) so it triggers nothing. Activation is moving it to
+# `.github/workflows/grove-review-bookkeeping.yml` by DIRECT COMMIT to main
+# (adr-0017 Part 2): a PR that adds a workflow file runs it on that same PR —
+# and grove's review policy is already on main, so adr-0014's fresh-install
+# green-skip would NOT apply to grove-self; the adoption PR would gate itself.
+# A push fires no run (the triggers below are pull_request / issue_comment
+# only), so the direct commit self-gates nothing. The first PR AFTER the
+# activating commit is the first genuinely gated one.
+#
+# Adapted per adr-0017 from the consumer template
+# (plugins/grove/reference/ci/grove-review-bookkeeping.yml): the runtime path
+# is grove's native `plugins/grove/check` (not a `.grove/check` install), and
+# the Node version is pinned. Everything else matches the template.
 #
 # Renders a read-only status view of a PR's verdict-record comments and gates
 # the merge on completeness / freshness / coverage / separation /
 # approved-upstream / graph-resolution / record-integrity gaps.
-#
 # GREEN IS NOT APPROVAL — a human still judges genuineness and merges.
-#
-# This file is a TEMPLATE installed into a consumer repo by `/grove:setup`
-# (removed by `/grove:remove`). The setup skill resolves the two placeholders:
-#   <INSTALL_PATH>   — where the check runtime was copied (default `.grove/check`)
-#   <NODE_VERSION>   — this project's Node version (e.g. `20`)
-# Do NOT copy this template verbatim into grove's OWN `.github/workflows/` —
-# grove-self runs its own adapted copy (native `plugins/grove/check` runtime
-# path, pinned Node), adopted per adr-0017 and landed by direct commit to the
-# default branch; see decisions/adr-0017-dispatcher-posts-records-self-adoption.md.
-#
-# grove does not gate its own arrival (adr-0014 move 1b). No red on the install
-# PR — and this needs NO extra workflow STEP: the check itself self-detects a
-# fresh install. Its first act (bin/check.mjs) asks whether grove is installed
-# on the protected default branch at all yet — i.e. whether a grove-review-policy
-# block exists on origin/<default>. If ABSENT (this PR is introducing grove), the
-# check exits GREEN (non-gating) with "grove install detected — the check
-# activates on your next PR" and never runs the gating logic; once merged, every
-# subsequent PR runs it for real. The discriminator is read from origin/<default>
-# ONLY (HEAD-independent), and keys on POLICY-presence, not workflow-file
-# presence, so it never overrides adr-0013's carrier fail-close. And because this
-# workflow triggers on pull_request / issue_comment (never push), an install
-# landed as a direct commit fires no run at all.
 
 name: grove review-bookkeeping
 
@@ -111,7 +103,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "<NODE_VERSION>"
+          node-version: "22"
 
       - name: Run the grove review-bookkeeping check
         env:
@@ -128,4 +120,4 @@ jobs:
           GROVE_DEFAULT_BRANCH: ${{ steps.ctx.outputs.default }}
         # Exit code gates the merge: 0 = green (bookkeeping complete, NOT
         # approval), 1 = red (a gap — see the job summary), 2 = hard error.
-        run: node <INSTALL_PATH>/bin/check.mjs
+        run: node plugins/grove/check/bin/check.mjs

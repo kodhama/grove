@@ -168,6 +168,12 @@ the decision, don't patch around it*).
 
 - **Which harness component runs the emitter + posts** — a dedicated CI
   step vs. the dispatcher relaying (what has been done by hand all along).
+  <!-- RESOLVED by adr-0017 (2026-07-18; annotation only, no content
+  edit): the dispatcher's relay, packaged as the `record-verdict` skill —
+  the skill encapsulates self-detect + emit + post, the dispatcher
+  invokes it at the review seam, and the §A.4 poster bound below is
+  honored (the session's OWNER/MEMBER identity, no allowlist entry). See
+  decisions/adr-0017-dispatcher-posts-records-self-adoption.md. -->
   The reviewer decoupling holds either way; parked as an orchestration
   detail, not blocking the boundary. **But it is bounded, not
   unconstrained** (adversary N2): `spec-0002` §A.4 gates admissibility on

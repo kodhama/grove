@@ -3,9 +3,9 @@ id: policy-review-bookkeeping
 type: policy
 status: gated
 implements: spec-0002-review-bookkeeping-check  # the realized contract: this file is the Q7 non-charter policy carrier that spec defines
-depends_on: [spec-0002-review-bookkeeping-check, adr-0012-methodology-delivery-machinery]
+depends_on: [spec-0002-review-bookkeeping-check, adr-0012-methodology-delivery-machinery, adr-0013-check-scope-mode, adr-0017-dispatcher-posts-records-self-adoption]
 owner: agent
-updated: 2026-07-17
+updated: 2026-07-18
 ---
 
 # review-policy — the non-charter policy inputs for the bookkeeping check
@@ -46,6 +46,13 @@ schema: 1
 # explicitly per adr-0013 Decision 4 ("every install declares its mode;
 # the silence default exists only as the fail-closed backstop").
 scope: strict
+
+# adr-0013 carrier keys (F3 fail-close), set per adr-0017: grove-self's
+# check machinery lives at its NATIVE paths — the runtime in the plugin,
+# the workflow in .github/workflows/ — not the consumer .grove/ install
+# defaults. Declared so the carrier fail-close watches the real paths.
+check_runtime_dir: plugins/grove/check/
+check_workflow_path: .github/workflows/grove-review-bookkeeping.yml
 
 # §A.3 step 1 — the directories globbed to build the artifact index
 # (frontmatter `id` → path).

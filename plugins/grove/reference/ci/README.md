@@ -10,7 +10,9 @@ only; zero runtime dependencies; read-only permissions.
 
 A CI job that runs on every PR and renders a read-only status view of
 the PR's **verdict records** — the structured review-verdict comments
-grove's reviewer agents post on the PR. It does no reviewing itself and
+posted on the PR by the dispatcher's `record-verdict` skill (the
+reviewer supplies only its judgment; a machine emitter stamps the
+record — `adr-0015`/`adr-0017`). The check does no reviewing itself and
 posts nothing. It checks the *bookkeeping* of review: that every review
 a changed file owes has a recorded verdict that is covering, fresh
 (content unchanged since the review), passing, separated (reviewer ≠

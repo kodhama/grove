@@ -2,9 +2,9 @@
 id: charter-dispatcher
 type: charter
 status: gated
-depends_on: [adr-0012-methodology-delivery-machinery]
+depends_on: [adr-0012-methodology-delivery-machinery, adr-0017-dispatcher-posts-records-self-adoption]
 owner: agent
-updated: 2026-07-16
+updated: 2026-07-18
 ---
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
@@ -65,12 +65,14 @@ the dispatcher sequences by:
   type (`research`, `feedback`) owes nothing; an unclaimed type owes the
   full set, fail-closed.
 - **A review counts only as a posted verdict record** on the change
-  request (`spec-0002` §A) — verdict, subject manifest, fingerprint,
-  producer/reviewer, findings, in one act. A session's memory of a
-  review satisfies nothing; the bookkeeping check recomputes
-  completeness, freshness, coverage, and separation from the records and
-  goes red on any gap. Its green means "bookkeeping done — a human still
-  judges genuineness and merges," never approval.
+  request (`spec-0002` §A). When a reviewer's judgment lands, hand it to
+  the **`record-verdict` skill** — the skill is the mechanism's home and
+  turns the judgment into the posted record (`adr-0017`); you invoke it
+  and know nothing else about how records are made or delivered. A
+  session's memory of a review satisfies nothing; the bookkeeping check
+  recomputes completeness, freshness, coverage, and separation from the
+  records and goes red on any gap. Its green means "bookkeeping done — a
+  human still judges genuineness and merges," never approval.
 - **Failed reviews route by what they indict:** a `FAIL`/`BLOCK`/
   `NEEDS-REVISION` routes to the subject's own producing layer; a
   conformance `UPSTREAM-INDICTED` routes to the *upstream's* layer — a
