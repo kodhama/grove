@@ -26,8 +26,9 @@ updated: 2026-07-18
 > **The crux (Q1) is Decided — D1: dispatcher-central**, refined so the
 > gate fires **post-convergence** (the independent check always runs; the
 > profile only decides whether a human ratification is *additionally*
-> required). The remaining Open items are the *how* (read granularity,
-> gate→stage mapping, guardian-fallback timing, D11 channels, and
+> required), and refined by **D2** (the dispatcher re-resolves the profile
+> per-handover, snapshotted at run start). The remaining Open items are the
+> *how* (gate→stage mapping, guardian-fallback surfacing, D11 channels, and
 > backprop-cascade gate ordering). Every other entry is either an inherited
 > **Given** (from `adr-0018`, cited, not reopened) or an **Open** question.
 
@@ -103,14 +104,24 @@ updated: 2026-07-18
     mirrors grove's standing "a review the dispatcher *remembers* ran does
     not count — only a posted verdict record does" boundary, so a
     charter-following v0 dispatcher cannot skip a human gate from recall.
+- **D2 — per-handover resolution, snapshotted at run start** *(maintainer,
+  2026-07-18)*. Resolves the Q2 read-granularity fork.
+  - **The dispatcher re-runs `resolve-profile` at every gate/handover**,
+    **not** once per run. Rationale: (a) it is **entailed by D1/Q4's
+    record-not-memory + re-invoke discipline** — a once-per-run cached
+    reading would resurrect exactly the cached-state the determinism rule
+    rejects; (b) it lets the **D8 `guardian` fallback fire at the next
+    gate** if the profile goes missing/unreadable/floor-violating mid-run
+    (the floor is checked at each gate, never cached); (c) it **re-resolves
+    cleanly for the W4 cascade (Q9)** after each upstream gate clears.
+  - **The resolved profile is snapshotted (logged) at run start** so any
+    mid-run shift of `.grove/gates.toml` between two gates is **visible and
+    auditable** (`floor-transparency`), never silent — the one real
+    downside of per-handover (the profile *can* change mid-run) becomes a
+    **surfaced event**, not an invisible one.
+  - *(Rejected: once-per-run — see `## Rejected options`.)*
 
 ### Open
-- **Q2 — read granularity.** Resolve the profile **once per run at the
-  start**, or **re-resolve at each gate/handover**? Trade-off: a mid-run
-  hand-edit of `gates.toml` (or a mid-run breakage triggering the D8
-  guardian fallback) is only honored if re-resolved per gate; once-per-run
-  is cheaper and gives a run a stable profile it cannot have shift under
-  it.
 - **Q3 — gate→stage mapping.** grove's four gates
   (`intent`/`spec`/`build`/`ship`) map to which concrete dispatch decision
   points? The working reading: **intent** = the shaping-decision
@@ -234,6 +245,13 @@ across N readers. Options B and C are retired in `## Rejected options`.
   gating into every stage and adds a hand-off contract (what exactly the
   dispatcher passes, how a stage proves it acted on it) that A avoids by
   keeping both the read **and** the pause/proceed act in one place.
+- **Once-per-run profile resolution (resolve at run start, reuse for the
+  whole run).** Cheaper (one `resolve-profile` call) and gives the run a
+  stable profile. **Rejected (D2, maintainer 2026-07-18):** stable but
+  **stale** — a mid-run breakage or floor-violation (or a hand-edit)
+  wouldn't be seen until the *next* run, and reusing a cached reading
+  contradicts D1/Q4's record-not-memory + re-invoke determinism rule.
+  Superseded by per-handover resolution (D2).
 
 ## Consequences / propagation (draft — POST-approval executor work, NOT part of this canvas)
 
