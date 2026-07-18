@@ -21,12 +21,17 @@ spec-drift audits — never calendar sweeps.
 2. **Triggered audit.** On a qualifying trigger (an upstream repair
    lands, a spec-gap bug closes, an upstream version bump lands
    (`adr-0006`), or an overlay/dependency refresh happens), walk the
-   `depends_on` graph from the changed artifact outward, scoped to
-   genuine dependents (not the whole archive). `informed_by` is
-   **non-drift** (edge taxonomy: `relations.md`, `adr-0011`) — the graph
-   walked is `depends_on` **only**; a version bump upstream never
-   obligates re-checking a provenance citation reached via
-   `informed_by`. For each dependent: does
+   **drift-bearing** graph — `depends_on` **and `implements:`** (edge
+   taxonomy: `relations.md`, `adr-0011`/`adr-0016`) — from the changed
+   artifact outward, scoped to genuine dependents (not the whole
+   archive). `implements:` is the **fidelity upstream** (a spec's
+   decision, a charter's ADR, code's ledger spec); a change to it most
+   obligates a re-check, so an artifact reached by `implements:` **alone**
+   is inside the blast radius (`adr-0016`, closing grove#68).
+   `informed_by`, `superseded_by`, and `changes:` are **non-drift** and
+   never walked here — a version bump upstream never obligates
+   re-checking a provenance citation reached via `informed_by`. For
+   each dependent: does
    it still hold given the change, or has it silently drifted? When the
    trigger is an **upstream version bump**, the drift to check is a *pin
    lag* — flag every consumer whose recorded pin (`repo/id@vN`) now

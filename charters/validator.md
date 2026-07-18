@@ -2,9 +2,9 @@
 id: charter-validator
 type: charter
 status: gated
-depends_on: [adr-0006-operational-conformance-mechanism, charter-versioning, charter-relations]
+depends_on: [adr-0006-operational-conformance-mechanism, charter-versioning, charter-relations, adr-0016-implements-edge-taxonomy]
 owner: agent
-updated: 2026-07-13
+updated: 2026-07-18
 ---
 
 # validator — stage 5: per-PR critique + triggered drift audits
@@ -31,12 +31,17 @@ rather than gating every merge.
    it read as sound, is there anything an independent eye would flag for
    a human to glance at? This is advisory, not a gate (mostly
    automatic).
-2. **Triggered audit.** On a qualifying trigger, walk the `depends_on`
-   graph from the changed artifact outward, scoped to genuine dependents
-   (not the whole archive). `informed_by` is **non-drift** (edge
-   taxonomy: `relations.md`, `adr-0011`) — the graph walked is
-   `depends_on` **only**; a version bump upstream never obligates
-   re-checking a provenance citation reached via `informed_by`. For each
+2. **Triggered audit.** On a qualifying trigger, walk the
+   **drift-bearing** graph — `depends_on` **and `implements:`** (edge
+   taxonomy: `relations.md`, `adr-0011`/`adr-0016`) — from the changed
+   artifact outward, scoped to genuine dependents (not the whole
+   archive). `implements:` is the **fidelity upstream** (a spec's
+   decision, a charter's ADR, code's ledger spec); a change to it most
+   obligates a re-check, so an artifact reached by `implements:` **alone**
+   is inside the blast radius (`adr-0016`, closing grove#68).
+   `informed_by`, `superseded_by`, and `changes:` are **non-drift** and
+   never walked here — a version bump upstream never obligates re-checking
+   a provenance citation reached via `informed_by`. For each
    dependent: does it still hold given the change, or has it silently
    drifted? When the trigger is an **upstream version bump**, the drift
    to check is a *pin lag* — flag every consumer whose recorded pin
