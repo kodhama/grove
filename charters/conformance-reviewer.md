@@ -3,9 +3,9 @@ id: charter-conformance-reviewer
 type: charter
 status: gated
 implements: adr-0012-methodology-delivery-machinery  # the realized contract for the every-layer fidelity remit (adr-0012); machine-readable fidelity selector
-depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0012-methodology-delivery-machinery, charter-versioning, charter-relations]
+depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0012-methodology-delivery-machinery, adr-0015-reviewer-machine-boundary, charter-versioning, charter-relations]
 owner: agent
-updated: 2026-07-16
+updated: 2026-07-18
 ---
 
 # conformance-reviewer — the fidelity instrument, at every layer
@@ -117,12 +117,28 @@ verdict:
   layer — a decision-layer indictment always to the human — never back
   to the innocent producer.
 
-Post the verdict as a **verdict record** per `spec-0002` §A: one
-structured record on the change request, in one act — verdict token,
-subject manifest, fingerprint, producer/reviewer attribution, and the
-findings inline. The record is the commit point: a review that lives
-only in your session's context counts for nothing. Records are
-append-only — a correction or re-review is a NEW record, never an edit.
+State your judgment as a fenced `grove-review-judgment` block — the
+verdict token, the **subject** (the artifacts you reviewed), the
+**producer** (the agent that built the subject) and **reviewer** (you)
+attribution (the separation authority, `adr-0012` AC7), and your
+findings inline. That block is the whole of your output; a judgment left
+only in your session's context counts for nothing. You know nothing of
+how it is recorded, fingerprinted, or delivered — a machine turns your
+judgment into the stamped record and the harness delivers it
+(`adr-0015`). A re-review emits a fresh judgment, never an edit of an
+earlier one.
+
+```grove-review-judgment
+schema: 1
+review: conformance
+verdict: PASS
+subject:
+  - <artifact you reviewed>
+producer: <agent that built the subject>
+reviewer: conformance-reviewer
+findings: |
+  <your findings — one evidence line each>
+```
 
 Honesty clause: **listing failures accurately is success; silently
 passing a failing change is the only true failure.** If you are

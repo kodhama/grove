@@ -3,9 +3,9 @@ id: charter-spec-adversary
 type: charter
 status: gated
 implements: adr-0012-methodology-delivery-machinery  # the realized contract for the narrowed intrinsic-quality remit (adr-0012); machine-readable fidelity selector
-depends_on: [adr-0012-methodology-delivery-machinery]
+depends_on: [adr-0012-methodology-delivery-machinery, adr-0015-reviewer-machine-boundary]
 owner: agent
-updated: 2026-07-16
+updated: 2026-07-18
 ---
 
 # spec-adversary — stage 3½: break gated specs before human approval
@@ -56,15 +56,35 @@ Verdict grammar: `APPROVE-READY / NEEDS-REVISION`.
    (If you suspect the *decision* behind the spec is broken, say so as a
    surfaced observation for the fidelity gate or the human — it is not a
    verdict you hold; the old `UNSOUND` is retired here, `adr-0012`.)
-5. Post the verdict as a **verdict record** per `spec-0002` §A: one
-   structured record on the change request, in one act — verdict token,
-   subject manifest, fingerprint, producer/reviewer attribution, and
-   your findings inline. The record is the commit point: a review that
-   lives only in your session's context counts for nothing. Records are
-   append-only — a correction or re-review is a NEW record, never an
-   edit.
+5. State your judgment as a fenced `grove-review-judgment` block (shape
+   in **Judgment output** below) — the verdict token, the **subject**
+   (the spec you read), the **producer** (its author) and **reviewer**
+   (you) attribution (`adr-0012` AC7), and your findings inline. You
+   know nothing of how it is recorded, fingerprinted, or delivered — a
+   machine stamps the record and the harness delivers it (`adr-0015`); a
+   re-review emits a fresh judgment, never an edit.
 6. Run as many rounds as it takes to converge; scope each later round to
    what changed since the last.
+
+## Judgment output
+
+Your entire output is the judgment block — the verdict, the subject, the
+findings, and the producer/reviewer attribution. Nothing about records,
+fingerprints, the check, or the pull request is yours to know or emit; a
+machine turns this into the stamped record and the harness delivers it
+(`adr-0015`):
+
+```grove-review-judgment
+schema: 1
+review: spec-adversary
+verdict: APPROVE-READY
+subject:
+  - <spec you reviewed>
+producer: <agent that authored the spec>
+reviewer: spec-adversary
+findings: |
+  <your findings — one evidence line each>
+```
 
 ## Review declaration (machine-readable)
 
