@@ -12,10 +12,9 @@
 
 import { parseRecord, checkAdmissibility } from './records.mjs';
 import { groveFp1, pathHashAt } from './fingerprint.mjs';
-import { resolveUpstream } from './upstream.mjs';
+import { reviewBasis } from './basis.mjs';
 import { artifactMeta } from './frontmatter.mjs';
 
-const FIDELITY = new Set(['conformance']);
 const DECISION_LAYER_TYPES = new Set(['adr', 'decision']);
 
 // §D reason enum order: all applicable reasons are emitted in this order.
@@ -156,7 +155,11 @@ function upstreamIndictedReason({ file, U, tree, review }) {
 
 // evaluatePair({ file, review, prepared, tree, index, policy }) -> row
 export function evaluatePair({ file, review, prepared, tree, index, policy }) {
-  const isFidelity = FIDELITY.has(review);
+  // The review-class basis (subject alone / subject + U) is selected by the
+  // SHARED reviewBasis — the same function the emitter stamps with (adr-0015
+  // Decision 2), so freshness verify and record stamp agree by construction.
+  const { isFidelity, U, errors: upstreamErrors, basis, basisComputable } =
+    reviewBasis({ file, review, tree, index });
 
   const matchesPair = (e) => e.record.review === review && e.record.subjectNormalized.includes(file);
   const covering = prepared.records.filter(matchesPair);
@@ -177,15 +180,6 @@ export function evaluatePair({ file, review, prepared, tree, index, policy }) {
     rejectedCovering: coveringRejected.map((e) => ({ cause: e.cause, verdict: e.record.verdict, order: e.order })),
     reasons,
   };
-
-  // Fidelity: derive the upstream set U ourselves (never read from the record).
-  let U = new Set();
-  let upstreamErrors = [];
-  if (isFidelity) {
-    const ru = resolveUpstream([file], tree, index);
-    U = ru.U;
-    upstreamErrors = ru.errors;
-  }
 
   if (!latest) {
     if (coveringRejected.length) {
@@ -210,9 +204,7 @@ export function evaluatePair({ file, review, prepared, tree, index, policy }) {
 
   // Freshness (§A.3): recompute grove-fp-1 over the review-class basis at HEAD.
   let fresh = false;
-  const basisComputable = !(isFidelity && upstreamErrors.length);
   if (basisComputable) {
-    const basis = isFidelity ? [file, ...U] : [file];
     fresh = groveFp1(basis, tree) === r.fingerprint;
   }
   row.fresh = fresh;
