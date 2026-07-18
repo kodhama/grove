@@ -388,8 +388,8 @@ test('policy auto-discovery: a git ls-tree FAILURE (protected ref not fetched) s
 
 test('readProtectedCarrierPaths lists blobs under each carrier path at the protected branch (runtime dir + workflow file)', async () => {
   const files = {
-    '.grove/check/lib/check.mjs': 'core',
-    '.grove/check/bin/check.mjs': 'cli',
+    '.grove/internal/check/lib/check.mjs': 'core',
+    '.grove/internal/check/bin/check.mjs': 'cli',
     '.github/workflows/grove-review-bookkeeping.yml': 'wf',
     'src/app/main.py': 'app', // NOT a carrier — never listed
   };
@@ -397,10 +397,10 @@ test('readProtectedCarrierPaths lists blobs under each carrier path at the prote
   const paths = await readProtectedCarrierPaths({
     gitRunner,
     defaultBranch: 'main',
-    carrierPaths: ['.grove/check/', '.github/workflows/grove-review-bookkeeping.yml'],
+    carrierPaths: ['.grove/internal/check/', '.github/workflows/grove-review-bookkeeping.yml'],
   });
-  assert.ok(paths.includes('.grove/check/lib/check.mjs'));
-  assert.ok(paths.includes('.grove/check/bin/check.mjs'));
+  assert.ok(paths.includes('.grove/internal/check/lib/check.mjs'));
+  assert.ok(paths.includes('.grove/internal/check/bin/check.mjs'));
   assert.ok(paths.includes('.github/workflows/grove-review-bookkeeping.yml'));
   assert.ok(!paths.includes('src/app/main.py'));
   // every read targeted the protected ref (treeRunner asserts it internally)
@@ -415,7 +415,7 @@ test('readProtectedCarrierPaths returns an empty listing when a carrier path exi
   const paths = await readProtectedCarrierPaths({
     gitRunner,
     defaultBranch: 'main',
-    carrierPaths: ['.grove/check/', '.github/workflows/grove-review-bookkeeping.yml'],
+    carrierPaths: ['.grove/internal/check/', '.github/workflows/grove-review-bookkeeping.yml'],
   });
   assert.deepEqual(paths, []);
 });
@@ -546,9 +546,9 @@ test('readProtectedCarrierPaths resolves carriers committed on the protected bra
   git('init', '-q', '-b', 'main');
   git('config', 'user.email', 't@t');
   git('config', 'user.name', 'tester');
-  mkdirSync(join(dir, '.grove/check/lib'), { recursive: true });
+  mkdirSync(join(dir, '.grove/internal/check/lib'), { recursive: true });
   mkdirSync(join(dir, '.github/workflows'), { recursive: true });
-  writeFileSync(join(dir, '.grove/check/lib/check.mjs'), 'core');
+  writeFileSync(join(dir, '.grove/internal/check/lib/check.mjs'), 'core');
   writeFileSync(join(dir, '.github/workflows/grove-review-bookkeeping.yml'), 'wf');
   git('add', '-A');
   git('commit', '-q', '-m', 'install machinery');
@@ -559,8 +559,8 @@ test('readProtectedCarrierPaths resolves carriers committed on the protected bra
   const paths = await readProtectedCarrierPaths({
     gitRunner,
     defaultBranch: 'main',
-    carrierPaths: ['.grove/check/', '.github/workflows/grove-review-bookkeeping.yml'],
+    carrierPaths: ['.grove/internal/check/', '.github/workflows/grove-review-bookkeeping.yml'],
   });
-  assert.ok(paths.includes('.grove/check/lib/check.mjs'));
+  assert.ok(paths.includes('.grove/internal/check/lib/check.mjs'));
   assert.ok(paths.includes('.github/workflows/grove-review-bookkeeping.yml'));
 });

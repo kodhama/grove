@@ -88,7 +88,7 @@ records the ratification verbatim).
 
 Install lands three pieces plus one recorded choice:
 
-1. the check runtime at `.grove/check/` (zero-dependency — no
+1. the check runtime at `.grove/internal/check/` (zero-dependency — no
    `npm install`);
 2. the workflow at `.github/workflows/grove-review-bookkeeping.yml`;
 3. the policy carrier at `.grove/review-policy.md` — where the one

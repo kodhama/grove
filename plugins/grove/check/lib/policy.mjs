@@ -17,8 +17,12 @@ const DEFAULT_ARTIFACT_DIRS = ['decisions', 'specs', 'charters'];
 const DEFAULT_PROSE_EXTENSIONS = ['.md', '.txt', '.rst'];
 
 // adr-0013 dec 1 install defaults for the carrier-of-record keys (§C.1):
-// an absent key falls to these, NEVER to silent exclusion.
-const DEFAULT_CHECK_RUNTIME_DIR = '.grove/check/';
+// an absent key falls to these, NEVER to silent exclusion. The runtime dir
+// default tracks the consumer install path, which adr-0018 D5 relocates from
+// `.grove/check/` to `.grove/internal/check/` (grove-authoritative internal
+// namespace). grove-self sets `check_runtime_dir` explicitly, so this backstop
+// only governs a consumer whose policy omits the key.
+const DEFAULT_CHECK_RUNTIME_DIR = '.grove/internal/check/';
 const DEFAULT_CHECK_WORKFLOW_PATH = '.github/workflows/grove-review-bookkeeping.yml';
 
 function toList(v) {

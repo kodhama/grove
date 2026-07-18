@@ -46,7 +46,7 @@ Read the review policy **from the protected default branch** (the
 
 Resolve the check runtime directory: the policy block's
 `check_runtime_dir` key if present; else the first of
-`plugins/grove/check/` (grove-self) or `.grove/check/` (consumer) that
+`plugins/grove/check/` (grove-self) or `.grove/internal/check/` (consumer) that
 exists.
 
 In the PR checkout, with HEAD at the reviewed commit, pipe each judgment

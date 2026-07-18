@@ -100,7 +100,7 @@ scope: <SCOPE>
 # jurisdiction in both modes, so an edit to the check's own machinery
 # is never silent. The slots are resolved to the real install paths by
 # /grove:setup or /grove:check-install. If a key is absent it falls to
-# the install default (`.grove/check/`;
+# the install default (`.grove/internal/check/`;
 # `.github/workflows/grove-review-bookkeeping.yml`) — never to silent
 # exclusion — and in scoped mode a carrier path that does not exist on
 # the protected branch is a red (`carrier-unresolved`), so a relocated

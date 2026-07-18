@@ -4,10 +4,22 @@ type: adr
 status: approved  # maintainer's intent act 2026-07-13 ("#58 approved. Passes the gate.") — in-PR flip recording the act (adr-0007 / lifecycle-companion precedent); two adversary rounds preceded the gate; executed to the same PR
 depends_on: [adr-0006-operational-conformance-mechanism, adr-0008-lifecycle-enum-companion, adr-0010-versioning-is-operational, trellis/decision-0047]
 owner: agent
-updated: 2026-07-13
+updated: 2026-07-18  # append-only amendment (adr-0018 D5): install target -> .grove/internal/relations.md
 ---
 
 # ADR-0011: the relations companion — the artifact edge taxonomy, and the `informed_by` provenance relation
+
+> **Amendment (2026-07-18, append-only — superseded in part by
+> `adr-0018` D5, the install-path split):** the relations companion's
+> consumer install target moves from `.grove/relations.md` to
+> **`.grove/internal/relations.md`**. `adr-0018` D5 splits the consumer
+> `.grove/` namespace by **authority** — the grove-authoritative
+> companions live under `.grove/internal/` (regenerated verbatim on
+> update); the consumer-authoritative config (`gates.toml`,
+> `review.toml`) keeps the `.grove/` root. Wherever this decision's
+> ratified text below reads `.grove/relations.md`, read
+> `.grove/internal/relations.md`. The ratified text is unedited per the
+> append-only rule; `adr-0018` is the authoritative record.
 
 ## Context
 

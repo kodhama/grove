@@ -15,7 +15,7 @@ updated: 2026-07-12
 > repo restates it: a dedicated companion artifact, shipped in the
 > payload. Canonical here, vendored to
 > `plugins/grove/reference/lifecycle.md`, installed by `/grove:setup`
-> to each consuming project's `.grove/lifecycle.md` (grove's own inert
+> to each consuming project's `.grove/internal/lifecycle.md` (grove's own inert
 > namespace — not Claude Code's `.claude/agents/` loader directory;
 > `adr-0008` as amended 2026-07-12).
 

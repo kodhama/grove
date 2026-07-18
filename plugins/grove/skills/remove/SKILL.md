@@ -16,7 +16,7 @@ List the agent files present in `.claude/agents/` (the thirteen possible roles:
 `propagation-remediator`, `corpus-reviewer`, plus their `README.md`), and check whether
 `.claude/skills/grove-status/` exists. Also check whether the **GitHub bookkeeping check** was
 installed — whether via setup step 7 or the standalone `/grove:check-install`, both write the same
-pieces: the `.grove/check/` runtime directory, the workflow file
+pieces: the `.grove/internal/check/` runtime directory, the workflow file
 `.github/workflows/grove-review-bookkeeping.yml`, and `.grove/review-policy.md`.
 
 Also look for the **tooling-ignore entry** setup (or `/grove:check-install`) may have added: a
@@ -61,7 +61,7 @@ If the check was installed (setup step 7 or `/grove:check-install` — same piec
 reverse exactly those three pieces (augment-never-clobber in reverse — remove only what the
 install wrote, and **ask before deleting anything unexpected**):
 
-- **`.grove/check/`** — the vendored check runtime. Safe to delete if it matches the vendored copy;
+- **`.grove/internal/check/`** — the vendored check runtime. Safe to delete if it matches the vendored copy;
   if the user has hand-edited it, ask before removing. (Zero deps were installed, so there is no
   `node_modules` to clean up.)
 - **`.github/workflows/grove-review-bookkeeping.yml`** — the workflow file. Remove **only** this
@@ -75,7 +75,7 @@ install wrote, and **ask before deleting anything unexpected**):
   rather than discarding their tuning; an untouched install-written copy is safe to remove on
   confirmation.
 
-Leave the rest of `.grove/` (the `lifecycle.md` / `versioning.md` / `relations.md` companions,
+Leave the rest of `.grove/` (the `internal/lifecycle.md` / `internal/versioning.md` / `internal/relations.md` companions,
 handled with the agents above) exactly as it was. If the check was never installed, skip this step.
 
 ## 6. Strip the `.grove/` tooling-ignore entry, if setup added one
@@ -96,6 +96,6 @@ file. Discipline, per ignore file:
 ## 7. Confirm
 
 Tell the user exactly what you removed (which agent files, the `grove-status` skill if present, the
-GitHub bookkeeping check pieces — `.grove/check/`, the workflow, `.grove/review-policy.md` — if they
+GitHub bookkeeping check pieces — `.grove/internal/check/`, the workflow, `.grove/review-policy.md` — if they
 were installed, any `.grove/` tooling-ignore line stripped and from which file, and the `CLAUDE.md`
 block). If nothing was present, say so plainly — **do not invent changes**.
