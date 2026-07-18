@@ -62,13 +62,47 @@ inside setup:
   existing install (repair, update) is a normal use of this skill, and
   nothing is ever clobbered silently.
 
-## 4. Confirm
+## 4. Offer the tooling-ignore for `.grove/`
+
+This install writes the runtime into `.grove/check/`, so grove's
+vendored namespace is now (or already was) present. Run setup's
+**step 8** (make grove invisible to the consumer's tooling) by
+reference: **detect** the project's linters/formatters by config
+presence — ESLint, Prettier, Biome, markdownlint — and **offer** (never
+impose) to add the whole `.grove/` namespace to each found tool's
+ignore, augment-never-clobber, consent required, an undetected tool
+reported "none found." As setup states there, this is the one place the
+install writes outside grove's own footprint — a consented,
+augment-never-clobber exception — so name exactly which ignore file and
+line were touched in the confirm below.
+
+## 5. Confirm and hand back
 
 Confirm exactly what was written — the `.grove/check/` runtime, the
-workflow file, and `.grove/review-policy.md` including the recorded
-`scope` mode and the two carrier-path keys (and which existing files,
-if any, were skipped rather than overwritten). Name the exits too, so
-the user isn't left hunting: removal is **`/grove:remove`** (its
-check-removal step reverses exactly these pieces and only them), and
-the full grove composition — the agent roles this check reads its
-owed-map from — is **`/grove:setup`**.
+workflow file, `.grove/review-policy.md` including the recorded `scope`
+mode and the two carrier-path keys, and **which tooling-ignore files and
+lines step 4 touched** (or that none were, or that the offer was
+declined) — and which existing files, if any, were skipped rather than
+overwritten. Name the exits too, so the user isn't left hunting: removal
+is **`/grove:remove`** (its check-removal step reverses exactly these
+pieces and only them, including the `.grove/` ignore line), and the full
+grove composition — the agent roles this check reads its owed-map from —
+is **`/grove:setup`**.
+
+Say plainly, so the user needn't ask: **installing grove does not gate
+the install itself** — the check self-detects a fresh install and only
+begins gating on the consumer's *next* PR, so there is no "red on
+arrival" on the change that adds the check. (A fact about the check's
+behavior, not a landing recommendation.)
+
+**Then hand back git-neutral, exactly as setup does (step 12).** This
+skill performs **no git** — no `add`, no `commit`, no branch, no push,
+no PR — and **recommends no landing approach** (not a direct commit, not
+a PR, not committing anywhere); it never commits onto the current branch
+(least of all `main`/`master`). Surface the uncommitted state plainly
+(run `git status --short`, list the changed/added paths) and defer
+landing to the project's own conventions — because this skill runs
+inline in the consumer's session, a landing opinion here would bias how
+they handle git for their own unrelated work. On an autonomous run with
+no human to answer, leave the change in the working tree, report what is
+uncommitted, and stop — never land unasked.

@@ -19,6 +19,12 @@ installed — whether via setup step 7 or the standalone `/grove:check-install`,
 pieces: the `.grove/check/` runtime directory, the workflow file
 `.github/workflows/grove-review-bookkeeping.yml`, and `.grove/review-policy.md`.
 
+Also look for the **tooling-ignore entry** setup (or `/grove:check-install`) may have added: a
+`.grove/` line (or a `.grove/**` glob) in any of the consumer's ignore files — `.eslintignore`,
+`.prettierignore`, `.markdownlintignore`, the `ignores` field of `eslint.config.*`, or the
+`files.ignore` array in `biome.json`. Setup writes this only with consent, so it may not be present;
+find it if it is (step 6 reverses it).
+
 ## 2. Ask before deleting
 
 Show the user the exact list of files you found and ask for confirmation before deleting any of
@@ -72,9 +78,24 @@ install wrote, and **ask before deleting anything unexpected**):
 Leave the rest of `.grove/` (the `lifecycle.md` / `versioning.md` / `relations.md` companions,
 handled with the agents above) exactly as it was. If the check was never installed, skip this step.
 
-## 6. Confirm
+## 6. Strip the `.grove/` tooling-ignore entry, if setup added one
+
+The symmetric inverse of setup's step 8 (**augment-never-clobber in reverse**): if setup added a
+`.grove/` (or `.grove/**`) line to any linter/formatter ignore — the entries found in step 1 —
+offer to remove it, and on a **yes** remove **only that one line**, touching **nothing else** in the
+file. Discipline, per ignore file:
+
+- Remove **only** the `.grove/` entry setup wrote; every other ignore line the user maintains stays
+  exactly as it was.
+- If setup **created** a dedicated ignore file solely to hold that line (e.g. a `.prettierignore`
+  or `.markdownlintignore` that now contains only `.grove/`), removing the now-empty file is fine on
+  confirmation; if the file holds other entries, leave the file and strip only the one line.
+- If a `.grove/` line's origin is unclear (the user may have added it themselves), **ask rather than
+  delete** — same discipline as step 2. If no such entry exists, skip this step.
+
+## 7. Confirm
 
 Tell the user exactly what you removed (which agent files, the `grove-status` skill if present, the
 GitHub bookkeeping check pieces — `.grove/check/`, the workflow, `.grove/review-policy.md` — if they
-were installed, and the `CLAUDE.md` block). If nothing was present, say so plainly — **do not invent
-changes**.
+were installed, any `.grove/` tooling-ignore line stripped and from which file, and the `CLAUDE.md`
+block). If nothing was present, say so plainly — **do not invent changes**.

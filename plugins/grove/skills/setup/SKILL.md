@@ -236,7 +236,48 @@ Confirm exactly what was written (the `.grove/check/` runtime, the workflow file
 `.grove/review-policy.md` — including the recorded `scope` mode and the two carrier-path keys),
 and note that `/grove:remove` reverses all of it.
 
-## 8. Telemetry (optional — grove never requires it)
+## 8. Offer to make grove invisible to the consumer's tooling (whole `.grove/`)
+
+`.grove/` is grove's vendored namespace — the companions, the policy carrier, and (if the check was
+installed in step 7) the runtime. It is a **dependency, not the consumer's own source**, so the
+consumer's linters and formatters have no business reading it. A *formatter* is the acute danger,
+not just lint noise: `.grove/`'s companions and the policy carrier are **markdown**, and any
+integrity the vendored runtime later relies on (a manifest/checksum over `.grove/check/**`) is
+**corrupted**, not merely flagged, when a formatter rewrites those files. So **offer** — never
+impose — to add the whole `.grove/` namespace to each detected tool's ignore.
+
+**Detect** which of these the project uses, by config presence. Report each honestly: a tool whose
+config is genuinely absent is **"none found,"** never a false claim of having ignored it.
+
+| Tool | Detect by | Where `.grove/` goes |
+|---|---|---|
+| ESLint | `.eslintrc*`, `eslint.config.*`, or an `eslintConfig` key in `package.json` | `.eslintignore` if it exists; else the `ignores` field of `eslint.config.*`; else create `.eslintignore` |
+| Prettier | `.prettierrc*` or `.prettierignore` | `.prettierignore` (create it if only a `.prettierrc*` exists) |
+| Biome | `biome.json` | the `files.ignore` array in `biome.json` |
+| markdownlint | `.markdownlint*` (e.g. `.markdownlintrc`, `.markdownlint.json`, `.markdownlint.yaml`) | `.markdownlintignore` if it exists; else create it |
+
+For each **detected** tool, ask the user whether to add `.grove/` to its ignore (one grouped offer
+naming each found tool is fine). Only on a **yes** do you write — **consent is required; write
+nothing without it.** If declined, note that plainly and move on; nothing is changed.
+
+**Augment-never-clobber, the same discipline as everywhere else in setup:**
+
+- If `.grove/` (or a glob that already covers it, e.g. `.grove/**`) is already ignored, it is
+  already done — **skip it, touch nothing.**
+- Add the single `.grove/` entry and **touch no other line** of the file.
+- Create an ignore file **only** when the tool uses a dedicated one and none exists (per the table
+  above); never create config a tool doesn't already use.
+
+**This is the one place setup writes outside grove's own footprint** — outside the `.grove/` overlay
+and the managed `CLAUDE.md` block. Treat it as exactly that: an **offered, consented,
+augment-never-clobber exception**, and in the step 11 confirm name precisely which ignore file and
+which line you touched (or that none were, or that the offer was declined). Never a silent write.
+
+(This ignore is a *separate tool* from grove's own check: ignoring `.grove/` in ESLint, Prettier,
+Biome, or markdownlint does **not** affect grove's check gating edits to `.grove/check/` — the check
+reads those files at runtime regardless, from the protected branch.)
+
+## 9. Telemetry (optional — grove never requires it)
 
 Ask whether [wisp](https://github.com/kodhama/wisp) is vendored or otherwise available in this
 project.
@@ -248,7 +289,7 @@ project.
 - **If no:** don't install the skill. Mention `github.com/kodhama/wisp` as where it lives if they
   want live dashboard telemetry later, and move on — grove's agent roles work fully without it.
 
-## 9. Recommend, don't install, Trellis
+## 10. Recommend, don't install, Trellis
 
 Close by telling the user grove pairs with the governance layer it runs under, but do **not**
 install it yourself:
@@ -257,12 +298,44 @@ install it yourself:
 > it runs under. If you want that too: `/plugin install trellis@kodhama` then `/trellis:setup`.
 > Recommended, not required — grove works standalone.
 
-## 10. Confirm
+## 11. Confirm
 
 Tell the user exactly what you wrote: which roles landed in `.claude/agents/` (and which existing
 files, if any, you skipped rather than overwrote), every placeholder you resolved and to what value
 (or the honest "none exists yet" statements you wrote instead), whether `decisions/`/`specs/` were
 seeded, the `CLAUDE.md` block, whether the GitHub bookkeeping check was installed (the `.grove/check/`
 runtime, the workflow, and `.grove/review-policy.md` with its recorded `scope` mode and carrier
-keys) — or, if it was declined, that `/grove:check-install` installs it later — and whether the
-telemetry skill was composed. They can remove all of it any time with `/grove:remove`.
+keys) — or, if it was declined, that `/grove:check-install` installs it later — whether the
+telemetry skill was composed, and **which tooling-ignore files and lines step 8 touched** (naming
+each `.grove/` line and its file — or that no linter/formatter was found, or that the offer was
+declined). They can remove all of it any time with `/grove:remove`.
+
+**Say one thing first-time installers often worry about, so they never have to ask: installing grove
+does not gate the install itself.** grove's check self-detects a fresh install and only begins
+gating on the consumer's *next* PR — there is no "red on arrival" on the very change that introduces
+grove. (This is a fact about how the check behaves; *how* you land that change is a separate matter,
+and entirely yours — see the hand-back in step 12. Do not turn "no red on arrival" into a landing
+recommendation.)
+
+## 12. Hand back — grove wrote no git; landing is yours
+
+Setup composes files; it does **not** land them. Perform **no git** of your own — no `add`, no
+`commit`, no branch, no push, no PR — and **recommend no landing approach**: not a direct commit,
+not a PR, not committing anywhere. **Never** commit onto the current branch (least of all
+`main`/`master`). Instead, surface the uncommitted state plainly (run `git status --short`) and hand
+the decision back:
+
+> Setup is done — and I performed no git: no add, no commit, no branch, no push, no PR. Here is
+> what is now uncommitted in your working tree: **[list the changed/added paths]**. Landing these is
+> yours, your project's own way — I'm not recommending a direct commit, a PR, or committing
+> anywhere. Setup runs inline in this session, so any landing opinion here would bias how you handle
+> git for your own unrelated work; that call is yours, not grove's.
+
+**Why the restraint, stated (not just done):** setup runs inline in the consumer's own session, so
+a landing recommendation ("commit it to `main`," "open a PR") injects grove's git preference into a
+project that has its own conventions. The neutral hand-back points back at *their* defaults; the
+recommendation is the opinion setup must not carry.
+
+**On an autonomous run with no human to answer** (an unattended session), do not improvise a
+landing: leave the change in the working tree, report what is uncommitted, and stop. Never land
+unasked.
