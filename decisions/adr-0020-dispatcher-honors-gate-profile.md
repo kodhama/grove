@@ -1,5 +1,5 @@
 ---
-id: adr-0019-dispatcher-honors-gate-profile
+id: adr-0020-dispatcher-honors-gate-profile
 type: adr
 status: draft
 depends_on: [adr-0018-gate-profile-and-trigger-split]
@@ -8,7 +8,7 @@ owner: agent
 updated: 2026-07-18
 ---
 
-# ADR-0019: the run-sequencer honors the gate-profile at run time
+# ADR-0020: the run-sequencer honors the gate-profile at run time
 
 > **`draft` — shaping in progress.** This canvas activates `adr-0018` at
 > run time: `adr-0018` built the gate-profile machinery (`gates.toml`, the
@@ -66,7 +66,7 @@ updated: 2026-07-18
     - **So the adversary/reviewer is NOT an alternative to the human** — it
       **always** runs as convergence; the profile only decides whether a
       human ratification is *additionally* required. *(This is exactly how
-      adr-0018/0019 themselves ran: shaper converged → `decision-adversary`
+      adr-0018/0020 themselves ran: shaper converged → `decision-adversary`
       `SOUND` → then the human intent gate.)*
   - **Stage charters shed their ownership assertions.** The
     `shaper`/`contract-author`/`executor` charters stop *asserting* who
