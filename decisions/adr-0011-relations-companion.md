@@ -43,6 +43,12 @@ sitting (2026-07-13):
    `.grove/relations.md` (the adr-0008 axis pattern, one file per axis).
 
 2. **The taxonomy it states (once):**
+   <!-- Forward pointer (adr-0016, 2026-07-18; annotation only, no
+   content edit): this enumeration was complete at 2026-07-13, before
+   adr-0012 introduced the `implements:` edge. adr-0016 extends it with a
+   FIFTH edge — `implements:` (flow + drift-bearing) — as a scoped
+   append-only extension; the four below stand unchanged. See
+   decisions/adr-0016-implements-edge-taxonomy.md. -->
    - **`depends_on`** — genuine **coupling**; a **flow, drift-bearing** edge.
      Directional-flow is walked over it (no ratified artifact depends on a
      draft); an upstream change surfaces its dependents. (The *principle*

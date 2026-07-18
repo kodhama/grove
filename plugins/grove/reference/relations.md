@@ -3,9 +3,9 @@
 id: charter-relations
 type: charter
 status: approved  # maintainer's intent act 2026-07-13 (grove#58 "#58 approved. Passes the gate. Execute to the same PR.") — conformance-reviewed against adr-0011 before approval; in-PR flip recording the act
-depends_on: [adr-0011-relations-companion]
+depends_on: [adr-0011-relations-companion, adr-0016-implements-edge-taxonomy]
 owner: agent
-updated: 2026-07-13
+updated: 2026-07-18
 ---
 
 # relations — the artifact edge taxonomy, stated once
@@ -27,7 +27,7 @@ updated: 2026-07-13
 > `shaper` (records research/evidence as `informed_by`, not
 > `depends_on`), `corpus-reviewer` (types and resolves `informed_by`
 > referents), `conformance-reviewer` (adjudicates the honesty pairing),
-> `validator` (walks `depends_on`, not `informed_by`, on a triggered
+> `validator` (walks `depends_on` and `implements:`, not `informed_by`, on a triggered
 > drift audit) — instead of any per-repo restatement. Every other
 > statement of the edge taxonomy, in grove itself or in a consuming
 > project, is a pointer to this file, never a copy.
@@ -35,7 +35,7 @@ updated: 2026-07-13
 ## The edge taxonomy
 
 Every relation an artifact declares (in frontmatter or body) is exactly
-one of the following four. Each is stated with its **edge class**: is it
+one of the following five. Each is stated with its **edge class**: is it
 **flow** (walked by directional-flow — no `gated`/`approved` artifact
 may point across it at a `draft`), and does it **bear drift** (does an
 upstream change obligate a downstream re-check, the `validator`'s
@@ -51,6 +51,27 @@ walked over it: no `gated`/`approved` artifact `depends_on` a `draft`.
 **Drift-bearing** — an upstream change surfaces its dependents (the
 `validator`'s triggered audit walks this edge outward from the changed
 artifact).
+
+### `implements:` — the realized contract / fidelity upstream. Flow: yes. Drift-bearing: yes.
+
+The one contract an artifact realizes — a spec its decision, a charter
+its ADR; **code** names its spec(s) via the `adr-0006` per-package
+test-deps ledger. A **scalar** (one `id`), and the **single fidelity
+upstream** the `conformance-reviewer` and the bookkeeping check read
+(`adr-0012` F5: *"`U` is the implements edge, not `depends_on`"*).
+Distinct from `depends_on`: that edge is general *builds-on* coupling;
+`implements:` is the *one realized contract* fidelity is judged against.
+Neither substitutes for the other (`adr-0016`).
+
+- **Flow** — directional-flow is walked over it: no `gated`/`approved`
+  artifact `implements:` a `draft` upstream. (The conformance gate is
+  stricter still — it requires the upstream be `approved`, `adr-0012`
+  AC12; flow is the structural layer, the gate the fidelity layer.)
+- **Drift-bearing** — an upstream change surfaces its dependents: the
+  `validator`'s triggered audit walks this edge outward from the changed
+  artifact, alongside `depends_on`. It is the edge whose change **most**
+  obligates a re-check — fidelity is contingent on the upstream by
+  definition (`adr-0016`, closing grove#68).
 
 ### `informed_by` — provenance. Flow: no. Drift-bearing: no.
 
