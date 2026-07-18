@@ -55,8 +55,10 @@ export function expandPreset(name) {
 }
 
 // The FLOOR validator (F1). Reads the four rows DIRECTLY. Returns
-// { ok, reason? }. Rejects: a non-object, a missing/extra row, an invalid C2
-// value, and — the load-bearing check — 0 human-owned intent-locus gates.
+// { ok, reason? }. Rejects: a non-object, a missing row, an UNKNOWN/extra row
+// (the exact GATE_ROWS set, never a superset — a stray gate key is a consumer
+// error worth catching), an invalid C2 value, and — the load-bearing check —
+// 0 human-owned intent-locus gates.
 export function validateFloor(gates) {
   if (gates == null || typeof gates !== 'object') {
     return { ok: false, reason: 'no gate rows to validate' };
@@ -66,6 +68,11 @@ export function validateFloor(gates) {
     if (v == null) return { ok: false, reason: `missing gate row "${row}"` };
     if (!C2_VALUES.includes(v)) {
       return { ok: false, reason: `gate "${row}" has invalid C2 value ${JSON.stringify(v)} (expected "human" | "agent")` };
+    }
+  }
+  for (const k of Object.keys(gates)) {
+    if (!GATE_ROWS.includes(k)) {
+      return { ok: false, reason: `unknown gate row "${k}" (the gate set is exactly ${GATE_ROWS.join(', ')})` };
     }
   }
   const humanLoci = INTENT_LOCUS_GATES.filter((g) => gates[g] === 'human');
@@ -102,6 +109,12 @@ export function parseGatesToml(text) {
     }
     const kv = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+)$/);
     if (!kv) throw new Error(`gates.toml: cannot parse line ${i + 1}: ${JSON.stringify(lines[i])}`);
+    // Reject a duplicate key within a section fail-closed (matching
+    // check/lib/toml.mjs): a last-wins overwrite is a parse-vs-display
+    // divergence — a human reads the first, the parser keeps the last.
+    if (Object.prototype.hasOwnProperty.call(section, kv[1])) {
+      throw new Error(`gates.toml: duplicate key "${kv[1]}" on line ${i + 1}`);
+    }
     section[kv[1]] = parseValue(kv[2].trim(), i + 1);
   }
   return {
@@ -149,12 +162,15 @@ export function fallbackWarning(cause) {
 }
 
 // D8 — the load-time floor-guard. Resolve the effective gate-profile from an
-// on-disk gates.toml (passed as `text`; `null` means the file is missing).
-// Returns { gates, seededFrom, source: 'file'|'fallback', warning, floor }.
-// One unified rule: MISSING (text null) | UNREADABLE (parse throws) |
+// on-disk gates.toml (passed as `text`; `null` means the file is missing). A
+// caller that hit an I/O error reading the file (a NON-ENOENT failure —
+// permissions, I/O) passes `ioErrorMessage` so it is reported as "unreadable",
+// distinct from a genuinely absent file. Returns
+// { gates, seededFrom, source: 'file'|'fallback', warning, floor }. One unified
+// rule: MISSING (text null) | UNREADABLE (I/O error, or parse throws) |
 // FLOOR-VIOLATING (validateFloor fails) => the guardian fallback + a loud
 // warning. A clean, floor-satisfying file resolves as-is with warning === null.
-export function resolveProfile({ text } = {}) {
+export function resolveProfile({ text, ioErrorMessage = null } = {}) {
   const fallback = (cause) => {
     const gates = { ...PRESETS[FALLBACK_PRESET] };
     return {
@@ -166,6 +182,7 @@ export function resolveProfile({ text } = {}) {
     };
   };
 
+  if (ioErrorMessage != null) return fallback(`unreadable (${ioErrorMessage})`);
   if (text == null) return fallback('missing');
 
   let parsed;

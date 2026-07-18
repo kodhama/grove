@@ -21,18 +21,19 @@ import { resolveProfile } from '../lib/profile.mjs';
 const path = process.argv[2] || '.grove/gates.toml';
 
 let text = null; // null => the D8 "missing" state
+let ioErrorMessage = null;
 try {
   text = readFileSync(path, 'utf8');
 } catch (e) {
   if (!(e && e.code === 'ENOENT')) {
-    // A real read error (permissions, I/O) is the D8 "unreadable" state — feed
-    // an empty non-null string so resolveProfile fails the parse/floor and
-    // falls back loudly, rather than treating it as a clean missing file.
-    text = '';
+    // A real read error (permissions, I/O) is the D8 "unreadable" state —
+    // reported distinctly from a genuinely absent file (never mislabeled as a
+    // spurious floor-violation), still falling back to guardian loudly.
+    ioErrorMessage = e && e.message ? e.message : String(e);
   }
 }
 
-const resolved = resolveProfile({ text });
+const resolved = resolveProfile({ text, ioErrorMessage });
 process.stdout.write(JSON.stringify(resolved, null, 2) + '\n');
 
 if (resolved.source === 'fallback') {

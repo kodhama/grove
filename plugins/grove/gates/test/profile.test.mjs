@@ -84,6 +84,12 @@ test('validateFloor rejects a missing gate row', () => {
   assert.equal(r.ok, false);
 });
 
+test('validateFloor rejects an UNKNOWN/extra gate row (the exact row set, not a superset)', () => {
+  const r = validateFloor({ intent: 'human', spec: 'agent', build: 'agent', ship: 'human', deploy: 'agent' });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /unknown gate row/i);
+});
+
 // --- parseGatesToml: the explicit-full-table shape (D7) ---
 
 const STEWARD_TOML = [
@@ -108,6 +114,11 @@ test('D7 — parseGatesToml reads the four gate rows, seeded_from, trigger, inte
   assert.deepEqual(t.gates, { intent: 'human', spec: 'agent', build: 'agent', ship: 'human' });
   assert.deepEqual(t.trigger.sources, ['human-ask', 'cron', 'ci-event']);
   assert.equal(t.intentExternal.enabled, false);
+});
+
+test('parseGatesToml rejects a DUPLICATE key within a section (fail-closed, matching check/lib/toml.mjs)', () => {
+  const dup = ['[gates]', 'intent = "human"', 'intent = "agent"'].join('\n');
+  assert.throws(() => parseGatesToml(dup), /duplicate/i);
 });
 
 // --- D8: load-time floor guard + unified guardian fallback ---
@@ -155,4 +166,14 @@ test('D8 — a FLOOR-VIOLATING profile (intent+ship both agent) falls back to gu
 test('D8 — the guardian fallback itself satisfies the floor (a safe landing, never silent)', () => {
   const r = resolveProfile({ text: null });
   assert.equal(validateFloor(r.gates).ok, true);
+});
+
+test('D8 — an I/O read error is reported as "unreadable", distinct from "missing" (not a spurious floor-violation)', () => {
+  const r = resolveProfile({ ioErrorMessage: 'EACCES: permission denied' });
+  assert.equal(r.source, 'fallback');
+  assert.deepEqual(r.gates, PRESETS.guardian);
+  assert.match(r.warning, /unreadable/i);
+  assert.match(r.warning, /permission denied/i);
+  // and NOT misreported as a floor violation or a missing file
+  assert.doesNotMatch(r.warning, /floor-violating|missing/i);
 });
