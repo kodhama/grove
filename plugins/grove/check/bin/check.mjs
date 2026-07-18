@@ -7,6 +7,13 @@
 // summary, and sets the check-run conclusion via the exit code — non-zero on
 // red (or any hard error, e.g. INV9's truncated read), zero on green.
 //
+// Before any gating work it applies the adr-0014 move-1b bootstrap self-detect:
+// if grove is not yet installed on the protected default branch (no
+// grove-review-policy block on origin/<default>), this PR is introducing grove,
+// so the check exits GREEN (non-gating) without running the gating logic. The
+// discriminator decision is the unit-tested `bootstrapSelfDetect`; only its
+// summary write + exit wiring here is the untested edge.
+//
 // The ONLY untested lines live here: reading the event JSON off disk, the real
 // global `fetch` (passed as fetchImpl), the real `execFile('git', ...)` runner,
 // the GITHUB_STEP_SUMMARY write, and process wiring. Everything they call is
@@ -21,6 +28,7 @@ import {
   readProtectedPolicy,
   readProtectedCarrierPaths,
   makeExecGitRunner,
+  bootstrapSelfDetect,
 } from '../shell/git-adapter.mjs';
 import { readRecordStream } from '../shell/record-stream.mjs';
 import { assemblePolicy } from '../lib/policy.mjs';
@@ -50,6 +58,30 @@ async function main() {
     gitRunner,
     defaultBranch: ctx.defaultBranch,
   });
+
+  // adr-0014 move 1b — grove does not gate its own arrival. Before any gating
+  // work, ask the ONE bootstrap question: is grove installed on the protected
+  // default branch at all yet (does a grove-review-policy block exist on
+  // origin/<default>)? `reviewPolicyText` above was read from the protected
+  // branch ONLY, so this is HEAD-independent — a PR cannot forge "installed" by
+  // editing its own HEAD (adr-0013 INV1/S6). ABSENT ⇒ this PR is introducing
+  // grove: exit GREEN (non-gating) and never run the gating logic. PRESENT ⇒ no
+  // skip; the normal check runs and adr-0013's carrier fail-close fires as before.
+  // Note this runs AFTER readProtectedPolicy, so a genuine protected-branch READ
+  // FAILURE (ref not fetched) still throws → red, never a silent skip.
+  const bootstrap = bootstrapSelfDetect({ reviewPolicyText });
+  if (bootstrap.skip) {
+    process.stdout.write(bootstrap.summary + '\n');
+    if (env.GITHUB_STEP_SUMMARY) {
+      try {
+        appendFileSync(env.GITHUB_STEP_SUMMARY, bootstrap.summary + '\n');
+      } catch {
+        /* summary is best-effort; the exit code is the authoritative signal */
+      }
+    }
+    process.exit(0);
+  }
+
   const policy = assemblePolicy({ reviewPolicyText, reviewPolicyPath, charterTexts: charterEntries });
 
   // changed + tree from HEAD content.

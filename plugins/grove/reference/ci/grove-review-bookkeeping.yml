@@ -12,6 +12,19 @@
 #   <NODE_VERSION>   — this project's Node version (e.g. `20`)
 # Do NOT add this workflow to grove's OWN `.github/workflows/` — grove-self
 # adopting the check on its own PRs is a separate, later decision.
+#
+# grove does not gate its own arrival (adr-0014 move 1b). No red on the install
+# PR — and this needs NO extra workflow STEP: the check itself self-detects a
+# fresh install. Its first act (bin/check.mjs) asks whether grove is installed
+# on the protected default branch at all yet — i.e. whether a grove-review-policy
+# block exists on origin/<default>. If ABSENT (this PR is introducing grove), the
+# check exits GREEN (non-gating) with "grove install detected — the check
+# activates on your next PR" and never runs the gating logic; once merged, every
+# subsequent PR runs it for real. The discriminator is read from origin/<default>
+# ONLY (HEAD-independent), and keys on POLICY-presence, not workflow-file
+# presence, so it never overrides adr-0013's carrier fail-close. And because this
+# workflow triggers on pull_request / issue_comment (never push), an install
+# landed as a direct commit fires no run at all.
 
 name: grove review-bookkeeping
 

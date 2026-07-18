@@ -3,9 +3,9 @@ id: ledger-grove-review-bookkeeping-check
 type: ledger
 status: gated
 implements: spec-0002-review-bookkeeping-check
-depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode]
+depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated]
 owner: agent
-updated: 2026-07-17
+updated: 2026-07-18
 ---
 
 # test-deps — review-bookkeeping check core
@@ -48,7 +48,12 @@ The behavioral tests in `test/` derive from `spec-0002`'s GWT scenarios
 admissibility, scope-mode, and ledger conventions they encode trace to
 the decisions below. The scope-mode tests (INV19–INV22, S21–S23) rest on
 `adr-0013-check-scope-mode` (approved 2026-07-17), the durable decision
-the `spec-0002` v2 amendment cites.
+the `spec-0002` v2 amendment cites. The shell bootstrap self-detect tests
+(the `groveInstalledOnBase` / `bootstrapSelfDetect` discriminator — "grove
+does not gate its own arrival") rest on
+`adr-0014-install-is-invisible-and-ungated` (approved 2026-07-18); this is
+shell orchestration governed by that decision, not a spec-0002 core
+algorithm, so it carries no spec-0002 amendment.
 
 ```grove-test-deps
 schema: 1
@@ -59,4 +64,5 @@ decisions:
   - adr-0005-tdd-and-artifact-gated-dispatch
   - adr-0006-operational-conformance-mechanism
   - adr-0013-check-scope-mode
+  - adr-0014-install-is-invisible-and-ungated
 ```
