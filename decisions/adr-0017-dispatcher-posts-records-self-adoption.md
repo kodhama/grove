@@ -104,6 +104,15 @@ has neither the judgments nor an admissible default identity
   grove-self. The build adds `check_runtime_dir: plugins/grove/check` and
   `check_workflow_path: .github/workflows/grove-review-bookkeeping.yml` so
   the fail-close watches grove's **actual** machinery paths.
+  <!-- Precision note (surfaced by the build's conformance gate,
+  2026-07-18; annotation only): per adr-0013's own wording the F3
+  carrier fail-close runs in `scoped` mode — under grove-self's `strict`
+  scope every changed file already owes the full set, so the dedicated
+  carrier branch is dormant here. The keys are still owed and consumed:
+  adr-0013 AC5 requires every install to declare them, the
+  record-verdict skill resolves the runtime from check_runtime_dir, and
+  the fail-close goes live if scope ever flips. Only the causal clause
+  above ("so the fail-close watches...") overstated. -->
 - **Landing: direct-commit the workflow to `main`.** grove's policy block is
   already on `main`, so `adr-0014`'s "doesn't gate its own arrival"
   self-detect (keyed on policy-block presence) sees grove as *installed* and
