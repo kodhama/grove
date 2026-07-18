@@ -63,9 +63,11 @@ comment.**
 2. **Malformed blocks are isolated, not contagious.** A block that fails §A.2
    recognition is **inert on its own** (fail-closed — it satisfies nothing);
    its **well-formed siblings in the same comment remain records**. (A
-   per-*comment* poison rule would let one typo silently un-record N good
-   reviews — the opposite of fail-closed for the pairs those siblings
-   cover.) The **`>1 block ⇒ whole comment inert`** rejection is removed.
+   per-*comment* poison rule would let one typo **silently un-record N good
+   reviews** — a false-RED that erases genuine bookkeeping; per-block
+   isolation keeps each well-formed record earning its own green, and each
+   still independently clears freshness and admissibility.) The
+   **`>1 block ⇒ whole comment inert`** rejection is removed.
 3. **`record-verdict` posts one comment per review.** The skill batches all
    of a review's per-file `grove-verdict` blocks into **one** comment —
    `O(review-types)` comments (2 for a conformance + code-review round)
@@ -119,10 +121,18 @@ records, it never fragments one.
 
 ## Relationship to `spec-0002`, `adr-0012`, `adr-0017`
 
-- **Amends `spec-0002` §A.1** — a **testable-clause** change (S7 re-cast; the
-  selection rule gains the tiebreak) → a version bump and a test-deps re-pin.
-  This **supersedes the "one comment = one record" concretization**; it does
-  not touch the record's §A.2 schema, the §A.3 basis, or the §C trust model.
+- **Amends `spec-0002` §A.1 *and* INV9** — a **testable-clause** change
+  (§A.1's multi-block concretization + S7 re-cast; **INV9's "or a multi-block
+  comment ⇒ inert" clause removed** — an unparseable *block* stays inert, a
+  multi-block *comment* is now several records; the §A.1 selection rule *and*
+  INV9's "select … from the platform's comment order" clause gain the
+  block-index tiebreak) → a version bump and a test-deps re-pin. This
+  **supersedes the "one comment = one record" concretization**; it does not
+  touch the record's §A.2 schema, the §A.3 basis, or the §C trust model.
+  (INV9 lives in `### Invariants (EARS)`, a different section from §A.1 —
+  named explicitly so the amendment cannot leave a standing invariant
+  forbidding what §A.1 now permits; surfaced by the decision-adversary,
+  round 1.)
 - **`adr-0012`'s "one act"** — preserved and clarified: "one act" binds the
   **record's atomicity** (all fields in one block, one channel), never a
   one-record-per-comment cap. A forward pointer records the clarification.
@@ -131,12 +141,21 @@ records, it never fragments one.
 
 ## Consequences (execution — after approval)
 
-1. **`spec-0002` §A.1 amendment** (contract-author): multi-block admissible
-   (each block a record; malformed block inert on its own, not contagious);
-   selection gains the within-comment block-index tiebreak; S7 re-cast; the
-   §D `never-reviewed` note (line 935) drops "multi-block comment" as an
-   inert cause (a **malformed block** stays a cause). Version bump;
-   `plugins/grove/check/test-deps.md` re-pin.
+1. **`spec-0002` amendment** (contract-author) — every clause that today
+   declares a multi-block *comment* inert moves together, so no standing
+   clause is left forbidding what another now permits:
+   - **§A.1** — multi-block admissible (each block a record; malformed block
+     inert on its own, not contagious); the selection rule gains the
+     within-comment block-index tiebreak.
+   - **INV9** (`### Invariants (EARS)`, line ~1058) — its "including … a
+     multi-block comment" inert clause is **removed** (an absent/unknown-
+     `schema` or otherwise unparseable **block** stays inert); its "select …
+     from the platform's comment order" clause gains the block-index tiebreak.
+   - **S7** re-cast (a multi-block comment is no longer the inert case; a
+     malformed *block* is); the **§D `never-reviewed` note** (line ~935)
+     drops "multi-block comment" as an inert cause (a malformed block stays
+     one).
+   Version bump; `plugins/grove/check/test-deps.md` re-pin.
 2. **`lib/records.mjs`** (executor, test-first): remove the
    `blocks.length > 1 ⇒ inert` rejection (`:71`); emit one record per
    well-formed block; a malformed block is inert without poisoning siblings.
@@ -154,7 +173,8 @@ records, it never fragments one.
 - **AC1** The check admits a comment with several `grove-verdict` blocks,
   reading each as its own record (independent admissibility / selection /
   freshness on its own subject + fingerprint); a malformed block is inert on
-  its own and never inerts a well-formed sibling.
+  its own and never inerts a well-formed sibling; and **no standing clause
+  (§A.1, INV9, S7, §D) still declares a multi-block comment inert**.
 - **AC2** `record-verdict` posts one comment per review carrying all that
   review's per-file records; total comments are `O(review-types)`, not
   `O(files × review-types)`.
@@ -203,6 +223,26 @@ load-bearing rationale), `adr-0017` (the `record-verdict` skill this refines);
 all `approved`, no draft consumed. Execution (the §A.1 amendment, the
 `records.mjs`/`match.mjs` changes, the skill, the forward pointers) is scoped
 downstream, not performed here.
+
+**Decision-adversary round 1 (2026-07-18): NEEDS-REVISION → applied.** All
+four axes passed except one fixable coherence gap: the amendment scope named
+§A.1 / S7 / §D but **omitted INV9** (in the `### Invariants (EARS)` section),
+which normatively lists "a multi-block comment" among its inert causes and
+carries the platform-order selection clause — so as first scoped, the
+amendment would have left a standing invariant forbidding what the new §A.1
+permits (the same INV-vs-prose class the Wave-C `adr-0015` amendment caught
+with INV3). Fixed: Consequence 1 now moves **§A.1 + INV9 + S7 + §D
+together**, the Relationship section names INV9 explicitly, and AC1 requires
+that no standing clause still declares a multi-block comment inert. The
+adversary confirmed the load-bearing claims sound against the code — the
+`records.mjs:71` gate is pure packaging (contributes no safety property; each
+block still independently clears freshness/§A.4/separation/non-vacuity, so no
+false-green opens), `manifest_hashes` is genuinely non-authoritative (§A.2
+line 413; `match.mjs` uses it only in `attributeStaleness`), selection is
+total (comment-id-major, block-index-minor), and no contradiction with
+`adr-0012`/`adr-0017`. A minor wording note (per-comment poisoning is a
+false-RED, not "the opposite of fail-closed") was applied to Decision point 2.
+A round-2 pass scoped to the INV9 addition precedes the human gate.
 
 **Not claiming adversary validation** — the decision-adversary pass precedes
 the human gate; the `approved` intent act is the maintainer's
