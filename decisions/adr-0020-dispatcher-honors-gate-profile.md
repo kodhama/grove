@@ -27,12 +27,15 @@ updated: 2026-07-18
 > gate fires **post-convergence** (the independent check always runs; the
 > profile only decides whether a human ratification is *additionally*
 > required); refined by **D2** (per-handover resolution, snapshotted at run
-> start); and extended by **D3** (backprop cascades serialize on any
-> ratification edge, batch only human gates). The remaining Open items are
-> the *how* (gate→stage mapping, guardian-fallback surfacing, and whether
-> #77 operationalizes D11's channels). Every other entry is either an
-> inherited **Given** (from `adr-0018`, cited, not reopened) or an **Open**
-> question.
+> start); extended by **D3** (backprop cascades serialize on any
+> ratification edge, batch only human gates); and grounded by **D4** (the
+> gate→stage mapping — `intent`/`spec`/`build` are per-artifact stage
+> gates, `ship` is the run-level landing gate on the run's terminal
+> artifact, and one act may perform several coincident gates' ratifications
+> with a record per gate). The remaining Open items: guardian-fallback
+> surfacing (Q6) and whether #77 operationalizes D11's channels (Q7). Every
+> other entry is either an inherited **Given** (from `adr-0018`, cited, not
+> reopened) or an **Open** question.
 
 ## Decision state
 
@@ -151,15 +154,57 @@ updated: 2026-07-18
     scoped audit at the next generation, cascade bound at generation 2).
   - *(Rejected: Option B — serialize on human gates only; and speculative
     re-sync — see `## Rejected options`.)*
+- **D4 — the gate→stage mapping, ship as the run-terminal landing gate,
+  and the coincidence rule** *(maintainer, 2026-07-18)*. Resolves Q3, in
+  three parts:
+  1. **The stage-gate mapping (confirmed):**
+     - **`intent`** = the shaping-decision ratification (`shaper` →
+       `decision-adversary` → gate, on the **decision**);
+     - **`spec`** = spec approval (`contract-author` → `spec-adversary` →
+       gate, on the **spec**);
+     - **`build`** = the per-artifact conformance ratification of the code
+       (`executor` → conformance + code-review → gate, on the **code**).
+
+     These are **per-artifact stage gates**, and a run traverses only the
+     stages its workflow includes — a shaping-only run has no spec/build
+     gate to fire.
+  2. **`ship` is NOT a stage gate — it is the single run-level gate:
+     "does this run's terminal artifact land?"** It attaches to whatever
+     artifact **ends the run**: the code in a full build run, the ADR
+     itself in a decision-only run, the spec in a spec-only run. This
+     reconciles the observed case where merging just an ADR *was*
+     effectively shipping — that merge is the **ship gate firing on a
+     decision-terminal run**.
+  3. **The coincidence rule.** Gates are **distinct logical checkpoints**;
+     **acts are channels** (`adr-0018` D2 — the merge is one way to
+     *perform* the act). **One act may perform several gates'
+     ratifications when they coincide, emitting a record PER GATE**
+     (record-not-memory intact — one merge event yields e.g. a
+     build-ratification record AND a ship record). Build+ship on a code
+     change and intent+ship on a lone ADR are both instances of the same
+     rule: **the terminal stage's gate and ship coincide on the terminal
+     artifact's landing, because no production intervenes between them.**
+     Consistent with D3's batching: coincident human gates are a batchable
+     antichain — one prompt, one act, N records. The residual case where a
+     human separates them in time ("correct, but hold the landing")
+     remains expressible — the ship owner can simply **defer the landing
+     act**.
+  - **build and ship stay distinct gates on a code change** (the collapse
+    question, answered). They answer different questions — *"is it
+    correct/conformant?"* vs *"do we land it now?"* — and the profile sets
+    each owner **independently**. `steward`'s `build=agent, ship=human` is
+    exactly how the `adr-0018` implementation PR ran: agents ratified
+    conformance, the human authorized the merge. The common-case single
+    merge click under both-human is handled by the **coincidence rule**,
+    not by collapsing the gates. *(Rejected: collapse build into ship —
+    see `## Rejected options`.)*
+  - **Sanity notes:** the floor validator (`intent = human` OR
+    `ship = human`) keeps a human on at least one in-play gate even for
+    the shortest run; and under a custom `intent=human, ship=agent`
+    profile the **human approval record lands first, then an agent
+    performs the merge** — approval-first, then landing.
 
 ### Open
-- **Q3 — gate→stage mapping.** grove's four gates
-  (`intent`/`spec`/`build`/`ship`) map to which concrete dispatch decision
-  points? The working reading: **intent** = the shaping-decision
-  ratification (`shaper` → human intent gate on the decision); **spec** =
-  spec approval (`contract-author` → spec gate); **build** = conformance
-  (`executor` → conformance gate); **ship** = PR merge. Confirm/correct
-  the mapping and name which stage consults which gate's owner.
 - **Q6 — guardian fallback at run time.** When/how does the dispatcher
   detect a **missing/unreadable/floor-violating** profile mid-sequencing
   and surface the loud D8 warning + run under `guardian`? The CLI already
@@ -272,6 +317,14 @@ across N readers. Options B and C are retired in `## Rejected options`.
   **Rejected (D3, maintainer 2026-07-18):** it builds on **unsettled
   ground** and wastes the downstream work if the human (or the agent gate)
   revises the upstream at its gate.
+- **Collapse build into ship (the merge IS the conformance ratification).**
+  One gate on a code change instead of two. **Rejected (D4, maintainer
+  2026-07-18):** it conflates the **conformance check** ("is it
+  correct/conformant?") with the **landing decision** ("do we land it
+  now?") and **deletes the configuration axis `steward` uses**
+  (`build=agent, ship=human`). The common-case single merge click under
+  both-human is handled by the coincidence rule (one act, N per-gate
+  records), not by collapsing the gates.
 
 ## Consequences / propagation (draft — POST-approval executor work, NOT part of this canvas)
 
