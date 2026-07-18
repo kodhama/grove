@@ -3,7 +3,7 @@ id: adr-0014-install-is-invisible-and-ungated
 type: adr
 status: draft
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0013-check-scope-mode]
-informed_by: [adr-0005-tdd-and-artifact-gated-dispatch, trellis/decision-0048]
+informed_by: [adr-0005-tdd-and-artifact-gated-dispatch]  # cross-repo trellis drafts (decision-0048/0049) cited in prose below, NOT as frontmatter edges — they are drafts + cross-repo (shape-check only), so no machine edge is asserted (mirrors trellis's own handling)
 owner: agent
 updated: 2026-07-17
 ---
@@ -30,6 +30,23 @@ updated: 2026-07-17
 > no landing opinion**; the "don't red on arrival" job moves entirely to
 > the workflow's bootstrap self-detect, which is landing-agnostic. Move 3
 > deepened and an M2 gap parked, both from the same review.
+>
+> **Revision 2026-07-18 — folded back from trellis PR #160
+> (`trellis/decision-0049`),** where trellis lifted this draft's move 2 and
+> returned three refinements: (a) the danger is not just lint *noise* — a
+> consumer *formatter* mutating a vendored file can **corrupt an integrity
+> check** (trellis's byte-for-byte verify), so the ignore must cover
+> **markdown/format** tooling, not only JS linters; (b) move 2 is *the one*
+> place setup touches a consumer file **outside the overlay + managed
+> block** — recorded as an offered, consented exception, not silent
+> scope-creep; (c) cross-repo **draft** provenance is cited **in prose, not
+> as a frontmatter edge** — this draft's `informed_by` edge to
+> `trellis/decision-0048` is retracted to prose to match. **Cross-repo
+> provenance (prose, not edges):** this decision was informed by trellis's
+> sibling drafts `decision-0048` (setup git hand-back) and `decision-0049`
+> (tooling-invisible install); both are drafts and cross-repo, so they are
+> named here as provenance, never consumed as upstream edges (`adr-0011` /
+> `decision-0044` cross-repo form; mirrors trellis's own choice).
 
 ## Context
 
@@ -109,18 +126,38 @@ red CI on grove's own files — the opposite of "just works."
 
 2. **The install is invisible to the consumer's existing tooling.** Setup
    (interactively — see move 3) **detects** the consumer's linters/
-   formatters (ESLint `.eslintrc*`/`eslint.config.*`/`eslintConfig`,
-   Prettier, Biome, …) and **offers** to add the **whole `.grove/`
+   formatters — ESLint (`.eslintrc*`/`eslint.config.*`/`eslintConfig`),
+   Prettier (`.prettierrc*`/`.prettierignore`), Biome (`biome.json`), and
+   **markdown formatters** (markdownlint `.markdownlint*`) — by config
+   presence, and **offers** (never imposes) to add the **whole `.grove/`
    namespace** — not just `.grove/check/` — to their ignore, augment-never-
-   clobber, honoring the answer. `.grove/` is the namespace boundary: all
-   of it (runtime, companions, policy carrier) is grove's vendored
-   territory, none of it consumer source. The whole-namespace rule is
-   future-proof — it covers runtime that later grows beyond `check/`, and
-   non-JS tooling (a markdown/YAML formatter over the companions/policy) —
-   where a `.grove/check/**` glob would not. (Note: the consumer's lint-
-   ignore is a *separate tool* from grove's check — ignoring `.grove/` in
-   ESLint does not affect grove's own F3 gating of `.grove/check/` edits,
-   which reads those files at runtime regardless.)
+   clobber, honoring the answer; an undetected tool is reported "none
+   found," never a false claim.
+   - `.grove/` is the namespace boundary: all of it (runtime, companions,
+     policy carrier) is grove's vendored territory, none of it consumer
+     source. The whole-namespace rule is future-proof — it covers runtime
+     that later grows beyond `check/`, and non-JS tooling — where a
+     `.grove/check/**` glob would not.
+   - **Why markdown tooling is in scope, not just JS linters
+     (`trellis/decision-0049`):** grove's *immediate* pilot hit was ESLint
+     `no-undef` on `.grove/check/**` — lint **noise/failure**. But the
+     deeper class is a consumer *formatter* **mutating** a vendored file:
+     `.grove/`'s companions and policy carrier are markdown, and any
+     integrity the vendored runtime later relies on (a manifest/checksum on
+     `.grove/check/**`, as trellis already has for its overlay) is
+     **corrupted**, not merely flagged, by a reformat. Ignoring the whole
+     `.grove/` in *format* tooling too is what prevents that.
+   - **This is the one offered exception to "touch nothing outside the
+     overlay + the managed `CLAUDE.md` block"** (`floor`-analogue: grove's
+     intent gate + transparency). Editing the consumer's ignore file is the
+     sole place setup writes outside grove's own footprint — always with
+     consent, always augment-never-clobber, always naming exactly which
+     ignore file and line were touched. Recorded as a consented exception,
+     not silent scope-creep.
+   - (The consumer's lint/format-ignore is a *separate tool* from grove's
+     check — ignoring `.grove/` in ESLint does not affect grove's own F3
+     gating of `.grove/check/` edits, which reads those files at runtime
+     regardless.)
 
 3. **Interactive install questions live in the setup skill's live-session
    lane — never a fire-and-forget cold agent.** grove has two agent kinds
@@ -185,9 +222,14 @@ red CI on grove's own files — the opposite of "just works."
    linter-detect-and-offer step (whole `.grove/`); and an in-context note
    that grove does not gate its own arrival. The earlier "direct-commit is
    the default" guidance is **removed**, not reworded.
-3. The **consumer README** (`reference/ci/README.md`) states both plainly
+3. The **`/grove:remove` skill** gains the **symmetric inverse**: offer to
+   strip the `.grove/` ignore entry setup added (augment-never-clobber in
+   reverse — remove only the line setup wrote, with consent, touching
+   nothing else). Flagged so the residue is not forgotten
+   (`trellis/decision-0049` flags the identical follow-up).
+4. The **consumer README** (`reference/ci/README.md`) states both plainly
    (self-guiding principle).
-4. The **math-quest pilot** re-runs against all three.
+5. The **math-quest pilot** re-runs against all three.
 
 ## Open questions / for cross-review
 
