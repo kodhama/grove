@@ -98,3 +98,31 @@ test('D11 fail-close — an unrecognized scope in review.toml still resolves to 
   const rp = parseReviewPolicy(text);
   assert.equal(rp.scope, 'strict');
 });
+
+test('HIGH fail-OPEN fix — a NON-STRING (array) scope through synthesis resolves to strict/unrecognized, byte-equivalent to the single-file YAML path (adr-0013 dec 2 / INV19)', () => {
+  // Regression: yamlScalar(["scoped"]) once coerced to the string "scoped" and
+  // softened jurisdiction to scoped. The synthesized block must instead emit a
+  // non-string shape so parseReviewPolicy's typeof-string guard fires -> strict.
+  const text = synthesizePolicyBlock({ reviewToml: 'scope = ["scoped"]', wiringToml: WIRING_TOML });
+  const rp = parseReviewPolicy(text);
+  assert.equal(rp.scope, 'strict', 'a malformed non-string scope must NOT soften to scoped');
+  assert.equal(rp.scopeUnrecognized, true);
+  // parity check: the single-file YAML path resolves the identical shape the same way
+  const yamlRp = parseReviewPolicy('```grove-review-policy\nschema: 1\nscope: [scoped]\n```');
+  assert.equal(yamlRp.scope, rp.scope);
+  assert.equal(yamlRp.scopeUnrecognized, rp.scopeUnrecognized);
+});
+
+test('a malformed WIRING file tags the thrown error source as "wiring" (so git-adapter names the right path)', () => {
+  assert.throws(
+    () => synthesizePolicyBlock({ reviewToml: 'scope = "scoped"', wiringToml: 'not valid toml [[[' }),
+    (e) => e.source === 'wiring',
+  );
+});
+
+test('a malformed REVIEW file tags the thrown error source as "review"', () => {
+  assert.throws(
+    () => synthesizePolicyBlock({ reviewToml: 'not valid toml [[[', wiringToml: WIRING_TOML }),
+    (e) => e.source === 'review',
+  );
+});

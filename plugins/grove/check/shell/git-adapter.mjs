@@ -177,8 +177,11 @@ export async function readProtectedPolicy({
         try {
           reviewPolicyText = synthesizePolicyBlock({ reviewToml: text, wiringToml });
         } catch (e) {
+          // Name the file that actually failed (synthesizePolicyBlock tags the
+          // error `.source`): a malformed wiring file must not blame review.toml.
+          const badPath = e && e.source === 'wiring' ? wiringPath : p;
           throw new Error(
-            `grove check: the consumer review policy at ${p} (ref ${ref}) is unreadable: ` +
+            `grove check: the consumer review policy at ${badPath} (ref ${ref}) is unreadable: ` +
               `${e && e.message ? e.message : e}. Refusing to treat a malformed policy as absent.`,
             { cause: e },
           );

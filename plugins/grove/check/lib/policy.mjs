@@ -112,11 +112,36 @@ function yamlFlowArray(arr) {
 }
 
 export function synthesizePolicyBlock({ reviewToml = '', wiringToml = null } = {}) {
-  const review = parseToml(reviewToml || '');
-  const wiring = wiringToml == null ? {} : parseToml(wiringToml);
+  // Parse each source separately and TAG which file failed, so the caller
+  // (git-adapter) can name the right path in its error rather than blaming
+  // review.toml for a malformed wiring file.
+  let review;
+  let wiring;
+  try {
+    review = parseToml(reviewToml || '');
+  } catch (e) {
+    e.source = 'review';
+    throw e;
+  }
+  try {
+    wiring = wiringToml == null ? {} : parseToml(wiringToml);
+  } catch (e) {
+    e.source = 'wiring';
+    throw e;
+  }
   const lines = ['```grove-review-policy', 'schema: 1'];
   for (const k of SYNTH_SCALAR_KEYS) {
-    if (review[k] != null) lines.push(`${k}: ${yamlScalar(review[k])}`);
+    if (review[k] == null) continue;
+    // Fail-CLOSED equivalence (adr-0013 dec 2 / INV19): a scalar key must reach
+    // parseReviewPolicy's `typeof === 'string'` guard with its ORIGINAL type. A
+    // non-string (e.g. `scope = ["scoped"]`) must NOT be String()-coerced into a
+    // soft value — emit it in a shape parseYaml reads back as non-string so the
+    // guard fires and resolves to strict/unrecognized, byte-equivalent to the
+    // single-file YAML path. (Softness is never inferred from malformed input.)
+    const v = review[k];
+    if (typeof v === 'string') lines.push(`${k}: ${yamlScalar(v)}`);
+    else if (Array.isArray(v)) lines.push(`${k}: ${yamlFlowArray(v)}`);
+    else lines.push(`${k}: ${String(v)}`); // boolean/number -> a non-string YAML literal
   }
   for (const k of SYNTH_ARRAY_KEYS) {
     if (review[k] != null) lines.push(`${k}: ${yamlFlowArray(toList(review[k]))}`);
