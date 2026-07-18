@@ -75,8 +75,28 @@ install wrote, and **ask before deleting anything unexpected**):
   rather than discarding their tuning; an untouched install-written copy is safe to remove on
   confirmation.
 
-Leave the rest of `.grove/` (the `internal/lifecycle.md` / `internal/versioning.md` / `internal/relations.md` companions,
-handled with the agents above) exactly as it was. If the check was never installed, skip this step.
+Leave the rest of `.grove/` (the `internal/lifecycle.md` / `internal/versioning.md` /
+`internal/relations.md` companions and the gate-profile pieces below) exactly as it was here — they
+are removed in step 5b, not with the check. If the check was never installed, skip this step.
+
+## 5b. Remove the gate-profile and companions (core `.grove/` payload)
+
+Every install lands these (`adr-0018`), so unless the user is keeping grove's other pieces, reverse
+them too — same augment-never-clobber-in-reverse discipline, **asking before deleting anything the
+user may have tuned**:
+
+- **`.grove/gates.toml`** — the consumer-authoritative gate-profile. If the user has switched presets
+  or hand-edited a row for their own oversight preferences, **ask first** (as in step 2) rather than
+  discarding their choice; an untouched install-written copy is safe to remove on confirmation.
+- **`.grove/internal/gates/`** — the vendored floor-guard machinery. Safe to delete if it matches the
+  vendored copy; if hand-edited, ask.
+- **`.grove/internal/enforcement.toml`** — the grove-managed C1 defaults. Grove-authoritative
+  (regenerated on update), so safe to remove on confirmation.
+- **`.grove/internal/lifecycle.md` / `versioning.md` / `relations.md`** — the companions. Reference
+  prose; safe to remove on confirmation unless the user hand-edited them.
+
+If `.grove/internal/` is left empty after removals and grove created it, removing the empty directory
+is fine; likewise `.grove/` itself once nothing grove-owned remains.
 
 ## 6. Strip the `.grove/` tooling-ignore entry, if setup added one
 

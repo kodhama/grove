@@ -1,0 +1,24 @@
+# .grove/internal/enforcement.toml — grove-MANAGED C1 (enforcement strength) per
+# gate (adr-0018 D4). NOT a consumer-tunable surface: the gate-profile in
+# .grove/gates.toml configures only C2 (who owns each gate); C1 is grove's fixed
+# per-gate design call, kept apart from the C2 profile so there is one axis to
+# configure and validate (inv-minimal-first) and no under-gating footgun of
+# quietly setting a gate advisory.
+#
+# This file lives under .grove/internal/ (grove-authoritative): it is
+# regenerated verbatim on update, and hand-edits are overwritten. A power-user
+# can technically change these values, but it is not a supported surface.
+#
+# C1 vocabulary (trellis/signature-catalog-v1): "enforced" |
+# "default-on-but-skippable" | "expressed".
+schema = 1
+
+[enforcement]
+# The human intent-ratification LOCUS is C1 = enforced + C2 = human
+# (floor-intent-gate). Both eligible loci — the front `intent` gate and `ship` —
+# are held `enforced` so the floor's locus is enforced under every shipped
+# preset (steward/guardian ratify at intent; initiator ratifies at ship).
+intent = "enforced"
+spec   = "default-on-but-skippable"
+build  = "default-on-but-skippable"
+ship   = "enforced"

@@ -54,6 +54,62 @@ which bears drift), stated once, that `shaper`, `corpus-reviewer`,
 companion — lifecycle, versioning, relations) already exists at the destination, **never overwrite it silently** — ask
 the user whether to overwrite, skip, or diff first, and honor their answer per file.
 
+### 2a. The gate-profile — every install gets one (`adr-0018`)
+
+The **gate-profile** assigns **C2** — who is *required* at each of grove's four
+gates (`intent` / `spec` / `build` / `ship`), `human` or `agent` — and is core,
+not optional: every install gets it (like the companions above). Three pieces:
+
+1. **The floor-guard machinery.** Copy `${CLAUDE_PLUGIN_ROOT}/gates/` — its
+   `lib/`, `bin/`, and `package.json` — into this project's
+   **`.grove/internal/gates/`** (grove-authoritative; regenerated on update).
+   Zero-dependency, so **no `npm install`**. Do **not** copy grove's own `test/`
+   dir or `test-deps.md`. This is the load-time floor-guard (`adr-0018` D8):
+   whatever sequences a run reads `.grove/gates.toml` through
+   `node .grove/internal/gates/bin/resolve-profile.mjs` and gets a `guardian`
+   fallback + loud warning on any missing / unreadable / floor-violating profile.
+
+2. **The C1 enforcement defaults.** Copy
+   `${CLAUDE_PLUGIN_ROOT}/reference/gates/enforcement.toml` into
+   **`.grove/internal/enforcement.toml`** (grove-managed C1; `adr-0018` D4 — the
+   profile configures only C2, C1 is grove-fixed and not a user surface).
+
+3. **The gate-profile itself — ask ONE optional question, then write the rows.**
+   The preset choice is an **optional question with `steward` as the default** —
+   **never a forced pick** (honors `adr-0014`: install is invisible and ungated;
+   `adr-0018` D1/D6). Offer the three, one line each, and take `steward` if the
+   user has no preference:
+
+   - **steward** *(default)* — "you approve direction + final result; agents
+     handle spec and build";
+   - **guardian** — "you also approve the spec before build";
+   - **initiator** — "you kick off intent and approve only the final result".
+
+   Then write **`.grove/gates.toml`** (consumer-authoritative — the `.grove/`
+   root, not `internal/`) as an **explicit full table** seeded from the chosen
+   preset (`adr-0018` D7). Use `${CLAUDE_PLUGIN_ROOT}/reference/gates/gates.toml`
+   as the shape and set the four `[gates]` rows + `seeded_from` to the chosen
+   preset's values:
+
+   | Preset | intent | spec | build | ship |
+   |---|---|---|---|---|
+   | **steward** | human | agent | agent | human |
+   | **guardian** | human | human | agent | human |
+   | **initiator** | agent | agent | agent | human |
+
+   Keep the template's `[trigger]` and `[intent_external]` sections verbatim.
+   The four rows are the **source of truth**; `seeded_from` is provenance only.
+   **Non-clobber:** if `.grove/gates.toml` already exists, ask before
+   overwriting (same discipline as the companions). Then **validate the write**
+   with `node .grove/internal/gates/bin/resolve-profile.mjs .grove/gates.toml` —
+   it must exit `0` (a clean, floor-satisfying profile); exit `2` means the
+   guard fell back to `guardian`, which a fresh preset seed should never trigger
+   — fix the file rather than leave it. Tell the user they can switch presets
+   later with **`/grove:set-profile <preset>`** or hand-edit a single row, and
+   that the **floor** (`adr-0018`) always holds: at least one human intent-locus
+   gate (`intent = human` OR `ship = human`), enforced on every run-sequencing
+   read.
+
 ## 3. Resolve every placeholder, interactively
 
 Grep the freshly copied files for every remaining angle-bracket placeholder:
@@ -305,8 +361,10 @@ install it yourself:
 
 Tell the user exactly what you wrote: which roles landed in `.claude/agents/` (and which existing
 files, if any, you skipped rather than overwrote), every placeholder you resolved and to what value
-(or the honest "none exists yet" statements you wrote instead), whether `decisions/`/`specs/` were
-seeded, the `CLAUDE.md` block, whether the GitHub bookkeeping check was installed (the `.grove/internal/check/`
+(or the honest "none exists yet" statements you wrote instead), the **gate-profile** — which preset
+you seeded `.grove/gates.toml` from (or `steward` by default) and that the floor-guard machinery
+(`.grove/internal/gates/`) and C1 defaults (`.grove/internal/enforcement.toml`) landed — whether
+`decisions/`/`specs/` were seeded, the `CLAUDE.md` block, whether the GitHub bookkeeping check was installed (the `.grove/internal/check/`
 runtime, the workflow, and `.grove/review-policy.md` with its recorded `scope` mode and carrier
 keys) — or, if it was declined, that `/grove:check-install` installs it later — whether the
 telemetry skill was composed, and **which tooling-ignore files and lines step 8 touched** (naming
