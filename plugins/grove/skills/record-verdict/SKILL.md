@@ -68,28 +68,45 @@ stop** — never post a partial set silently. The emitter stamps the
 fingerprint mechanically; you never compute, edit, or "fix" a record's
 fields.
 
-## 3. Post: one comment per record, append-only
+## 3. Post: one comment per review, append-only
 
-For **each** `grove-verdict` block, post **one new PR comment** via the
+The emitter fans out **one `grove-verdict` block per reviewed path** — a
+single review often stamps many. Post them as **ONE new PR comment per
+review** carrying **all** that review's blocks (`spec-0002` §A.1: a comment
+may carry several records; the check reads each block independently — one
+comment per file would be a wall on a wide PR, `adr-0019`). Use the
 platform comment API available in your environment (`gh pr comment`, an
-MCP comment tool, …), wrapped for thread readability — `spec-0002` §A.1
-allows prose around the block; only the block is the record:
+MCP comment tool, …), wrapped for thread readability — §A.1 allows prose
+around the blocks; only the blocks are the records:
 
 ```
 <details>
-<summary>grove: <review> — <verdict> — <subject></summary>
+<summary>grove: <review> — <verdict> — N records (<subjects…>)</summary>
 
-[the grove-verdict block, verbatim]
+[grove-verdict block for path 1, verbatim]
+
+[grove-verdict block for path 2, verbatim]
+
+…one fenced block per reviewed path…
 
 </details>
 ```
 
-- **One record per comment.** A comment carrying more than one
-  `grove-verdict` block is wholly inert (§A.1).
+- **One comment per review, several records inside.** Each `grove-verdict`
+  block is its own record, read independently (`spec-0002` §A.1, `adr-0019`);
+  block order in the comment is the tiebreak index, so keep the emitter's
+  order. A **malformed** block is inert on its own and never inerts a
+  well-formed sibling — but keep each block cleanly fenced (its own opening
+  ```` ```grove-verdict ```` and closing ```` ``` ````) so an unterminated
+  fence cannot end the next block early.
 - **Never edit an existing comment.** An edited record comment is
   rejected outright (§A.4), and the rejection granularity is the whole
-  comment — the summary prose is frozen together with the record. A
-  correction or re-review is always a **new** comment.
+  comment — the summary prose **and every record batched in it** are
+  frozen together, so an edit rejects **all** the review's records at
+  once. A correction or re-review is always a **new** comment (carrying
+  the re-reviewed paths' fresh records); the check's latest-covering
+  selection supersedes per `(path, review)`, so an earlier batch's
+  still-valid records keep counting.
 - **Poster identity.** Post under the session's own authenticated
   identity — an `OWNER`/`MEMBER`/`COLLABORATOR` is admissible by
   default. If your environment posts through a bot or app identity, the

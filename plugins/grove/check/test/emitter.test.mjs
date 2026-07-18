@@ -89,6 +89,28 @@ test('ROUND-TRIP through the shell: emitted record makes the real check GREEN', 
   assert.equal(result.green, true, JSON.stringify(result.rows, null, 2));
 });
 
+// adr-0019 AC1/AC2 — a BATCHED comment (one review's per-file blocks folded into
+// one comment) makes the real check GREEN across all owed pairs, exactly as the
+// per-comment round-trip above does — the packaging cap is lifted, not the model.
+test('ROUND-TRIP batched: N per-file blocks in ONE comment green all N owed pairs', async () => {
+  const files = new Map([
+    ['decisions/adr-x.md', adr('adr-x')],
+    ['specs/foo.md', spec('spec-foo', 'adr-x')],
+    ['specs/bar.md', spec('spec-bar', 'adr-x')],
+  ]);
+  const gitRunner = fakeGit(files);
+  const judgment = parseJudgment(
+    extractJudgmentBlocks(judgmentBody({ review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/foo.md', 'specs/bar.md'] }))[0],
+  );
+  const { records } = await emitFromJudgment({ gitRunner, head: 'HEAD', judgment });
+  assert.equal(records.length, 2);
+  const tree = new Map(files);
+  // Fold BOTH per-file blocks into ONE comment (the record-verdict batching).
+  const comments = [{ body: records.map((r) => r.block).join('\n\n'), author: 'alice', authorAssociation: 'MEMBER', id: 1 }];
+  const result = runCheck({ changed: ['specs/foo.md', 'specs/bar.md'], tree, comments, policy });
+  assert.equal(result.green, true, JSON.stringify(result.rows, null, 2));
+});
+
 // adr-0015 Consequence 2 — code-review HIGH: the emitter must normalize the
 // subject paths BEFORE handing them to buildTree, so the tree source and the
 // fingerprint basis share one canonical path set. A NON-CANONICAL, non-artifact

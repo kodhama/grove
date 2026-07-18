@@ -59,7 +59,14 @@ inside the skill:
   internal detail, visible to no agent outside it.
 - **Post.** Each stamped `§A.2` record posts as a **new** PR comment via
   the platform API — one record per comment, append-only (a re-review is a
-  new comment, never an edit — `spec-0002` §A.1/§A.4). The machine block
+  new comment, never an edit — `spec-0002` §A.1/§A.4).
+  <!-- REFINED by adr-0019 (grove#76, 2026-07-18; annotation only): posts
+  are now batched **one comment per review** carrying all that review's
+  per-file records (each its own grove-verdict block), not one comment per
+  record — the check reads every well-formed block. The append-only /
+  new-comment-on-re-review discipline is unchanged. See
+  decisions/adr-0019-batched-verdict-records.md. -->
+  The machine block
   rides inside a collapsed `<details>` wrapper with a one-line human
   summary — §A.1 explicitly allows surrounding prose (only the block is
   the record) — so the PR thread stays readable.
@@ -233,6 +240,11 @@ no CI knowledge beyond the single invocation. A forward pointer is added on
   record comments; the `<details>` wrapper keeps the thread readable but
   not shorter. The first gated grove PRs are the empirical read; any
   batching relief would be a `spec-0002` evolution, not this decision's.
+  <!-- RESOLVED by adr-0019 (grove#76, 2026-07-18): measured on PR #75
+  (~20 comments) and fixed — spec-0002 v4 lets a comment carry several
+  records, so record-verdict batches one comment per review
+  (O(review-types), not O(files × review-types)). The "spec-0002
+  evolution" anticipated here is exactly adr-0019. -->
 - **Headless/cron posting identity** — the dispatcher posts under the
   session's authenticated identity; in a headless/cron run that identity may
   differ (or be absent). For grove-self the maintainer's session posts, so

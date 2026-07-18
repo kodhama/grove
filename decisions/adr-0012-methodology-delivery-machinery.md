@@ -236,7 +236,12 @@ approval:
 - **A verdict-record convention** is introduced — each reviewer posts one
   **structured comment on the PR** per review: verdict token +
   subject-manifest + fingerprint + producer/reviewer attribution + findings,
-  in one act. <!-- POSTING-ACTOR REFINED by adr-0015 (grove#67): the reviewer
+  in one act. <!-- "one act" CLARIFIED by adr-0019 (grove#76, 2026-07-18;
+  annotation only): "one act" binds the RECORD's atomicity — each
+  grove-verdict block carries all its fields together, one channel — never a
+  one-record-per-comment cap. With the per-file emitter (adr-0015) a review
+  stamps several records; they batch into this single per-review comment,
+  each block read independently. See adr-0019. --> <!-- POSTING-ACTOR REFINED by adr-0015 (grove#67): the reviewer
   supplies the judgment; the machine emitter stamps the fingerprint and the
   harness posts. The record CONTENT here is unchanged; only the actor is
   corrected. --> Records are **append-only** (a re-review posts a new record; the

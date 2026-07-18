@@ -234,3 +234,108 @@ test('prepareRecords separates admissible, rejected, and inert comments', () => 
   assert.equal(prepared.rejected[0].cause, 'edited');
   assert.equal(prepared.inert.length, 0); // plain prose has no block => 'none', not inert
 });
+
+// --- adr-0019: batched (multi-block) comments ---
+
+// Build ONE comment carrying several grove-verdict blocks (adr-0019 §A.1). Each
+// `spec` is a `rec(...)`-shaped body; block index = document order.
+function batched(tree, specs, { id, author = 'alice', authorAssociation = 'MEMBER', edited = false } = {}) {
+  const body = specs.map((s) => rec(tree, s).body).join('\n\n');
+  return { body, author, authorAssociation, edited, id };
+}
+
+test('adr-0019 AC1 — a batched comment of N well-formed per-file records yields N records', () => {
+  const tree = baseTree();
+  const c = batched(tree, [
+    { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/foo.md'], basis: ['specs/foo.md'] },
+    { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/bar.md'], basis: ['specs/bar.md'] },
+  ], { id: 1 });
+  const prepared = prepareRecords([c], { record_poster_allowlist: null });
+  assert.equal(prepared.records.length, 2);
+  const rowFoo = evaluatePair({ file: 'specs/foo.md', review: 'spec-adversary', prepared, tree, index: buildArtifactIndex(tree, policy.artifactDirs), policy });
+  const rowBar = evaluatePair({ file: 'specs/bar.md', review: 'spec-adversary', prepared, tree, index: buildArtifactIndex(tree, policy.artifactDirs), policy });
+  assert.equal(rowFoo.reasons.length, 0);
+  assert.equal(rowBar.reasons.length, 0);
+});
+
+test('adr-0019 Decision 2 — a malformed block never inerts a well-formed sibling in prepareRecords', () => {
+  const tree = baseTree();
+  const good = rec(tree, { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/foo.md'], basis: ['specs/foo.md'] });
+  // malformed block (tab-indent) prepended to a well-formed one in ONE comment.
+  const malformed = '```grove-verdict\n\tschema: 1\n  review: conformance\n```';
+  const c = { body: malformed + '\n\n' + good.body, author: 'alice', authorAssociation: 'MEMBER', id: 1 };
+  const prepared = prepareRecords([c], { record_poster_allowlist: null });
+  assert.equal(prepared.records.length, 1); // the sibling survives
+  assert.equal(prepared.inert.length, 1); // the malformed block is inert on its own
+  const row = evaluatePair({ file: 'specs/foo.md', review: 'spec-adversary', prepared, tree, index: buildArtifactIndex(tree, policy.artifactDirs), policy });
+  assert.equal(row.reasons.length, 0);
+});
+
+test('adr-0019 AC3 — intra-comment tiebreak: the HIGHER block index is latest', () => {
+  const tree = baseTree();
+  // Same (f, R); both fresh. Block 0 fails, block 1 passes => block 1 (higher index) selected.
+  const c = batched(tree, [
+    { review: 'spec-adversary', verdict: 'NEEDS-REVISION', subject: ['specs/foo.md'], basis: ['specs/foo.md'] },
+    { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/foo.md'], basis: ['specs/foo.md'] },
+  ], { id: 1 });
+  const row = ev(tree, 'specs/foo.md', 'spec-adversary', [c]);
+  assert.equal(row.latestVerdict, 'APPROVE-READY');
+  assert.equal(row.reasons.length, 0);
+});
+
+test('adr-0019 AC3 — the tiebreak is by block index, not verdict content (reversed order fails)', () => {
+  const tree = baseTree();
+  // Reversed: pass at block 0, fail at block 1 => block 1 (higher index) selected => review-failed.
+  const c = batched(tree, [
+    { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/foo.md'], basis: ['specs/foo.md'] },
+    { review: 'spec-adversary', verdict: 'NEEDS-REVISION', subject: ['specs/foo.md'], basis: ['specs/foo.md'] },
+  ], { id: 1 });
+  const row = ev(tree, 'specs/foo.md', 'spec-adversary', [c]);
+  assert.equal(row.latestVerdict, 'NEEDS-REVISION');
+  assert.ok(codes(row).includes('review-failed'));
+});
+
+test('adr-0019 AC3 — comment id dominates block index across comments', () => {
+  const tree = baseTree();
+  // Earlier comment (id 1) has a passing block at index 0; later comment (id 2)
+  // has a failing block at index 0. The later comment wins => review-failed.
+  const c1 = batched(tree, [
+    { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/foo.md'], basis: ['specs/foo.md'] },
+  ], { id: 1 });
+  const c2 = batched(tree, [
+    { review: 'spec-adversary', verdict: 'NEEDS-REVISION', subject: ['specs/foo.md'], basis: ['specs/foo.md'] },
+  ], { id: 2 });
+  const row = ev(tree, 'specs/foo.md', 'spec-adversary', [c1, c2]);
+  assert.equal(row.latestVerdict, 'NEEDS-REVISION');
+  assert.ok(codes(row).includes('review-failed'));
+});
+
+test('adr-0019 — re-review: a later single-file comment supersedes one file of an earlier batched comment; the rest keep theirs', () => {
+  const tree = baseTree();
+  // Batched round-1 comment: foo PASS, bar PASS (both fresh).
+  const batch = batched(tree, [
+    { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/foo.md'], basis: ['specs/foo.md'] },
+    { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/bar.md'], basis: ['specs/bar.md'] },
+  ], { id: 1 });
+  // Round-2 single-file re-review of foo only, with a failing verdict.
+  const reReview = rec(tree, { review: 'spec-adversary', verdict: 'NEEDS-REVISION', subject: ['specs/foo.md'], basis: ['specs/foo.md'], id: 2 });
+  // foo picks up the later (failing) re-review; bar keeps its batched PASS.
+  const rowFoo = ev(tree, 'specs/foo.md', 'spec-adversary', [batch, reReview]);
+  const rowBar = ev(tree, 'specs/bar.md', 'spec-adversary', [batch, reReview]);
+  assert.equal(rowFoo.latestVerdict, 'NEEDS-REVISION');
+  assert.ok(codes(rowFoo).includes('review-failed'));
+  assert.equal(rowBar.latestVerdict, 'APPROVE-READY');
+  assert.equal(rowBar.reasons.length, 0);
+});
+
+test('adr-0019 AC4 — an edit to a batched comment rejects ALL its records (whole-comment §A.4)', () => {
+  const tree = baseTree();
+  const c = batched(tree, [
+    { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/foo.md'], basis: ['specs/foo.md'] },
+    { review: 'spec-adversary', verdict: 'APPROVE-READY', subject: ['specs/bar.md'], basis: ['specs/bar.md'] },
+  ], { id: 1, edited: true });
+  const prepared = prepareRecords([c], { record_poster_allowlist: null });
+  assert.equal(prepared.records.length, 0);
+  assert.equal(prepared.rejected.length, 2);
+  assert.ok(prepared.rejected.every((e) => e.cause === 'edited'));
+});
