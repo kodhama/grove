@@ -3,7 +3,7 @@ id: adr-0014-install-is-invisible-and-ungated
 type: adr
 status: gated  # self-checked converged 2026-07-18 (shaper); awaiting decision-adversary + the maintainer intent act
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0013-check-scope-mode]
-informed_by: [adr-0005-tdd-and-artifact-gated-dispatch]  # cross-repo trellis drafts (decision-0048/0049) cited in prose below, NOT as frontmatter edges — they are drafts + cross-repo (shape-check only), so no machine edge is asserted (mirrors trellis's own handling)
+informed_by: [adr-0005-tdd-and-artifact-gated-dispatch]  # trellis/decision-0048/0049 carried as PROSE provenance below, not a frontmatter edge — a CHOSEN option (adr-0011 permits informed_by → draft AND cross-repo forms), made because cross-repo resolution is shape-check-only so a machine edge adds little verifiable value; not because the edge is disallowed
 owner: agent
 updated: 2026-07-18
 ---
@@ -43,11 +43,17 @@ updated: 2026-07-18
 > scope-creep; (c) cross-repo **draft** provenance is cited **in prose, not
 > as a frontmatter edge** — this draft's `informed_by` edge to
 > `trellis/decision-0048` is retracted to prose to match. **Cross-repo
-> provenance (prose, not edges):** this decision was informed by trellis's
-> sibling drafts `decision-0048` (setup git hand-back) and `decision-0049`
-> (tooling-invisible install); both are drafts and cross-repo, so they are
-> named here as provenance, never consumed as upstream edges (`adr-0011` /
-> `decision-0044` cross-repo form; mirrors trellis's own choice).
+> provenance (prose, by choice — not obligation):** this decision was
+> informed by trellis's sibling drafts `decision-0048` (setup git hand-back)
+> and `decision-0049` (tooling-invisible install). `adr-0011` *permits* an
+> `informed_by` edge here — a draft referent does not trip directional-flow
+> (that is the whole point of the relation), and the cross-repo `<repo>/<id>`
+> form is sanctioned (`decision-0044`). Prose is *chosen* over the permitted
+> edge because cross-repo resolution is shape-check-only (`adr-0006` dec 3),
+> so a machine edge would add little *verifiable* value — and it mirrors
+> trellis's own handling. (Corrected per adversary F4: the earlier rationale
+> implied the edge was *disallowed*/an overclaim; it is neither — this is a
+> verifiability trade, not a rule.)
 
 ## Context
 
@@ -107,23 +113,54 @@ red CI on grove's own files — the opposite of "just works."
        recommendation to land that way — the choice stays the consumer's,
        per 1a.)
      - *If* the consumer lands the install as a PR, the workflow's
-       **bootstrap self-detect** first step checks whether its own file
-       (`check_workflow_path`, `adr-0013`) exists on the base branch. If
-       **absent** (this PR is introducing grove), it exits green —
+       **bootstrap self-detect** first step asks one question: **is grove
+       installed at all yet** — i.e. **does the `grove-review-policy` block
+       exist on the protected default branch** (`origin/<default>`,
+       HEAD-independent per `adr-0013` INV1/S6). If **absent** (no grove
+       policy on the base — this PR is introducing grove), it exits green —
        *"grove install detected — the check activates on your next PR"* —
-       and never invokes the check. Once merged, the workflow lives on the
-       base; every subsequent PR runs it for real.
-     - **The F3 tripwire is unweakened.** The skip fires *only* when the
-       workflow file is absent-on-base — exactly once, at install. A later
-       PR that *edits* `.grove/check/**` (a grove version bump) runs and
-       gates normally, because by then the workflow is established on base.
-       Install ≠ edit; the check tells them apart by its own presence, not
-       by a `paths-ignore` on the machinery (which *would* reopen F3's
-       silent-machinery-edit hole — rejected). The one theoretical bypass —
-       delete the gate in one PR, re-add it in another for a skip — requires
-       **loudly merging a PR that removes your own CI**, which no silent
-       actor can do (same class as "a repo can always delete its own
-       workflow").
+       and never invokes the check. Once merged, the policy lives on the
+       base; every subsequent PR runs the check for real.
+     - **Why the discriminator is *policy-presence-on-base*, not
+       *workflow-file-presence* (adversary F1).** The tempting discriminator
+       — "does `check_workflow_path` exist on base" — **collides head-on with
+       `adr-0013`**: adr-0013's carrier fail-close uses that *exact*
+       condition (`check_workflow_path` absent on the protected branch) to
+       force a **carrier-unresolved red** (adr-0013 AC4 / round-3 R3-F1 — a
+       *relocated* established install whose key still names the old path is
+       absent-on-base and **must red**). A workflow-file-presence skip would
+       read that established-but-misconfigured install as "fresh install →
+       green," silently overriding adr-0013's red and reopening the hole its
+       round 3 closed. **Policy-presence-on-base does not collide:** a
+       genuine first install has *no* `grove-review-policy` on base → green
+       skip; an *established* install (policy present on base) never skips,
+       so adr-0013's carrier-unresolved red fires exactly as adr-0013
+       mandates. The two conditions are now orthogonal.
+     - **The F3 tripwire is unweakened, and the discriminator is
+       S6-safe.** The skip reads *only* the protected branch, so a PR cannot
+       forge "install detected" by editing its own HEAD (adversary F2 — the
+       quiet bypass a HEAD-read would open is closed by the base-read). A
+       later PR that *edits* `.grove/check/**` (a grove version bump) on an
+       established install runs and gates normally — policy is on base, so no
+       skip. Install ≠ edit; the check tells them apart by *grove's presence
+       on the protected branch*, not by a `paths-ignore` on the machinery
+       (which *would* reopen F3's silent-machinery-edit hole — rejected).
+       Bypass enumeration: (i) forge the discriminator in-PR — **closed** by
+       the base-read (S6); (ii) delete grove's policy from the protected
+       branch to re-trigger a skip — requires **loudly merging a PR that
+       removes grove's own policy carrier**, itself a carrier edit that reds
+       and must be knowingly merged (same class as "a repo can always delete
+       its own gate"). No silent path remains.
+     - **Scope of the "no red on arrival" guarantee (adversary F3): an
+       *atomic* single-PR install.** If a consumer splits the install —
+       workflow/policy in one PR, runtime `.grove/check/**` in a later PR —
+       the second PR **reds** (policy is on base, the check runs, and the
+       just-added runtime owes reviews it cannot yet have). This **fails
+       safe** (a red, never a silent skip — F3 intact), but the "grove does
+       not red on its own arrival" promise holds for the atomic install; a
+       split install reds on the trailing piece. Setup composes the whole
+       overlay in one pass, so the atomic case is the default; the split
+       case is named, not hidden.
 
 2. **The install is invisible to the consumer's existing tooling.** Setup
    (interactively — see move 3) **detects** the consumer's linters/
@@ -200,6 +237,13 @@ red CI on grove's own files — the opposite of "just works."
   and steering toward `main` or toward PR is precisely the opinion being
   removed. The neutral hand-back (1a) + the workflow self-detect (1b)
   achieve the goal without setup opining on git at all.
+- **Discriminate the self-detect on `check_workflow_path` presence on base
+  (this draft's first cut).** Rejected (adversary F1): it *collides* with
+  `adr-0013`'s carrier fail-close, which forces a **red** on that exact
+  condition (workflow carrier absent on the protected branch — a relocated
+  established install). A workflow-presence skip would silently override
+  that red. Replaced by *grove-policy-presence on base*, which is orthogonal
+  to the carrier condition (move 1b).
 - **`paths-ignore` the machinery so install PRs skip the check.** Reopens
   `adr-0013` F3's silent-machinery-edit hole (a PR editing *only*
   `.grove/check/**` would skip its own gate). Rejected — the fix is *how
@@ -287,6 +331,24 @@ are drafts and cross-repo/shape-check-only; asserting a machine edge would
 overclaim). `depends_on` is only genuine coupling (`adr-0012` the check this
 governs; `adr-0013` the scope mode + F3 tripwire + carrier keys it builds
 on); `adr-0005` is `informed_by`.
+
+**Decision-adversary round 1 (2026-07-18): NEEDS-REVISION** — two must-fix
+(F1: the move-1b self-detect discriminator *contradicted* `adr-0013`'s
+carrier fail-close, using the same workflow-absent-on-base condition adr-0013
+reds on, so a relocated established install would silently green-skip; F2:
+the discriminator must be read from the protected branch, not forgeable
+HEAD) and two notes (F3: the "no red on arrival" guarantee is atomic-install
+only — a split install reds fail-safe on the trailing piece; F4: the
+provenance-retraction rationale mischaracterized `adr-0011` as *disallowing*
+the edge). All four applied in this revision: the discriminator is now
+**grove-policy-presence on the protected branch** (orthogonal to adr-0013's
+carrier condition, S6-read, bypass enumeration closed), the atomic-install
+scope is stated, and the provenance rationale corrected to a verifiability
+*choice*. The adversary found the premise sound and everything else it
+attacked (moves 1a/2/3, INV14 non-collision, build-on-settled-ground)
+holds. This revision is NOT claiming round-1 validation — a round-2
+re-review scoped to the corrected discriminator + provenance rationale
+precedes the human gate.
 
 Not claiming the adversary has validated this — the decision-adversary pass
 precedes the human gate; the `approved` intent act is the maintainer's
