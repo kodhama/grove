@@ -161,8 +161,8 @@ four."* This decision **extends that enumeration to five** (adds
   `implements:` **as well as** `depends_on`, same non-transitive
   blast-radius semantics; the three non-drift edges are unchanged.
 - **AC3** `adr-0011` carries a forward pointer from its *"four"*
-  enumeration to this decision; its four edges and classes are otherwise
-  byte-unchanged (append-only).
+  enumeration to this decision — **annotation only, no content edit**; its
+  four edges and their classes are otherwise unchanged (append-only).
 - **AC4** The three-copy sync (canonical / `reference` / consumer `.grove/`)
   is intact for both amended companions.
 - **AC5** An artifact whose fidelity upstream is declared **only** in
@@ -215,6 +215,21 @@ open question, not pretended settled. `depends_on` is genuine coupling —
 resolving code's `implements` upstream); all `approved`, no draft consumed.
 Execution (the two companion amendments, the forward pointer, the optional
 consumer migration) is scoped downstream, not performed here.
+
+**Decision-adversary round 1 (2026-07-18): SOUND.** No load-bearing break
+on any of the four axes; each factual premise corroborated against the
+cited artifacts (the conformance approved-upstream rule at
+`conformance-reviewer.md` Method 1 + `adr-0012` AC12; `validator.md`'s
+`depends_on`-only walk; `relations.md`'s single drift-bearing mark;
+`lib/upstream.mjs`/`graph.mjs` already reading `implements:`), all three
+`depends_on` targets `approved`, and the *"exactly four"* tension handled
+via grove's own append-only annotation precedent (the `adr-0012`→`adr-0006`
+forward-pointer pattern) rather than a silent contradiction. The adversary
+confirmed the sharp coherence probe — `flow: yes` records a constraint that
+is a strict **subset** of the already-enforced conformance rule (flow
+forbids a `draft` upstream; conformance forbids `draft` *and* `gated`), so
+"invents no new enforcement" holds. One non-blocking wording note (AC3's
+"byte-unchanged" vs. the forward-pointer annotation) applied.
 
 **Not claiming adversary validation** — the decision-adversary pass precedes
 the human gate; the `approved` intent act is the maintainer's
