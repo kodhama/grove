@@ -10,7 +10,7 @@
 // sortReasons), reused by the orchestrator for the gate/graph reasons it folds
 // into a pair's row.
 
-import { parseRecord, checkAdmissibility } from './records.mjs';
+import { parseComment, checkAdmissibility } from './records.mjs';
 import { groveFp1, pathHashAt } from './fingerprint.mjs';
 import { reviewBasis } from './basis.mjs';
 import { artifactMeta } from './frontmatter.mjs';
@@ -47,7 +47,13 @@ function treeGet(tree, path) {
 // Prepare the PR comment stream into ordered admissible records + rejected +
 // inert. Ordering is the platform's comment creation order (monotone comment
 // id): sort by numeric `id` when every comment carries one, else preserve the
-// caller-supplied order (assumed creation order).
+// caller-supplied order (assumed creation order). A comment MAY carry several
+// grove-verdict blocks (spec-0002 §A.1 v4 / adr-0019): each well-formed block is
+// its own record, ordered comment-id-MAJOR, block-index-MINOR — so the monotone
+// `order` counter (incremented per record-block in that sequence) totally and
+// deterministically encodes the latest-covering tiebreak (INV9). Admissibility
+// (§A.4) is whole-comment: an edited/unauthorized comment rejects ALL its
+// records; a malformed block is inert on its own and never inerts a sibling.
 export function prepareRecords(comments, posterPolicy = {}) {
   const indexed = comments.map((comment, i) => ({ comment, i }));
   const allHaveId = indexed.every(({ comment }) => comment.id != null);
@@ -62,13 +68,16 @@ export function prepareRecords(comments, posterPolicy = {}) {
   const inert = [];
   let order = 0;
   for (const { comment } of indexed) {
-    const pr = parseRecord(comment);
-    if (pr.status === 'none') continue;
-    if (pr.status === 'inert') { inert.push({ comment, cause: pr.cause }); continue; }
+    const parsed = parseComment(comment);
+    if (parsed.status === 'none') continue;
+    // Admissibility is per-comment, applied uniformly to every block in it.
     const adm = checkAdmissibility(comment, posterPolicy);
-    const entry = { record: pr.record, comment, order: order++ };
-    if (adm.admissible) records.push(entry);
-    else rejected.push({ ...entry, cause: adm.cause });
+    for (const block of parsed.blocks) {
+      if (block.status === 'inert') { inert.push({ comment, cause: block.cause, blockIndex: block.blockIndex }); continue; }
+      const entry = { record: block.record, comment, blockIndex: block.blockIndex, order: order++ };
+      if (adm.admissible) records.push(entry);
+      else rejected.push({ ...entry, cause: adm.cause });
+    }
   }
   return { records, rejected, inert };
 }

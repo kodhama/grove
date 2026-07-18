@@ -1,9 +1,10 @@
-// Upstream: spec-0002 §A.1 (carrier, one-block-per-comment, inertness),
-// §A.2 (schema/schema:1 validation), §A.4 (admissibility: unedited,
-// authorized poster). INV9, INV16; S7, S17.
+// Upstream: spec-0002 §A.1 (carrier, per-block records + isolation, inertness;
+// v4 adr-0019 — a comment may carry several records), §A.2 (schema/schema:1
+// validation), §A.4 (admissibility: unedited, authorized poster). INV9, INV16;
+// S7, S17.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractVerdictBlocks, parseRecord, checkAdmissibility } from '../lib/records.mjs';
+import { extractVerdictBlocks, parseRecord, parseComment, checkAdmissibility } from '../lib/records.mjs';
 
 const validBody = (over = {}) => {
   const rec = {
@@ -64,9 +65,60 @@ test('prose-only comment is not a record (none) — S7 never-reviewed', () => {
   assert.equal(parseRecord(comment({ body: 'conformance passed, promise' })).status, 'none');
 });
 
-test('a multi-block comment is wholly inert (S7)', () => {
-  const body = validBody() + '\n\n' + validBody();
-  assert.equal(parseRecord(comment({ body })).status, 'inert');
+// adr-0019 Decision 1/2, S7 re-cast: a multi-block comment is NO LONGER wholly
+// inert — the check reads each well-formed block as its own record.
+test('a comment with two well-formed blocks yields two record candidates (adr-0019 S7)', () => {
+  const body = validBody() + '\n\n' + validBody({ review: 'code-reviewer', verdict: 'CLEAN' });
+  const parsed = parseComment(comment({ body }));
+  assert.equal(parsed.status, 'multi');
+  assert.equal(parsed.blocks.length, 2);
+  assert.deepEqual(parsed.blocks.map((b) => b.status), ['record', 'record']);
+  assert.deepEqual(parsed.blocks.map((b) => b.blockIndex), [0, 1]);
+  assert.equal(parsed.blocks[0].record.review, 'conformance');
+  assert.equal(parsed.blocks[1].record.review, 'code-reviewer');
+});
+
+// adr-0019 Decision 2: a malformed block is inert ON ITS OWN and never inerts a
+// well-formed sibling (per-block isolation, not per-comment poison).
+test('a malformed block + a well-formed sibling: malformed inert, sibling still a record (S7)', () => {
+  const malformed = '```grove-verdict\n\tschema: 1\n  review: conformance\n```';
+  const body = malformed + '\n\n' + validBody();
+  const parsed = parseComment(comment({ body }));
+  assert.equal(parsed.status, 'multi');
+  assert.equal(parsed.blocks.length, 2);
+  assert.equal(parsed.blocks[0].status, 'inert');
+  assert.equal(parsed.blocks[1].status, 'record');
+  assert.equal(parsed.blocks[1].blockIndex, 1);
+});
+
+// S7 fence-level case: an unclosed grove-verdict fence is malformed (the next
+// opening fence ends it) and does NOT swallow the following well-formed sibling.
+test('an unclosed fence + a well-formed sibling: unclosed inert, sibling still a record (S7)', () => {
+  // The first block never bare-closes; the second opening fence terminates it.
+  const unclosed = '```grove-verdict\nschema: 1\nreview: conformance';
+  const body = unclosed + '\n\n' + validBody();
+  const parsed = parseComment(comment({ body }));
+  assert.equal(parsed.status, 'multi');
+  assert.equal(parsed.blocks.length, 2);
+  assert.equal(parsed.blocks[0].status, 'inert'); // unclosed => malformed => inert
+  assert.equal(parsed.blocks[1].status, 'record'); // sibling survives
+});
+
+// A foreign info-string fence inside a grove-verdict block does not terminate
+// it; the block still parses as one whole record.
+test('a foreign ```python fence inside a block is inner content, not a terminator', () => {
+  const body = validBody({ findings: '|\n  reviewed the code:\n  ```python\n  ok' });
+  const parsed = parseComment(comment({ body }));
+  assert.equal(parsed.status, 'multi');
+  assert.equal(parsed.blocks.length, 1);
+  assert.equal(parsed.blocks[0].status, 'record');
+  assert.match(parsed.blocks[0].record.findings, /```python/);
+});
+
+// parseRecord keeps its single-block back-compat surface (the emit round-trip
+// posts one block per comment).
+test('parseRecord returns the first block as a record for a single-block comment', () => {
+  assert.equal(parseRecord(comment()).status, 'record');
 });
 
 test('schema absent => inert (fail-closed by non-recognition)', () => {
