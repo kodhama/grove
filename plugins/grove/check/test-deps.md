@@ -3,7 +3,7 @@ id: ledger-grove-review-bookkeeping-check
 type: ledger
 status: gated
 implements: spec-0002-review-bookkeeping-check
-depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated]
+depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary]
 owner: agent
 updated: 2026-07-18
 ---
@@ -55,6 +55,21 @@ does not gate its own arrival") rest on
 shell orchestration governed by that decision, not a spec-0002 core
 algorithm, so it carries no spec-0002 amendment.
 
+The **record-emitter** tests (`test/judgment.test.mjs`,
+`test/emit.test.mjs`, `test/emitter.test.mjs`, and `test/basis.test.mjs`
+for the shared-basis extraction) rest on
+`adr-0015-reviewer-machine-boundary` (approved 2026-07-18): the machine
+half of the reviewer/machine boundary — a reviewer emits CI-agnostic
+judgment, the machine stamps the `§A.2` record with a machine-computed
+`grove-fp-1`. The emitter shares the check's own `reviewBasis` +
+`fingerprint`, so the stamp and the freshness check agree by construction;
+the round-trip test (judgment -> emit -> the actual `runCheck` -> GREEN) is
+that agreement's proof. The emitter follows `match.mjs`'s **per-file**
+basis (one record per reviewed file) — the referent the check actually
+verifies; `spec-0002` §A.3's whole-`S` basis prose is a pre-existing
+discrepancy flagged for a follow-up reconciliation wave (not amended here —
+that is a contract-author surface).
+
 ```grove-test-deps
 schema: 1
 specs:
@@ -65,4 +80,5 @@ decisions:
   - adr-0006-operational-conformance-mechanism
   - adr-0013-check-scope-mode
   - adr-0014-install-is-invisible-and-ungated
+  - adr-0015-reviewer-machine-boundary
 ```
