@@ -1,7 +1,7 @@
 ---
 id: adr-0018-gate-profile-and-trigger-split
 type: adr
-status: draft
+status: gated  # self-checked to gated 2026-07-18 (shaper); routes to decision-adversary + HUMAN intent gate. NOT approved — the merge is the maintainer's act (floor-intent-gate)
 depends_on: [adr-0012-methodology-delivery-machinery, trellis/signature-catalog-v1]
 informed_by: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0014-install-is-invisible-and-ungated]
 owner: agent
@@ -10,11 +10,14 @@ updated: 2026-07-18
 
 # ADR-0018: the gate-profile mechanism + the trigger-vs-intent-gate split (in-domain)
 
-> **Draft canvas — shaping in progress.** This is the shared canvas for
-> converging a decision; nothing here is ratified. The maintainer owns
-> the intent gate (`floor-intent-gate`); the merge is the approval. The
-> shaper never promotes this past `draft`. Read `## Decision state`
-> first — it is the live state of the decision in one place.
+> **`gated` — converged, awaiting review.** All in-domain questions are
+> Decided; the one substantive Open (approval-channel authenticity) is
+> resolved by **D11**. The shaper self-checked this to `gated` (see
+> `## Self-check`) and does **not** promote further — it routes to the
+> `decision-adversary` and then the **human intent gate**; the maintainer's
+> **merge is the ratification act** (`floor-intent-gate`), never the
+> shaper's flip. Read `## Decision state` first — it is the live state of
+> the decision in one place.
 >
 > Spun out of grove#36's parked dependents (K1/K2). The one preset that
 > genuinely needs the cross-domain interop "seal" (`autonomous/standing`
@@ -186,18 +189,32 @@ updated: 2026-07-18
     the propagation list as an artifact the **post-approval executor pass
     must update** — append-only per `decisions/README.md` (a forward
     pointer, not an in-place rewrite of ratified text).
+- **D11 — v0 honors only self-authenticating approval channels; refines
+  D2** *(maintainer, 2026-07-18; resolves the former approval-authenticity
+  Open)*.
+  - For v0, grove **honors only the self-authenticating intent-gate
+    channels — in-session approval and merge** — both of which
+    authenticate **by construction** (the human is present in the driving
+    session / holds repo write access).
+  - A **bare tracker/GitHub comment is NOT honored** as an intent-gate
+    approval in v0 — it is forgeable (anyone who can comment can type
+    "approved").
+  - **This does not contradict D2's principle** ("not merge-only" still
+    holds — in-session approval is honored, and it is not a merge). D11
+    scopes *which* channels v0 **honors**, not the principle that the
+    channel is unrestricted-in-kind.
+  - **Deferred (follow-up issue, pointer only):** the stronger
+    per-channel identity mechanism — honoring a tracker comment **tied to
+    a verified CODEOWNER/identity** — is the **in-domain sibling of
+    grove#36's O3** (cross-domain seal verification). The maintainer will
+    open the issue; recorded here so it is not lost.
 
 ### Open
-1. **Approval authenticity per channel (in-domain).** D2 leaves the
-   approval *channel* unrestricted — but the approval must genuinely
-   originate from the accountable human, and **channels differ in
-   forgeability**: a tracker/GitHub comment "can be faked," whereas a
-   merge (needs write access) or an in-session approval (the human is
-   present) is much harder to spoof. How does grove establish that a
-   claimed approval is authentic, **per channel**? Kept **in-domain**
-   (how *this* domain trusts its *own* approval channels); adjacent to
-   grove#36's O3 (cross-domain seal verification) but **not** folded
-   into it. *(The one substantive Open left — see the turn's question.)*
+- **None.** All in-domain questions are Decided (D1–D11). The former
+  approval-authenticity Open is resolved by **D11** (v0 honors
+  self-authenticating channels only; the verified-identity extension is
+  a deferred follow-up issue, pointer above). The canvas is converged for
+  the in-domain case.
 
 ### Parked
 - **The `autonomous/standing`-across-domains preset** — all of a repo's
@@ -209,6 +226,15 @@ updated: 2026-07-18
   **grove#36**. Not shaped in this canvas — pointer only. The schema
   below leaves an explicit slot for it (`## Design constraints`) so it
   drops in later without a rewrite.
+
+### Related, out of scope (seen, tracked elsewhere)
+- **`status`-field vs merge-event divergence at ratification.** When a
+  human merges a decision directly, the artifact's `status` may still
+  read `gated` while the merge has actually ratified it — the file and
+  the merge event diverge. This is about the **general
+  ratification-recording mechanism**, not the gate-profile; **not folded
+  into adr-0018** (maintainer, 2026-07-18). Noted so the record shows we
+  saw it; tracked separately.
 
 ## Given (inherited upstream — not re-litigated here)
 
@@ -267,8 +293,10 @@ setup with the **`steward`** default (**D1**, **D6**), and is
   reading `agent` means no human is *required* at that gate — a human
   may still weigh in there (in-session spec approval under `steward` is
   the live example). And a `human` cell is satisfied by **any authentic
-  channel** — in-session approval, merge, or tracker comment alike — not
-  by a merge specifically.
+  channel**, not by a merge specifically — but **v0 honors only the
+  self-authenticating channels: in-session approval and merge** (**D11**).
+  A bare tracker comment is not honored in v0 (forgeable); a
+  verified-identity comment is a deferred follow-up.
 - **Per-gate override.** On top of a chosen preset, the human may flip
   any single gate's **C2** in `gates.toml` — the preset is a starting
   point, not a cage. (C1 is not exposed here — D4.)
@@ -467,42 +495,106 @@ dependent is silently missed (`inv-graph-maintenance`).
 
 ## Open questions
 
-**One** live item remains in `## Decision state → Open`: per-channel
-**approval authenticity** (how grove trusts that a claimed approval on an
-unrestricted channel genuinely came from the accountable human). D8
-closed the floor-validator hand-edit Open (load-time guard + `guardian`
-fallback); D10 closed the `review-policy.md` mixed-concern Open (split
-into `review.toml` + internal wiring); D7 had closed the schema +
-trigger-row Opens. All other in-domain questions are Decided; the
-cross-domain preset stays Parked (grove#36).
+**None.** All in-domain questions are Decided (D1–D11). The last
+substantive Open (approval-channel authenticity) is resolved by **D11**;
+the verified-identity extension and the cross-domain preset are the only
+deferred items — a follow-up issue (D11) and grove#36 (Parked)
+respectively.
 
-## Self-check (draft — not a gate pass)
+## Acceptance criteria (for the post-approval executor pass)
+
+The decision is the Decided list (D1–D11); these are the checkable
+outcomes a stage-4 `executor` pass must satisfy **after** approval. The
+canvas itself moves no files.
+
+- [ ] `.grove/gates.toml` exists as the consumer-authoritative
+      gate-profile: four explicit C2 rows (`intent`/`spec`/`build`/`ship`),
+      a non-authoritative `seeded_from`, an explicit `[trigger]` section,
+      and a reserved `[intent_external]` slot (`enabled = false`
+      in-domain) — shape (B), D5/D7.
+- [ ] Setup writes `gates.toml` seeded from **`steward`** by an
+      **optional** question (never a forced pick), with per-preset
+      one-liners (D1/D6); all three presets (`steward`/`guardian`/
+      `initiator`) expand correctly (D3).
+- [ ] C1 is **not** in `gates.toml`; enforcement defaults live in a
+      grove-managed `.grove/internal/enforcement.toml` (D4).
+- [ ] The floor validator rejects any profile with 0 `human` intent
+      gates, reading rows directly; it runs at setup, on every
+      `set-profile`, and **on every run-sequencing read** (load-time
+      guard A, D8).
+- [ ] A missing/unreadable/floor-violating `gates.toml` falls back to
+      **`guardian` + a loud warning**, floor enforced and non-silent
+      (D8).
+- [ ] `.grove/internal/` holds the companions (`lifecycle.md`,
+      `versioning.md`, `relations.md`), `check/`, `enforcement.toml`, and
+      the review-policy wiring keys; the `.grove/` root holds
+      `gates.toml` + `review.toml` (D5/D9/D10).
+- [ ] `review-policy.md` is split into `review.toml` (consumer
+      `scope: strict|scoped`) + internal wiring; `adr-0013` is amended
+      append-only for the split (D10).
+- [ ] User-facing config is uniform TOML (`gates.toml`, `review.toml`);
+      companions remain markdown (D9).
+- [ ] A `set-profile` skill exists that wholesale-switches the preset,
+      updates `seeded_from`, shows the diff, confirms before writing, and
+      re-runs the floor validator (D7); v0 honors only self-authenticating
+      approval channels (D11).
+- [ ] All dependents in `## Consequences / propagation` are updated (the
+      companion path ADRs, the skills, `reference/ci/`), none silently
+      missed (`inv-graph-maintenance`).
+
+## Self-check (gate → `gated`)
+
+Self-checked to **`gated`** by the shaper, 2026-07-18. Not an approval —
+the `decision-adversary` pass and the human intent gate follow; the merge
+is the maintainer's ratification act (`floor-intent-gate`).
 
 - **Frontmatter**: `id`/`type`/`status`/`depends_on`/`informed_by`/
-  `owner`/`updated` present; `status: draft`. Not self-promoting past
-  draft (shaper boundary).
-- **`depends_on`**: `adr-0012-methodology-delivery-machinery` (`approved`
-  — the emergent gate structure this profiles) and
+  `owner`/`updated` present, well-typed; `status: gated`. PASS.
+- **`depends_on` resolution / directional flow**: both resolve and carry
+  a consumable status, neither draft — `adr-0012-methodology-delivery-machinery`
+  (`approved` — the emergent gate structure this profiles) and
   `trellis/signature-catalog-v1` (`ratified` — defines the C1/C2 dials +
-  `floor-intent-gate` the profile realizes). Both genuine
-  correctness-bearing coupling, not provenance.
+  `floor-intent-gate` the profile realizes). A `gated` artifact consuming
+  `approved`/`ratified` upstreams is legal. PASS.
 - **`informed_by`** (provenance, not correctness-bearing): `adr-0005`
   (artifact-gated dispatch — the intent gate at the dispatch point),
-  `adr-0006` (the triggered-check machinery a floor validator would ride),
-  `adr-0014` (grove does not gate its own arrival; autonomous run leaves
-  the change and stops rather than self-approving — the intent-gate floor
-  in the install case).
-- **Scope guard**: the across-domains preset is parked to grove#36, not
-  shaped; the schema leaves its slot. New ideas mid-shaping go to Open or
-  Parked, never silently into a Decided.
-- **Near-converged**: 10 Decided (D1 default preset; D2 channel-agnostic
-  intent gate; D3 ship all three presets; D4 C1 grove-fixed, profile is
-  C2-only; D5 `.grove/` layout split by authority; D6 optional preset
-  setup question; D7 `gates.toml` explicit-table shape + preset-as-seed +
-  `set-profile` wholesale switch; D8 load-time floor-guard + `guardian`
-  fallback; D9 multiple config files, uniform TOML; D10 split
-  `review-policy.md`) / **1 Open** (per-channel approval authenticity) /
-  1 Parked (cross-domain preset → grove#36) as of 2026-07-18. **One
-  substantive in-domain Open remains** — the canvas is NOT yet declared
-  converged, and the shaper does not promote past `draft` regardless
-  (the merge is the maintainer's intent act).
+  `adr-0006` (the triggered-check machinery a floor validator rides),
+  `adr-0014` (grove does not gate its own arrival — the install-case
+  intent-gate floor). Correctly `informed_by`, not `depends_on` (shaper
+  edge discipline, `adr-0011`). PASS.
+- **Decision recorded + why-nots kept**: the operative decision is the
+  Decided list D1–D11; every rejected alternative is in `## Options /
+  rejected` with its one-line reason (append-only why-not discipline).
+  PASS.
+- **Floor honored (the load-bearing check)**: every shipped preset and
+  the fallback keeps a human-owned intent gate (`floor-intent-gate`);
+  the floor validator + load-time guard (D8) enforce it, and D11 scopes
+  approval to self-authenticating channels so the floor is not satisfied
+  by a forgeable act. C2-`none` on the intent gate is impossible by
+  construction. PASS.
+- **Forward-compat constraint held**: the `[intent_external]` slot is
+  reserved and visible (design constraint) so the parked cross-domain
+  preset (grove#36) drops in without a rewrite (`inv-graph-maintenance`).
+  PASS.
+- **Scope guard**: the across-domains preset is Parked to grove#36; the
+  `status`/merge divergence is noted Related-out-of-scope; the
+  verified-identity approval mechanism is a deferred D11 follow-up. No
+  new idea landed silently in a Decided. PASS.
+- **Append-only**: new artifact; supersedes nothing in place. The
+  `review-policy.md` split (D10) is flagged as an **append-only
+  amendment to `adr-0013`** for the post-approval pass, not done here.
+  PASS.
+- **Minimal-first**: single configurable axis (C2, D4); multiple small
+  files over one shared config (D9); CI floor-check parked (D8) — the
+  smaller mechanism chosen at each fork. PASS.
+- **Residual caveats (flagged, not blockers)**: (1) exact `gates.toml`
+  key names are illustrative — the executor finalizes them; (2) the
+  canvas uses the shaper's Decision-state format (Decided/Open/Parked)
+  rather than a flat `## Decision` section — the Decided list **is** the
+  decision, with Acceptance criteria added for checkability; (3) v0
+  intent-approval is scoped to two channels (D11) — the verified-identity
+  extension is a named follow-up, not a gap left silent.
+
+**Overall: internally sound, consumable, and `gated`** — 11 Decided / 0
+Open (in-domain) / 1 Parked. Routes to `decision-adversary` then the
+**human intent gate**; the shaper does **not** promote past `gated`.
