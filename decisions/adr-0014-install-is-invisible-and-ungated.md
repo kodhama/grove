@@ -1,7 +1,7 @@
 ---
 id: adr-0014-install-is-invisible-and-ungated
 type: adr
-status: gated  # self-checked converged 2026-07-18 (shaper); awaiting decision-adversary + the maintainer intent act
+status: approved  # maintainer intent act 2026-07-18 ("approved. run the build waves") after decision-adversary rounds 1-2 (SOUND at bb29e37); in-conversation flip recording the act, adr-0011 precedent
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0013-check-scope-mode]
 informed_by: [adr-0005-tdd-and-artifact-gated-dispatch]  # trellis/decision-0048/0049 carried as PROSE provenance below, not a frontmatter edge — a CHOSEN option (adr-0011 permits informed_by → draft AND cross-repo forms), made because cross-repo resolution is shape-check-only so a machine edge adds little verifiable value; not because the edge is disallowed
 owner: agent
