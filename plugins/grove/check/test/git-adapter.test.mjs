@@ -18,6 +18,9 @@ import {
   readProtectedPolicy,
   readProtectedCarrierPaths,
   makeExecGitRunner,
+  groveInstalledOnBase,
+  bootstrapSelfDetect,
+  BOOTSTRAP_SKIP_SUMMARY,
 } from '../shell/git-adapter.mjs';
 
 // --- parseChangedPaths (§C.2): name-status -> owed-review paths at HEAD ---
@@ -435,8 +438,107 @@ test('readProtectedPolicy surfaces charterEntries {path,text} and reviewPolicyPa
   assert.ok(res.charterTexts.some((t) => t.includes('CANONICAL')));
 });
 
+// --- adr-0014 move 1b: the bootstrap self-detect ("grove does not gate its own
+//     arrival"). The discriminator asks ONE question — is grove installed on the
+//     protected default branch at all yet, i.e. does a `grove-review-policy`
+//     block exist on origin/<default>? ABSENT (this PR introduces grove) ⇒ the
+//     check exits GREEN (non-gating) and never runs the gating logic. PRESENT
+//     (established install) ⇒ no skip; the normal check runs (adr-0013's carrier
+//     fail-close etc. fire exactly as before). The discriminator is read from the
+//     protected branch ONLY (HEAD-independent, adr-0013 INV1/S6 / the F2 finding)
+//     and keys on POLICY-presence, NOT workflow-file-presence (adr-0014 F1). ---
+
+test('groveInstalledOnBase: PRESENT — a review-policy text bearing a grove-review-policy block ⇒ installed (adr-0014 1b)', () => {
+  const reviewPolicyText = '```grove-review-policy\nschema: 1\nscope: scoped\n```';
+  assert.equal(groveInstalledOnBase({ reviewPolicyText }), true);
+});
+
+test('groveInstalledOnBase: ABSENT — empty policy text (no carrier on base) ⇒ not installed (adr-0014 1b)', () => {
+  // readProtectedPolicy returns '' when no review-policy carrier exists on base
+  // (a genuinely absent/empty discovery — the fresh-install signal).
+  assert.equal(groveInstalledOnBase({ reviewPolicyText: '' }), false);
+  assert.equal(groveInstalledOnBase({}), false);
+});
+
+test('groveInstalledOnBase: ABSENT — a carrier exists on base but bears no grove-review-policy BLOCK ⇒ not installed (block-presence, not file-presence)', () => {
+  // The discriminator is the BLOCK's presence, not merely the file's — a
+  // review-policy file with unrelated prose but no grove-review-policy block is
+  // read as "not installed" (adr-0014: "does the grove-review-policy BLOCK exist").
+  const reviewPolicyText = '# some file that is not a grove policy carrier\n```yaml\nfoo: bar\n```';
+  assert.equal(groveInstalledOnBase({ reviewPolicyText }), false);
+});
+
+test('bootstrapSelfDetect: ABSENT ⇒ skip GREEN with the exact activation summary (adr-0014 1b)', () => {
+  const d = bootstrapSelfDetect({ reviewPolicyText: '' });
+  assert.equal(d.skip, true);
+  assert.equal(d.summary, 'grove install detected — the check activates on your next PR');
+  assert.equal(d.summary, BOOTSTRAP_SKIP_SUMMARY);
+});
+
+test('bootstrapSelfDetect: PRESENT ⇒ does NOT skip; the normal check runs (adr-0013 fail-close fires as before)', () => {
+  const reviewPolicyText = '```grove-review-policy\nschema: 1\nscope: scoped\n```';
+  const d = bootstrapSelfDetect({ reviewPolicyText });
+  assert.equal(d.skip, false);
+});
+
+test('bootstrap discriminator reads from the PROTECTED branch only (origin/<default>), never PR HEAD (adr-0014 F2 / adr-0013 INV1,S6)', async () => {
+  // Feed the discriminator via readProtectedPolicy over a fake base tree; the
+  // treeRunner asserts internally that EVERY read targets origin/main. A PR
+  // cannot forge "install detected" by editing its own HEAD because the text the
+  // discriminator reads comes exclusively from the protected-branch read.
+  const installedBase = {
+    'charters/review-policy.md': '```grove-review-policy\nschema: 1\nscope: scoped\n```',
+    'charters/conformance-reviewer.md': 'CANONICAL\n' + DECL_BLOCK,
+  };
+  const freshBase = { 'README.md': 'a repo with no grove install on base yet' };
+
+  const rInstalled = treeRunner(installedBase);
+  const { reviewPolicyText: tInstalled } = await readProtectedPolicy({
+    gitRunner: rInstalled,
+    defaultBranch: 'main',
+    env: {},
+  });
+  assert.equal(bootstrapSelfDetect({ reviewPolicyText: tInstalled }).skip, false);
+
+  const rFresh = treeRunner(freshBase);
+  const { reviewPolicyText: tFresh } = await readProtectedPolicy({
+    gitRunner: rFresh,
+    defaultBranch: 'main',
+    env: {},
+  });
+  assert.equal(bootstrapSelfDetect({ reviewPolicyText: tFresh }).skip, true);
+});
+
 // --- Real-git integration (the existing makeExecGitRunner style): the probe
 //     resolves carriers committed on the protected branch. ---
+
+test('bootstrap self-detect over real git: a base with no grove policy ⇒ skip; a base with the policy ⇒ run (adr-0014 1b)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'grove-bootstrap-'));
+  const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 't@t');
+  git('config', 'user.name', 'tester');
+
+  // Protected branch BEFORE grove exists: no review-policy carrier at all.
+  writeFileSync(join(dir, 'README.md'), 'a project with no grove yet');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'pre-grove');
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+
+  const gitRunner = makeExecGitRunner({ cwd: dir });
+  const fresh = await readProtectedPolicy({ gitRunner, defaultBranch: 'main', env: {} });
+  assert.equal(bootstrapSelfDetect({ reviewPolicyText: fresh.reviewPolicyText }).skip, true, 'fresh install ⇒ skip green');
+
+  // Now grove is installed on the protected branch (policy carrier present).
+  mkdirSync(join(dir, '.grove'), { recursive: true });
+  writeFileSync(join(dir, '.grove/review-policy.md'), '```grove-review-policy\nschema: 1\nscope: scoped\n```');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'install grove');
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+
+  const established = await readProtectedPolicy({ gitRunner, defaultBranch: 'main', env: {} });
+  assert.equal(bootstrapSelfDetect({ reviewPolicyText: established.reviewPolicyText }).skip, false, 'established install ⇒ run');
+});
 
 test('readProtectedCarrierPaths resolves carriers committed on the protected branch (real git)', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'grove-carrier-'));

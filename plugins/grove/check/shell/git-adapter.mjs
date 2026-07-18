@@ -232,6 +232,40 @@ export async function readProtectedCarrierPaths({
   return out;
 }
 
+// --- adr-0014 move 1b: bootstrap self-detect ("grove does not gate its own
+//     arrival"). The discriminator asks ONE question — is grove installed on the
+//     protected default branch at all yet? — and keys on the presence of a
+//     `grove-review-policy` BLOCK on origin/<default>, NOT on workflow-file
+//     presence. Policy-presence is the F1-safe discriminator: workflow-file
+//     absence-on-base is the exact condition adr-0013's carrier fail-close reds
+//     on (a relocated established install), so discriminating on it would
+//     override that red. `reviewPolicyText` is supplied by readProtectedPolicy,
+//     which reads the review-policy carrier from origin/<default> ONLY — so the
+//     discriminator is HEAD-independent and a PR cannot forge "installed" by
+//     editing its own HEAD (adr-0013 INV1/S6, the F2 finding).
+
+// The exact non-gating summary line adr-0014 mandates on a fresh-install skip.
+export const BOOTSTRAP_SKIP_SUMMARY = 'grove install detected — the check activates on your next PR';
+
+// groveInstalledOnBase({ reviewPolicyText }) -> boolean
+// True iff the protected branch's review-policy text bears a grove-review-policy
+// block. Block-presence (not file-presence): a carrier file with no block reads
+// as "not installed". Absent/empty text (no carrier on base) ⇒ false.
+export function groveInstalledOnBase({ reviewPolicyText = '' } = {}) {
+  return extractFencedBlocks(reviewPolicyText, 'grove-review-policy').length > 0;
+}
+
+// bootstrapSelfDetect({ reviewPolicyText }) -> { skip, summary? }
+// The guard decision the shell consults BEFORE running the gating logic. If grove
+// is not yet installed on the protected branch (this PR is introducing grove),
+// skip GREEN (non-gating, exit 0) with BOOTSTRAP_SKIP_SUMMARY and never invoke the
+// check. If grove is established on base, do NOT skip — the normal check runs, so
+// adr-0013's carrier fail-close and everything else fire exactly as before.
+export function bootstrapSelfDetect({ reviewPolicyText = '' } = {}) {
+  if (groveInstalledOnBase({ reviewPolicyText })) return { skip: false };
+  return { skip: true, summary: BOOTSTRAP_SKIP_SUMMARY };
+}
+
 // The thin, untested real edge: a git-runner backed by execFile('git', ...).
 // Never exercised by the unit tests (they inject fakes); disclosed as the
 // untested boundary. Large blobs need a generous buffer.
