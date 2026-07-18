@@ -464,6 +464,24 @@ normalized to this form **matches nothing** (fail-closed by non-match).
   subject + `manifest_hashes` + fingerprint + producer/reviewer +
   findings together — so `adr-0012`'s "one act" binds **the block, not
   the comment**: batching groups whole records, it never fragments one.
+- **Block delimitation and index (concretization, flagged — makes the
+  §A.1/INV9 tiebreak and the per-block isolation guarantee determinate,
+  `adr-0019` Decision 2/4).** A `grove-verdict` block runs from its
+  opening ```` ```grove-verdict ```` fence line to the **next fence
+  line** — either its closing bare ```` ``` ````, **or the next opening
+  ```` ```grove-verdict ```` fence, whichever comes first**; an opening
+  fence implicitly ends any block still open. A block **not closed by a
+  bare fence** before the next opening fence or end-of-comment is
+  **malformed → inert on its own** — it is never a record, and it
+  **never absorbs, swallows, or inerts a following block** (so a
+  stray/unclosed fence costs at most its own block, never a sibling —
+  the isolation guarantee above is thereby satisfiable at the *fence*
+  level, not only the §A.2-parse level). Within one comment the blocks
+  are ordered by **document order of their opening fences**; **block
+  index is 0-based, higher index = later** — "latest within a comment"
+  is the **highest** block index. This is the index the §A.1 selection
+  rule and INV9 refer to: selection order is **comment-id-major,
+  block-index-minor**.
 - **Append-only.** A re-review yields a **new** record; nothing is
   overwritten or deleted. Editing a record's comment **rejects** the
   record (§A.4, AC14) — a record comment is never edited; a correction
@@ -1306,10 +1324,17 @@ These are named, not pretended. Authenticity and policy changes remain
   `grove-verdict` block**, *Then* the malformed block is inert **on its
   own** while its well-formed sibling **still counts as a record** — a
   malformed block never inerts its siblings (per-block isolation, never
-  per-comment poison; `adr-0019`). *And given* a comment carrying **two
-  well-formed `grove-verdict` blocks**, *Then* the check reads **each as
-  its own record**, admitted / selected / freshness-verified
-  independently on its own subject + fingerprint. *And given* a
+  per-comment poison; `adr-0019`). *And given* a comment carrying an
+  **unclosed ```` ```grove-verdict ```` fence** (no bare closing fence)
+  immediately followed by a well-formed `grove-verdict` block, *When* the
+  check runs, *Then* the unclosed block is **malformed → inert on its
+  own** (the following opening fence ends it, §A.1 block delimitation)
+  and it **does not swallow or inert** the well-formed sibling, which
+  **still counts as a record** — a fence-level typo costs at most its own
+  block. *And given* a comment carrying **two well-formed `grove-verdict`
+  blocks**, *Then* the check reads **each as its own record**, admitted /
+  selected / freshness-verified independently on its own subject +
+  fingerprint. *And given* a
   schema-valid PASS record whose `findings` body is empty, *Then* it
   satisfies nothing and the pair's reason is `vacuous-evidence`.
 - **S8 (green non-authorizing, AC6).** *Given* every owed pair satisfied
@@ -1848,6 +1873,21 @@ decision `adr-0019`.
   block-index tiebreak** for when two records for the same `(f, R)` share
   a comment: order is **comment-id-major, block-index-minor**
   (`adr-0019` Decision 4).
+- **§A.1 — block delimitation and index bullet** *(added under the
+  spec-adversary finding, 2026-07-18 — see the revision note below).* A
+  new bullet **defines the two terms the batching amendment made
+  load-bearing but had left undefined**: (a) **block index** —
+  document order of opening fences within a comment, **0-based, higher =
+  later** ("latest within a comment" = highest index), the referent of
+  the §A.1/INV9 tiebreak; and (b) **block delimitation** — a
+  `grove-verdict` block runs from its opening fence to the next fence
+  line, a bare closing ```` ``` ```` **or the next opening
+  ```` ```grove-verdict ```` fence, whichever comes first; a block not
+  bare-closed before the next opening fence or end-of-comment is
+  **malformed → inert on its own and never absorbs/inerts a following
+  block**. This makes the per-block isolation guarantee (`adr-0019`
+  Decision 2) satisfiable at the **fence** level, not only the
+  §A.2-parse level — an unclosed fence costs at most its own block.
 - **INV9.** "or a multi-block comment" is **removed** from its inert
   clause — an unparseable **block** stays inert (including the
   absent/unknown-`schema` case, which is **kept**), but a multi-block
@@ -1859,9 +1899,13 @@ decision `adr-0019`.
 - **S7.** Re-cast so a multi-block comment is **no longer** the inert
   case: the inert path is now tested via a **malformed block** (which
   reds absent any covering record), a malformed-block-alongside-a-
-  well-formed-sibling case (malformed inert, sibling survives), and a
-  two-well-formed-blocks case (two records). The empty-`findings`
-  vacuity half is unchanged. Carries an inline amendment marker.
+  well-formed-sibling case (malformed inert, sibling survives), a
+  **fence-level** case (an **unclosed ```` ```grove-verdict ```` fence**
+  followed by a well-formed sibling → the unclosed block inert, the
+  sibling still a record — added under the spec-adversary finding, the
+  corner that proves the isolation guarantee), and a two-well-formed-
+  blocks case (two records). The empty-`findings` vacuity half is
+  unchanged. Carries an inline amendment marker.
 - **§D — `never-reviewed` note.** "multi-block comment" is dropped from
   its inert causes; a **malformed `grove-verdict` block** stays one.
 - **Frontmatter.** `adr-0019-batched-verdict-records` added to
@@ -1925,3 +1969,31 @@ together — with the §A.2 schema, the §A.3 fingerprint basis, the §C.0
 trust model, §A.4 admissibility, and every other EARS/GWT clause
 untouched. Conformance is not self-declared here — the gates judge, and
 `approved` is the maintainer's to give.
+
+**Revision (2026-07-18, same amendment — spec-adversary NEEDS-REVISION
+applied pre-merge; `version` stays `4`).** The spec-adversary gate found
+one load-bearing gap: the batching amendment made **intra-comment block
+boundaries** normative in two new places (the §A.1/INV9 selection
+**block-index tiebreak** and the **per-block isolation** guarantee) but
+left both underlying terms undefined — "block index" had no direction or
+base, and **block delimitation** was unspecified, so the isolation
+guarantee had an uncovered corner: verified against
+`plugins/grove/check/lib/blocks.mjs`, extraction is line-based and an
+opening ```` ```grove-verdict ```` fence does **not** close a prior
+block, so an **unclosed** fence would swallow the following well-formed
+sibling — the exact one-typo false-RED the guarantee promises to
+prevent. Two in-scope completions of `adr-0019` Decision 2/4 (not new
+scope) close it: (1) a new **§A.1 "Block delimitation and index"
+bullet** defines block index (document order of opening fences, 0-based,
+higher = later; "latest" = highest) and block delimitation (a block runs
+to the next fence line — bare close **or** next opening fence, whichever
+first; an unclosed block is malformed → inert on its own and never
+absorbs/inerts a following block); (2) **S7** gains the fence-level case
+(unclosed fence + well-formed sibling → unclosed inert, sibling still a
+record). Nothing else changed; the four inert-clause moves stand as
+authored. Per the coordinator's note, this delimitation rule also obliges
+a Wave-2 change to `blocks.mjs extractFencedBlocks` (an opening fence must
+terminate a prior unclosed block) beyond `records.mjs:71` — scoped to the
+executor, not touched here. No re-judgment of the adversary verdict is
+claimed — the gate re-judges; `status: approved` still rests on the
+recorded 2026-07-16 human act plus the `adr-0019` ride-along.
