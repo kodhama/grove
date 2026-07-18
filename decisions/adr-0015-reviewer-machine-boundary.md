@@ -84,6 +84,31 @@ The division in one line: **the reviewer supplies the *judgment*; the
 machine supplies the *cryptography and the envelope*; the harness supplies
 the *delivery*.**
 
+## Relationship to `adr-0012` (the posting mechanism, refined — not superseded)
+
+`adr-0012` (approved) states the record mechanism with the reviewer as the
+posting actor: *"each reviewer posts its verdict as a structured comment on
+the PR"* (Decision-in-brief 1) and *"every reviewer posts verdict records"*
+(Consequences). This decision **corrects that actor** — and says so
+explicitly rather than silently diverging (grove's append-only rule: *fix
+the decision, don't patch around it*).
+
+- **Why it's corrected, not merely changed:** grove#67 proved reviewer-
+  posting **unbuildable** — an LLM cannot stamp the record's `grove-fp-1`,
+  so "the reviewer posts the record" was never actually satisfiable. The
+  stamping/posting actor moves to the machine/harness; the reviewer keeps
+  the judgment.
+- **What is preserved:** `adr-0012`'s **binding acceptance criteria are
+  actor-neutral about who posts** — **AC7** (separation is the record's
+  `producer`/`reviewer` *fields*, not the poster), **AC10** (records land
+  on the change request), and AC1–AC6 all hold unchanged. Only the
+  descriptive posting-*actor* prose in the Decision-in-brief/Consequences
+  is refined; the check's contract is untouched.
+- **This is a scoped refinement, not a whole-decision supersession.**
+  `adr-0012` stands; a forward pointer is added on its posting-actor prose
+  pointing here (same change), so a later reader of *"each reviewer posts"*
+  is not left in silent tension with this decision.
+
 ## Considered and rejected
 
 - **Bake the `§A.2` format + fingerprint into the reviewer charters**
@@ -114,6 +139,19 @@ the *delivery*.**
    `grove-fp-1` over the correct review-class basis at HEAD, by importing
    the check's own `fingerprint`/`upstream`/basis code. The judgment→record
    handoff shape is the emitter's input contract (Consequence 4).
+   **Basis-granularity constraint the build must pin (adversary N3):** the
+   check recomputes freshness **per owed-pair file** (`match.mjs`:
+   `basis = [file]` or `[file, ...U]`), while `spec-0002` §A.3 describes the
+   quality basis as the whole subject manifest `S`. For a multi-subject
+   record these disagree — one `fingerprint` cannot equal `grove-fp-1` over
+   two different single-file bases. So the emitter must produce a record
+   whose fingerprint is verifiable per the check's per-file recomputation
+   (in practice: one subject per fingerprint, i.e. one record per reviewed
+   file, or the emitter/spec basis reconciled). This is a **pre-existing
+   spec/code granularity discrepancy** (not introduced here); adr-0015
+   defers it to the emitter input contract and flags that the §A.3 basis and
+   `match.mjs`'s per-file basis must be reconciled to one referent during
+   the build (a possible `spec-0002` §A.3 clarification falls out of it).
 3. **`spec-0002` §A note**: the record's `fingerprint` (and
    `manifest_hashes`/envelope) is **machine-stamped by the emitter**, not
    hand-authored; the reviewer's judgment is the input. No core algorithm
@@ -131,7 +169,17 @@ the *delivery*.**
 - **Which harness component runs the emitter + posts** — a dedicated CI
   step vs. the dispatcher relaying (what has been done by hand all along).
   The reviewer decoupling holds either way; parked as an orchestration
-  detail, not blocking the boundary.
+  detail, not blocking the boundary. **But it is bounded, not
+  unconstrained** (adversary N2): `spec-0002` §A.4 gates admissibility on
+  the poster identity (default `author_association ∈ {OWNER, MEMBER,
+  COLLABORATOR}`, else `record_poster_allowlist`). A CI poster such as
+  `github-actions[bot]` is none of those, so **whichever harness component
+  posts, its identity must be placed in `record_poster_allowlist`** or the
+  record is rejected `unauthorized` and every owed pair reds. The overridable
+  allowlist is exactly the accommodating mechanism — already in the standing
+  spec — so this is a wiring constraint the who-posts resolution must honor,
+  not a contradiction. (Separation authority is unaffected — it is the
+  record's `producer`/`reviewer` *fields*, not the poster.)
 - **The judgment handoff shape** (Consequence 4) — must be CI-agnostic
   from the reviewer's side (verdict + files + findings is natural output;
   a structured mini-block the reviewer emits oblivious to its use is still
@@ -160,6 +208,26 @@ their executing surfaces (charters, the check package, `spec-0002` §A).
 makes producible, and the AC7 authority it preserves), `adr-0006` (the
 ledger/`implements` upstream the fidelity basis resolves through);
 `adr-0005` is `informed_by`. Both `approved`.
+
+**Decision-adversary round 1 (2026-07-18): NEEDS-REVISION** — one must-fix
+(N1) + two notes, all applied:
+- **N1 (must-fix, contradiction with approved adr-0012):** relocating the
+  posting actor overrode adr-0012's *"each reviewer posts"* prose with no
+  reconciliation — a silent divergence the append-only rule forbids. Fixed:
+  the new **"Relationship to adr-0012"** section frames it as a scoped
+  refinement (the actor is corrected because grove#67 proved reviewer-
+  posting unbuildable; adr-0012's binding ACs are actor-neutral and
+  preserved), and a **forward pointer** was added on adr-0012's posting-actor
+  prose (Decision-in-brief 1 + Consequences), same change.
+- **N2 (note):** who-posts is bounded by §A.4 — a CI poster must be in
+  `record_poster_allowlist`. Added to the open question.
+- **N3 (note):** the check's per-file freshness basis vs §A.3's whole-`S`
+  basis disagree for a multi-subject record — a pre-existing discrepancy
+  flagged as a constraint the emitter build must pin (Consequence 2).
+The adversary found the premise sound and everything else it attacked
+(AC7 separation preserved as the same conceded §E class; build-on-settled-
+ground; deferability of the open questions) holds. A round-2 re-review
+scoped to the added adr-0012-relationship text precedes the human gate.
 
 Not claiming adversary validation — the decision-adversary pass precedes
 the human gate; the `approved` intent act is the maintainer's

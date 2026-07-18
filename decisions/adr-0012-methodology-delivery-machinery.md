@@ -42,7 +42,14 @@ with *judgment*. Ship this now (the buildable part, "Layer A"):
    new **decision-adversary**) posts its verdict as a **structured comment on
    the PR**: the verdict, a fingerprint of exactly what it reviewed, who
    produced vs. who reviewed, and its findings — one act, one channel, in the
-   place humans already read. The comment is the **commit point**: a review
+   place humans already read.
+   <!-- POSTING-ACTOR REFINED by adr-0015 (grove#67, 2026-07-18): the
+   reviewer supplies only the *judgment*; a machine emitter stamps the
+   record's fingerprint (an LLM cannot compute grove-fp-1) and the harness
+   posts it. This decision's binding ACs (AC7 separation via record fields,
+   AC10 records-on-the-change-request) are actor-neutral and unchanged; only
+   the "reviewer posts" actor is corrected. See adr-0015. -->
+   The comment is the **commit point**: a review
    that lives only in a session's context does not count (a session
    "remembering" its reviews is precisely what failed in #278). Records are
    **append-only by convention, enforced where the platform allows** (fifth
@@ -229,7 +236,10 @@ approval:
 - **A verdict-record convention** is introduced — each reviewer posts one
   **structured comment on the PR** per review: verdict token +
   subject-manifest + fingerprint + producer/reviewer attribution + findings,
-  in one act. Records are **append-only** (a re-review posts a new record; the
+  in one act. <!-- POSTING-ACTOR REFINED by adr-0015 (grove#67): the reviewer
+  supplies the judgment; the machine emitter stamps the fingerprint and the
+  harness posts. The record CONTENT here is unchanged; only the actor is
+  corrected. --> Records are **append-only** (a re-review posts a new record; the
   latest per review counts; the full sequence stays visible; the check rejects
   edited records — F2). **The check renders a read-only status view** from the
   records, per (file × owed review) *with the reason* anything is un-green
