@@ -1,7 +1,7 @@
 ---
 id: adr-0019-batched-verdict-records
 type: adr
-status: gated  # self-checked (shaper Method); `approved` is the maintainer's intent act, never the shaper's
+status: approved  # maintainer intent act 2026-07-18 ("approved") after decision-adversary rounds 1-2 SOUND; in-conversation flip, adr-0017/adr-0016 precedent
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0015-reviewer-machine-boundary, adr-0017-dispatcher-posts-records-self-adoption]
 owner: agent
 updated: 2026-07-18
