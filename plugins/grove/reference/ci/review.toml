@@ -1,0 +1,51 @@
+# .grove/review.toml — consumer-authoritative review policy for the grove
+# bookkeeping check (adr-0018 D10; adr-0013). This is the user surface: the
+# scope mode chosen at install and the corpus-policy knobs. It is TOML (adr-0018
+# D9 — user-facing config is uniform TOML). The grove-WIRING keys
+# (check_runtime_dir / check_workflow_path) do NOT live here — they are
+# grove-authoritative and live in .grove/internal/review-wiring.toml (D10).
+#
+# The check reads this file from the PROTECTED default branch, never PR HEAD
+# (spec-0002 §C.1). A missing key falls to the spec's named fail-closed interim
+# (spec-0002 Q7): an absent reviewless list means those types owe the full set;
+# an absent allowlist exempts nothing; an absent artifact_dirs means the stated
+# default. An absent — or unrecognized — scope means `strict` (adr-0013 dec 2:
+# fail-closed, never a silent softening). No absence is ever a silent pass.
+
+# adr-0013 / spec-0002 §B, §C.1 — the check's scope mode, chosen at install time
+# (the one setup question) and recorded here.
+#   strict — every changed file in a PR is the check's business: anything not
+#            positively declared reviewless owes the full review set, fail-closed
+#            over the whole repo.
+#   scoped — the check governs only what is declared into the methodology (files
+#            under artifact_dirs, files whose frontmatter declares a type, code
+#            opted in via a test-deps ledger, and the gate's own carriers);
+#            everything else is outside its jurisdiction — not red, not exempted.
+# ABSENT OR UNRECOGNIZED => strict (fail-closed): deleting or misspelling this
+# key can only widen jurisdiction, never soften the gate. Resolved to "scoped"
+# or "strict" by /grove:setup or /grove:check-install — no install leaves it absent.
+scope = "<SCOPE>"
+
+# spec-0002 §A.3 step 1 — the directories globbed to build the artifact index
+# (frontmatter id -> path). Adjust to this project's corpus layout.
+artifact_dirs = ["decisions", "specs", "charters"]
+
+# spec-0002 §B — positive reviewless declarations. Only a type listed here owes
+# nothing; an absent or unclaimed type owes the FULL review set (fail-closed,
+# INV7/AC4).
+reviewless_types = ["research", "feedback"]
+
+# spec-0002 §C.2 — the non-behavioral allowlist: EXPLICIT repo-relative paths
+# only (never a class, glob, or directory), each honored only if it also passes
+# the prose predicate (INV14/AC5). README-class orientation prose only — never a
+# review-free zone for code. Replace with THIS project's orientation-prose paths
+# (an entry that matches no file is simply inert).
+non_behavioral_allowlist = ["README.md", ".claude/agents/README.md"]
+
+# spec-0002 §C.2 — the prose predicate's extension set: an allowlisted path is
+# honored only if its extension is in this set AND its first line is not a shebang.
+prose_extensions = [".md", ".txt", ".rst"]
+
+# spec-0002 §A.4 — record-poster allowlist. Deliberately absent: the check uses
+# the spec's default (platform author_association in {OWNER, MEMBER, COLLABORATOR}).
+# Add a record_poster_allowlist = [...] list of identities here to override it.

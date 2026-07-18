@@ -8,6 +8,7 @@
 // for an unclaimed type).
 
 import { parseYaml } from './yaml.mjs';
+import { parseToml } from './toml.mjs';
 import { extractFencedBlocks } from './blocks.mjs';
 import { normalizePath } from './normalize.mjs';
 
@@ -76,6 +77,57 @@ export function parseReviewPolicy(text) {
     proseExtensions: obj.prose_extensions != null ? toList(obj.prose_extensions) : DEFAULT_PROSE_EXTENSIONS,
     recordPosterAllowlist: obj.record_poster_allowlist != null ? toList(obj.record_poster_allowlist) : null,
   };
+}
+
+// adr-0018 D10 — the consumer review-policy split. The consumer scope choice +
+// corpus policy live in `.grove/review.toml` (TOML); the two grove-wiring
+// carrier keys live in an internal TOML file. The check reads the split by
+// SYNTHESIZING the equivalent `grove-review-policy` fenced block from the two
+// TOML sources, so every downstream consumer (parseReviewPolicy, the bootstrap
+// self-detect's block-presence check, resolveCarriers) is byte-identical to the
+// single-file (grove-self `charters/review-policy.md`) path.
+//
+// Fail-close (adr-0013 AC4): a carrier key ABSENT from the wiring file is
+// OMITTED from the synthesized block — never forged into a passing value — so
+// parseReviewPolicy falls it to the install default (`defaulted` provenance),
+// which resolveCarriers then reds if that path does not exist on the protected
+// branch. The split changes WHERE the key lives, never THAT its absence fails
+// closed.
+const SYNTH_SCALAR_KEYS = ['scope'];
+const SYNTH_ARRAY_KEYS = [
+  'artifact_dirs',
+  'reviewless_types',
+  'non_behavioral_allowlist',
+  'prose_extensions',
+  'record_poster_allowlist',
+];
+const SYNTH_CARRIER_KEYS = ['check_runtime_dir', 'check_workflow_path'];
+
+function yamlScalar(v) {
+  return '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+}
+
+function yamlFlowArray(arr) {
+  return '[' + arr.map((x) => yamlScalar(x)).join(', ') + ']';
+}
+
+export function synthesizePolicyBlock({ reviewToml = '', wiringToml = null } = {}) {
+  const review = parseToml(reviewToml || '');
+  const wiring = wiringToml == null ? {} : parseToml(wiringToml);
+  const lines = ['```grove-review-policy', 'schema: 1'];
+  for (const k of SYNTH_SCALAR_KEYS) {
+    if (review[k] != null) lines.push(`${k}: ${yamlScalar(review[k])}`);
+  }
+  for (const k of SYNTH_ARRAY_KEYS) {
+    if (review[k] != null) lines.push(`${k}: ${yamlFlowArray(toList(review[k]))}`);
+  }
+  // Carrier keys come ONLY from the wiring file; an absent key is omitted so the
+  // parser applies the install default (the fail-close, adr-0013 AC4).
+  for (const k of SYNTH_CARRIER_KEYS) {
+    if (wiring[k] != null) lines.push(`${k}: ${yamlScalar(wiring[k])}`);
+  }
+  lines.push('```');
+  return lines.join('\n');
 }
 
 // Parse a single charter body's grove-review-declaration block (or null).

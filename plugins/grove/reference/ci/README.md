@@ -38,7 +38,7 @@ and every declared artifact reference resolves.
 ## `scoped` vs `strict`, in plain terms
 
 The check runs in one of two modes, chosen at install time by one
-question and recorded as `scope:` in `.grove/review-policy.md`
+question and recorded as `scope` in `.grove/review.toml`
 (`adr-0013`):
 
 - **`scoped`** (recommended to start) — the check watches only what is
@@ -64,10 +64,11 @@ apply, to fewer files.
 The owed-review map (which reviews each kind of file owes) is assembled
 **at run-time, on every run**, from the reviewer-agent declarations
 installed in `.claude/agents/` (their `grove-review-declaration`
-blocks) plus the `grove-review-policy` block in
-`.grove/review-policy.md` — all read from the protected default branch,
-never from the PR's own branch. There is no compiled map to regenerate:
-changing what a type owes is an agent-declaration edit.
+blocks) plus the consumer policy in `.grove/review.toml` (scope + corpus
+policy) and the wiring in `.grove/internal/review-wiring.toml` (the
+carrier keys) — all read from the protected default branch, never from
+the PR's own branch. There is no compiled map to regenerate: changing
+what a type owes is an agent-declaration edit.
 
 ## Incidental frontmatter (`type: post` and friends)
 
@@ -76,8 +77,8 @@ declaration, recognized or not — so a static-site repo whose Hugo or
 Jekyll content carries `type: post` will find those files in scope and,
 `post` being claimed by no reviewer, red with the full owed set. The
 cure is a positive policy declaration: add the type to
-`reviewless_types` in `.grove/review-policy.md` (e.g.
-`reviewless_types: [research, feedback, post]`) — one deliberate,
+`reviewless_types` in `.grove/review.toml` (e.g.
+`reviewless_types = ["research", "feedback", "post"]`) — one deliberate,
 reviewable line. Honest status of this edge: the any-`type:`-counts
 rule was maintainer-ratified **provisionally** (2026-07-17,
 ratified-to-move), with the math-quest consumer pilot named as its
@@ -91,11 +92,13 @@ Install lands three pieces plus one recorded choice:
 1. the check runtime at `.grove/internal/check/` (zero-dependency — no
    `npm install`);
 2. the workflow at `.github/workflows/grove-review-bookkeeping.yml`;
-3. the policy carrier at `.grove/review-policy.md` — where the one
-   setup question's answer is recorded as `scope:`, alongside the
-   `check_runtime_dir` / `check_workflow_path` carrier keys naming the
-   actual install paths. Every install writes all three keys
-   explicitly; the fail-closed defaults exist only as the backstop.
+3. the split policy carrier (`adr-0018` D10): `.grove/review.toml` — the
+   consumer surface, where the one setup question's answer is recorded as
+   `scope` — plus `.grove/internal/review-wiring.toml`, the
+   grove-authoritative wiring carrying the `check_runtime_dir` /
+   `check_workflow_path` keys that name the actual install paths. Every
+   install writes all three keys explicitly; the fail-closed defaults
+   exist only as the backstop.
 
 `/grove:check-install` runs exactly this install standalone — invoking
 it *is* the opt-in. `/grove:remove` reverses all of it (and only it).

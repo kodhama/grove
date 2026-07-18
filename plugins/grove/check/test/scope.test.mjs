@@ -352,12 +352,12 @@ test('§D remedy-hint marker — a declared type (spec) carries NO remedy marker
 test('INV21 — gate carriers are in scope in scoped mode: declaration file, policy file, ledger, runtime-dir file, workflow file', () => {
   const declPolicy = assemblePolicy({
     reviewPolicyText: policyText(['scope: scoped']),
-    reviewPolicyPath: '.grove/review-policy.md',
+    reviewPolicyPath: '.grove/review.toml',
     charterTexts: [{ path: '.claude/agents/conformance-reviewer.md', text: decl('conformance', ['spec', 'code'], ['PASS']) }],
   });
   const changed = [
     '.claude/agents/conformance-reviewer.md', // reviewer-declaration file
-    '.grove/review-policy.md',                // the review-policy file itself
+    '.grove/review.toml',                     // the review-policy file itself
     'pkg/test-deps.md',                       // a test-deps ledger
     '.grove/internal/check/lib/match.mjs',             // under check_runtime_dir (default)
     '.github/workflows/grove-review-bookkeeping.yml', // check_workflow_path (default)

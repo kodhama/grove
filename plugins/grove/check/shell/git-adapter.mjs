@@ -21,19 +21,28 @@
 import { execFile } from 'node:child_process';
 
 import { extractFencedBlocks } from '../lib/blocks.mjs';
+import { synthesizePolicyBlock } from '../lib/policy.mjs';
 
 const LEDGER_FILENAME = 'test-deps.md';
+
+// adr-0018 D10 — the consumer review-policy split. The consumer carrier is now
+// the TOML pair `.grove/review.toml` (scope + corpus policy) + this internal
+// wiring file (the two carrier keys). A `.toml` policy candidate is read as the
+// split and synthesized into an equivalent grove-review-policy block; a `.md`
+// candidate (grove-self's `charters/review-policy.md`) is read verbatim.
+const CONSUMER_WIRING_PATH = '.grove/internal/review-wiring.toml';
 
 // Policy auto-discovery candidates (spec-0002 INV1 / §C.0). PRECEDENCE, not
 // union: the reviewer-declaration dir is the FIRST of these that exists AND
 // carries ≥1 grove-review-declaration block. grove-self → charters/ (canonical;
 // its vendored .claude/agents/ copies are ignored, so a stale copy can't
 // diverge policy). A consumer has no charters/ → .claude/agents/ (where the
-// composed reviewer agents live). The review-policy.md is the FIRST of its own
-// candidates that exists — charters/review-policy.md (grove-self's Q7 carrier)
-// or .grove/review-policy.md (the consumer install location).
+// composed reviewer agents live). The review policy is the FIRST of its own
+// candidates that exists — charters/review-policy.md (grove-self's Q7 carrier,
+// a markdown YAML-block carrier) or .grove/review.toml (the consumer install
+// location, a TOML file split from its internal wiring — adr-0018 D10).
 const DECLARATION_DIR_CANDIDATES = ['charters', '.claude/agents'];
-const REVIEW_POLICY_CANDIDATES = ['charters/review-policy.md', '.grove/review-policy.md'];
+const REVIEW_POLICY_CANDIDATES = ['charters/review-policy.md', '.grove/review.toml'];
 
 function underDirs(path, dirs) {
   return dirs.some((d) => {
@@ -153,8 +162,30 @@ export async function readProtectedPolicy({
   for (const p of policyCandidates) {
     const text = await readAt({ gitRunner, ref, path: p });
     if (text != null) {
-      reviewPolicyText = text;
       reviewPolicyPath = p;
+      if (p.endsWith('.toml')) {
+        // adr-0018 D10 — the split TOML carrier: read the internal wiring file
+        // (the two carrier keys) and synthesize the grove-review-policy block
+        // the rest of the pipeline (bootstrap self-detect, parseReviewPolicy,
+        // resolveCarriers) already understands. An ABSENT wiring file omits the
+        // carrier keys, so they fall to the install defaults — the adr-0013 AC4
+        // fail-close survives the move (WHERE the key lives changed, not THAT
+        // its absence fails closed). A malformed review.toml throws → red, never
+        // a silent pass on a broken established install.
+        const wiringPath = env.GROVE_REVIEW_WIRING_PATH || CONSUMER_WIRING_PATH;
+        const wiringToml = await readAt({ gitRunner, ref, path: wiringPath });
+        try {
+          reviewPolicyText = synthesizePolicyBlock({ reviewToml: text, wiringToml });
+        } catch (e) {
+          throw new Error(
+            `grove check: the consumer review policy at ${p} (ref ${ref}) is unreadable: ` +
+              `${e && e.message ? e.message : e}. Refusing to treat a malformed policy as absent.`,
+            { cause: e },
+          );
+        }
+      } else {
+        reviewPolicyText = text;
+      }
       break;
     }
   }

@@ -247,20 +247,24 @@ existing file, honoring their answer per file):
    Drop no other content; the workflow's permissions are already minimal (`contents: read`,
    `pull-requests: read`).
 
-3. **The policy carrier.** Copy `${CLAUDE_PLUGIN_ROOT}/reference/ci/review-policy.md` (strip its
-   leading `<!-- adapted … -->` vendoring header, same as step 2's agent copies) into this
-   project's **`.grove/review-policy.md`**. A consumer has no `charters/`, so this is where the
-   check's **auto-discovery** finds the non-charter policy inputs (`spec-0002` §C.0 precedence:
-   `charters/review-policy.md` else `.grove/review-policy.md`). Tell the user to **review its
-   `artifact_dirs` and `non_behavioral_allowlist`** against their own corpus layout — the vendored
-   defaults are a starting point, and an allowlist entry that matches no file is simply inert.
-   The copied block ships with three unresolved slots — `<SCOPE>`, `<CHECK_RUNTIME_DIR>`,
-   `<CHECK_WORKFLOW_PATH>` — which piece 4 resolves; zero literal slots may remain when step 7 is
-   done.
+3. **The policy carrier — split by authority** (`adr-0018` D10). Copy **two** files (no vendoring
+   header to strip — both are `.toml`):
 
-4. **The scope mode — ask one question, write three keys** (`adr-0013` Decisions 1, 2, 4; the
-   same maintainer call as above: the choice is surfaced here, at the moment it's relevant, never
-   left to documentation). Ask the user ONE plain-language question:
+   - `${CLAUDE_PLUGIN_ROOT}/reference/ci/review.toml` → this project's **`.grove/review.toml`** (the
+     consumer surface: the scope choice + corpus policy). A consumer has no `charters/`, so this is
+     where the check's **auto-discovery** finds the non-charter policy inputs (`spec-0002` §C.0
+     precedence: `charters/review-policy.md` else `.grove/review.toml`). Tell the user to **review
+     its `artifact_dirs` and `non_behavioral_allowlist`** against their own corpus layout — the
+     vendored defaults are a starting point, and an allowlist entry that matches no file is inert.
+     It ships with one unresolved slot — `<SCOPE>` — which piece 4 resolves.
+   - `${CLAUDE_PLUGIN_ROOT}/reference/ci/review-wiring.toml` → this project's
+     **`.grove/internal/review-wiring.toml`** (grove-authoritative wiring: the two carrier keys). It
+     ships with two unresolved slots — `<CHECK_RUNTIME_DIR>`, `<CHECK_WORKFLOW_PATH>` — which piece 4
+     resolves. **Zero literal slots may remain across both files when step 7 is done.**
+
+4. **The scope mode — ask one question, write three keys across the two files** (`adr-0013`
+   Decisions 1, 2, 4; the choice is surfaced here, at the moment it's relevant, never left to
+   documentation). Ask the user ONE plain-language question:
 
    > Should the check watch only grove-managed artifacts (**scoped** — recommended to start), or
    > hold the whole repo to review-required (**strict**)?
@@ -268,32 +272,32 @@ existing file, honoring their answer per file):
    Recommend **`scoped`** as the starting default — it keeps the check's jurisdiction to what's
    declared into the methodology (artifacts, typed files, opted-in code, the gate's own
    machinery), so ordinary application code in an ordinary PR doesn't go red; `strict` is the
-   ratchet for a repo whose changes are mostly grove-run work. Then resolve the three slots in
-   the `grove-review-policy` block of the `.grove/review-policy.md` piece 3 just wrote (same
+   ratchet for a repo whose changes are mostly grove-run work. Then resolve the slots (same
    inline-resolution idiom as step 3):
 
-   - `<SCOPE>` → `scoped` or `strict` — the user's answer, verbatim;
-   - `<CHECK_RUNTIME_DIR>` → the path piece 1 actually used (`.grove/internal/check/`);
-   - `<CHECK_WORKFLOW_PATH>` → the path piece 2 actually used
+   - in **`.grove/review.toml`**: `<SCOPE>` → `scoped` or `strict` — the user's answer, verbatim;
+   - in **`.grove/internal/review-wiring.toml`**: `<CHECK_RUNTIME_DIR>` → the path piece 1 actually
+     used (`.grove/internal/check/`); `<CHECK_WORKFLOW_PATH>` → the path piece 2 actually used
      (`.github/workflows/grove-review-bookkeeping.yml`).
 
    **Every install writes all three keys explicitly — no install path leaves any of them absent
    silently** (`adr-0013` AC5; an install that writes `scope` but not the carrier keys fails that
    criterion). Tell the user the fail-closed backstop plainly: if `scope` is later deleted or
    hand-edited to an unrecognized value, the check falls back to **`strict`** — a hand-edit can
-   never soften the gate — and absent carrier keys fall to the install defaults, never to silent
-   exclusion.
+   never soften the gate — and absent carrier keys (in the wiring file) fall to the install
+   defaults, never to silent exclusion (`adr-0013` AC4, preserved across the `adr-0018` D10 split).
 
 **Say plainly how the check reads policy** (`adr-0012` "assemble `f(A)`, never compile it"): the
 owed-review map is **assembled LIVE at runtime** from the reviewer-agent declarations installed in
 `.claude/agents/` (step 2) on the protected default branch — the check auto-discovers that
 directory and reads it fresh every run. Setup wires **where** the check reads (the `.claude/agents/`
-declarations + `.grove/review-policy.md`); it **never bakes a compiled owed-map** into a stored
-table. Editing what a type owes is an agent-declaration edit, not a regenerate step.
+declarations + `.grove/review.toml` + `.grove/internal/review-wiring.toml`); it **never bakes a
+compiled owed-map** into a stored table. Editing what a type owes is an agent-declaration edit, not a
+regenerate step.
 
-Confirm exactly what was written (the `.grove/internal/check/` runtime, the workflow file, and
-`.grove/review-policy.md` — including the recorded `scope` mode and the two carrier-path keys),
-and note that `/grove:remove` reverses all of it.
+Confirm exactly what was written (the `.grove/internal/check/` runtime, the workflow file,
+`.grove/review.toml` with the recorded `scope` mode, and `.grove/internal/review-wiring.toml` with
+the two carrier-path keys), and note that `/grove:remove` reverses all of it.
 
 ## 8. Offer to make grove invisible to the consumer's tooling (whole `.grove/`)
 
@@ -365,8 +369,9 @@ files, if any, you skipped rather than overwrote), every placeholder you resolve
 you seeded `.grove/gates.toml` from (or `steward` by default) and that the floor-guard machinery
 (`.grove/internal/gates/`) and C1 defaults (`.grove/internal/enforcement.toml`) landed — whether
 `decisions/`/`specs/` were seeded, the `CLAUDE.md` block, whether the GitHub bookkeeping check was installed (the `.grove/internal/check/`
-runtime, the workflow, and `.grove/review-policy.md` with its recorded `scope` mode and carrier
-keys) — or, if it was declined, that `/grove:check-install` installs it later — whether the
+runtime, the workflow, `.grove/review.toml` with its recorded `scope` mode, and
+`.grove/internal/review-wiring.toml` with the carrier keys) — or, if it was declined, that
+`/grove:check-install` installs it later — whether the
 telemetry skill was composed, and **which tooling-ignore files and lines step 8 touched** (naming
 each `.grove/` line and its file — or that no linter/formatter was found, or that the offer was
 declined). They can remove all of it any time with `/grove:remove`.

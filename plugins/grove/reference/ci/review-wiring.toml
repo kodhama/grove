@@ -1,0 +1,19 @@
+# .grove/internal/review-wiring.toml — grove-AUTHORITATIVE wiring for the
+# bookkeeping check (adr-0018 D10; adr-0013 dec 1). These are the
+# carriers-of-record for the gate's own machinery: where the installed check
+# runtime and workflow actually live. They are NOT a consumer surface — the
+# consumer choice (scope) and corpus policy live in .grove/review.toml; this
+# file is grove-managed and lives under .grove/internal/ (regenerated on update,
+# D5). The check reads it from the PROTECTED default branch, folding it together
+# with .grove/review.toml.
+#
+# adr-0013 AC4 fail-close (LOAD-BEARING — preserved across the D10 split): if a
+# key here is ABSENT it falls to the install default (`.grove/internal/check/`;
+# `.github/workflows/grove-review-bookkeeping.yml`) — never to silent exclusion —
+# and in scoped mode a carrier path that does not exist on the protected branch
+# is a red (`carrier-unresolved`). The split changed WHERE these keys live, never
+# THAT their absence fails closed. A relocated install MUST update these keys to
+# match. The slots are resolved to the real install paths by /grove:setup or
+# /grove:check-install; no install leaves them absent.
+check_runtime_dir = "<CHECK_RUNTIME_DIR>"
+check_workflow_path = "<CHECK_WORKFLOW_PATH>"

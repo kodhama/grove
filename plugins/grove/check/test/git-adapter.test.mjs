@@ -229,7 +229,7 @@ test('makeExecGitRunner returns non-ASCII paths literal (core.quotepath=false), 
 //   union — grove-self's canonical charters/ wins over its own vendored
 //   .claude/agents/ copies; a consumer with no charters/ falls to
 //   .claude/agents/). The review-policy.md is the FIRST of
-//   [charters/review-policy.md, .grove/review-policy.md] that exists. Env pair
+//   [charters/review-policy.md, .grove/review.toml] that exists. Env pair
 //   GROVE_POLICY_DIR / GROVE_REVIEW_POLICY_PATH is an escape hatch. Every read
 //   still targets the PROTECTED default branch, never PR HEAD.
 
@@ -283,27 +283,48 @@ test('policy auto-discovery: grove-self — charters/ with a declaration wins; .
   assert.equal(listedAgents, false, 'a winning charters/ short-circuits the .claude/agents candidate');
 });
 
-test('policy auto-discovery: consumer — no charters/, .claude/agents/ carries the declarations; policy from .grove/', async () => {
+test('policy auto-discovery: consumer — no charters/, .claude/agents/ carries the declarations; policy from .grove/review.toml split (adr-0018 D10)', async () => {
   const files = {
-    '.grove/review-policy.md': '```grove-review-policy\nschema: 1\n```',
+    '.grove/review.toml': 'scope = "scoped"\nartifact_dirs = ["decisions", "specs"]',
+    '.grove/internal/review-wiring.toml': 'check_runtime_dir = ".grove/internal/check/"\ncheck_workflow_path = ".github/workflows/grove-review-bookkeeping.yml"',
     '.claude/agents/conformance-reviewer.md': 'CONSUMER CHARTER\n' + DECL_BLOCK,
     '.claude/agents/README.md': 'orientation, no declaration',
   };
   const gitRunner = treeRunner(files);
-  const { reviewPolicyText, charterTexts } = await readProtectedPolicy({
+  const { reviewPolicyText, reviewPolicyPath, charterTexts } = await readProtectedPolicy({
     gitRunner,
     defaultBranch: 'main',
     env: {},
   });
-  assert.ok(reviewPolicyText.includes('grove-review-policy'), 'review-policy discovered at .grove/review-policy.md');
+  // the split TOML carrier is synthesized into a grove-review-policy block
+  assert.ok(reviewPolicyText.includes('grove-review-policy'), 'policy discovered + synthesized at .grove/review.toml');
+  assert.ok(reviewPolicyText.includes('scope: "scoped"'));
+  assert.ok(reviewPolicyText.includes('check_runtime_dir: ".grove/internal/check/"'), 'wiring carrier key folded in');
+  assert.equal(reviewPolicyPath, '.grove/review.toml');
   assert.ok(charterTexts.some((t) => t.includes('CONSUMER CHARTER')));
+});
+
+test('policy auto-discovery: consumer split with an ABSENT wiring file — carrier keys omitted, fail-close preserved (adr-0013 AC4)', async () => {
+  const files = {
+    '.grove/review.toml': 'scope = "scoped"',
+    // NO .grove/internal/review-wiring.toml
+    '.claude/agents/conformance-reviewer.md': 'CONSUMER CHARTER\n' + DECL_BLOCK,
+  };
+  const gitRunner = treeRunner(files);
+  const { reviewPolicyText } = await readProtectedPolicy({ gitRunner, defaultBranch: 'main', env: {} });
+  assert.ok(reviewPolicyText.includes('grove-review-policy'));
+  // the carrier keys are NOT forged into the synthesized block — they fall to
+  // the parser's install defaults downstream (defaulted provenance -> reds if
+  // the default path is absent on the protected branch)
+  assert.ok(!reviewPolicyText.includes('check_runtime_dir'), 'absent wiring never forges a carrier key');
+  assert.ok(!reviewPolicyText.includes('check_workflow_path'));
 });
 
 test('policy auto-discovery: charters/ exists but is declaration-less — precedence falls THROUGH to .claude/agents (existence alone does not win)', async () => {
   const files = {
     // charters/ exists but carries no grove-review-declaration block.
     'charters/README.md': 'orientation, no declaration',
-    '.grove/review-policy.md': '```grove-review-policy\nschema: 1\n```',
+    '.grove/review.toml': 'scope = "scoped"',
     '.claude/agents/conformance-reviewer.md': 'CONSUMER CHARTER\n' + DECL_BLOCK,
   };
   const gitRunner = treeRunner(files);
@@ -331,19 +352,20 @@ test('policy auto-discovery: neither dir yields a declaration — fail-closed to
   assert.deepEqual(charterTexts, []);
 });
 
-test('policy auto-discovery: review-policy precedence — charters/review-policy.md wins over .grove/review-policy.md', async () => {
+test('policy auto-discovery: review-policy precedence — charters/review-policy.md wins over .grove/review.toml', async () => {
   const files = {
     'charters/review-policy.md': '```grove-review-policy\nschema: 1\n# CHARTERS POLICY\n```',
-    '.grove/review-policy.md': '```grove-review-policy\nschema: 1\n# GROVE POLICY\n```',
+    '.grove/review.toml': 'scope = "scoped"   # GROVE POLICY',
     'charters/conformance-reviewer.md': 'CANONICAL\n' + DECL_BLOCK,
   };
   const gitRunner = treeRunner(files);
-  const { reviewPolicyText } = await readProtectedPolicy({
+  const { reviewPolicyText, reviewPolicyPath } = await readProtectedPolicy({
     gitRunner,
     defaultBranch: 'main',
     env: {},
   });
   assert.ok(reviewPolicyText.includes('CHARTERS POLICY'));
+  assert.equal(reviewPolicyPath, 'charters/review-policy.md');
   assert.ok(!reviewPolicyText.includes('GROVE POLICY'), 'the .grove/ carrier is not read when charters/ exists');
 });
 
@@ -529,9 +551,9 @@ test('bootstrap self-detect over real git: a base with no grove policy ⇒ skip;
   const fresh = await readProtectedPolicy({ gitRunner, defaultBranch: 'main', env: {} });
   assert.equal(bootstrapSelfDetect({ reviewPolicyText: fresh.reviewPolicyText }).skip, true, 'fresh install ⇒ skip green');
 
-  // Now grove is installed on the protected branch (policy carrier present).
+  // Now grove is installed on the protected branch (split TOML carrier present).
   mkdirSync(join(dir, '.grove'), { recursive: true });
-  writeFileSync(join(dir, '.grove/review-policy.md'), '```grove-review-policy\nschema: 1\nscope: scoped\n```');
+  writeFileSync(join(dir, '.grove/review.toml'), 'scope = "scoped"\n');
   git('add', '-A');
   git('commit', '-q', '-m', 'install grove');
   git('update-ref', 'refs/remotes/origin/main', 'HEAD');

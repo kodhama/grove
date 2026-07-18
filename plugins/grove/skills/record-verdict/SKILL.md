@@ -23,31 +23,36 @@ the emitter command, the runtime path, or whether the check is installed.
 Read the review policy **from the protected default branch** (the
 `adr-0014` discriminator — never PR HEAD, never the working tree):
 
-- `git show origin/<default>:charters/review-policy.md` (grove-self),
-  else `origin/<default>:.grove/review-policy.md` (consumer install) —
-  the first that exists.
-- File found and it contains a fenced `grove-review-policy` block →
+- **grove-self:** `git show origin/<default>:charters/review-policy.md` —
+  found and it contains a fenced `grove-review-policy` block →
   **installed** → continue.
-- Neither file exists, or no block → **not installed** → **no-op**: say
-  plainly "bookkeeping check not installed on `<default>` — no record
-  owed; nothing posted" and stop. Nothing gates, so nothing owes a
-  record.
+- **consumer (`adr-0018` D10 split):** else
+  `git show origin/<default>:.grove/review.toml` — found (a TOML file with
+  a `scope` key; there is **no** fenced block in the split TOML carrier) →
+  **installed** → continue.
+- Neither exists (nor a block in the charter form) → **not installed** →
+  **no-op**: say plainly "bookkeeping check not installed on `<default>` —
+  no record owed; nothing posted" and stop. Nothing gates, so nothing owes
+  a record.
 - **Cannot read** (no remote, fetch failure, git error) → that is NOT
   "absent": **fail loudly** with what failed and stop. Never fold a read
   failure into the no-op. (Backstop, for honesty: a wrong no-op cannot
   go silent-green — the check reads the protected branch itself and reds
   `never-reviewed` on any pair you failed to post.)
-- Key on **policy-block presence only** — never on workflow-file
-  presence. A missing/relocated workflow is `adr-0013`'s carrier-red
-  condition; keying on it would starve exactly that PR of the records it
-  still owes (`adr-0014` F1).
+- Key on **policy presence only** (the charter block, or the consumer
+  `.grove/review.toml`) — never on workflow-file presence. A
+  missing/relocated workflow is `adr-0013`'s carrier-red condition; keying
+  on it would starve exactly that PR of the records it still owes
+  (`adr-0014` F1).
 
 ## 2. Emit: stamp the record(s)
 
-Resolve the check runtime directory: the policy block's
-`check_runtime_dir` key if present; else the first of
-`plugins/grove/check/` (grove-self) or `.grove/internal/check/` (consumer) that
-exists.
+Resolve the check runtime directory: the `check_runtime_dir` carrier key if
+present — in grove-self, the `grove-review-policy` block of
+`charters/review-policy.md`; in a consumer, the
+`.grove/internal/review-wiring.toml` wiring file (`adr-0018` D10) — else the
+first of `plugins/grove/check/` (grove-self) or `.grove/internal/check/`
+(consumer) that exists.
 
 In the PR checkout, with HEAD at the reviewed commit, pipe each judgment
 block (the full fenced block) to the emitter:
