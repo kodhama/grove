@@ -139,18 +139,56 @@ updated: 2026-07-18
     `gates.toml` — **visible, not hidden defaults**. The external slot's
     whole purpose is that a future reader *sees* it is reserved (design
     constraint; grove#36). Illustrative shape in `## Framing → K1`.
+- **D8 — floor-guard is a load-time reader (A), with a unified
+  `guardian` fallback** *(maintainer, 2026-07-18; resolves the former
+  floor-validator hand-edit Open)*.
+  - **Floor-guard = A (load-time reader).** Whatever reads `gates.toml`
+    to sequence a run **validates the floor on every read** — so a manual
+    hand-edit that violates the floor (e.g. `intent = "agent"`) is caught
+    at run time regardless of setup / `set-profile`. The **CI/pre-commit
+    check (B) is parked** as a deferred nicety (`inv-minimal-first`; A is
+    required anyway, and B is only earlier-and-louder — see Options →
+    parked).
+  - **Unified fallback rule.** When grove **cannot honor the profile on
+    disk** — file **missing/unreadable** *or* **present-but-floor-violating**
+    — it falls back to the **`guardian` preset** (the most conservative
+    shipped preset: human at intent + spec + ship) **plus a loud
+    warning** (e.g. *"gates.toml missing/invalid — running at guardian
+    until restored; run /grove:set-profile to rebuild"*). One rule for
+    both bad states. Rationale: a real **named floor-safe preset** is
+    more legible than an ad-hoc all-human config, and it keeps the
+    mechanical **build** gate agent-owned (all-human is noted as an
+    available absolute-max, but **not** the default fallback — "human owns
+    the build/conformance gate" is awkward and heavier). Floor stays
+    **enforced** (guardian has a human intent gate) and **non-silent**
+    (the warning) — `floor-intent-gate` + `floor-transparency` both hold.
+- **D9 — config lives in multiple files, not one unified file** *("at
+  least for now," maintainer, 2026-07-18)*.
+  - **One home per kind** (`decision-0040`): each config axis is its own
+    file governed by its own decision, and **each skill owns its file
+    wholesale** (e.g. `set-profile` owns `gates.toml`). *(Rejected for
+    now: a single unified config file — see Options; revisitable if the
+    multiple-file surface becomes friction.)*
+  - **Format consistency:** user-facing **config** files are uniform
+    **TOML** (`gates.toml`, `review.toml`). The **companions**
+    (`lifecycle.md` / `versioning.md` / `relations.md`) stay **markdown**
+    — reference prose in `.grove/internal/`, a different *kind*, so the
+    uniform-TOML rule applies to the **editable config surface**, not to
+    them.
+- **D10 — split `review-policy.md` by concern** *(maintainer,
+  2026-07-18; resolves the former review-policy mixed-concern Open)*.
+  - The **consumer choice** (`scope: strict|scoped`, `adr-0013`) → moves
+    to **`.grove/review.toml`** on the user surface (TOML, per D9).
+  - The **grove-wiring** keys (`check_runtime_dir`, `check_workflow_path`)
+    → an **internal file under `.grove/internal/`** (grove-authoritative,
+    D5).
+  - This **splitting amends `adr-0013`'s artifact**, so `adr-0013` joins
+    the propagation list as an artifact the **post-approval executor pass
+    must update** — append-only per `decisions/README.md` (a forward
+    pointer, not an in-place rewrite of ratified text).
 
 ### Open
-1. **Floor-validator coverage of manual hand-edits.** D7 settles that
-   the floor validator (a) reads the four gate rows **directly** and
-   rejects any profile with **0 `human` intent gates** (`floor-intent-gate`),
-   and (b) fires at **setup** and on **every `set-profile`**. Open: does
-   it **also guard a manual hand-edit** of `gates.toml` (the file is
-   consumer-authoritative and hand-editable, D5) — and if so, by what
-   trigger (a pre-commit/CI check, a `check/`-time read, a load-time
-   assert)? Left open because it needs a firing mechanism grove may or
-   may not already have.
-2. **Approval authenticity per channel (in-domain).** D2 leaves the
+1. **Approval authenticity per channel (in-domain).** D2 leaves the
    approval *channel* unrestricted — but the approval must genuinely
    originate from the accountable human, and **channels differ in
    forgeability**: a tracker/GitHub comment "can be faked," whereas a
@@ -159,15 +197,7 @@ updated: 2026-07-18
    claimed approval is authentic, **per channel**? Kept **in-domain**
    (how *this* domain trusts its *own* approval channels); adjacent to
    grove#36's O3 (cross-domain seal verification) but **not** folded
-   into it.
-3. **`review-policy.md` mixes consumer-choice + grove-wiring.** It is
-   consumer-authoritative in *purpose* (the strict|scoped scope mode,
-   `adr-0013`) — which is why D5 keeps it on the `.grove/` root surface —
-   but `adr-0013` has setup **also** write machinery keys into it
-   (`check_runtime_dir`, `check_workflow_path`). So a user-surface file
-   carries grove-wiring. Options to weigh later: keep it on the surface
-   and rely on non-clobber discipline, or split choice-from-wiring. **Do
-   not resolve here** — `adr-0007`/`adr-0013` territory; flagged.
+   into it. *(The one substantive Open left — see the turn's question.)*
 
 ### Parked
 - **The `autonomous/standing`-across-domains preset** — all of a repo's
@@ -288,11 +318,15 @@ enabled = false              # in-domain profiles leave this off; the parked aut
   profile — visible-but-reserved, so a future reader sees the seam. The
   parked `autonomous/standing` preset (grove#36) is the only thing that
   flips it on; nothing in this canvas fills it.
-- **Floor validator (Open-1 partly closed by D7).** Reads the four
+- **Floor validator + load-time floor-guard (D7 + D8).** Reads the four
   `[gates]` rows **directly** and rejects any profile with **0 `human`
-  intent gates**; fires at **setup** and on **every `set-profile`**.
-  Whether it *also* guards a manual hand-edit of `gates.toml`, and by
-  what firing mechanism, is the remaining Open-1.
+  intent gates**; fires at **setup**, on **every `set-profile`**, and —
+  per **D8** — **on every read that sequences a run** (the load-time
+  guard **A**), so a manual hand-edit that violates the floor is caught
+  at run time too. When the profile **cannot be honored** (missing /
+  unreadable / floor-violating), grove falls back to the **`guardian`**
+  preset with a **loud warning** (D8) — floor stays enforced and
+  non-silent. The CI/pre-commit variant (**B**) is parked (Options).
 
 > **guardian vs steward vs initiator — the load-bearing difference.**
 > steward and initiator both put a human only at intent + ship, but
@@ -370,6 +404,25 @@ enabled = false              # in-domain profiles leave this off; the parked aut
   model won — `set-profile` is a **wholesale switch** that replaces the
   rows (showing the diff and confirming first, never silent). Preserving
   overrides would make "what profile am I on?" ambiguous.
+- **Fall back to an ad-hoc all-human config on an unusable profile.**
+  Rejected as the *default* fallback (**D8**, maintainer 2026-07-18): a
+  named floor-safe preset (`guardian`) is more legible, and all-human
+  puts a human on the mechanical build/conformance gate, which is awkward
+  and heavier. All-human is noted as an available absolute-max, not the
+  fallback.
+- **A single unified config file** (one `.grove/config.toml` holding
+  every axis). Rejected **for now** (**D9**, maintainer 2026-07-18): it
+  mixes concerns owned by *different* decisions and forces skills to
+  surgically edit a shared file rather than own theirs wholesale
+  (`decision-0040`, one home per kind). Revisitable if the multiple-file
+  surface becomes friction.
+
+### Parked (deferred niceties, not rejected on merit)
+- **CI/pre-commit floor check (variant B).** Would red an illegal
+  `gates.toml` early and loudly at commit/PR time. Deferred (**D8**): the
+  load-time guard (A) is required regardless and already catches every
+  execution path; B is only earlier-and-louder, and adds CI machinery —
+  `inv-minimal-first`. A future add, not a v0 need.
 
 ## Consequences / propagation (draft — POST-approval executor work, NOT part of this canvas)
 
@@ -387,12 +440,24 @@ dependent is silently missed (`inv-graph-maintenance`).
   - The paths are referenced by the **setup, check-install, remove,
     record-verdict skills** and **`reference/ci/`** — all must be updated
     when the layout lands.
-- **D7 new machinery to build (executor, post-approval):** the
+- **D7 + D8 new machinery to build (executor, post-approval):** the
   `gates.toml` writer + preset-expansion in **setup**; the floor
-  validator; and the **`set-profile`** skill (candidate name, not
-  load-bearing) that re-expands a preset, updates `seeded_from`, shows
-  the diff, confirms, and re-runs the floor validator. Skill *code* is
-  out of this canvas; the *decision* is recorded here.
+  validator; the **load-time floor-guard** (validate on every
+  run-sequencing read) + the **`guardian` fallback + loud warning** on an
+  unusable/floor-violating profile (**D8**); and the **`set-profile`**
+  skill (candidate name, not load-bearing) that re-expands a preset,
+  updates `seeded_from`, shows the diff, confirms, and re-runs the floor
+  validator. Skill/guard *code* is out of this canvas; the *decision* is
+  recorded here.
+- **D10 review-policy split — amends `adr-0013`'s artifact (append-only):**
+  split `review-policy.md` into `.grove/review.toml` (the consumer
+  `scope: strict|scoped` choice, TOML per D9) + a grove-wiring file under
+  `.grove/internal/` (`check_runtime_dir`, `check_workflow_path`). The
+  executor pass **updates `adr-0013`** (forward pointer on the superseded
+  text, never an in-place rewrite — `decisions/README.md`) and the
+  **setup / check-install / remove skills** and **`reference/ci/`** that
+  reference the old single-file paths. `review.toml` is owned wholesale
+  by its own skill (D9).
 - **D2 wording flag (record, do not chase in this canvas).** The shaper
   charter and `floor-intent-gate` phrase ratification as "the merge is
   the approval." Under **D2** that is the **GitHub-repo reference
@@ -402,12 +467,14 @@ dependent is silently missed (`inv-graph-maintenance`).
 
 ## Open questions
 
-The three live items are enumerated in `## Decision state → Open` above
-(single source of truth): (1) floor-validator coverage of manual
-hand-edits, (2) per-channel approval authenticity, (3) `review-policy.md`
-choice-vs-wiring mix. D7 closed the former Opens on `gates.toml` schema
-and trigger-row representation, and most of the floor-validator surface.
-They are surfaced one per turn, most consequential first.
+**One** live item remains in `## Decision state → Open`: per-channel
+**approval authenticity** (how grove trusts that a claimed approval on an
+unrestricted channel genuinely came from the accountable human). D8
+closed the floor-validator hand-edit Open (load-time guard + `guardian`
+fallback); D10 closed the `review-policy.md` mixed-concern Open (split
+into `review.toml` + internal wiring); D7 had closed the schema +
+trigger-row Opens. All other in-domain questions are Decided; the
+cross-domain preset stays Parked (grove#36).
 
 ## Self-check (draft — not a gate pass)
 
@@ -428,10 +495,14 @@ They are surfaced one per turn, most consequential first.
 - **Scope guard**: the across-domains preset is parked to grove#36, not
   shaped; the schema leaves its slot. New ideas mid-shaping go to Open or
   Parked, never silently into a Decided.
-- **Not converged**: 7 Decided (D1 default preset; D2 channel-agnostic
+- **Near-converged**: 10 Decided (D1 default preset; D2 channel-agnostic
   intent gate; D3 ship all three presets; D4 C1 grove-fixed, profile is
   C2-only; D5 `.grove/` layout split by authority; D6 optional preset
   setup question; D7 `gates.toml` explicit-table shape + preset-as-seed +
-  `set-profile` wholesale switch) / 3 Open / 1 Parked as of 2026-07-18.
-  Still a canvas, not a finished decision — the shaper does not promote
-  past `draft`.
+  `set-profile` wholesale switch; D8 load-time floor-guard + `guardian`
+  fallback; D9 multiple config files, uniform TOML; D10 split
+  `review-policy.md`) / **1 Open** (per-channel approval authenticity) /
+  1 Parked (cross-domain preset → grove#36) as of 2026-07-18. **One
+  substantive in-domain Open remains** — the canvas is NOT yet declared
+  converged, and the shaper does not promote past `draft` regardless
+  (the merge is the maintainer's intent act).
