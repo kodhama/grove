@@ -1,7 +1,7 @@
 ---
 id: spec-0003-review-asks-and-audit
 type: spec
-status: gated  # promoted draft → gated on the passing self-check below (contract-author Method 6); the pipeline routes to the spec-adversary next; any further flip is not this author's
+status: approved  # agent-owned spec gate (steward profile, .grove/gates.toml spec=agent; adr-0020) — flipped 2026-07-19 on spec-adversary round-2 APPROVE-READY (round 1 NEEDS-REVISION, 3 blocking + 6 non-blocking folded at c330b5c); producer (contract-author) ≠ reviewer (spec-adversary) ≠ gate-recorder (dispatcher); residual one-line wording notes recorded in the verdict, owed at next touch
 implements: adr-0023-review-triage-blackboard  # the shadow contract adr-0023 Consequences item 1 defines
 depends_on: [adr-0023-review-triage-blackboard, spec-0002-review-bookkeeping-check, adr-0019-batched-verdict-records, adr-0015-reviewer-machine-boundary]  # builds-on: adr-0023 (the authorizing decision, approved 2026-07-19); spec-0002@v4 (the registry substrate — §A record grammar, grove-fp-1, §A.4 admissibility — consumed WHOLESALE, never amended here); adr-0019 (batched records: one comment per pass, per-block isolation); adr-0015 (the judgment/stamp split, applied here to the audit record itself)
 owner: agent
