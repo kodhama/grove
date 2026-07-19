@@ -442,6 +442,18 @@ Flagged now so no dependent is silently missed (`inv-graph-maintenance`);
 the actual edits are a post-approval `executor` pass. Under **D1
 (dispatcher-central)** the set is firm:
 
+> **Post-approval propagation extension (grove#82, 2026-07-19, append-only).**
+> The "firm" set below proved **not exhaustive.** Three **convergence
+> charters** — `charters/decision-adversary.md`, `charters/spec-adversary.md`,
+> `charters/conformance-reviewer.md` — carried the same latent
+> "decision-layer always to the human" hardcode that D1 removes, but sat
+> outside this original set. The `conformance-reviewer` surfaced them on the
+> PR #81 build; **grove#82** propagates D1's profile-owned-gate rule to them
+> (and their vendored mirrors), preserving the independence /
+> soundness-never-intent / never-substitute-for-the-human invariants. Recorded
+> here so a reader of this "firm" list learns the blast radius grew
+> (`inv-graph-maintenance`); **no Decided item (D1–D6) changed.**
+
 - **`charters/dispatcher.md`** — the **primary edit**: gains the run-time
   enforcement section — per-handover `resolve-profile` invocation + the
   run-start snapshot (D2), the post-convergence routing table (D1), the
