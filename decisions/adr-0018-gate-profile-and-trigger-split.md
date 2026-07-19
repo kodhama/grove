@@ -592,6 +592,17 @@ dependent is silently missed (`inv-graph-maintenance`).
   clarifying touch so it is not misread as merge-only. Noted for a future
   propagation pass; **not** edited here.
 
+  > **Discharged 2026-07-19 (forward pointer, append-only —
+  > `decisions/README.md`).** This flag is resolved by
+  > **`adr-0020` D1**. `adr-0020` (the run-sequencer honors the
+  > gate-profile at run time) removes the merge-only phrasing **at its
+  > source**: the stage charters (`shaper`, `contract-author`) stop
+  > *asserting* who owns their gate, and the dispatcher *reads* ownership
+  > from the profile — so "the merge is the approval" no longer stands
+  > anywhere as a channel restriction (D2's channel-agnosticism plus D11's
+  > self-authenticating-channels interim govern instead). No text above is
+  > rewritten; this pointer records the discharge.
+
 ## Open questions
 
 **None.** All in-domain questions are Decided (D1–D11). The last

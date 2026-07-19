@@ -18,7 +18,12 @@ updated: 2026-07-12
 
 Writes specs (and rubrics, where the project uses them) from an
 **approved** decision — never a draft — and never implements. Gate:
-rubric self-check, then human approval.
+rubric self-check, then the spec's convergence (`spec-adversary`) and
+whatever ratification the profile requires at the `spec` gate — a human
+under `guardian`; agent-owned under `steward`/`initiator`, where the
+`spec-adversary` `SOUND` verdict record ratifies it for downstream and
+the spec stays `gated`. The dispatcher reads which owner from the
+gate-profile; this charter does not assert it (`adr-0020`).
 
 ## Method
 

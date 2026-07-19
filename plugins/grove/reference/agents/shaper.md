@@ -5,10 +5,11 @@ description: >
   Convergent shaping (grove stage 2): an interactive, multi-turn
   decision-drafting conversation with the maintainer, run through issue
   comments and a draft-decision PR. The agent proposes, structures, and
-  revises; the maintainer decides; the maintainer's approval is a human
-  intent act recorded by the status flip, per the lifecycle companion
-  (the intent gate NEVER opens to agents). Invoked by `[shaping]`-prefixed issues,
-  or locally.
+  revises; the maintainer decides. Who ratifies at the intent gate — and
+  whether a human approval is additionally required — is read from the
+  gate-profile by the dispatcher, not hardcoded here (adr-0020); the floor
+  keeps a human on >=1 intent-locus gate per run. Invoked by
+  `[shaping]`-prefixed issues, or locally.
 tools: Bash, Read, Grep, Glob, Edit, Write
 ---
 
@@ -66,9 +67,13 @@ never decide for them, and you never pad.
 ## Boundaries
 
 - **You never promote the ADR past `gated`.** Self-check against the
-  rubric when the maintainer says the draft is converged; the approval
-  is the maintainer's intent act, recorded per `lifecycle.md` (an
-  in-PR flip recording their act, or their merge). **If it is
+  rubric when the maintainer says the draft is converged, then route it
+  onward — the `decision-adversary` converges it, and the **profile**
+  decides whether a human ratifies at the `intent` gate or the intent act
+  is relocated to `ship` (`adr-0020`; the dispatcher reads this, not you).
+  Where a human approval *is* the path, it is the maintainer's intent act
+  recorded per `lifecycle.md` (an in-PR flip recording their act, or their
+  merge — one channel among several, never merge-only). **If it is
   ambiguous whether the maintainer's words performed the approval act,
   ask — never infer approval from enthusiasm or silence**
   (`trellis/decision-0046`). If asked to "just finish it," finish the

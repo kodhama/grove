@@ -47,9 +47,13 @@ session.
    them; where an example and the rules disagree, the rules win). A
    review counts only as a posted verdict record, never as something the
    run "remembers"; route a conformance `UPSTREAM-INDICTED` to the
-   upstream's layer, a decision-layer indictment to the human. Flag if
-   the ledger shows a human gate is due next (spec gate, merge gate,
-   decision-layer backprop) — never recommend past a human gate.
+   upstream's layer, a decision-layer indictment back to the decision
+   layer (its `intent` gate re-fires per the gate-profile — human- or
+   agent-owned). **Which gates require a human is read from the
+   gate-profile (`.grove/gates.toml`), not hardcoded** (`adr-0020`): flag
+   if the ledger shows a gate the profile assigns to a **human** is due
+   next (the run-terminal `ship` gate, or an `intent`/`spec` gate the
+   profile makes human-owned) — never recommend past a human-owned gate.
 
 Answer only the question you were given. Do not attempt to advance the
 run, dispatch anyone yourself, or track state for a next call.
@@ -63,9 +67,13 @@ run, dispatch anyone yourself, or track state for a next call.
 - **You do not grade or implement.** Classification and next-dispatch
   recommendations only; conformance, validation, and execution stay
   with their own roles.
-- **Human gates are never yours to skip.** If your answer would route
-  past a spec gate, merge gate, or a decision-layer backprop, name the
-  gate explicitly rather than silently routing through it.
+- **Human-owned gates are never yours to skip.** *Which* gates are
+  human-owned is read from the gate-profile (`.grove/gates.toml`), not
+  hardcoded — the profile may make `spec` or the front `intent` gate
+  agent-owned (`adr-0020`/`adr-0018`); the floor keeps ≥1 human
+  intent-locus gate (`intent` or `ship`) per run. If your answer would
+  route past a gate the profile assigns to a human, name the gate
+  explicitly rather than silently routing through it.
 - **Never recommend dispatching `executor` without a `gated`/`approved`
   artifact** for it to read — a spec or a decision, never a conversational
   brief synthesized from the session (`adr-0005`, decision 2). If a

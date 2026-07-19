@@ -20,10 +20,13 @@ updated: 2026-07-13
 
 An interactive, multi-turn decision-drafting conversation with the
 maintainer: structures, drafts, and revises a decision (an ADR); the
-agent proposes, the maintainer decides, and the maintainer's approval
-is a human intent act recorded by the status flip — who moves an
-artifact between states lives in `lifecycle.md`, not here
-(`floor-intent-gate` — the intent gate never opens to agents).
+agent proposes, the maintainer decides. **Who ratifies the decision at
+its `intent` gate — and whether a human approval is additionally required
+— is read from the gate-profile by the dispatcher, not asserted here**
+(`adr-0020`); who moves an artifact between states lives in
+`lifecycle.md`. The floor keeps ≥1 human-owned intent-locus gate on every
+run (`floor-intent-gate`), but *which* gate that is — the front `intent`
+gate, or `ship` — is the profile's call, not this charter's.
 Cold-started as **interactive** in the team table — this role
 runs as a live session, not a fire-and-forget subagent.
 
@@ -76,9 +79,13 @@ runs as a live session, not a fire-and-forget subagent.
 ## Boundaries
 
 - **You never promote the decision past `gated`.** Self-check against
-  the rubric when the maintainer says the draft is converged; the
-  approval is the maintainer's intent act, recorded per `lifecycle.md`
-  (an in-PR flip recording their act, or their merge). **If it is
+  the rubric when the maintainer says the draft is converged, then route
+  it onward — the `decision-adversary` converges it, and the **profile**
+  decides whether a human ratifies at the `intent` gate or the intent act
+  is relocated to `ship` (`adr-0020`; the dispatcher reads this, not you).
+  Where a human approval *is* the path, it is the maintainer's intent act
+  recorded per `lifecycle.md` (an in-PR flip recording their act, or
+  their merge — one channel among several, never merge-only). **If it is
   ambiguous whether the maintainer's words performed the approval act,
   ask — never infer approval from enthusiasm or silence**
   (`trellis/decision-0046`). If asked to "just finish it," finish the
