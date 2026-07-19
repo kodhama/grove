@@ -177,3 +177,81 @@ test('D8 — an I/O read error is reported as "unreadable", distinct from "missi
   // and NOT misreported as a floor violation or a missing file
   assert.doesNotMatch(r.warning, /floor-violating|missing/i);
 });
+
+// --- adr-0021 D2: optional top-level `runtime_dir` key — tolerated, surfaced ---
+
+const RUNTIME_DIR_TOML = ['runtime_dir = "plugins/grove/gates/"', STEWARD_TOML].join('\n');
+
+test('adr-0021 D2 — parseGatesToml surfaces a present top-level runtime_dir', () => {
+  const t = parseGatesToml(RUNTIME_DIR_TOML);
+  assert.equal(t.runtimeDir, 'plugins/grove/gates/');
+  // the rest of the parse is unaffected by the key
+  assert.equal(t.seededFrom, 'steward');
+  assert.deepEqual(t.gates, { intent: 'human', spec: 'agent', build: 'agent', ship: 'human' });
+});
+
+test('adr-0021 D2 — parseGatesToml reports runtimeDir null when the key is absent', () => {
+  assert.equal(parseGatesToml(STEWARD_TOML).runtimeDir, null);
+});
+
+test('adr-0021 AC3 — a floor-satisfying profile WITH runtime_dir resolves from the file with the key surfaced', () => {
+  const r = resolveProfile({ text: RUNTIME_DIR_TOML });
+  assert.equal(r.source, 'file');
+  assert.equal(r.warning, null);
+  assert.equal(r.floor.ok, true);
+  assert.equal(r.runtimeDir, 'plugins/grove/gates/');
+  assert.deepEqual(r.gates, { intent: 'human', spec: 'agent', build: 'agent', ship: 'human' });
+});
+
+test('adr-0021 AC2 — resolveProfile output on a profile WITHOUT runtime_dir is byte-identical to before (no new key)', () => {
+  const r = resolveProfile({ text: STEWARD_TOML });
+  assert.equal('runtimeDir' in r, false);
+  assert.deepEqual(Object.keys(r).sort(), ['floor', 'gates', 'seededFrom', 'source', 'warning']);
+});
+
+test('adr-0021 AC3 — runtime_dir present does NOT weaken [gates] extra-row strictness (unknown gate row still rejected)', () => {
+  const withExtraRow = RUNTIME_DIR_TOML.replace('[trigger]', 'deploy = "agent"\n\n[trigger]');
+  // sanity: the extra row landed inside [gates]
+  assert.equal(parseGatesToml(withExtraRow).gates.deploy, 'agent');
+  const r = resolveProfile({ text: withExtraRow });
+  assert.equal(r.source, 'fallback');
+  assert.match(r.warning, /unknown gate row/i);
+});
+
+// --- adr-0021 D2, code-review HIGH (670759d round): a wrong-TYPED declared
+// runtime_dir must FAIL CLOSED (parse throw → loud guardian fallback), never
+// silently vanish into the never-declared state ---
+
+test('adr-0021 D2 (code-review HIGH) — a BOOLEAN runtime_dir throws at parse (wrong-but-present, not silently dropped)', () => {
+  const t = ['runtime_dir = true', STEWARD_TOML].join('\n');
+  assert.throws(() => parseGatesToml(t), /runtime_dir/i);
+});
+
+test('adr-0021 D2 (code-review HIGH) — an ARRAY runtime_dir throws at parse', () => {
+  const t = ['runtime_dir = ["plugins/grove/gates/"]', STEWARD_TOML].join('\n');
+  assert.throws(() => parseGatesToml(t), /runtime_dir/i);
+});
+
+test('adr-0021 D2 (code-review medium) — an EMPTY-string runtime_dir throws at parse (degenerate declared value)', () => {
+  const t = ['runtime_dir = ""', STEWARD_TOML].join('\n');
+  assert.throws(() => parseGatesToml(t), /runtime_dir/i);
+});
+
+test('adr-0021 D2 (code-review medium) — a WHITESPACE-only runtime_dir throws at parse', () => {
+  const t = ['runtime_dir = "   "', STEWARD_TOML].join('\n');
+  assert.throws(() => parseGatesToml(t), /runtime_dir/i);
+});
+
+test('adr-0021 D2 (code-review HIGH) — a wrong-typed runtime_dir routes through the LOUD guardian fallback (source=fallback, warning names the key)', () => {
+  const r = resolveProfile({ text: ['runtime_dir = true', STEWARD_TOML].join('\n') });
+  assert.equal(r.source, 'fallback');
+  assert.deepEqual(r.gates, PRESETS.guardian);
+  assert.match(r.warning, /runtime_dir/i);
+});
+
+test('adr-0021 D2 — runtime_dir is top-level, never a gate row: a runtime_dir INSIDE [gates] is rejected by strictness', () => {
+  const insideGates = STEWARD_TOML.replace('[trigger]', 'runtime_dir = "plugins/grove/gates/"\n\n[trigger]');
+  const r = resolveProfile({ text: insideGates });
+  assert.equal(r.source, 'fallback');
+  assert.match(r.warning, /unknown gate row/i);
+});

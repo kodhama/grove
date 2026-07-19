@@ -20,6 +20,14 @@
 
 seeded_from = "steward"
 
+# Optional (adr-0021 D2): where the gates machinery lives
+# (<runtime_dir>/bin/resolve-profile.mjs). ABSENT ⇒ the installed default
+# `.grove/internal/gates/` — the standard install needs no entry here.
+# Declared, never searched: setting it says "my machinery lives elsewhere on
+# purpose"; a missing default install still fails LOUD (the adr-0018 D8
+# guardian fallback), never silently resolved from some other path.
+# runtime_dir = ".grove/internal/gates/"
+
 [gates]
 intent = "human"   # who ratifies DIRECTION (an intent-locus gate)
 spec   = "agent"   # who approves the spec before build
