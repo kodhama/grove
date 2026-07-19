@@ -1,7 +1,7 @@
 ---
 id: adr-0020-dispatcher-honors-gate-profile
 type: adr
-status: gated  # self-checked by the shaper 2026-07-18 (see ## Self-check) — NOT an approval; routes to decision-adversary then the human intent gate; the maintainer's merge/recorded act is the ratification (floor-intent-gate)
+status: approved  # maintainer's intent act (in-session approval), 2026-07-19 — recorded flip per lifecycle.md; decision-adversary SOUND on scoped re-review (13a6e63); author (shaper) ≠ approver (maintainer); the PR merge is the ship/landing act
 depends_on: [adr-0018-gate-profile-and-trigger-split]
 informed_by: [adr-0012-methodology-delivery-machinery, adr-0005-tdd-and-artifact-gated-dispatch]
 owner: agent
