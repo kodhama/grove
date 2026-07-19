@@ -44,7 +44,7 @@ spec (adr-0023 D1, Consequence 1).
 | **`ask_covered_files`** | The union of effectively covered subject paths over every ask record in the stream. A subject outside `diff_files` is harmless surplus — it enters no set below (all sets intersect the diff by construction). |
 | **coverage residue (`R_cov`)** | `diff_files ∖ ask_covered_files` — pure set difference, deterministic (adr-0023 D4, decision-adversary F1). |
 | **judgment residue (`R_judg`)** | `{ f ∈ R_cov : f is in-jurisdiction ∧ f's HEAD frontmatter carries no `type:` declaration }` — the stack's tail: resolved by **neither** asks **nor** frontmatter typing. The **only** set the auditor's judgment touches. |
-| **typed record stream** | The comments carrying at least one `grove-review-ask` or `grove-verdict` opening fence (well-formed or malformed). `grove-audit` blocks and prose comments are **not** members (adr-0023 D4, fail-open F6). |
+| **typed record stream** | The comments carrying at least one `grove-review-ask` or `grove-verdict` opening fence — any **exact-tag** fence per spec-0002 §A.1's tokenizer, its block well-formed or not; a misspelled tag never registers (§C.3, N4). `grove-audit` blocks and prose comments are **not** members (adr-0023 D4, fail-open F6). |
 | **HWM** | High-water mark: the highest comment id whose typed-record-stream blocks the auditor read. |
 | **policy carriers** | The protected-branch policy sources the audit's policy fingerprint binds: `charters/review-policy.md` (the `grove-review-policy` block source) **plus every reviewer-declaration file the spec-0002 §C.1 assembly discovers at the protected-branch commit** — today `charters/conformance-reviewer.md`, `charters/decision-adversary.md`, `charters/spec-adversary.md`, `charters/code-reviewer.md`. Membership is discovered, not hardcoded: a fifth declaration file changes the set, hence the fingerprint. |
 | **comparator** | The report-only phase-2 evaluator (§D). It writes a log report; it never writes a verdict. |
@@ -88,6 +88,7 @@ Every field required unless marked optional.
 | `type` | string | **One declared type for every subject in this block** — the batch-per-type shape, pinned (concretization, flagged): adr-0023 D2 says "the produced type", singular per ask; a pass producing **mixed types posts several blocks in one comment** (§A.4 batching), never one block with per-subject types. Compared to frontmatter by exact string equality after trimming. |
 | `subject` | list\<path\> | Non-empty; normalized repo-relative paths per spec-0002 §Terms. A path that cannot be normalized matches nothing (fail-closed by non-match). Subjects are **repo tree files only** — a PR body, comment, or issue is never a subject. |
 | `annotations` | string (optional) | Free text, **advisory-only**: input a reviewer may read, never instruction it follows — the reviewer's findings state its own depth decision and evidence basis, never the ask's framing (adr-0023 D3, fail-open F8's steering guard). No machinery reads this field. |
+| `resumed_by` | string (optional) | Set by a **resumed pass** (§A.4): the resuming role's id (`run-resumer`), alongside `producer` naming the resumed role — **dual attribution**, consumed only by §C.4's separation set `P` (concretization, flagged; spec-adversary round 2, N5). Same trusted-self-reported tier as `producer`. |
 
 **Deliberately absent fields** (each a design fact, not an omission):
 
@@ -106,7 +107,7 @@ a schema-valid record ineffective per-subject:
    positively declared reviewless in policy (`reviewless_types`, read
    from the protected branch) is **ineffective for every subject** —
    since the block carries one type, all its subjects are inert rows.
-   Each such subject is surfaced as a **flagged row** (§C.2 `flagged`,
+   Each such subject is surfaced as a **flagged row** (§C.1 `flagged`,
    §D report) and is **not** ask-covered — it falls to `R_cov`, never
    to silence.
 2. **For a frontmatter-bearing subject, the frontmatter type wins.**
@@ -118,12 +119,30 @@ a schema-valid record ineffective per-subject:
    (human-heavy A5). `s` is not ask-covered by that record; it remains
    frontmatter-resolved, so it never reaches `R_judg`.
 
+**Both rules may fire for one (record, subject) pair** — a
+reviewless-typed block naming a frontmatter-bearing subject whose type
+differs trips rule 1 (block-wide) *and* rule 2 (that subject). The pair
+then emits **both** causes as **separate flagged rows**
+(`reviewless-type` and `frontmatter-divergence`, §C.1 `flagged`) —
+deterministic and fail-closed-visible; neither cause suppresses the
+other, so no two implementations can differ on the flagged surface
+(pinned per spec-adversary round 2, F1).
+
 Everything else is additive and fail-closed:
 
 - An effective ask whose `type` matches no reviewer declaration (and is
   not reviewless) derives the **full review set** for its subjects —
   spec-0002 INV7's unclaimed-type rule in blackboard form (adr-0023
   D3). Never an empty set.
+- **Several effective asks, one subject: fail-closed UNION.** Two
+  effective asks may declare different types for one frontmatterless
+  subject (guaranteed possible: a correction is a new comment, §A.4;
+  rule 2 arbitrates only ask-vs-frontmatter). The subject's ask-derived
+  owed set is then the **union of every effective ask type's owed
+  sets** — never latest-wins, which would let a correction **shrink**
+  obligations and violate D2's asks-add-never-remove; the union can
+  only add. This is the derivation §D.1's metrics 1–2 compute over
+  (pinned per spec-adversary round 2, F3).
 - **Ask absence is signal, not permission**: an in-jurisdiction diff
   file no ask effectively covers falls to the residue (§B), never to
   silence. Out-of-jurisdiction silence under `scoped` mode remains
@@ -150,7 +169,7 @@ Everything else is additive and fail-closed:
 |---|---|
 | `executor`, `shaper`, `contract-author` | **Unconditional closing ask** — every pass ends by posting its ask batch. Convention, not judgment (the mini-PR rule: always ask). |
 | `divergent-researcher` | **No-op** — its output is reviewless-typed (`research`); §A.3 rule 1 forbids an ask naming it, and its files stay frontmatter-resolved. It posts nothing. |
-| `run-resumer` | **In, by inheritance** (ruled here): it completes another role's pass, so it owes **the resumed role's** closing ask for the pass's tree edits — never an ask in its own name. Rationale: otherwise a max-turns death becomes an ask-exemption door — a self-exemption channel by crash, the class D2 closes. |
+| `run-resumer` | **In, by inheritance** (ruled here): it completes another role's pass, so it owes **the resumed role's** closing ask for the pass's tree edits — never an ask in its own name. Its ask carries `producer: <resumed-role>` **and** `resumed_by: run-resumer` (§A.2 dual attribution, feeding §C.4's `P` — so it can never pass auditor separation on work it produced; N5). Rationale: otherwise a max-turns death becomes an ask-exemption door — a self-exemption channel by crash, the class D2 closes. |
 | `propagation-remediator` | **In, when tree-touching** (ruled here): it owes an ask for any repo tree file its pass commits (e.g. a parked-item retirement). A pass editing only the PR body or comments commits no subject and posts none. Rationale: the condition is mechanical (did the pass commit tree files?), not a quality judgment — D2's convention-not-judgment holds; a role class whose tree output never asks would reopen the door D2 closed. |
 
 Both remediation rulings add their charter lines to the phase-0 build
@@ -171,9 +190,13 @@ residue.
 
 `R_judg ⊆ R_cov ⊆ diff_files`, always. In grove-self's `strict` mode,
 in-jurisdiction = `diff_files`, so `R_judg` is exactly the unasked,
-untyped diff files. Judgment thereby runs only where someone is present
-(a producer session posted records) and only where there is something
-to judge (D4).
+untyped diff files. **In the ask lane**, judgment thereby runs only
+where a producer session was present to post records, and only where
+there is something to judge (D4). The residue exception, stated
+honestly: a record-free push touching an untyped in-jurisdiction file
+still yields `R_judg ≠ ∅` with no session present — the owed audit is
+then the maintainer side's to run (§B.2), and during shadow its absence
+is only a reported fact.
 
 ### B.2 The residue-conditional rule (adr-0023 D4; human-heavy F1)
 
@@ -212,8 +235,8 @@ required unless marked optional):
 | `coverage_residue` | map path → sha256 | **emitter** | The machine-stamped manifest: every member of `R_cov` at the audited HEAD, with its per-path blob content hash. May be empty (`R_cov = ∅` with a still-owed audit cannot occur — `R_judg ⊆ R_cov` — but an all-typed asked-partially PR can have `R_judg = ∅ ⊂ R_cov`; an audit posted anyway is legal surplus). |
 | `content_fingerprint` | string | **emitter** | `grove-fp-1` over **`diff_files`** at the audited HEAD (blob-byte basis — a no-op rebase stays fresh; fail-open F7). |
 | `policy_fingerprint` | string | **emitter** | `grove-fp-1` over the **policy carriers** (Terms) at the protected-branch commit the audit read — a post-audit policy change on `main` stales the audit (fail-open F5). |
-| `record_hwm` | int | **emitter** | The HWM: highest comment id whose typed-record-stream blocks were read. |
-| `flagged` | list (may be empty) | **emitter** | The §A.3 inert-per-subject rows, machine-derived: `{path, cause: reviewless-type \| frontmatter-divergence, comment: <id>}` per inert (record, subject) pair. Recomputable from the stream — never the auditor's claim. |
+| `record_hwm` | int | **emitter** | The HWM: highest comment id whose typed-record-stream blocks were read. **Empty-stream sentinel, pinned**: over a typed-record-free stream (S6's own case), `record_hwm: 0` — under which any future typed comment stales, fail-closed (spec-adversary round 2, F2). |
+| `flagged` | list (may be empty) | **emitter** | The §A.3 inert-per-subject rows, machine-derived: `{path, cause: reviewless-type \| frontmatter-divergence, comment: <id>}` — **one row per inert (record, subject, cause) triple**: where both §A.3 rules fire for one pair, **both causes emit as separate rows**, neither suppressing the other (§A.3; F1). Recomputable from the stream — never the auditor's claim. |
 | `dispositions` | map path → `{owed, why}` | **auditor** (judgment), transcribed by the emitter | One entry per member of `R_judg`: `owed` — a list of review ids this file should owe (may be empty, meaning "owes nothing", stated); `why` — non-empty free text, the evidence basis. |
 | `findings` | string (optional) | auditor | Overall findings prose (e.g. naming the frontmatter-divergence findings in words). |
 | `audited_at_commit` | string (optional) | emitter | Informational only; the fingerprints are the freshness authority, never this field. |
@@ -229,7 +252,11 @@ Consequence 3) — stamps every machine-computable field:
 CI-recomputable **fact**, not a claim (D1's repair pattern): the shared
 evaluator recomputes the set difference, both fingerprints, and the
 flagged rows from the stream + git content and reports any mismatch
-(§D; post-flip gating semantics are D6's, not this spec's).
+(§D; post-flip gating semantics are D6's, not this spec's). The
+emitter stamps `record_hwm` over the **same comment-stream snapshot the
+auditor derived from** — one read, one watermark; a typed comment
+landing between that read and the post is past the HWM and stales
+(§C.3), never silently absorbed (N3).
 
 The auditor is **cold-started**: its record must be derivable from the
 blackboard alone — the record stream, the diff, and protected-branch
@@ -244,15 +271,24 @@ An audit record is **fresh** iff all three hold:
 1. **Content**: `grove-fp-1(diff_files, HEAD)` recomputed at the
    current HEAD over the current `diff_files` equals
    `content_fingerprint` (membership or content change ⇒ stale; a
-   no-op rebase preserving every blob ⇒ fresh).
+   no-op rebase preserving every blob ⇒ fresh). Deleting a
+   `diff_files` member changes membership and stales; a
+   **deletions-only push** removing previously-unchanged files leaves
+   `diff_files` unchanged and the audit fresh — a deleted path
+   contributes no HEAD-present entry (Terms), and deletion governance
+   stays the deterministic lane's (spec-0002 S12's ABSENT-sentinel
+   rule), disclosed, not conceded silently (N6).
 2. **Policy**: `grove-fp-1(policy carriers, protected-branch commit)`
    recomputed at the current protected-branch commit equals
    `policy_fingerprint` (carrier content **or membership** change ⇒
    stale — a fifth reviewer-declaration file changes the set).
 3. **Stream**: no comment with id > `record_hwm` carries a
-   `grove-review-ask` or `grove-verdict` opening fence — **well-formed
-   or malformed** (a typo'd typed block still stales, fail-closed in
-   the invalidating direction; it still satisfies nothing). **Prose
+   `grove-review-ask` or `grove-verdict` opening fence — a
+   **recognized (exact-tag) fence whose block is malformed or
+   unclosed still stales**, fail-closed in the invalidating direction,
+   though it satisfies nothing; a **typo'd tag never registers** as a
+   typed fence under the inherited exact-tag tokenizer (spec-0002
+   §A.1), and therefore neither covers nor stales (N4). **Prose
    comments and `grove-audit` blocks never invalidate** (fail-open F6
    — audits are excluded from the invalidating class; a later audit
    supersedes by selection, §C.5, not by staling).
@@ -263,7 +299,10 @@ Spec-0002 **§A.4 inherited whole** (unedited whole-comment, authorized
 poster, full pagination, deletion conceded), **plus one rule**:
 
 - **Auditor separation** (adr-0023 D4): let `P` = the set of `producer`
-  values of every **schema-valid** `grove-review-ask` and
+  values **plus every ask record's `resumed_by` value** (§A.2 dual
+  attribution — a run-resumer that produced tree edits on the PR enters
+  `P` under both ids, so it can never pass auditor separation on work
+  it produced; N5) of every **schema-valid** `grove-review-ask` and
   `grove-verdict` block in the full stream (admissible or not —
   rejection never un-produces). If `auditor ∈ P`, the audit record is
   **inadmissible**. Same trusted-self-reported tier as spec-0002 §C.4;
@@ -289,8 +328,9 @@ poster, full pagination, deletion conceded), **plus one rule**:
 ### D.1 The five per-PR metrics (report-only)
 
 To compare, the comparator derives the **audit-side owed set**: for
-effectively ask-covered files, the reviews the declared `type` owes
-(protected-branch declarations; unclaimed ⇒ full set per §A.3); for
+effectively ask-covered files, the **union over every effective ask
+type** of the reviews that type owes (§A.3's union rule;
+protected-branch declarations; unclaimed ⇒ full set per §A.3); for
 frontmatter-typed files, the table's own derivation (identical by
 construction); for `R_judg` files, each non-vacuous disposition's
 `owed` list. The **table-side owed set** is spec-0002 §C.2's, read from
@@ -301,7 +341,7 @@ implementation.
 |---|---|---|
 | 1 | **table-owed rows the audit omits** (candidate false positives) | Owed pairs `(f, R)` in the table-side set absent from the audit-side set — including pairs on `R_judg` files with vacuous/missing dispositions. |
 | 2 | **audit-owed rows the table missed** (candidate false negatives) | Owed pairs in the audit-side set absent from the table-side set. |
-| 3 | **no-ask diff files** (convention-break rate) | `|R_cov|` and `|R_cov| / |diff_files|`. |
+| 3 | **no-ask diff files** (convention-break rate) | `|R_cov|` and `|R_cov| / |diff_files|`. When `diff_files = ∅` (a deletions-only PR), rendered as `0/0 (empty diff)` with the ratio omitted — never a division (N1). |
 | 4 | **audit-fresh-at-HEAD** (the flip-day red rate) | One of `no-audit-owed` (`R_judg = ∅`), `owed-and-absent`, `stale` (naming which §C.3 binding failed), `fresh`. |
 | 5 | **HWM races** | Count of comments past the selected audit's `record_hwm` carrying typed-record-stream blocks. |
 
@@ -384,11 +424,17 @@ not policy) stand as written there; this spec adds none.
 - **INV3 (additive-only).** Evaluation of ask records **shall** only
   ever add candidate obligations or leave the derived sets unchanged;
   no ask **shall** remove, reduce, or soften any obligation the
-  spec-0002 derivation yields.
+  spec-0002 derivation yields; and where several effective asks declare
+  different types for one subject, the subject's ask-derived owed set
+  **shall** be the union of every effective ask type's owed sets —
+  never latest-wins (a correction **shall not** shrink obligations;
+  §A.3's union rule).
 - **INV4 (reviewless hard rule).** An ask block whose `type` is
   policy-declared reviewless **shall** be ineffective for every
   subject; each such subject **shall** be surfaced as a flagged row and
-  **shall not** be ask-covered.
+  **shall not** be ask-covered; and where such a block's subject also
+  bears a divergent frontmatter type, **both** causes **shall** emit as
+  separate flagged rows (§A.3's both-fire rule), neither suppressed.
 - **INV5 (frontmatter wins).** For a subject whose HEAD frontmatter
   carries any `type:` declaration differing from the ask block's
   `type`, the ask **shall** be ineffective for that subject only,
@@ -433,13 +479,16 @@ not policy) stand as written there; this spec adds none.
   `diff_files` at the current HEAD, its `policy_fingerprint` matches
   the recomputation over the policy carriers at the current
   protected-branch commit, and no comment past its `record_hwm`
-  carries a `grove-review-ask` or `grove-verdict` opening fence;
-  prose comments and `grove-audit` blocks **shall never** invalidate.
+  (empty-stream sentinel `0`, §C.1) carries a `grove-review-ask` or
+  `grove-verdict` exact-tag opening fence (§C.3; a misspelled tag
+  never registers); prose comments and `grove-audit` blocks **shall
+  never** invalidate.
 - **INV14 (audit admissibility).** An audit record **shall** be
   admissible only if its carrying comment passes spec-0002 §A.4 **and**
-  its `auditor` is not in the producer set drawn from every
-  schema-valid ask and verdict block in the full stream; otherwise it
-  **shall** be inadmissible and excluded from selection.
+  its `auditor` is not in the separation set `P` (§C.4 — the `producer`
+  values **plus** ask `resumed_by` values drawn from every schema-valid
+  ask and verdict block in the full stream); otherwise it **shall** be
+  inadmissible and excluded from selection.
 - **INV15 (vacuity, one level up).** For each recomputed `R_judg`
   member, the selected audit **shall** carry a disposition with a
   non-empty `why`; a missing or empty disposition **shall** satisfy
@@ -466,12 +515,19 @@ not policy) stand as written there; this spec adds none.
   subject, the subject appears as a flagged row (`reviewless-type`),
   and the file falls to `R_cov` — the table still types it `code` and
   nothing is exempted.
-- **S3 (frontmatter wins — AC1).** *Given* `specs/foo.md` with HEAD
-  frontmatter `type: spec` and an ask block `type: research` naming it,
-  *When* the sets are derived, *Then* the ask is inert for that file
-  (siblings in the block unaffected), a flagged row
-  (`frontmatter-divergence`) and an audit finding surface, and the
-  derivation uses `spec` — never a precedence roll.
+- **S3 (frontmatter wins — AC1)** *(re-cast per spec-adversary round 2,
+  F1; was: the divergent ask type was `research`, a reviewless type —
+  which §A.3 rule 1 inerts block-wide, contradicting the
+  siblings-unaffected Then).* *Given* `specs/foo.md` with HEAD
+  frontmatter `type: spec` and an ask block `type: charter` — **not**
+  reviewless — naming it alongside `charters/bar.md`, *When* the sets
+  are derived, *Then* the ask is inert for `specs/foo.md` **only**
+  (rule 2; the sibling subject `charters/bar.md` stays effectively
+  covered), a flagged row (`frontmatter-divergence`) and an audit
+  finding surface, and the derivation uses `spec` — never a precedence
+  roll. *And given* instead a **reviewless-typed** block naming a
+  frontmatter-bearing divergent subject, *Then* both rules fire and
+  **both** flagged rows emit for that subject (§A.3 both-fire).
 - **S4 (human push, empty residue — AC4).** *Given* a maintainer PR
   touching only frontmatter-typed artifacts with no ask and no audit in
   the stream, *When* the shadow machinery evaluates, *Then*
@@ -487,20 +543,23 @@ not policy) stand as written there; this spec adds none.
   ask), *When* the auditor's record posts, *Then* it carries the
   stamped `coverage_residue` manifest with per-path hashes, a
   `content_fingerprint` over `diff_files` at HEAD, a
-  `policy_fingerprint` over the policy carriers, a `record_hwm`, and a
-  non-vacuous disposition for that path — and the comparator's
+  `policy_fingerprint` over the policy carriers, a `record_hwm` —
+  `0`, the empty-stream sentinel, since this stream carries no typed
+  records (§C.1, F2), under which any future typed comment stales —
+  and a non-vacuous disposition for that path; and the comparator's
   recomputation of manifest and fingerprints matches.
 - **S7 (auditor ∈ producers — AC2).** *Given* a stream whose asks name
   `producer: executor` and an audit record with `auditor: executor`,
   *When* admissibility is evaluated, *Then* the audit is inadmissible
   and excluded from selection, and the comparator reports the exclusion.
 - **S8 (typed-HWM staleness, three-way — AC2).** *Given* a fresh audit
-  with `record_hwm = N`, *When* a comment with id > N posts carrying a
-  `grove-review-ask` block (well-formed **or** malformed), *Then* the
-  audit is stale (metric 5 counts a race); *When* instead a prose-only
-  comment posts, *Then* the audit stays fresh; *When* instead a new
-  `grove-audit` record posts, *Then* the earlier audit is superseded by
-  selection but never staled by HWM.
+  with `record_hwm = N`, *When* a comment with id > N posts carrying an
+  exact-tag `grove-review-ask` fence (its block well-formed **or**
+  malformed/unclosed — a misspelled tag never registers, §C.3/N4),
+  *Then* the audit is stale (metric 5 counts a race); *When* instead a
+  prose-only comment posts, *Then* the audit stays fresh; *When*
+  instead a new `grove-audit` record posts, *Then* the earlier audit is
+  superseded by selection but never staled by HWM.
 - **S9 (policy staleness — AC2).** *Given* a fresh audit, *When* a
   reviewer-declaration charter or `charters/review-policy.md` changes
   on the protected branch — or a fifth reviewer-declaration file
@@ -582,7 +641,7 @@ questions, no invented scope, deliberate `depends_on`).
 | ACs testable | PASS | Every INV/S is a deterministic, observable outcome: set-math pinned (Terms/§B), both fingerprint bases pinned (basis + commit), HWM class pinned fail-closed, admissibility pinned, report location pinned. Judgment content (`why`, `findings`) is constrained only by testable shape rules (non-empty; one per `R_judg` member) — honest about what is judgment. |
 | Traceability to authorizing decision | PASS | adr-0023 AC1–AC4 fully mapped; every D-item covered or explicitly out of scope: D1 (§F design constraint), D2 (§A), D3 (cited: annotations-advisory §A.2, unclaimed-type INV7; depth-triage prose itself is Consequences item 0, landed, §F), D4 (§B–§C), D5 (§A.4 roles, §D, §F scope), D6 (§F non-goal), D7 (§E ruled). |
 | spec-0002 untouched | PASS | No spec-0002 clause amended or re-spelled with variation; inherited machinery (§A.1 delimitation, §A.4, `grove-fp-1`, normalization, §C.2 jurisdiction) cited by reference; INV1 makes the inertness itself testable. Verified against `blocks.mjs`/`records.mjs`: the `grove-verdict` extractor cannot match a `grove-review-ask`/`grove-audit` fence. |
-| No invented scope beyond decision | PARTIAL-DISCLOSED | Concretizations, each flagged in place and each in service of a decision-stated rationale: the batch-per-type ask shape (§A.2 — D2's singular "the produced type", pinned); the disposition's `{owed, why}` structure (§C.1 — makes metrics 1–2 computable, D5's comparator needs it); the fail-closed malformed-block HWM rule (§C.3); the producer-set-from-schema-valid-records admissibility spelling (§C.4); the two remediation-role rulings (§A.4 — explicitly delegated to this spec by D5); the Q1 interim. Nothing else added. |
+| No invented scope beyond decision | PARTIAL-DISCLOSED | Concretizations, each flagged in place and each in service of a decision-stated rationale: the batch-per-type ask shape (§A.2 — D2's singular "the produced type", pinned); the disposition's `{owed, why}` structure (§C.1 — makes metrics 1–2 computable, D5's comparator needs it); the recognized-fence-malformed-block HWM rule (§C.3); the producer-set-from-schema-valid-records admissibility spelling (§C.4); the two remediation-role rulings (§A.4 — explicitly delegated to this spec by D5); the Q1 interim; and, from round 2: the effective-ask **union rule** (§A.3/INV3 — D2's additive-only, made total), the **both-fire flagged multiplicity** (§A.3/INV4), the `record_hwm: 0` **empty-stream sentinel** (§C.1/F2), and the `resumed_by` **dual-attribution field** (§A.2/§C.4 — the minimal record-derivable mechanism for N5's separation extension). Nothing else added. |
 | Constrains via tables/enumerations | PASS | Schemas, residues, metrics, non-goals, duties, traceability all tabular. |
 | Open questions non-empty & honest | PASS | 4 recorded, each with a named interim or routing — no silent gap. |
 | Build-on-settled-ground | PASS | adr-0023 `approved` (2026-07-19 intent act recorded in its frontmatter); spec-0002 `approved` @v4; adr-0019/adr-0015 `approved`. No draft consumed. |
@@ -592,3 +651,28 @@ enumerated above — flagged, never silent). Promoted `draft → gated`
 per charter Method 6. The next flip is not this author's: the pipeline
 routes to the `spec-adversary`, and any `approved` state is a recorded
 human intent act per `lifecycle.md`.
+
+**Revision round 2 (2026-07-19, appended — spec-adversary
+NEEDS-REVISION against this spec; the check above stands unedited):**
+all three blocking findings folded — **F1** S3 re-cast on a
+non-reviewless divergent type (`charter` vs frontmatter `spec`; the old
+Given's `research` tripped rule 1 block-wide, contradicting its own
+siblings-unaffected Then) and the rule-1+rule-2 both-fire multiplicity
+pinned normatively (§A.3, §C.1 `flagged`, INV4, S3); **F2** the
+`record_hwm: 0` empty-stream sentinel pinned (§C.1, INV13, S6 — S6's
+own Given was the undefined case); **F3** the fail-closed union rule
+for several effective asks on one subject pinned (§A.3, INV3, §D.1 —
+latest-wins would let a correction shrink obligations, violating D2's
+additive-only). Non-blocking folds: **N1** metric 3's empty-diff
+rendering (§D.1); **N2** §B.1's presence sentence scoped to the ask
+lane with the residue exception stated; **N3** the one-snapshot HWM
+stamp (§C.2); **N4** the exact-tag tokenizer wording aligned (Terms,
+§C.3, INV13, S8 — a typo'd tag never registers, so it neither covers
+nor stales); **N5** `resumed_by` dual attribution extending §C.4's `P`
+(§A.2, §A.4, §C.4, INV14); **N6** the deletions-only disclosure beside
+the content-freshness rule (§C.3). This is pre-approval revision while
+`gated` — `version` stays `1`, no delta note owed (`adr-0004`
+revise-in-place applies to *current-truth* amendments; the counter
+moves once the artifact has consumers to pin it, the spec-0002
+precedent). The adversary has **not** re-judged this revision; the
+gates do.
