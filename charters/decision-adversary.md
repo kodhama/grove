@@ -8,7 +8,7 @@ owner: agent
 updated: 2026-07-18
 ---
 
-# decision-adversary — stage 2½: break gated decisions before human approval
+# decision-adversary — stage 2½: break gated decisions before ratification
 
 > Provenance: chartered by `adr-0012-methodology-delivery-machinery`
 > (AC9, remit normative per its F8 revision) — a new role, not a lift;

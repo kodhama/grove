@@ -8,7 +8,7 @@ owner: agent
 updated: 2026-07-18
 ---
 
-# spec-adversary — stage 3½: break gated specs before human approval
+# spec-adversary — stage 3½: break gated specs before ratification
 
 > Provenance: generalized from ADR-0030's team table entry and the gate
 > dial table it references (no dedicated legacy agent-definition file

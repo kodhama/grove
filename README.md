@@ -40,9 +40,9 @@ role is evidence about the artifacts it was given, not just the agent.
 |---|---|---|---|
 | divergent-researcher | 1 | research discipline; loud abort on missing tools | yes |
 | shaper | 2 | decision canvases; never decides | interactive |
-| decision-adversary | 2½ | breaks `gated` decisions on soundness before human approval — never on intent; verdict grammar `SOUND / NEEDS-REVISION / UNSOUND` | yes |
+| decision-adversary | 2½ | breaks `gated` decisions on soundness before ratification — never on intent; verdict grammar `SOUND / NEEDS-REVISION / UNSOUND` | yes |
 | contract-author | 3 | specs from approved intent; never implements | yes |
-| spec-adversary | 3½ | breaks `gated` specs on intrinsic quality before human approval (the spec alone — fidelity is conformance's); verdict grammar `APPROVE-READY / NEEDS-REVISION` | yes |
+| spec-adversary | 3½ | breaks `gated` specs on intrinsic quality before ratification (the spec alone — fidelity is conformance's); verdict grammar `APPROVE-READY / NEEDS-REVISION` | yes |
 | executor | 4 | test-first implementation from artifacts only; under-specification is a surfaced finding, never a silent choice | yes |
 | conformance-reviewer | 3½ / 4½ | the fidelity gate at every layer — spec→decision, code→spec, charter→ADR — vs. the approved `implements:` upstream; verdict grammar `PASS / FAIL / UPSTREAM-INDICTED` | yes |
 | code-reviewer | 4½ | code-quality gate vs. the project's own declared standards; severity-graded, blocking ≥ high (objective harm only), rest advisory; read-only | yes |
