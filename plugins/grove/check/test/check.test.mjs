@@ -181,3 +181,20 @@ test('adr-0022 D1 (AC2) — a non-prose code file with no reviewable upstream ca
   assert.ok(conf.reasons.some((x) => x.token === 'no-reviewable-upstream'), JSON.stringify(reasonCodes(d.rows)));
   assert.equal(conf.allowlistRemedy, undefined);
 });
+
+test('adr-0022 D1 (reason-gate) — an allowlist-eligible prose file that reds for a reason OTHER than no-reviewable-upstream (it has an ancestor ledger) draws NO allowlist marker', () => {
+  const tree = new Map([
+    ['docs/GUIDE.md', '# Guide\n\nprose, but ledgered so its upstream resolves\n'],
+    ['docs/test-deps.md', ledger(['spec-foo'])],
+    ['specs/foo.md', spec('spec-foo', 'adr-x')],
+    ['decisions/adr-x.md', adr('adr-x', 'approved')],
+  ]);
+  const d = runCheck({ changed: ['docs/GUIDE.md'], tree, comments: [], policy });
+  const conf = d.rows.find((r) => r.kind === 'pair' && r.review === 'conformance');
+  assert.ok(conf, 'expected a conformance pair row');
+  // the ancestor ledger resolves the upstream, so the row reds never-reviewed —
+  // NOT no-reviewable-upstream — even though the file is allowlist-eligible prose
+  assert.ok(!conf.reasons.some((x) => x.token === 'no-reviewable-upstream'), JSON.stringify(reasonCodes(d.rows)));
+  // ...so the reason-gate withholds the allowlist marker (its cure is a record, not the allowlist)
+  assert.equal(conf.allowlistRemedy, undefined);
+});

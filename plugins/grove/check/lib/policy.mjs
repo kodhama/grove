@@ -235,36 +235,38 @@ export function assemblePolicy({ reviewPolicyText = '', reviewPolicyPath = null,
   };
 }
 
-// §C.2 allowlist prose predicate (INV14): an allowlisted path is honored only
-// if its extension is a declared prose extension AND its first line is not a
-// shebang. A path failing the predicate is treated as if unlisted.
-export function allowlistExempts(policy, path, content) {
+// The §C.2/INV14 prose predicate, membership-agnostic: returns the normalized
+// path if it is prose-shaped (extension in the declared prose set AND first line
+// not a shebang), else null. `allowlistExempts` (listed ⇒ exempt) and
+// `allowlistEligible` (unlisted ⇒ hint-eligible, adr-0022 D1) share this exact
+// shape and differ ONLY on allowlist membership — extracted so a future change
+// to the predicate cannot silently diverge the two (code-review advisory,
+// adr-0022 executor pass).
+function proseShapedPath(policy, path, content) {
   const norm = normalizePath(path);
-  if (norm == null) return false;
-  if (!policy.allowlist.includes(norm)) return false;
-  const ext = extOf(norm);
-  if (!policy.proseExtensions.includes(ext)) return false;
+  if (norm == null) return null;
+  if (!policy.proseExtensions.includes(extOf(norm))) return null;
   const firstLine = String(content == null ? '' : content).split(/\r\n?|\n/, 1)[0] || '';
-  if (firstLine.startsWith('#!')) return false;
-  return true;
+  if (firstLine.startsWith('#!')) return null;
+  return norm;
 }
 
-// §D remedy-hint support (adr-0022 D1): a path that WOULD be honored by the
-// allowlist prose predicate (prose extension, not a shebang) but is NOT
-// currently listed — the discoverability case the allowlist remedy hint
-// targets. This is `allowlistExempts` with the membership test inverted; it
-// grants no exemption (INV14 is untouched), it only reports that the explicit,
-// human-owned allowlist add is an available cure. Frontmatter is checked by the
-// caller (the hint is for no-frontmatter orientation prose).
+// §C.2 allowlist prose predicate (INV14): an allowlisted path is honored only
+// if it is prose-shaped (declared prose extension, first line not a shebang). A
+// path failing the predicate is treated as if unlisted.
+export function allowlistExempts(policy, path, content) {
+  const norm = proseShapedPath(policy, path, content);
+  return norm != null && policy.allowlist.includes(norm);
+}
+
+// §D remedy-hint support (adr-0022 D1): a prose-shaped path that is NOT currently
+// listed — the discoverability case the allowlist remedy hint targets. Grants no
+// exemption (INV14 untouched); it only reports that the explicit, human-owned
+// allowlist add is an available cure. Frontmatter is checked by the caller (the
+// hint is for no-frontmatter orientation prose).
 export function allowlistEligible(policy, path, content) {
-  const norm = normalizePath(path);
-  if (norm == null) return false;
-  if (policy.allowlist.includes(norm)) return false; // already exempt — nothing to hint
-  const ext = extOf(norm);
-  if (!policy.proseExtensions.includes(ext)) return false;
-  const firstLine = String(content == null ? '' : content).split(/\r\n?|\n/, 1)[0] || '';
-  if (firstLine.startsWith('#!')) return false;
-  return true;
+  const norm = proseShapedPath(policy, path, content);
+  return norm != null && !policy.allowlist.includes(norm);
 }
 
 function extOf(path) {
