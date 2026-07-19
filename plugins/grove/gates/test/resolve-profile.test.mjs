@@ -92,6 +92,23 @@ test('CLI (adr-0021 AC2) — output on a gates.toml WITHOUT runtime_dir stays by
   }
 });
 
+test('CLI (adr-0021 D2, code-review HIGH) — a wrong-TYPED runtime_dir (boolean) exits 2 with a loud stderr warning, never a silent key-drop', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gates-'));
+  try {
+    const p = join(dir, 'gates.toml');
+    writeFileSync(p, ['runtime_dir = true', STEWARD_TOML].join('\n'));
+    const r = run(p);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /runtime_dir/i);
+    assert.match(r.stderr, /guardian/i);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.source, 'fallback');
+    assert.equal('runtimeDir' in parsed, false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('CLI — a FLOOR-VIOLATING gates.toml falls back to guardian, exits 2, warns', () => {
   const dir = mkdtempSync(join(tmpdir(), 'gates-'));
   try {

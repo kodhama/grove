@@ -218,6 +218,37 @@ test('adr-0021 AC3 — runtime_dir present does NOT weaken [gates] extra-row str
   assert.match(r.warning, /unknown gate row/i);
 });
 
+// --- adr-0021 D2, code-review HIGH (670759d round): a wrong-TYPED declared
+// runtime_dir must FAIL CLOSED (parse throw → loud guardian fallback), never
+// silently vanish into the never-declared state ---
+
+test('adr-0021 D2 (code-review HIGH) — a BOOLEAN runtime_dir throws at parse (wrong-but-present, not silently dropped)', () => {
+  const t = ['runtime_dir = true', STEWARD_TOML].join('\n');
+  assert.throws(() => parseGatesToml(t), /runtime_dir/i);
+});
+
+test('adr-0021 D2 (code-review HIGH) — an ARRAY runtime_dir throws at parse', () => {
+  const t = ['runtime_dir = ["plugins/grove/gates/"]', STEWARD_TOML].join('\n');
+  assert.throws(() => parseGatesToml(t), /runtime_dir/i);
+});
+
+test('adr-0021 D2 (code-review medium) — an EMPTY-string runtime_dir throws at parse (degenerate declared value)', () => {
+  const t = ['runtime_dir = ""', STEWARD_TOML].join('\n');
+  assert.throws(() => parseGatesToml(t), /runtime_dir/i);
+});
+
+test('adr-0021 D2 (code-review medium) — a WHITESPACE-only runtime_dir throws at parse', () => {
+  const t = ['runtime_dir = "   "', STEWARD_TOML].join('\n');
+  assert.throws(() => parseGatesToml(t), /runtime_dir/i);
+});
+
+test('adr-0021 D2 (code-review HIGH) — a wrong-typed runtime_dir routes through the LOUD guardian fallback (source=fallback, warning names the key)', () => {
+  const r = resolveProfile({ text: ['runtime_dir = true', STEWARD_TOML].join('\n') });
+  assert.equal(r.source, 'fallback');
+  assert.deepEqual(r.gates, PRESETS.guardian);
+  assert.match(r.warning, /runtime_dir/i);
+});
+
 test('adr-0021 D2 — runtime_dir is top-level, never a gate row: a runtime_dir INSIDE [gates] is rejected by strictness', () => {
   const insideGates = STEWARD_TOML.replace('[trigger]', 'runtime_dir = "plugins/grove/gates/"\n\n[trigger]');
   const r = resolveProfile({ text: insideGates });

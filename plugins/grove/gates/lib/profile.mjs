@@ -117,6 +117,21 @@ export function parseGatesToml(text) {
     }
     section[kv[1]] = parseValue(kv[2].trim(), i + 1);
   }
+  // adr-0021 D2, fail-closed (code-review HIGH on 670759d): a DECLARED
+  // top-level runtime_dir that is not a non-empty string (boolean, array,
+  // empty/whitespace-only) is wrong-but-present — THROW so it routes through
+  // the loud guardian fallback (exit 2 + warning), exactly the charter's
+  // "wrong-but-present fails loudly" semantics. A silent narrow-to-null here
+  // would make it indistinguishable from never-declared, defeating the
+  // declared-vs-missing distinction. (Numbers and duplicate keys already
+  // throw in parseValue / the duplicate guard.)
+  if ('runtime_dir' in root) {
+    if (typeof root.runtime_dir !== 'string' || root.runtime_dir.trim() === '') {
+      throw new Error(
+        `gates.toml: runtime_dir must be a non-empty string path, got ${JSON.stringify(root.runtime_dir)}`,
+      );
+    }
+  }
   return {
     seededFrom: typeof root.seeded_from === 'string' ? root.seeded_from : null,
     // adr-0021 D2 — optional top-level key: where the gates machinery lives
@@ -126,7 +141,7 @@ export function parseGatesToml(text) {
     // from "missing, broken" (adr-0018 D8 stays loud). Top-level only: a
     // runtime_dir inside [gates] is an unknown gate row and fails the floor
     // validator's strictness.
-    runtimeDir: typeof root.runtime_dir === 'string' ? root.runtime_dir : null,
+    runtimeDir: 'runtime_dir' in root ? root.runtime_dir : null,
     gates: root.gates || {},
     trigger: root.trigger || {},
     intentExternal: root.intent_external || {},
