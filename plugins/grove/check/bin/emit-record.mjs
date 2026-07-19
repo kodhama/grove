@@ -6,7 +6,8 @@
 //
 // Input: a fenced `grove-review-judgment` block on stdin (default) or in a file
 // (`--file <path>`). Output: one fenced `grove-verdict` block per reviewed file
-// on stdout, separated by a blank line (one comment, one record — §A.1); or,
+// on stdout, separated by a blank line (a comment may carry several — §A.1
+// v4 / adr-0019); or,
 // with GROVE_STRUCTURED_OUTPUT set, a JSON { records, errors } object. Any
 // emit-time error (e.g. a fidelity subject with no reviewable upstream) prints
 // to stderr and exits non-zero — never a silently omitted or stale record.

@@ -88,8 +88,8 @@ function treeGet(tree, path) {
 //   { records: [{ subject, review, fingerprint, record, block }], errors: [...] }
 // Fans the judgment's subject list out to one record per reviewed file (the N3
 // per-file basis pin). Each `block` is a self-contained fenced grove-verdict
-// record — one comment, one record (§A.1). A subject whose fidelity basis is
-// non-computable yields an error entry and NO record.
+// record — a comment may carry several (§A.1 v4 / adr-0019). A subject whose
+// fidelity basis is non-computable yields an error entry and NO record.
 export function emitRecords({ judgment, tree, index }) {
   const records = [];
   const errors = [];
