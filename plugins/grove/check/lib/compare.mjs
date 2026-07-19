@@ -1,0 +1,284 @@
+// The report-only shadow comparator (spec-0003 §D; adr-0023 D5 phase 2, AC3).
+// Shadow machinery: NOTHING here is read by the shipped spec-0002 check — the
+// comparator runs AFTER the verdict is computed and only ever writes log prose
+// (INV16: never the job summary, the exit code, a commit status, a label, or a
+// PR comment; INV1: the shipped verdict/view are byte-identical with and
+// without it running).
+//
+// §D.1's derivation discipline, held strictly:
+//   - the TABLE-side owed set is READ from the shipped check's own derivation
+//     (runCheck's rows) — never re-derived by a second implementation;
+//   - the AUDIT-side owed set reuses the phase-0/1 modules wholesale: ask
+//     effectiveness + the fail-closed union (asks.mjs), the two residues,
+//     §C.5 selection/admissibility, §C.3 freshness, and §C.5 vacuity
+//     (audit.mjs), owed-set policy (policy.owed) — every rule single-homed;
+//   - frontmatter-typed diff files take the table's own pairs ("identical by
+//     construction"), so they can never contribute a metric-1/2 divergence.
+//
+// Everything here is evaluated and REPORTED, never gated on (§F, INV1).
+
+import { checkAdmissibility } from './records.mjs';
+import { parseAskComment, askCoveredFiles, flaggedRows, effectiveAskTypes } from './asks.mjs';
+import {
+  parseAuditComment,
+  coverageResidue,
+  judgmentResidue,
+  policyCarriers,
+  auditFreshness,
+  separationSet,
+  checkAuditAdmissibility,
+  dispositionCoverage,
+  typedRacesPast,
+} from './audit.mjs';
+import { artifactMeta } from './frontmatter.mjs';
+import { pathHashAt } from './fingerprint.mjs';
+
+function treeGet(tree, path) {
+  if (tree == null) return undefined;
+  if (typeof tree.get === 'function') return tree.get(path);
+  return tree[path];
+}
+
+const pairKey = (p) => p.review + '\u0000' + p.subject;
+
+// computeComparison({ diffFiles, tree, comments, policy, derivation,
+// protectedTree }) -> the §D.1 comparison structure.
+//   diffFiles     — the §C.2/Terms diff_files (bin's `changed`).
+//   tree          — the HEAD tree (frontmatter type basis + content hashes).
+//   comments      — the SAME full comment stream the shipped check read.
+//   policy        — the assemblePolicy() result (protected branch).
+//   derivation    — runCheck's output: the table-side owed set, read verbatim.
+//   protectedTree — protected-branch content for the policy carriers (the
+//                   §C.3.2 policy-fingerprint recomputation basis).
+export function computeComparison({
+  diffFiles = [],
+  tree,
+  comments = [],
+  policy,
+  derivation,
+  protectedTree,
+} = {}) {
+  const posterPolicy = { record_poster_allowlist: policy.recordPosterAllowlist };
+  // ONE HEAD-frontmatter basis for effectiveness, residues, and flagged rows —
+  // the same ctx shape emitAudit stamps with (adr-0015 shared-basis discipline).
+  const ctx = {
+    typeOf: (p) => artifactMeta(treeGet(tree, p)).type,
+    reviewlessTypes: policy.reviewlessTypesSet || policy.reviewlessTypes || [],
+  };
+
+  // --- admissible ask records (§A.4 inherited whole; fail-closed) ---
+  const asks = [];
+  for (const c of comments) {
+    const parsed = parseAskComment(c);
+    if (parsed.status === 'none') continue;
+    if (!checkAdmissibility(c, posterPolicy).admissible) continue;
+    for (const b of parsed.blocks) {
+      if (b.status === 'record') asks.push({ record: b.record, commentId: c.id });
+    }
+  }
+
+  // --- the two residues + the flagged surface (single-homed rules) ---
+  const askCovered = askCoveredFiles(asks, ctx);
+  const rCov = coverageResidue(diffFiles, askCovered);
+  const rJudg = judgmentResidue({ diffFiles, askCovered, tree, policy });
+  const flagged = flaggedRows(asks, ctx);
+
+  // --- §C.5 selection, applied as the read side: the latest admissible
+  // schema-valid audit by comment order (comment-id-major, block-index-minor)
+  // wins; earlier ones are superseded; inadmissible ones are excluded AND
+  // reported (S7). Rejection never un-produces: separation set P spans the
+  // full stream (§C.4). ---
+  const findings = [];
+  const producers = separationSet(comments);
+  let selected = null;
+  const indexed = comments.map((comment, i) => ({ comment, i }));
+  indexed.sort((a, b) => {
+    const da = Number(a.comment.id);
+    const db = Number(b.comment.id);
+    if (Number.isFinite(da) && Number.isFinite(db) && da !== db) return da - db;
+    return a.i - b.i;
+  });
+  for (const { comment } of indexed) {
+    const parsed = parseAuditComment(comment);
+    if (parsed.status === 'none') continue;
+    for (const b of parsed.blocks) {
+      if (b.status !== 'record') continue;
+      const adm = checkAuditAdmissibility(comment, b.record, { posterPolicy, producers });
+      if (!adm.admissible) {
+        findings.push({
+          kind: 'inadmissible-audit',
+          commentId: comment.id,
+          blockIndex: b.blockIndex,
+          cause: adm.cause,
+        });
+        continue;
+      }
+      selected = { record: b.record, commentId: comment.id, blockIndex: b.blockIndex };
+    }
+  }
+
+  // --- metric 4: audit-fresh-at-HEAD (§D.1; §C.3 names the failed binding) ---
+  let freshness;
+  if (rJudg.length === 0) {
+    freshness = { verdict: 'no-audit-owed' };
+  } else if (selected == null) {
+    freshness = { verdict: 'owed-and-absent' };
+  } else {
+    const f = auditFreshness(selected.record, {
+      diffFiles,
+      tree,
+      carrierPaths: policyCarriers(policy),
+      protectedTree,
+      comments,
+    });
+    freshness = f.fresh ? { verdict: 'fresh' } : { verdict: 'stale', stale: f.stale };
+  }
+
+  // --- metric 5: HWM races (typed records past the selected audit's HWM) ---
+  const hwmRaces = selected == null ? null : typedRacesPast(comments, selected.record.record_hwm).length;
+
+  // --- metrics 1–2: the owed-set comparison (§D.1) ---
+  // Table side: read from the shipped derivation's pair rows, verbatim.
+  const tablePairs = [];
+  const tableByFile = new Map();
+  for (const r of (derivation && derivation.rows) || []) {
+    if (r.review == null) continue; // file-level rows are not owed pairs
+    tablePairs.push({ subject: r.subject, review: r.review });
+    if (!tableByFile.has(r.subject)) tableByFile.set(r.subject, []);
+    tableByFile.get(r.subject).push(r.review);
+  }
+
+  // Audit side, per diff file (§D.1's three sources):
+  const effTypes = effectiveAskTypes(asks, ctx);
+  const dispCov = selected == null ? { satisfied: [] } : dispositionCoverage(selected.record, rJudg);
+  const satisfied = new Set(dispCov.satisfied);
+  const rJudgSet = new Set(rJudg);
+  const auditPairs = [];
+  const seen = new Set();
+  const pushPair = (subject, review) => {
+    const p = { subject, review };
+    const k = pairKey(p);
+    if (seen.has(k)) return;
+    seen.add(k);
+    auditPairs.push(p);
+  };
+  for (const f of diffFiles) {
+    if (ctx.typeOf(f) != null) {
+      // frontmatter-typed: the table's own derivation, identical by construction
+      for (const review of tableByFile.get(f) || []) pushPair(f, review);
+    } else if (effTypes.has(f)) {
+      // ask-covered frontmatterless: the fail-closed UNION over every effective
+      // ask type's owed set (§A.3/INV3; unclaimed ⇒ full set via policy.owed)
+      for (const t of effTypes.get(f)) for (const review of policy.owed(t)) pushPair(f, review);
+    } else if (rJudgSet.has(f) && satisfied.has(f)) {
+      // judgment residue: the selected audit's non-vacuous disposition (§C.5)
+      for (const review of selected.record.dispositions[f].owed) pushPair(f, review);
+    }
+    // else: an out-of-jurisdiction R_cov member, or an R_judg file with a
+    // missing/vacuous disposition — contributes nothing; its table pairs land
+    // in metric 1 (S12).
+  }
+
+  const auditKeys = new Set(auditPairs.map(pairKey));
+  const tableKeys = new Set(tablePairs.map(pairKey));
+  const tableOnly = tablePairs.filter((p) => !auditKeys.has(pairKey(p)));
+  const auditOnly = auditPairs.filter((p) => !tableKeys.has(pairKey(p)));
+
+  // --- stamped-field-vs-recomputation findings on the selected audit (§D.1
+  // last paragraph; INV9's manifest rule). The two fingerprints surface via
+  // metric 4 (§C.3 owns them); record_hwm divergence surfaces via metric 5. ---
+  if (selected != null) {
+    const recomputed = {};
+    for (const p of rCov) recomputed[p] = pathHashAt(tree, p);
+    const stamped = selected.record.coverage_residue || {};
+    const detail = [];
+    for (const p of Object.keys(recomputed)) {
+      if (!(p in stamped)) detail.push(`missing ${p}`);
+      else if (stamped[p] !== recomputed[p]) detail.push(`hash mismatch ${p}`);
+    }
+    for (const p of Object.keys(stamped)) if (!(p in recomputed)) detail.push(`surplus ${p}`);
+    if (detail.length) {
+      findings.push({
+        kind: 'stamped-field-mismatch',
+        field: 'coverage_residue',
+        commentId: selected.commentId,
+        blockIndex: selected.blockIndex,
+        detail: detail.join(', '),
+      });
+    }
+
+    const rowKey = (r) => r.path + '\u0000' + r.cause + '\u0000' + (r.comment == null ? '' : r.comment);
+    const stampedRows = (selected.record.flagged || []).map(rowKey).sort();
+    const recomputedRows = flagged.map(rowKey).sort();
+    if (
+      stampedRows.length !== recomputedRows.length ||
+      stampedRows.some((x, i) => x !== recomputedRows[i])
+    ) {
+      findings.push({
+        kind: 'stamped-field-mismatch',
+        field: 'flagged',
+        commentId: selected.commentId,
+        blockIndex: selected.blockIndex,
+        detail: `stamped ${stampedRows.length} row(s) differ from the ${recomputedRows.length} recomputed`,
+      });
+    }
+  }
+
+  return {
+    metrics: {
+      tableOnly,
+      auditOnly,
+      noAsk: { count: rCov.length, total: diffFiles.length },
+      freshness,
+      hwmRaces,
+    },
+    audit: selected == null ? null : { commentId: selected.commentId, blockIndex: selected.blockIndex },
+    flagged,
+    findings,
+    sets: { askCovered: [...askCovered], coverageResidue: rCov, judgmentResidue: rJudg },
+  };
+}
+
+function renderFinding(f) {
+  if (f.kind === 'inadmissible-audit') {
+    return `inadmissible audit excluded from selection (comment ${f.commentId}, block ${f.blockIndex}): ${f.cause}`;
+  }
+  if (f.kind === 'stamped-field-mismatch') {
+    return `audit ${f.field} (comment ${f.commentId}, block ${f.blockIndex}) mismatches its recomputation: ${f.detail}`;
+  }
+  return JSON.stringify(f);
+}
+
+// renderComparison(comparison) -> the §D.2 log report — prose for the run log
+// and nothing else. Metric 3's empty-diff rendering is pinned (`0/0 (empty
+// diff)`, ratio omitted — never a division; N1). Findings are findings, never
+// verdicts (§D.1).
+export function renderComparison(c) {
+  const out = [];
+  out.push('=== grove shadow comparator (spec-0003 §D) — report-only, never a verdict ===');
+  out.push(`1. table-owed rows the audit omits: ${c.metrics.tableOnly.length}`);
+  for (const p of c.metrics.tableOnly) out.push(`   - ${p.review} | ${p.subject}`);
+  out.push(`2. audit-owed rows the table missed: ${c.metrics.auditOnly.length}`);
+  for (const p of c.metrics.auditOnly) out.push(`   - ${p.review} | ${p.subject}`);
+  const { count, total } = c.metrics.noAsk;
+  out.push(
+    total === 0
+      ? '3. no-ask diff files: 0/0 (empty diff)'
+      : `3. no-ask diff files: ${count}/${total} (${(count / total).toFixed(2)})`,
+  );
+  const f = c.metrics.freshness;
+  out.push(`4. audit-fresh-at-HEAD: ${f.verdict === 'stale' ? `stale (${f.stale.join(', ')})` : f.verdict}`);
+  out.push(`5. HWM races: ${c.metrics.hwmRaces == null ? 'n/a (no audit selected)' : c.metrics.hwmRaces}`);
+  if (c.flagged.length) {
+    out.push('flagged rows (§A.3):');
+    for (const row of c.flagged) {
+      out.push(`   - ${row.cause} | ${row.path}${row.comment != null ? ` (comment ${row.comment})` : ''}`);
+    }
+  }
+  if (c.findings.length) {
+    out.push('findings (reported, never gated on):');
+    for (const fi of c.findings) out.push(`   - ${renderFinding(fi)}`);
+  }
+  out.push('=== end grove shadow comparator ===');
+  return out.join('\n');
+}

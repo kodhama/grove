@@ -5,7 +5,9 @@
 // (env + event payload), assembles runCheck's four inputs from git + the PR
 // record stream, runs the pure core, renders the §D status view, prints the
 // summary, and sets the check-run conclusion via the exit code — non-zero on
-// red (or any hard error, e.g. INV9's truncated read), zero on green.
+// red (or any hard error, e.g. INV9's truncated read), zero on green. After
+// the verdict it also prints the spec-0003 §D shadow-comparator report to
+// stdout — log-only and report-only, never a gate input (spec-0003 INV16).
 //
 // Before any gating work it applies the adr-0014 move-1b bootstrap self-detect:
 // if grove is not yet installed on the protected default branch (no
@@ -34,6 +36,7 @@ import { readRecordStream } from '../shell/record-stream.mjs';
 import { assemblePolicy } from '../lib/policy.mjs';
 import { runCheck } from '../lib/check.mjs';
 import { render } from '../lib/view.mjs';
+import { runComparatorStep } from '../shell/compare-step.mjs';
 
 function readEvent(env) {
   if (!env.GITHUB_EVENT_PATH) return {};
@@ -128,6 +131,25 @@ async function main() {
       /* summary is best-effort; the exit code is the authoritative signal */
     }
   }
+
+  // spec-0003 §D — the report-only shadow comparator (adr-0023 D5 phase 2),
+  // extracted to the unit-tested shell/compare-step.mjs (code-review medium on
+  // the phase-2 pass): runs AFTER the verdict + view above, writes ONE
+  // delimited section to STDOUT only, swallows its own errors — it can never
+  // touch the verdict, exit code, summary, or the structured output below
+  // (spec-0003 INV1/INV16, adr-0023 AC3). One-line wiring; the report-only
+  // guarantee lives with its tests.
+  runComparatorStep({
+    changed,
+    tree,
+    comments,
+    policy,
+    derivation,
+    reviewPolicyText,
+    charterEntries,
+    write: (s) => process.stdout.write(s),
+  });
+
   if (env.GROVE_STRUCTURED_OUTPUT) {
     process.stdout.write('\n' + JSON.stringify(structured) + '\n');
   }

@@ -3,9 +3,9 @@ id: ledger-grove-review-bookkeeping-check
 type: ledger
 status: gated
 implements: spec-0002-review-bookkeeping-check
-depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0018-gate-profile-and-trigger-split, adr-0019-batched-verdict-records]
+depends_on: [spec-0002-review-bookkeeping-check, spec-0003-review-asks-and-audit, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0018-gate-profile-and-trigger-split, adr-0019-batched-verdict-records, adr-0023-review-triage-blackboard]
 owner: agent
-updated: 2026-07-18
+updated: 2026-07-19
 ---
 
 # test-deps — review-bookkeeping check core
@@ -98,10 +98,69 @@ so the pin below advances to `@v4`. Unlike the `@v2 → @v3` bump, this one
 rejection is removed (one record per well-formed block) and `lib/match.mjs`
 selection gains the block-index minor key (`adr-0019` Consequence 2–3).
 
+The **review-ask** tests (`test/asks.test.mjs`, over `lib/asks.mjs`)
+rest on `spec-0003-review-asks-and-audit` (@v1, approved 2026-07-19)
+and its authorizing decision `adr-0023-review-triage-blackboard`: the
+`grove-review-ask` record class (§A.1–§A.2 — spec-0002 §A.1
+delimitation and §A.4 admissibility inherited by reference, `adr-0019`
+batching), the two deterministic §A.3 effectiveness rules with the
+both-fire flagged multiplicity, the fail-closed union of effective ask
+types per frontmatterless subject, ask coverage (`ask_covered_files`,
+§D.1/Terms), and the fingerprint-free ask serializer (an ask declares
+an obligation, never a content attestation). This is **shadow
+machinery** (adr-0023 D5): nothing in the shipped spec-0002 derivation
+reads `lib/asks.mjs`, and the suite carries the spec-0003 INV1
+regression proof — a `grove-review-ask` fence is invisible to the
+`grove-verdict` extractor. The `spec-0002@v4` pin below is untouched
+(spec-0003 amends no clause of it).
+
+The **audit** tests (`test/audit.test.mjs`, over `lib/audit.mjs`) rest
+on the same `spec-0003` (@v1) pin, §B–§C, and `adr-0023` D4 — the
+phase-1 build (Consequence 3): the two deterministic residues
+(`coverage residue = diff_files ∖ ask_covered_files`; the judgment
+residue via the shared `scope.mjs` jurisdiction and `frontmatter.mjs`
+type bases) and the §B.2 residue-conditional rule; the `grove-audit`
+record class under the `adr-0015` judgment/stamp split (the emitter
+stamps the coverage-residue manifest with per-path hashes, the
+content/policy `grove-fp-1` fingerprints, the typed record-stream HWM
+with the pinned `record_hwm: 0` empty-stream sentinel, and the flagged
+rows — the auditor supplies only `auditor`/`dispositions`/`findings`);
+§C.3 freshness (content, policy-carrier content/membership, and
+typed-HWM staleness under the inherited exact-tag tokenizer — prose and
+`grove-audit` blocks never invalidate); §C.4 auditor separation
+including `resumed_by` dual attribution over the full stream
+(rejection never un-produces); and §C.5's vacuity rule one level up.
+Shadow machinery like the ask suite: the INV1 regression proves a
+`grove-audit` fence invisible to both the `grove-verdict` extractor
+and the ask reader.
+
+The **shadow-comparator** tests (`test/compare.test.mjs`, over
+`lib/compare.mjs`) rest on the same `spec-0003` (@v1) pin, §D, and
+`adr-0023` D5 — the phase-2 build (Consequence 4): the five §D.1
+per-PR metrics, derived by reuse only — the table-side owed set is
+READ from `runCheck`'s own derivation (never re-derived), the
+audit-side owed set composes `asks.mjs` effectiveness + the
+fail-closed union, `audit.mjs` residues/§C.5 selection-and-vacuity/
+§C.3 freshness (metric 4 naming the failed binding), and
+`policy.owed`; metric 5's HWM races share `audit.mjs`'s
+typed-fence membership rule via `typedRacesPast` (single-homed);
+metric 3 pins the `0/0 (empty diff)` rendering (N1). §C.5 selection
+is exercised as the read side (latest admissible audit wins; an
+`auditor ∈ P` exclusion is reported, S7), and the §D.1 findings
+surface covers flagged rows plus stamped-field-vs-recomputation
+mismatches (INV9). The suite carries the phase's LOAD-BEARING
+regression (adr-0023 AC3 / spec-0003 INV1, S11): the shipped check's
+derivation, rendered view, and structured output are byte-identical
+with and without ask/audit records in the stream — the comparator is
+report-only (INV16), wired in `bin/check.mjs` as a stdout-only
+section after the verdict, excluded from the job summary and the
+structured output.
+
 ```grove-test-deps
 schema: 1
 specs:
   - spec-0002-review-bookkeeping-check@v4
+  - spec-0003-review-asks-and-audit@v1
 decisions:
   - adr-0012-methodology-delivery-machinery
   - adr-0005-tdd-and-artifact-gated-dispatch
@@ -111,4 +170,5 @@ decisions:
   - adr-0015-reviewer-machine-boundary
   - adr-0018-gate-profile-and-trigger-split
   - adr-0019-batched-verdict-records
+  - adr-0023-review-triage-blackboard
 ```

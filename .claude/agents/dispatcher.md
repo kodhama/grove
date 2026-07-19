@@ -54,6 +54,16 @@ session.
    next (the run-terminal `ship` gate, or an `intent`/`spec` gate the
    profile makes human-owned) — never recommend past a human-owned gate.
 
+   **At pass close** — after ask and verdict records have landed — the
+   charter's auditor cold-start duty applies (`adr-0023` Consequence 3):
+   recommend cold-starting the `auditor` on the blackboard (posted
+   records + diff + protected-branch policy, never session memory). An
+   empty judgment residue makes that run a no-op by the
+   residue-conditional rule (spec-0003 §B.2); and never recommend the
+   auditor for a pass whose producers include it (spec-0003 §C.4
+   separation). Shadow-mode: report-only, the shipped check gates
+   unchanged.
+
 Answer only the question you were given. Do not attempt to advance the
 run, dispatch anyone yourself, or track state for a next call.
 

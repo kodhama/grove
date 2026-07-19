@@ -56,3 +56,8 @@ propagation entry is worse than a missing one.
 ## Placeholders
 
 - `<PR_CONTRACT_SECTIONS>`, `<PARKED_ITEM_STORE>`.
+
+**Closing ask (adr-0023 D2).** A pass that commits repo tree files owes
+a closing review-ask for them via the `record-ask` skill; a pass editing
+only the PR body or comments commits no subject and posts none
+(spec-0003 §A.4).

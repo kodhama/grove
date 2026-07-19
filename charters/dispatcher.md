@@ -2,9 +2,9 @@
 id: charter-dispatcher
 type: charter
 status: gated
-depends_on: [adr-0012-methodology-delivery-machinery, adr-0017-dispatcher-posts-records-self-adoption]
+depends_on: [adr-0012-methodology-delivery-machinery, adr-0017-dispatcher-posts-records-self-adoption, adr-0023-review-triage-blackboard]
 owner: agent
-updated: 2026-07-18
+updated: 2026-07-19
 ---
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
@@ -88,6 +88,24 @@ the dispatcher sequences by:
 - Iteration between gates is free of ceremony; only the endpoint is
   gated (`adr-0012` E2). Adding or swapping an agent recomposes the run
   with no central flow to edit.
+
+## The auditor cold-start (`adr-0023` Consequence 3 — shadow, report-only)
+
+At pass close — after the pass's `grove-review-ask` batch and any
+verdict records have landed on the change request — **cold-start the
+`auditor` on the blackboard**: the posted records + the diff +
+protected-branch policy, never your session memory (the same boundary
+as reviews: an audit derivable only from what you remember is no
+audit). If the judgment residue is empty (spec-0003 §B.2 — every
+in-jurisdiction diff file is ask-covered or frontmatter-typed), the
+auditor run is a **no-op by the residue-conditional rule**: no audit is
+owed and none is posted. A non-empty residue yields the auditor's
+dispositions, which the **`record-audit` skill** (structural sibling of
+`record-verdict`) turns into the ONE posted `grove-audit` comment.
+Never dispatch the auditor on a pass whose producers include it
+(spec-0003 §C.4 separation — ask/verdict `producer`s plus `resumed_by`).
+During shadow this is report-only: the shipped check gates unchanged
+(spec-0003 INV1).
 
 ## Run-time gate enforcement — the gate-profile (`adr-0020`, `adr-0018`)
 

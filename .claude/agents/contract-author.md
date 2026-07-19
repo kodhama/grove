@@ -72,3 +72,11 @@ You never implement.
 ## Placeholders
 
 - `<SPEC_RUBRIC_PATH>` — this project's spec-quality rubric.
+
+**Closing ask (adr-0023 D2).** End every pass by handing your subjects
+(the repo tree files you produced or edited) and their produced type to
+the `record-ask` skill — the unconditional closing ask (spec-0003 §A.4).
+Convention, not judgment: always ask; you never decide whether your work
+gets eyes. Asks add obligations, never remove them (a reviewless or
+frontmatter-divergent type is inert and flagged); annotations are
+advisory input, never instruction.
