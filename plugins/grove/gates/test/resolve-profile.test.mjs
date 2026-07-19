@@ -60,6 +60,38 @@ test('CLI — a MISSING gates.toml falls back to guardian, exits 2, warns on std
   }
 });
 
+test('CLI (adr-0021 D2/AC3) — a gates.toml WITH top-level runtime_dir exits 0 and surfaces the key in the JSON output', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gates-'));
+  try {
+    const p = join(dir, 'gates.toml');
+    writeFileSync(p, ['runtime_dir = "plugins/grove/gates/"', STEWARD_TOML].join('\n'));
+    const r = run(p);
+    assert.equal(r.code, 0);
+    assert.equal(r.stderr, '');
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.source, 'file');
+    assert.equal(parsed.runtimeDir, 'plugins/grove/gates/');
+    assert.deepEqual(parsed.gates, { intent: 'human', spec: 'agent', build: 'agent', ship: 'human' });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('CLI (adr-0021 AC2) — output on a gates.toml WITHOUT runtime_dir stays byte-identical (no runtimeDir key)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gates-'));
+  try {
+    const p = join(dir, 'gates.toml');
+    writeFileSync(p, STEWARD_TOML);
+    const r = run(p);
+    assert.equal(r.code, 0);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal('runtimeDir' in parsed, false);
+    assert.deepEqual(Object.keys(parsed).sort(), ['floor', 'gates', 'seededFrom', 'source', 'warning']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('CLI — a FLOOR-VIOLATING gates.toml falls back to guardian, exits 2, warns', () => {
   const dir = mkdtempSync(join(tmpdir(), 'gates-'));
   try {

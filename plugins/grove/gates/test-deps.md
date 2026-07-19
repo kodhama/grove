@@ -2,9 +2,9 @@
 id: ledger-grove-gate-profile
 type: ledger
 status: gated
-depends_on: [adr-0018-gate-profile-and-trigger-split]
+depends_on: [adr-0018-gate-profile-and-trigger-split, adr-0021-gate-profile-self-adoption]
 owner: agent
-updated: 2026-07-18
+updated: 2026-07-19
 ---
 
 # test-deps — gate-profile machinery
@@ -35,12 +35,24 @@ list and its floor (F1):
   (`intent = human` OR `ship = human`); `initiator` passes via `ship`, an
   all-agent profile fails.
 
-These are behavioral tests (adr-0018 acceptance criteria), so they carry
-no spec `@vN` pin — `adr-0018` is a decision, not a versioned spec.
+The `runtime_dir` tests derive from `adr-0021` (grove-to-grove
+self-adoption):
+
+- **D2 (adr-0021)** — an optional top-level `runtime_dir` key: tolerated
+  by the parser, surfaced in the resolved output when present, and
+  **omitted** from the output when absent (AC2 — byte-identical behavior
+  on profiles without the key; zero migration). Top-level only: a
+  `runtime_dir` inside `[gates]` is an unknown gate row and still fails
+  strictness (AC3).
+
+These are behavioral tests (adr-0018 / adr-0021 acceptance criteria), so
+they carry no spec `@vN` pin — both upstreams are decisions, not
+versioned specs.
 
 ```grove-test-deps
 schema: 1
 specs: []
 decisions:
   - adr-0018-gate-profile-and-trigger-split
+  - adr-0021-gate-profile-self-adoption
 ```

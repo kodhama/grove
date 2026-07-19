@@ -1,0 +1,42 @@
+# .grove/gates.toml — grove-self's gate-profile (adr-0021: grove-to-grove).
+#
+# This is real config, not an example: grove-self is its own first consumer
+# (inv-self-improvement), and this file is the consumer-authoritative C2 home
+# (adr-0018 D9) the dispatcher resolves at every handover (adr-0020 D2). The
+# four [gates] rows ARE the source of truth (adr-0018 D7); `seeded_from` is
+# provenance only.
+#
+# THE FLOOR (adr-0018, floor-intent-gate): at least one human-owned
+# intent-locus gate — intent = "human" OR ship = "human" — validated on every
+# read that sequences a run. steward satisfies it at both loci.
+#
+# Change the whole profile with /grove:set-profile <preset>, or hand-edit a
+# single row here.
+
+seeded_from = "steward"
+
+# adr-0021 D2 — where the gates machinery lives
+# (<runtime_dir>/bin/resolve-profile.mjs). grove-self declares its NATIVE
+# payload path (D1: no installed copies inside the repo that authors them —
+# the collapsed case, adr-0017 precedent). Absent, the installed default
+# `.grove/internal/gates/` is assumed. Declared, never searched.
+runtime_dir = "plugins/grove/gates/"
+
+[gates]
+intent = "human"   # who ratifies DIRECTION (an intent-locus gate)
+spec   = "agent"   # who approves the spec before build
+build  = "agent"   # who owns the build / conformance gate
+ship   = "human"   # who ratifies the final RESULT (an intent-locus gate)
+
+[trigger]
+# K2 — what IGNITES a run, held separately from who ratifies intent. NOT
+# floor-bound; sources may be agentic (grove already runs agentic triggers —
+# remediation roles, the validator's drift audits, inference-first dispatch).
+sources = ["human-ask", "cron", "ci-event", "backprop-interrupt"]
+
+[intent_external]
+# Reserved slot (design constraint; grove#36) — EMPTY for in-domain profiles.
+# The parked cross-domain external-intent case flips this on once the
+# cross-domain SEAL contract exists. Visible-but-reserved so a future reader
+# sees the seam; nothing in-domain fills it.
+enabled = false

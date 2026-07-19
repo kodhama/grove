@@ -119,6 +119,14 @@ export function parseGatesToml(text) {
   }
   return {
     seededFrom: typeof root.seeded_from === 'string' ? root.seeded_from : null,
+    // adr-0021 D2 — optional top-level key: where the gates machinery lives
+    // (<runtime_dir>/bin/resolve-profile.mjs). Absent (null) means the caller
+    // assumes the installed default `.grove/internal/gates/`. Declared, never
+    // searched — the key keeps "declared elsewhere on purpose" distinguishable
+    // from "missing, broken" (adr-0018 D8 stays loud). Top-level only: a
+    // runtime_dir inside [gates] is an unknown gate row and fails the floor
+    // validator's strictness.
+    runtimeDir: typeof root.runtime_dir === 'string' ? root.runtime_dir : null,
     gates: root.gates || {},
     trigger: root.trigger || {},
     intentExternal: root.intent_external || {},
@@ -201,5 +209,9 @@ export function resolveProfile({ text, ioErrorMessage = null } = {}) {
     source: 'file',
     warning: null,
     floor,
+    // adr-0021 D2 — surface runtime_dir only when the file declares it, so the
+    // resolved output on a profile WITHOUT the key stays byte-identical (AC2:
+    // zero migration for existing installs).
+    ...(parsed.runtimeDir != null ? { runtimeDir: parsed.runtimeDir } : {}),
   };
 }

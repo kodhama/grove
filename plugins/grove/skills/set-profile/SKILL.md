@@ -29,6 +29,10 @@ wholesale, `adr-0018` D9.)*
   composed here — point the user to `/grove:setup` and stop.
 - If `.grove/gates.toml` is **absent**, this is a first write rather than a
   switch — say so, then proceed (you'll create it from the preset in step 4).
+- If the existing file declares a top-level **`runtime_dir`** key (`adr-0021`
+  D2 — where the gates machinery lives; absent ⇒ the installed default
+  `.grove/internal/gates/`), note its value: step 4 **preserves** it and step 5
+  validates through it.
 
 ## 2. The three presets (their C2 rows)
 
@@ -58,11 +62,13 @@ On confirmation, write `.grove/gates.toml` with:
 
 - `seeded_from = "<preset>"` — updated to the newly applied preset;
 - the four `[gates]` rows set to the preset's C2 values from the table above;
-- the `[trigger]` and `[intent_external]` sections **preserved** from the
-  existing file if present (they are not part of a preset; a switch changes only
-  the four C2 rows and `seeded_from`). If the file didn't exist, seed those two
-  sections from the vendored template
-  `${CLAUDE_PLUGIN_ROOT}/reference/gates/gates.toml`.
+- the `[trigger]` and `[intent_external]` sections **and the top-level
+  `runtime_dir` key** (if present) **preserved exactly** from the existing file
+  (they are not part of a preset; a switch changes only the four C2 rows and
+  `seeded_from` — it never silently drops `runtime_dir`, `adr-0021` AC5). If
+  the file didn't exist, seed the two sections from the vendored template
+  `${CLAUDE_PLUGIN_ROOT}/reference/gates/gates.toml` (and no `runtime_dir` —
+  the key is opt-in; absent means the installed default).
 
 ## 5. Re-run the floor validator — the load-time guard
 
@@ -71,8 +77,12 @@ mistake is caught immediately and identically to how a run-sequencing read would
 catch it:
 
 ```sh
-node .grove/internal/gates/bin/resolve-profile.mjs .grove/gates.toml
+node <runtime_dir>/bin/resolve-profile.mjs .grove/gates.toml
 ```
+
+where `<runtime_dir>` is the file's top-level `runtime_dir` key if declared
+(step 1), else the installed default `.grove/internal/gates/` (`adr-0021` D2 —
+declared, never searched).
 
 - **Exit 0** — the profile is clean and satisfies the floor. Done.
 - **Exit 2** — the guard fell back to `guardian` with a loud warning (printed to
@@ -80,9 +90,11 @@ node .grove/internal/gates/bin/resolve-profile.mjs .grove/gates.toml
   was written wrong or hand-corrupted — surface the warning verbatim, do **not**
   leave a floor-violating file in place, and restore/rewrite it.
 
-If the machinery isn't installed at `.grove/internal/gates/` (an older or
-partial install), say so and validate by hand against the floor rule in step 2
-rather than skipping the check silently.
+If the machinery isn't present at that path (no declared `runtime_dir` and
+nothing at `.grove/internal/gates/` — an older or partial install), say so
+loudly and validate by hand against the floor rule in step 2 rather than
+skipping the check silently. Never search other locations for the machinery —
+a missing default install must stay a loud, visible state (`adr-0018` D8).
 
 ## 6. Confirm
 

@@ -105,8 +105,19 @@ profile only stops *requiring* one (`adr-0018` D2).
 ### Read the profile at every handover (D2)
 
 - **Re-invoke `resolve-profile` at EVERY gate/handover**, never once per
-  run: `node .grove/internal/gates/bin/resolve-profile.mjs` (the path
-  setup installs; `skills/setup/SKILL.md`). A cached once-per-run reading
+  run: read the optional top-level `runtime_dir` key from
+  `.grove/gates.toml` (`adr-0021` D2; **absent ⇒ the installed default
+  `.grove/internal/gates/`**, the path setup installs —
+  `skills/setup/SKILL.md`) and invoke
+  `node <runtime_dir>/bin/resolve-profile.mjs`. The key is **declared,
+  never searched** — and the two states stay loudly distinguishable: a
+  *declared* `runtime_dir` pointing elsewhere is purposeful (grove-self
+  declares its native `plugins/grove/gates/`); a *missing* default
+  install (no key, no `.grove/internal/gates/`) remains the loud
+  broken-install state (`adr-0018` D8's guardian fallback, surfaced per
+  D6), never silently resolved from some other path;
+  a *wrong-but-present* `runtime_dir` fails loudly at invocation.
+  A cached once-per-run reading
   would resurrect exactly the session-memory the determinism floor
   rejects; per-handover re-resolution also lets the D6 fallback fire at
   the next gate if the profile breaks mid-run, and re-resolves cleanly
