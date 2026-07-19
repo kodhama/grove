@@ -5,7 +5,7 @@ status: gated  # self-checked by the shaper 2026-07-18 (see ## Self-check) — N
 depends_on: [adr-0018-gate-profile-and-trigger-split]
 informed_by: [adr-0012-methodology-delivery-machinery, adr-0005-tdd-and-artifact-gated-dispatch]
 owner: agent
-updated: 2026-07-18
+updated: 2026-07-19
 ---
 
 # ADR-0020: the run-sequencer honors the gate-profile at run time
@@ -37,6 +37,32 @@ updated: 2026-07-18
 > surfaces per-handover on the run's status surface and the next gate
 > prompt, repeating until restored. **D6 was drafted by the shaper under
 > the maintainer's explicit delegation** — flagged, reversible at review.
+
+> **Revision 2026-07-19 (scoped — for adversary re-review).** Folds the
+> `decision-adversary` **NEEDS-REVISION** (one load-bearing break + one
+> coherence/completeness break + one observation). **Scoped delta — only
+> these touched:** **(Break 1, maintainer-confirmed fix)** the per-profile
+> floor validator is not sufficient per **run** — a floor-legal custom
+> override (`intent=human, ship=agent`) can yield a **zero-human**
+> decision-less run (only build+ship in play). Fixed as a **refinement to
+> D2 + D4, not a new axis**: a **per-RUN floor check at run start** (the
+> same moment as D2's snapshot) that **escalates the run-terminal `ship`
+> gate to human for that run, loudly**, when the run's in-play gates hold
+> no human intent-locus gate; governs **until `adr-0018` P1 lands**
+> (pointer). The affected sanity-note and self-check claims are qualified
+> (the shipped presets are unconditionally safe — all `ship=human`; the
+> hole opened only via the supported per-gate override). **(Break 2a)**
+> the Q1-crux recap still carried the pre-correction "routes to the agent
+> gate-keeper (not a skip)" phrasing D1's post-convergence correction
+> superseded — recap fixed to the corrected model. **(Break 2b)** the
+> propagation list now names **all four** dispatcher-charter
+> human-at-decision-layer assertion lines (63-64, 79, 115-116, 191), and
+> the matching acceptance criterion is **broadened** to bind "no remaining
+> hardcoded gate-ownership assertion," not only the enumerated inventory.
+> **(Observation)** one propagation note added on `charters/lifecycle.md`
+> consistency (agent-ratified artifacts stay `gated`; no lifecycle
+> rewrite). **No new Decided item; no D-number added** — the fix corrects
+> D2/D4's *coverage*, not the set of decisions. Self-check re-run.
 
 ## Decision state
 
@@ -125,6 +151,33 @@ updated: 2026-07-18
     auditable** (`floor-transparency`), never silent — the one real
     downside of per-handover (the profile *can* change mid-run) becomes a
     **surfaced event**, not an invisible one.
+  - **The floor check is per-RUN, not only per-profile** *(revision
+    2026-07-19 — adversary Break 1, fix confirmed by the maintainer; a
+    refinement of D2 + D4's coverage, not a new axis)*. The per-profile
+    validator (`intent = human` OR `ship = human`) is necessary but **not
+    sufficient**: a floor-legal custom override
+    `{intent=human, spec=agent, build=agent, ship=agent}` passes it, yet a
+    **decision-less run** (a W3 bug fix, a triggered remediation, a
+    backprop repair) traverses only `build` + `ship` (D4: a run traverses
+    only its workflow's stages) — **zero human in-play gates**. So:
+    - **At run start — the same moment the D2 snapshot fires — the
+      dispatcher checks whether the run's *in-play* gates contain ≥1
+      human intent-locus gate.** If they do not, it **escalates the
+      run-terminal (`ship`) gate to `human` for that run**, loudly — the
+      escalation is surfaced in the snapshot log **and** on the gate
+      prompt itself (`floor-transparency`; the same never-silent register
+      as D6).
+    - **Park pointer:** a genuinely zero-human run is exactly `adr-0018`'s
+      parked **P1** (in-domain autonomous via standing pre-ratification).
+      **The escalation rule governs until P1 lands**; when P1 lands, a
+      standing-decision-authorized run may satisfy the floor that way
+      instead. A pointer, not a new definition.
+    - **Scope of the hole:** the three **shipped presets are
+      unconditionally safe** — all have `ship = human`, so every run's
+      terminal gate is human anyway. The hole opens only via the
+      *supported* per-gate override (`adr-0018` K1: "the preset is a
+      starting point, not a cage"), which is why the per-run check is
+      needed at all.
   - *(Rejected: once-per-run — see `## Rejected options`.)*
 - **D3 — backprop cascade (W4): serialize on *any* ratification edge,
   batch only human gates** *(maintainer, 2026-07-18)*. Resolves Q9. When
@@ -199,10 +252,16 @@ updated: 2026-07-18
     merge click under both-human is handled by the **coincidence rule**,
     not by collapsing the gates. *(Rejected: collapse build into ship —
     see `## Rejected options`.)*
-  - **Sanity notes:** the floor validator (`intent = human` OR
-    `ship = human`) keeps a human on at least one in-play gate even for
-    the shortest run; and under a custom `intent=human, ship=agent`
-    profile the **human approval record lands first, then an agent
+  - **Sanity notes** *(qualified by the 2026-07-19 revision — adversary
+    Break 1)*: the per-profile floor validator (`intent = human` OR
+    `ship = human`) keeps a human on ≥1 in-play gate **only for runs that
+    include the human-owned locus** — a floor-legal
+    `intent=human, ship=agent` override plus a decision-less run has zero
+    human in-play gates, which is why **D2's per-RUN floor check
+    escalates `ship` to human for exactly that run** (the shipped presets
+    are unconditionally safe: all `ship=human`). And under a custom
+    `intent=human, ship=agent` profile on a run that *does* include
+    intent, the **human approval record lands first, then an agent
     performs the merge** — approval-first, then landing.
 - **D5 — channel authentication defers to grove#74, with a cited
   interim** *(maintainer, 2026-07-18)*. Resolves Q7.
@@ -306,8 +365,14 @@ made ownership **configurable per profile**. The core design fork was
 *which component reads it*; the maintainer chose **Option A —
 dispatcher-central** (see D1). Only the dispatcher (the run-sequencer)
 reads `gates.toml` via `resolve-profile` and enforces pause-vs-proceed at
-each gate; a `C2=agent` gate routes to that gate's agent gate-keeper (not
-a skip); stage charters shed their ownership assertions. The chosen
+each gate — under D1's post-convergence correction: **the stage's
+independent convergence check always runs**, and the profile decides only
+whether a **human ratification is additionally required** on the converged
+artifact (`C2=agent` ⇒ the convergence verdict record IS the ratification;
+`C2=human` ⇒ an additional human-approval record) *(recap re-aligned
+2026-07-19 — adversary Break 2a; the earlier "routes to the agent
+gate-keeper (not a skip)" phrasing here predated the correction)*; stage
+charters shed their ownership assertions. The chosen
 rationale: the safety-critical floor logic (validation + `guardian`
 fallback) lives **once** in the dispatcher's read path, so it cannot drift
 across N readers. Options B and C are retired in `## Rejected options`.
@@ -382,12 +447,36 @@ the actual edits are a post-approval `executor` pass. Under **D1
   run-start snapshot (D2), the post-convergence routing table (D1), the
   cascade ordering rule (D3), the gate→stage mapping + ship-as-run-terminal
   + coincidence rule (D4), the D11-interim pointer (D5), and the fallback
-  surfacing rule (D6). Its Boundaries line **"The intent gate (decisions,
-  specs) never fully opens to agents"** (line 191) is rewritten to *read*
-  ownership from the profile (the floor — `intent = human` OR
-  `ship = human` — is what never opens, not every intent-layer gate). It
-  is `gated` and ships to consumers who vendor it — the enforcement, once
-  expressed there, is what makes `adr-0018` pay off for adopters.
+  surfacing rule (D6), and the per-RUN floor check + `ship` escalation
+  (D2 revision). **Four hardcoded human-at-decision-layer assertions**
+  (inventory expanded 2026-07-19 — adversary Break 2b) are rewritten to
+  *read* ownership from the profile rather than assert it:
+  - **lines 63-64** — "owes the `decision-adversary` verdict **plus the
+    human intent gate**" (under `initiator`, the human intent-ratification
+    relocates to `ship`);
+  - **line 79** — "a decision-layer indictment **always to the human**";
+  - **lines 115-116** — W4: "a decision-layer problem **always goes to a
+    human**" (D3 explicitly allows downstream re-sync on an
+    adversary-only decision ratification);
+  - **line 191** — Boundaries: "The intent gate (decisions, specs) never
+    fully opens to agents" (the **floor** — `intent = human` OR
+    `ship = human`, per-run per the D2 revision — is what never opens,
+    not every intent-layer gate).
+
+  The charter is `gated` and ships to consumers who vendor it — the
+  enforcement, once expressed there, is what makes `adr-0018` pay off for
+  adopters.
+- **`charters/lifecycle.md` consistency (adversary observation,
+  2026-07-19 — no lifecycle rewrite required).** `lifecycle.md`
+  (`approved`, vendored) hardcodes "`gated` → `approved`: **a human**"
+  (line 61) and "an agent never flips `approved` without a recorded human
+  act" (lines 46-48). The interaction, stated explicitly: **under an
+  agent-owned gate the artifact's ratification is the convergence verdict
+  record and the artifact stays `gated`** — consumed downstream via the
+  executor's recorded ratchet, which `lifecycle.md` already supports; the
+  `approved` flip remains human-only. The executor pass must verify the
+  dispatcher-charter text it writes stays consistent with
+  `lifecycle.md`'s flip rule.
 - **Stage charters shed their ownership assertions** (shift from
   *asserting* who owns their gate to deferring to the dispatcher's
   profile-read). Named lines found by grep:
@@ -464,21 +553,48 @@ no charter.
 - [ ] Human-gate channel rule is a **pointer**: interim = `adr-0018` D11
       (in-session approval or merge only; bare tracker comment never);
       retargets to grove#74 when it lands (D5).
-- [ ] Every named ownership assertion is shed, in `charters/` AND the
-      vendored `plugins/grove/reference/agents/` copies (dispatcher line
-      191, shaper line 26, contract-author line 21, reference shaper line
-      10; executor audited); no gate advances on dispatcher memory — only
-      on a posted record.
+- [ ] The per-RUN floor check (D2 revision) is mandated: at run start,
+      alongside the snapshot, the dispatcher verifies the run's in-play
+      gates hold ≥1 human intent-locus gate and otherwise escalates the
+      run-terminal `ship` gate to human for that run, loudly (snapshot log
+      + gate prompt), with the until-P1 park pointer carried.
+- [ ] **No hardcoded gate-ownership assertion remains in the dispatcher
+      charter** — the executor re-greps AND re-reads for *semantic*
+      assertions, not just the grep pattern (broadened 2026-07-19,
+      adversary Break 2b). The enumerated inventory is the floor of the
+      check, not its ceiling: dispatcher lines 63-64, 79, 115-116, 191;
+      shaper line 26; contract-author line 21; reference shaper line 10;
+      executor audited — all shed in `charters/` AND the vendored
+      `plugins/grove/reference/agents/` copies. No gate advances on
+      dispatcher memory — only on a posted record.
 - [ ] `adr-0018`'s D2 wording flag is discharged with an append-only
       forward pointer; no ratified text rewritten in place.
+- [ ] The dispatcher-charter text stays consistent with
+      `charters/lifecycle.md`'s flip rule: under an agent-owned gate the
+      artifact stays `gated` (ratified by the convergence verdict record);
+      the `approved` flip remains human-only.
 
 ## Self-check (gate → `gated`)
 
-Self-checked to **`gated`** by the shaper, 2026-07-18, modeled on
-`adr-0018`'s self-check (no standalone rubric exists). Not an approval —
-the `decision-adversary` and the human intent gate follow; the
-maintainer's recorded approval/merge is the ratification act
-(`floor-intent-gate`); the shaper does **not** promote past `gated`.
+Self-checked to **`gated`** by the shaper, 2026-07-18, and **re-checked
+after the 2026-07-19 revision** (scoped to the revision banner's delta),
+modeled on `adr-0018`'s self-check (no standalone rubric exists). Not an
+approval — the `decision-adversary` **re-review** and the human intent
+gate follow; the maintainer's recorded approval/merge is the ratification
+act (`floor-intent-gate`); the shaper does **not** promote past `gated`.
+
+- **Break 1 closed (the load-bearing fix)**: the zero-human-run hole is
+  plugged — the floor check is now **per-RUN** (D2 revision): a
+  floor-legal `ship=agent` override on a decision-less run triggers a
+  loud run-scoped escalation of `ship` to human, governed until
+  `adr-0018` P1 lands; the shipped presets were and remain
+  unconditionally safe (`ship=human`). The formerly-overclaiming
+  sanity-note and self-check sentences are qualified, not deleted. PASS.
+- **Break 2 closed**: the Q1-crux recap now states the post-convergence
+  model (no surviving "routes to the gate-keeper (not a skip)" text);
+  the propagation list names all four dispatcher assertion lines and the
+  acceptance criterion binds "no remaining hardcoded assertion," not the
+  inventory alone; the `lifecycle.md` consistency note is recorded. PASS.
 
 - **Frontmatter**: `id`/`type`/`status`/`depends_on`/`informed_by`/
   `owner`/`updated` present, well-typed; `status: gated`. PASS.
@@ -498,15 +614,20 @@ maintainer's recorded approval/merge is the ratification act
   `## Rejected options` with its one-line reason. PASS.
 - **Floor honored (the load-bearing check)**: enforcement never weakens
   the floor — the floor is validated on **every** per-handover read (D2 +
-  `adr-0018` D8); an unusable profile falls back to `guardian` loudly
-  (D6), never silently and never proceed-on-broken; a human gate advances
-  only on a posted human-approval record through a self-authenticating
-  channel (D1 + D5 interim = `adr-0018` D11); convergence always runs
-  (`inv-independent-verification`), so `C2=agent` ratification is always
-  an *independent* agent's verdict, adversary ≠ producer. PASS.
+  `adr-0018` D8) **and per-RUN at run start** (D2 revision: a run whose
+  in-play gates hold no human intent-locus gate escalates `ship` to human
+  for that run, loudly); an unusable profile falls back to `guardian`
+  loudly (D6), never silently and never proceed-on-broken; a human gate
+  advances only on a posted human-approval record through a
+  self-authenticating channel (D1 + D5 interim = `adr-0018` D11);
+  convergence always runs (`inv-independent-verification`), so `C2=agent`
+  ratification is always an *independent* agent's verdict, adversary ≠
+  producer. PASS.
 - **Consistency with upstream**: D4's ship-as-run-terminal keeps the F1
-  floor sound for the shortest run (the floor's `ship = human` locus
-  exists in every run because every run has a terminal artifact); the
+  floor sound for every run **when combined with the D2 per-run check**
+  (every run has a terminal artifact, and if no in-play gate is
+  human-owned, the run-terminal gate is escalated to human — the
+  unqualified "shortest run" claim was Break 1, now fixed); the
   coincidence rule preserves record-per-gate (record-not-memory); D3 is
   owner-agnostic exactly where `inv-ratifiable-artifacts` is. PASS.
 - **Scope guard**: implementation parked; `adr-0018` P1/P2 stay in their
@@ -523,18 +644,27 @@ maintainer's recorded approval/merge is the ratification act
   1. **D6 was drafted by the shaper under the maintainer's explicit
      delegation** ("resolve Q6 yourself"), not decided interactively —
      flagged in D6 and the banner; reversible at review.
-  2. The stage-charter assertion inventory (dispatcher 191, shaper 26,
-     contract-author 21, reference shaper 10) is a **grep-day snapshot**;
-     the executor pass re-greps before editing (`executor.md` showed no
-     hit but is named for audit).
+  2. The stage-charter assertion inventory (dispatcher 63-64, 79,
+     115-116, 191; shaper 26; contract-author 21; reference shaper 10) is
+     a **grep/read-day snapshot**; the matching acceptance criterion
+     therefore binds "no remaining hardcoded assertion" — the executor
+     re-greps AND re-reads for semantic assertions before editing
+     (`executor.md` showed no hit but is named for audit).
   3. grove#74 does not exist yet as a landed decision — D5's interim
      (adr-0018 D11) carries until it does; if #74 never lands, the
      interim simply persists (safe: it is the stricter rule).
   4. The D2 run-start snapshot's concrete form (log line vs ledger entry)
      is executor-level detail — the decision fixes *that* it is logged
      and visible, not its format.
+  5. The per-run `ship`-to-human escalation (D2 revision) is an
+     **until-P1 rule** by construction — when `adr-0018` P1 lands, a
+     standing-decision-authorized run may satisfy the floor instead; the
+     pointer is in the D2 revision text so P1's landing retargets it
+     without unwriting.
 
 **Overall: internally sound, consumable, and `gated`** — **6 Decided / 0
-Open / 3 Parked** (implementation; adr-0018 P1; adr-0018 P2). Routes to
-the `decision-adversary`, then the **human intent gate**; the shaper does
-**not** promote past `gated`.
+Open / 3 Parked** (implementation; adr-0018 P1; adr-0018 P2); no new
+D-number added by the 2026-07-19 revision (it corrects D2/D4's coverage,
+not the set of decisions). Routes to the `decision-adversary` (scoped
+re-review, per the revision banner), then the **human intent gate**; the
+shaper does **not** promote past `gated`.
