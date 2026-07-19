@@ -16,9 +16,11 @@ updated: 2026-07-19
 > `.grove/gates.toml` (verified: `git ls-files | grep ^.grove/` is
 > empty), so the dispatcher's per-handover resolve step
 > (`node .grove/internal/gates/bin/resolve-profile.mjs`,
-> `charters/dispatcher.md`) never resolves here and **every grove-self
-> run lands in the D8 `guardian` fallback silently** — a path built for
-> *broken* installs, exercised *by design* at home. The mechanism grove
+> `charters/dispatcher.md`) never resolves here — the invocation fails
+> before the D8 fallback machinery can even execute, so **every
+> grove-self run proceeds on an *assumed* `guardian` posture without
+> the mechanism running at all** — the broken-install failure shape,
+> exhibited *by design* at home. The mechanism grove
 > ships has never cold-started its own happy path
 > (`inv-self-improvement`: be your own first consumer). This decision
 > closes the gap. All questions are Decided (**D1–D4**); the shaper
@@ -112,9 +114,9 @@ updated: 2026-07-19
   grove#87 Q4):
   - **Grounding: the inert set already exists.** The pipeline is
     already three-tiered — **canonical** (`charters/`) → **vendored**
-    (`plugins/grove/reference/`, "grove's inert namespace" per
-    `charters/versioning.md`) → **installed** (each consumer's
-    `.grove/`, snapshotted at install time). The question was never
+    (`plugins/grove/reference/`) → **installed** (each consumer's
+    `.grove/` — "grove's inert namespace", `charters/versioning.md` —
+    snapshotted at install time). The question was never
     "should an inert set exist" but **what sync discipline governs
     canonical → vendored**.
   - **Decided: lockstep (the current discipline), kept.** `reference/`
@@ -201,11 +203,15 @@ append here, never silently expand scope:
    — document the optional `runtime_dir` key (commented, with the
    absent-⇒-`.grove/internal/gates/` default stated), so consumers
    discover it where the profile lives.
-3. **`plugins/grove/gates/` parser** — confirm `parseGatesToml`
-   tolerates (and the resolver surfaces) the optional top-level
-   `runtime_dir` key without tripping validation; add coverage. The
-   floor validator's `[gates]`-row strictness is untouched
-   (`runtime_dir` is top-level, not a gate row).
+3. **`plugins/grove/gates/` parser** — two distinct sub-items:
+   *tolerance* of the optional top-level `runtime_dir` key is true
+   **today** (empirically verified at adversary review: the current
+   resolver exits 0 on a `gates.toml` carrying the key); *surfacing*
+   the key in the resolver's JSON output is **new code** — the parser
+   currently returns only `seededFrom`/`gates`/`trigger`/
+   `intentExternal`. Add coverage for both. The floor validator's
+   `[gates]`-row strictness is untouched (`runtime_dir` is top-level,
+   not a gate row).
 4. **`charters/dispatcher.md`** — the per-handover resolve step
    (`### Read the profile at every handover`) reads `runtime_dir` from
    `.grove/gates.toml` (absent ⇒ `.grove/internal/gates/`) and invokes
@@ -277,10 +283,21 @@ append here, never silently expand scope:
   the only new file (`.grove/gates.toml`) is config, not a copy.
 - **Build-on-settled-ground**: both `depends_on` targets are
   `approved` and merged (`adr-0018` @ fc8d715, `adr-0020` @ e7882e7's
-  history); the review-policy precedent is an approved charter.
+  history); the review-policy precedent charter is merged, consumable
+  settled ground (frontmatter `status: gated` under the lifecycle
+  discipline recorded in `adr-0020`'s lifecycle note — not `approved`;
+  stated precisely).
 - **The floor**: unaffected in mechanism, satisfied in instance
   (steward).
 - Self-checked to `gated` by the shaper (author), 2026-07-19. **Not
   promoted further by the author** — routed to the
   `decision-adversary`, then the intent gate per the (about-to-be
   declared) profile: human, in-session.
+- **Adversary findings applied (2026-07-19)**: the `decision-adversary`
+  returned **SOUND** with three non-blocking accuracy findings, all
+  folded pre-gate — the inert-namespace label re-homed to the
+  installed tier (D4 grounding), propagation item 3 split into
+  tolerance-today vs surfacing-is-new-code, the review-policy
+  precedent's status stated precisely (`gated`, not `approved`) —
+  plus the banner's fallback wording tightened (the machinery never
+  executes; the posture is assumed). **No Decided item changed.**
