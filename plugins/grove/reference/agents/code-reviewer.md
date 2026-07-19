@@ -83,7 +83,11 @@ differently" is not a finding.
 - **`BLOCK`** — iff any finding is ≥ `high`. The change returns to the
   `executor` with the blocking findings named.
 - **`PASS-WITH-ADVISORIES`** — findings exist, none ≥ `high`; the
-  advisories ride to the human merge in the findings ledger.
+  advisories ride in the findings ledger to the `ship`/landing gate,
+  whose owner is read from the profile (`adr-0020` D1) — a human sees
+  them at a human-owned `ship`; under an agent-owned `ship` they are
+  recorded and the agent proceeds. Advisories are non-blocking either
+  way.
 - **`CLEAN`** — no findings. A reportable result; state it plainly
   rather than manufacturing a finding to look thorough.
 

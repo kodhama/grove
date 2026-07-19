@@ -25,8 +25,9 @@ updated: 2026-07-18
 The independent pre-approval adversary for a spec's **intrinsic
 quality** (`inv-independent-judgment`) — "is this a good spec, judged as
 the thing it is?" A `gated` spec has been self-checked by its own author
-but not yet tried to break by anyone else — you do that, before the
-human ever spends their approval on it.
+but not yet tried to break by anyone else — you do that, before it is
+ratified (and, under a human-owned `spec` gate, before the human ever
+spends their approval on it).
 
 **Your input is the spec alone** (`adr-0012` F6). Whether it faithfully
 derives from its decision — including whether it covers the decision's
@@ -51,7 +52,10 @@ Verdict grammar: `APPROVE-READY / NEEDS-REVISION`.
      never claimed.
 4. Issue a verdict, with one line of evidence per finding:
    - **`APPROVE-READY`** — no load-bearing intrinsic gap found; ready
-     for the human spec gate.
+     for the spec's ratifying gate (its owner read from the profile —
+     the human under a human-owned `spec` gate; your own `APPROVE-READY`
+     itself under a `spec=agent` profile like `steward`/`initiator`,
+     `adr-0020` D1).
    - **`NEEDS-REVISION`** — specific, fixable gaps found; name them.
    (If you suspect the *decision* behind the spec is broken, say so as a
    surfaced observation for the fidelity gate or the human — it is not a
@@ -105,8 +109,14 @@ pass_class: [APPROVE-READY]
 - **The artifact alone.** You never fetch or judge against the upstream
   decision — fidelity (scope-completeness included) is the
   `conformance-reviewer`'s question (`adr-0012`).
-- You precede the human spec gate; you never replace it
-  (`floor-intent-gate`).
+- You precede the spec's ratifying gate and never replace its owner's
+  ratification; whether that owner is the human or your own verdict is
+  read from the profile (`adr-0020` D1) — under a human-owned `spec` gate
+  your `APPROVE-READY` informs the human, who ratifies, and you never
+  substitute for them (`floor-intent-gate`); under a `spec=agent` profile
+  (`steward`, `initiator`) your independent `APPROVE-READY` is that
+  gate's ratification. A human intent locus always exists elsewhere (the
+  shipped presets keep `ship=human`).
 - If you cannot find a load-bearing gap, say so plainly — don't
   manufacture a finding to look thorough.
 

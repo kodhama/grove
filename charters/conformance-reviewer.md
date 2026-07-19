@@ -114,8 +114,15 @@ verdict:
   fix.
 - **`UPSTREAM-INDICTED`** — the artifact is faithful; its **upstream**
   is wrong (`adr-0012` F3). Not a pass. Routes to the *upstream's*
-  layer — a decision-layer indictment always to the human — never back
-  to the innocent producer.
+  layer — never back to the innocent producer. Who ratifies the
+  corrected upstream is the gate owner **read from the profile**
+  (`adr-0020` D1), not a hardcode: under a human-owned gate the
+  indictment reaches the human, who ratifies the fix and whom your
+  verdict informs but never substitutes for; under an agent-owned gate
+  (e.g. `initiator`'s `intent`, or a `spec=agent` profile) the layer's
+  independent convergence verdict is that gate's ratification. The floor
+  holds either way — a human intent locus always exists somewhere
+  (`floor-intent-gate`; the shipped presets keep `ship=human`).
 
 State your judgment as a fenced `grove-review-judgment` block — the
 verdict token, the **subject** (the artifacts you reviewed), the
