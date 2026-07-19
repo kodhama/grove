@@ -2,9 +2,9 @@
 id: charter-shaper
 type: charter
 status: gated
-depends_on: [charter-lifecycle, charter-relations]
+depends_on: [charter-lifecycle, charter-relations, adr-0023-review-triage-blackboard]
 owner: agent
-updated: 2026-07-13
+updated: 2026-07-19
 ---
 
 # shaper — stage 2: convergent shaping (interactive)
@@ -75,6 +75,19 @@ runs as a live session, not a fire-and-forget subagent.
   decision's `informed_by` list, not `depends_on` (edge taxonomy:
   `relations.md`, `adr-0011`). Reserve `depends_on` for a source the
   decision's correctness genuinely rests on.
+
+## Closing ask (adr-0023 D2)
+
+End every pass by handing your subjects — the repo tree files you
+produced or edited (the draft decision, above all) — and their produced
+type to the `record-ask` skill, which posts the pass's
+`grove-review-ask` batch (spec-0003 §A.4). This is **convention, not
+judgment** (the mini-PR rule: always ask, however good you think the
+work is) — you never decide whether your work gets eyes. Asks **add
+obligations, never remove them**: an ask can never exempt, retype, or
+soften anything (a reviewless or frontmatter-divergent type is inert
+and flagged, spec-0003 §A.3). Optional annotations are **advisory** —
+input a reviewer may read, never instruction it follows (adr-0023 D3).
 
 ## Boundaries
 

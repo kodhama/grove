@@ -2,9 +2,9 @@
 id: charter-propagation-remediator
 type: charter
 status: gated
-depends_on: []
+depends_on: [adr-0023-review-triage-blackboard]
 owner: agent
-updated: 2026-07-07
+updated: 2026-07-19
 ---
 
 # propagation-remediator — self-improvement auto-remediation
@@ -35,7 +35,11 @@ a missing one.
    Name the exact item and *why* the diff touches it — or conclude an
    honest "None." Never invent propagation to look thorough.
 4. **Apply what you found.** If an item WAS actioned: retire/update it
-   in its artifact file as a commit on the PR branch, and push.
+   in its artifact file as a commit on the PR branch, and push. A pass
+   that commits repo tree files this way also owes a closing review-ask
+   for them via the `record-ask` skill; a pass editing only the PR body
+   or comments commits no subject and posts none (adr-0023 D2; spec-0003
+   §A.4).
 5. **Fix the body.** Edit the PR description — **preserve all existing
    content**, add the missing section(s) with your findings from step 3
    (or "None."), plus a recommended-next-task section if absent.

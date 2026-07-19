@@ -3,9 +3,9 @@ id: ledger-grove-review-bookkeeping-check
 type: ledger
 status: gated
 implements: spec-0002-review-bookkeeping-check
-depends_on: [spec-0002-review-bookkeeping-check, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0018-gate-profile-and-trigger-split, adr-0019-batched-verdict-records]
+depends_on: [spec-0002-review-bookkeeping-check, spec-0003-review-asks-and-audit, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0018-gate-profile-and-trigger-split, adr-0019-batched-verdict-records, adr-0023-review-triage-blackboard]
 owner: agent
-updated: 2026-07-18
+updated: 2026-07-19
 ---
 
 # test-deps — review-bookkeeping check core
@@ -98,10 +98,27 @@ so the pin below advances to `@v4`. Unlike the `@v2 → @v3` bump, this one
 rejection is removed (one record per well-formed block) and `lib/match.mjs`
 selection gains the block-index minor key (`adr-0019` Consequence 2–3).
 
+The **review-ask** tests (`test/asks.test.mjs`, over `lib/asks.mjs`)
+rest on `spec-0003-review-asks-and-audit` (@v1, approved 2026-07-19)
+and its authorizing decision `adr-0023-review-triage-blackboard`: the
+`grove-review-ask` record class (§A.1–§A.2 — spec-0002 §A.1
+delimitation and §A.4 admissibility inherited by reference, `adr-0019`
+batching), the two deterministic §A.3 effectiveness rules with the
+both-fire flagged multiplicity, the fail-closed union of effective ask
+types per frontmatterless subject, ask coverage (`ask_covered_files`,
+§D.1/Terms), and the fingerprint-free ask serializer (an ask declares
+an obligation, never a content attestation). This is **shadow
+machinery** (adr-0023 D5): nothing in the shipped spec-0002 derivation
+reads `lib/asks.mjs`, and the suite carries the spec-0003 INV1
+regression proof — a `grove-review-ask` fence is invisible to the
+`grove-verdict` extractor. The `spec-0002@v4` pin below is untouched
+(spec-0003 amends no clause of it).
+
 ```grove-test-deps
 schema: 1
 specs:
   - spec-0002-review-bookkeeping-check@v4
+  - spec-0003-review-asks-and-audit@v1
 decisions:
   - adr-0012-methodology-delivery-machinery
   - adr-0005-tdd-and-artifact-gated-dispatch
@@ -111,4 +128,5 @@ decisions:
   - adr-0015-reviewer-machine-boundary
   - adr-0018-gate-profile-and-trigger-split
   - adr-0019-batched-verdict-records
+  - adr-0023-review-triage-blackboard
 ```
