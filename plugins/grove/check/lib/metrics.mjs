@@ -66,18 +66,20 @@ export function askClosure({ comments, ctx, policy }) {
 
   // Earliest qualifying ask id per (subject, review) pair, unioned across
   // every effective ask type on the subject (§A.3 fail-closed union).
+  // Keys are for dedup ONLY — subject/review live as map VALUES, never
+  // reconstructed by splitting the key back (the conformance NUL-sibling
+  // finding: normalizePath admits U+0000, so a split could truncate).
   const askIdByPair = new Map();
   for (const a of asks) {
     for (const review of policy.owed(a.type)) {
       const key = a.subject + SEP + review;
       const prev = askIdByPair.get(key);
-      if (prev == null || a.id < prev) askIdByPair.set(key, a.id);
+      if (prev == null || a.id < prev.askId) askIdByPair.set(key, { subject: a.subject, review, askId: a.id });
     }
   }
 
   const pairs = [];
-  for (const [key, askId] of askIdByPair) {
-    const [subject, review] = key.split(SEP);
+  for (const { subject, review, askId } of askIdByPair.values()) {
     let verdictId = null;
     for (const v of verdicts) {
       if (v.review !== review || !v.subjects.has(subject)) continue;
@@ -100,6 +102,7 @@ export function askClosure({ comments, ctx, policy }) {
     pairs,
     pairsTotal,
     pairsClosed: closed.length,
+    pairsOrdered: ordered.length, // exact count — the window aggregates this, never a rounded reconstruction
     closureRate: pairsTotal === 0 ? 1 : closed.length / pairsTotal,
     orderedFraction: closed.length === 0 ? 1 : ordered.length / closed.length,
   };
@@ -129,7 +132,7 @@ export function aggregateWindow(perPr) {
   for (const pr of perPr) {
     pairsTotal += pr.closure.pairsTotal;
     pairsClosed += pr.closure.pairsClosed;
-    orderedClosed += Math.round(pr.closure.orderedFraction * pr.closure.pairsClosed);
+    orderedClosed += pr.closure.pairsOrdered != null ? pr.closure.pairsOrdered : Math.round(pr.closure.orderedFraction * pr.closure.pairsClosed);
     verdictsTotal += pr.annotations.verdictsTotal;
     consultingCount += pr.annotations.consultingCount;
   }

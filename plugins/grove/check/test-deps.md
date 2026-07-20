@@ -5,7 +5,7 @@ status: gated
 implements: spec-0002-review-bookkeeping-check
 depends_on: [spec-0002-review-bookkeeping-check, spec-0003-review-asks-and-audit, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0018-gate-profile-and-trigger-split, adr-0019-batched-verdict-records, adr-0023-review-triage-blackboard]
 owner: agent
-updated: 2026-07-19
+updated: 2026-07-20
 ---
 
 # test-deps — review-bookkeeping check core

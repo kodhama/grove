@@ -1,6 +1,7 @@
 // The extracted comparator bin step (spec-0003 §D.2, INV16; adr-0023 AC3's
 // last-line guard). The report-only guarantee is the property under test:
-// the step writes via its injected sink and NEVER throws — a comparator
+// the step writes via its injected sink; it throws only when the catch-path
+// write itself throws (the honest bound the third test pins) — a comparator
 // failure becomes a written note, not a crash, so the bin's verdict, exit
 // code, and structured output are unreachable from here by construction.
 import { test } from 'node:test';

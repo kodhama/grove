@@ -13,13 +13,13 @@
 
 import { readRecordStream } from './record-stream.mjs';
 import { computeChanged, buildTree, readProtectedPolicy } from './git-adapter.mjs';
+import { buildProtectedTree } from './compare-step.mjs';
 import { assemblePolicy } from '../lib/policy.mjs';
 import { runCheck } from '../lib/check.mjs';
 import { computeComparison } from '../lib/compare.mjs';
 import { checkAdmissibility } from '../lib/records.mjs';
 import { artifactMeta } from '../lib/frontmatter.mjs';
 import { askClosure, annotationConsumption } from '../lib/metrics.mjs';
-import { normalizePath } from '../lib/normalize.mjs';
 
 async function fetchPrMeta({ fetchImpl, owner, repo, prNumber, token, apiBase }) {
   const url = `${apiBase}/repos/${owner}/${repo}/pulls/${prNumber}`;
@@ -33,18 +33,6 @@ async function fetchPrMeta({ fetchImpl, owner, repo, prNumber, token, apiBase })
   return res.json();
 }
 
-// The §C.3.2 policy-carrier basis, single-homed with the comparator step's
-// assembly (same first-wins map shape).
-function buildProtectedTree({ policy, reviewPolicyText, charterEntries }) {
-  const protectedTree = new Map();
-  if (policy.reviewPolicyPath != null) protectedTree.set(policy.reviewPolicyPath, reviewPolicyText);
-  for (const e of charterEntries) {
-    const p = normalizePath(e.path);
-    if (p != null && !protectedTree.has(p)) protectedTree.set(p, e.text);
-  }
-  return protectedTree;
-}
-
 // sweepPr({ fetchImpl, gitRunner, owner, repo, prNumber, token }) ->
 //   { prNumber, base, head, changedCount, closure, annotations, comparison }
 export async function sweepPr({ fetchImpl, gitRunner, owner, repo, prNumber, token, apiBase = 'https://api.github.com' }) {
@@ -54,7 +42,8 @@ export async function sweepPr({ fetchImpl, gitRunner, owner, repo, prNumber, tok
   // The protected-branch ref for policy reads — from the PR's own base repo
   // (caught by the first real run: omitting it resolves origin/undefined and
   // the policy read correctly refuses, INV1 fail-closed).
-  const defaultBranch = meta.base.repo && meta.base.repo.default_branch ? meta.base.repo.default_branch : 'main';
+  const defaultBranch = meta.base.repo && meta.base.repo.default_branch;
+  if (!defaultBranch) throw new Error(`PR #${prNumber}: base repo default_branch missing — refusing a guessed protected ref (fail-closed)`);
 
   const comments = await readRecordStream({ fetchImpl, owner, repo, prNumber, token, apiBase });
   const changed = await computeChanged({ gitRunner, base, head });

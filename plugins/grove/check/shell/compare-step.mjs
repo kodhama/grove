@@ -14,6 +14,19 @@
 import { computeComparison, renderComparison } from '../lib/compare.mjs';
 import { normalizePath } from '../lib/normalize.mjs';
 
+// The §C.3.2 policy-carrier basis (review-policy source + every discovered
+// declaration file, first-wins) — SINGLE-HOMED here; the sweep imports it
+// (code-review medium: a hand-copy had begun to drift the moment it existed).
+export function buildProtectedTree({ policy, reviewPolicyText, charterEntries }) {
+  const protectedTree = new Map();
+  if (policy.reviewPolicyPath != null) protectedTree.set(policy.reviewPolicyPath, reviewPolicyText);
+  for (const e of charterEntries) {
+    const p = normalizePath(e.path);
+    if (p != null && !protectedTree.has(p)) protectedTree.set(p, e.text);
+  }
+  return protectedTree;
+}
+
 // runComparatorStep({ changed, tree, comments, policy, derivation,
 //   reviewPolicyText, charterEntries, write }) -> void (all output via write)
 export function runComparatorStep({
@@ -27,12 +40,7 @@ export function runComparatorStep({
   write,
 }) {
   try {
-    const protectedTree = new Map();
-    if (policy.reviewPolicyPath != null) protectedTree.set(policy.reviewPolicyPath, reviewPolicyText);
-    for (const e of charterEntries) {
-      const p = normalizePath(e.path);
-      if (p != null && !protectedTree.has(p)) protectedTree.set(p, e.text);
-    }
+    const protectedTree = buildProtectedTree({ policy, reviewPolicyText, charterEntries });
     const comparison = computeComparison({
       diffFiles: changed,
       tree,

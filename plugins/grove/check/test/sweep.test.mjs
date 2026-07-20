@@ -80,9 +80,16 @@ test('sweepPr — composes both metric families from injected runners, read-only
   assert.equal(r.closure.pairsClosed, 1);
   assert.equal(r.closure.orderedFraction, 1);
   assert.equal(r.annotations.consultingCount, 1);
-  // divergence: the comparison object came back with the five metrics present.
-  assert.ok(r.comparison && typeof r.comparison === 'object');
-  assert.ok('noAsk' in r.comparison || 'metrics' in r.comparison || Object.keys(r.comparison).length > 0);
+  // divergence: the five §D.1 metrics, recomputed — sharp assertions (the
+  // prior any-object check was tautological; code-review high).
+  const m = r.comparison.metrics;
+  assert.ok(m, JSON.stringify(Object.keys(r.comparison)));
+  for (const k of ['tableOnly', 'auditOnly', 'noAsk', 'freshness', 'hwmRaces']) {
+    assert.ok(k in m, `metric ${k} missing: ${JSON.stringify(Object.keys(m))}`);
+  }
+  // the recomputed no-ask set: 2 of the 3 changed files carry no effective ask
+  assert.equal(m.noAsk.total, 3);
+  assert.equal(m.noAsk.count, 2);
 });
 
 test('sweepPr — PR-meta fetch failure is loud, never a partial result', async () => {
