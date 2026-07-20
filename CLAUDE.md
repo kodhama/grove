@@ -28,15 +28,3 @@ This project follows **Trellis** — working rules you are expected to follow wh
 @.trellis/internal/trellis.md
 @.trellis/rules.toml
 <!-- trellis:end -->
-
-## Trellis expression (retired 2026-07-20)
-
-`.trellis/expression.md` is retired from the bundle (`decision-0051`'s amendment — a
-project's governance prose belongs in its own instructions file, not a separate
-overlay file). Its own content (a 2026-07-12 kodhama-0008 split-migration note)
-already recorded that this project's hand-authored governance prose had moved to
-the operating model — since grove is the *source* of the grove plugin, the
-canonical companions themselves: the state enum and who-moves-states in
-`charters/lifecycle.md`, versioning semantics in `charters/versioning.md`
-(consumers get the installed `.grove/` copies). Nothing project-specific is lost
-across either migration.
