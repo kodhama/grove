@@ -1,7 +1,7 @@
 ---
 id: adr-0025-decline-review-waiver
 type: adr
-status: gated  # converged, routed for the decision-adversary + the maintainer's intent gate (human-owned under steward). Maintainer chose the DIRECTION in-session 2026-07-20 ("decline; fix the over-owing") from a 3-way shaping fork; this text is the shaper's draft of that direction, not yet ratified. author (shaper) ≠ approver.
+status: approved  # maintainer intent act (in-session approval "approve", 2026-07-20) — recorded flip per lifecycle.md; direction chosen from a 3-way shaping fork ("decline; fix the over-owing"); decision-adversary SOUND at 0a9dd3f, re-confirmed SOUND after the non-blocking Obs-1 fold; author (shaper) ≠ approver; the PR merge is the ship/landing act.
 depends_on: [spec-0002-review-bookkeeping-check, adr-0024-enforced-gate-under-ship-agent, adr-0023-review-triage-blackboard]
 informed_by: [adr-0022-strict-mode-review-friction, spec-0003-review-asks-and-audit]
 owner: agent
