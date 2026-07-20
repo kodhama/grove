@@ -90,10 +90,12 @@ updated: 2026-07-20
   advisory noise justifies the work.
 
 - **D4 — the guard-set for any future waiver is fixed here as a BOUNDARY (not
-  an adoption); this also answers the issue's four design questions**
-  *(shaper)*. So a future reopening starts from settled ground rather than
-  re-deriving the constraints, record what any waiver — if ever reconsidered —
-  **must** carry. This is a fence, not a green light (see Rejected options):
+  an adoption); this also answers the issue's four design questions** (**Q1**→(c),
+  **Q2/Q4**→(e), **Q3** the §C.5 reconciliation→**D1**'s "approval satisfies only
+  the human-gate, not the verdict") *(shaper)*. So a future reopening starts from
+  settled ground rather than re-deriving the constraints, record what any waiver
+  — if ever reconsidered — **must** carry. This is a fence, not a green light
+  (see Rejected options):
   - **(a) explicit + auditable, never silent** — a first-class recorded event
     ("`<review>` on `<change>` **waived by `<human>`**"); green would mean
     "reviewed OR explicitly human-waived," never silently skipped. *(The issue's
@@ -112,7 +114,8 @@ updated: 2026-07-20
     alter the green/red that adr-0024 D1's head-SHA status mirrors, or it
     reopens the fail-open self-certification loop adr-0024 D4 closed (an
     agent-forged waiver zeroing an owed review at a human-absent merge).
-    *(Answers Q3's `ship`-side interaction.)*
+    *(A grove-added `ship = agent` guard — the adr-0024 D4 safety — **beyond**
+    the issue's four questions, not a restatement of one.)*
   - **(e) a bounded non-waivable set** — mirroring adr-0022 D4: never the
     normative frontmatter fields (`status`, `implements`, `depends_on`), and
     never a conformance- or security-class review (`adr-0009`'s security
