@@ -37,6 +37,68 @@ test('parseToml on an empty/whitespace body returns an empty object', () => {
   assert.deepEqual(parseToml('   \n # only a comment\n'), {});
 });
 
+// --- grove#92: multi-line arrays (the natural, valid-TOML way to grow an
+//     allowlist; setup step 7 invites the edit) must parse, not hard-error ---
+
+test('grove#92 — a MULTI-LINE array (with trailing comma) parses, the exact repro', () => {
+  const t = parseToml([
+    'non_behavioral_allowlist = [',
+    '  "README.md",',
+    '  ".claude/agents/README.md",',
+    '  "CLAUDE.md",',
+    ']',
+  ].join('\n'));
+  assert.deepEqual(t.non_behavioral_allowlist, ['README.md', '.claude/agents/README.md', 'CLAUDE.md']);
+});
+
+test('grove#92 — multi-line array without a trailing comma also parses', () => {
+  const t = parseToml('artifact_dirs = [\n  "decisions",\n  "specs"\n]');
+  assert.deepEqual(t.artifact_dirs, ['decisions', 'specs']);
+});
+
+test('grove#92 — a trailing comma on a single-line inline array is tolerated', () => {
+  assert.deepEqual(parseToml('reviewless_types = ["research",]').reviewless_types, ['research']);
+});
+
+test('grove#92 — comments and blank lines inside a multi-line array are ignored', () => {
+  const t = parseToml([
+    'non_behavioral_allowlist = [  # start',
+    '  "README.md",   # the root readme',
+    '',
+    '  "CLAUDE.md",',
+    ']  # done',
+  ].join('\n'));
+  assert.deepEqual(t.non_behavioral_allowlist, ['README.md', 'CLAUDE.md']);
+});
+
+test('grove#92 — an UNTERMINATED multi-line array is a hard error, never a silent misparse (fail-closed)', () => {
+  assert.throws(() => parseToml('non_behavioral_allowlist = [\n  "README.md",\n'), /unterminated array|line 1/);
+});
+
+test('grove#92 — a following key after a closed multi-line array still parses', () => {
+  const t = parseToml([
+    'non_behavioral_allowlist = [',
+    '  "README.md",',
+    ']',
+    'scope = "scoped"',
+  ].join('\n'));
+  assert.deepEqual(t.non_behavioral_allowlist, ['README.md']);
+  assert.equal(t.scope, 'scoped');
+});
+
+test('grove#92 — a multi-line allowlist survives the review.toml synthesis path the check actually reads', () => {
+  const reviewToml = [
+    'scope = "strict"',
+    'non_behavioral_allowlist = [',
+    '  "README.md",',
+    '  "CLAUDE.md",',
+    ']',
+  ].join('\n');
+  const block = synthesizePolicyBlock({ reviewToml, wiringToml: null });
+  const policy = parseReviewPolicy(block);
+  assert.deepEqual(policy.allowlist.sort(), ['CLAUDE.md', 'README.md']);
+});
+
 // --- synthesizePolicyBlock: review.toml + wiring -> a grove-review-policy block
 //     that the existing parser round-trips ---
 
