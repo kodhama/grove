@@ -5,7 +5,7 @@ status: gated
 implements: spec-0002-review-bookkeeping-check
 depends_on: [spec-0002-review-bookkeeping-check, spec-0003-review-asks-and-audit, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0018-gate-profile-and-trigger-split, adr-0019-batched-verdict-records, adr-0023-review-triage-blackboard]
 owner: agent
-updated: 2026-07-19
+updated: 2026-07-20
 ---
 
 # test-deps — review-bookkeeping check core
@@ -152,7 +152,8 @@ mismatches (INV9). The suite carries the phase's LOAD-BEARING
 regression (adr-0023 AC3 / spec-0003 INV1, S11): the shipped check's
 derivation, rendered view, and structured output are byte-identical
 with and without ask/audit records in the stream — the comparator is
-report-only (INV16), wired in `bin/check.mjs` as a stdout-only
+report-only (INV16), wired in `bin/check.mjs` as a stdout-only (the step
+  itself extracted to `shell/compare-step.mjs` with its own suite)
 section after the verdict, excluded from the job summary and the
 structured output.
 
@@ -172,3 +173,14 @@ decisions:
   - adr-0019-batched-verdict-records
   - adr-0023-review-triage-blackboard
 ```
+
+## The shadow-metrics sweep (`lib/metrics.mjs`, `shell/sweep.mjs`, `bin/shadow-metrics.mjs`)
+
+Read-only measurement tooling (adr-0023 D5 follow-up ①, grove#91 milestone
+list): ask→review closure/ordering and annotation-consumption metrics
+(`test/metrics.test.mjs`) plus the per-PR sweep composition over the tested
+shell pieces (`test/sweep.test.mjs`). A consumer of both record classes —
+spec-0003 §A asks and spec-0002 §A verdicts — deriving no obligations and
+gating nothing; the pins above (`spec-0003-review-asks-and-audit@v1`,
+`spec-0002-review-bookkeeping-check@v4`) already carry its upstream context,
+so no block change is owed.
