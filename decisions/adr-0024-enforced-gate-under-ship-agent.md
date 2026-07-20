@@ -1,7 +1,7 @@
 ---
 id: adr-0024-enforced-gate-under-ship-agent
 type: adr
-status: approved  # maintainer intent act (in-session, 2026-07-20 — "build option 1 + encode the trigger", scope: SETTLE-NOW-BUILD-AT-TRIGGER per D6); decision-adversary NEEDS-REVISION → 1 blocking (D2 spec-0002 §E-disclosure) + 3 non-blocking folded, re-confirmed SOUND at the folded HEAD; author (shaper) ≠ approver; the PR merge is the ship/landing act.
+status: approved  # maintainer intent act (in-session, 2026-07-20 — "build option 1 + encode the trigger", scope: SETTLE-NOW-BUILD-AT-TRIGGER per D6); decision-adversary round-1 NEEDS-REVISION (1 blocking D2 spec-0002 §E-disclosure + 3 non-blocking) folded, round-2 caught an incomplete D6-scope propagation (two summary spots) — folded; routed for the final re-confirm record; author (shaper) ≠ approver; the PR merge is the ship/landing act.
 depends_on: [adr-0018-gate-profile-and-trigger-split, adr-0020-dispatcher-honors-gate-profile, adr-0023-review-triage-blackboard, spec-0002-review-bookkeeping-check]
 owner: agent
 updated: 2026-07-20
@@ -36,9 +36,10 @@ updated: 2026-07-20
 > `ship = agent` forces `intent = human` for the shipped/in-domain case
 > (adr-0018), so a human still ratifies **direction**; the mechanical gate
 > is what lets them safely delegate the **merge**. **D5** the trigger, named
-> and parked. **D6** build
-> scope — recommended settle-and-build-now, profile-gated/inert under
-> `ship = human`, with the honest e2e-testability caveat.
+> and parked. **D6** build scope — the maintainer chose **settle-now,
+> build-at-trigger**: this decision + the trigger land now; the CI mechanism
+> and the §E disclosure are built when the first `ship = agent` run needs
+> them (inert + e2e-untestable until then).
 
 ## Decision state
 
@@ -176,9 +177,12 @@ updated: 2026-07-20
   reintroduces the over-fires-on-human-approved-changes friction under
   `ship = human` that #95 exists to avoid. Profile-gating confines the
   enforcing status to where it is needed.
-- **Build only at the trigger** (defer all code): considered, folded into D6
-  as the disclosed minimal-first alternative — not rejected, offered to the
-  maintainer, with build-now as the recorded default per their direction.
+- **Build-now** (land the inert mechanism + §E disclosure now so the trigger
+  is a pure config flip): considered and **set aside** — the maintainer chose
+  settle-now-build-at-trigger (D6), because inert-until-trigger code +
+  documenting an enforcing posture that does not yet run is machinery ahead of
+  need. Recorded so the choice is explicit; the chosen default is
+  build-at-trigger.
 
 ## Consequences / propagation
 
