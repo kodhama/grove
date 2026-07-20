@@ -169,7 +169,7 @@ Everything else is additive and fail-closed:
 |---|---|
 | `executor`, `shaper`, `contract-author` | **Unconditional closing ask** — every pass ends by posting its ask batch. Convention, not judgment (the mini-PR rule: always ask). |
 | `divergent-researcher` | **No-op** — its output is reviewless-typed (`research`); §A.3 rule 1 forbids an ask naming it, and its files stay frontmatter-resolved. It posts nothing. |
-| `run-resumer` | **In, by inheritance** (ruled here): it completes another role's pass, so it owes **the resumed role's** closing ask for the pass's tree edits — never an ask in its own name. Its ask carries `producer: <resumed-role>` **and** `resumed_by: run-resumer` (§A.2 dual attribution, feeding §C.4's `P` — so it can never pass auditor separation on work it produced; N5). Rationale: otherwise a max-turns death becomes an ask-exemption door — a self-exemption channel by crash, the class D2 closes. |
+| `run-resumer` | **In, by inheritance** (ruled here): it completes another role's pass, so it owes **the resumed role's** closing ask for the pass's tree edits — never an ask in its own name. Its ask carries `producer: <resumed-role>` **and** `resumed_by: run-resumer` (§A.2 dual attribution, feeding §C.4's `P` — so, provided the duty-mandated field is posted, it cannot pass auditor separation on work it produced; N5). Rationale: otherwise a max-turns death becomes an ask-exemption door — a self-exemption channel by crash, the class D2 closes. |
 | `propagation-remediator` | **In, when tree-touching** (ruled here): it owes an ask for any repo tree file its pass commits (e.g. a parked-item retirement). A pass editing only the PR body or comments commits no subject and posts none. Rationale: the condition is mechanical (did the pass commit tree files?), not a quality judgment — D2's convention-not-judgment holds; a role class whose tree output never asks would reopen the door D2 closed. |
 
 Both remediation rulings add their charter lines to the phase-0 build
@@ -301,12 +301,14 @@ poster, full pagination, deletion conceded), **plus one rule**:
 - **Auditor separation** (adr-0023 D4): let `P` = the set of `producer`
   values **plus every ask record's `resumed_by` value** (§A.2 dual
   attribution — a run-resumer that produced tree edits on the PR enters
-  `P` under both ids, so it can never pass auditor separation on work
+  `P` under both ids, so — provided the duty's field is posted — it
+  cannot pass auditor separation on work
   it produced; N5) of every **schema-valid** `grove-review-ask` and
   `grove-verdict` block in the full stream (admissible or not —
   rejection never un-produces). If `auditor ∈ P`, the audit record is
   **inadmissible**. Same trusted-self-reported tier as spec-0002 §C.4;
-  forgery stays the disclosed Layer-B limit; no new concession class.
+  forgery — and passive omission of a self-reported field, its weaker
+  form — stays the disclosed Layer-B limit; no new concession class.
 
 ### C.5 Selection and the vacuity rule, one level up
 
@@ -674,5 +676,6 @@ the content-freshness rule (§C.3). This is pre-approval revision while
 `gated` — `version` stays `1`, no delta note owed (`adr-0004`
 revise-in-place applies to *current-truth* amendments; the counter
 moves once the artifact has consumers to pin it, the spec-0002
-precedent). The adversary has **not** re-judged this revision; the
-gates do.
+precedent). *(Trail note, corrected at next-touch per the conformance
+finding: written pre-re-check — the adversary subsequently DID re-judge
+this revision, round-2 APPROVE-READY, recorded on the status line.)*
