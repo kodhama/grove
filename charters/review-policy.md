@@ -10,6 +10,15 @@ updated: 2026-07-18
 
 # review-policy — the non-charter policy inputs for the bookkeeping check
 
+> **Dormant — operationally retired with the check by
+> `adr-0027-retire-ci-for-now` (2026-07-21).** Nothing reads this policy
+> while the check is unwired (the `grove-review-bookkeeping` workflow is
+> removed); kept in-repo with the preserved runtime so adr-0027 D4's
+> revival is a re-wiring, not a rebuild. Note: the reviewer charters'
+> `grove-review-declaration` blocks this file cites were removed by
+> adr-0027 (nothing reads them); a revival re-establishes declarations
+> per the then-current decision.
+
 > Provenance: created per `spec-0002-review-bookkeeping-check` Open Q7's
 > named default — *"declarations live in each reviewer charter as a
 > fenced machine-readable block; the non-charter inputs live in one
