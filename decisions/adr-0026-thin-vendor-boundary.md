@@ -1,7 +1,7 @@
 ---
 id: adr-0026-thin-vendor-boundary
 type: adr
-status: draft
+status: gated  # self-checked (shaper) 2026-07-21 after in-session convergence (7 Decided, 0 Open); no decision rubric exists in grove-self (honest-absent) — checked against the house axes (adr-0025 pattern); awaiting decision-adversary verdict, then the maintainer's intent act
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0018-gate-profile-and-trigger-split, adr-0021-gate-profile-self-adoption, spec-0002-review-bookkeeping-check]
 informed_by: [adr-0008-lifecycle-enum-companion, adr-0014-install-is-invisible-and-ungated, adr-0023-review-triage-blackboard, adr-0010-versioning-is-operational, adr-0001-corpus-reviewer-lift]
 owner: agent
@@ -10,7 +10,8 @@ updated: 2026-07-21
 
 # ADR-0026: the thin-vendor boundary — plugin-carried fleet, repo-owned floor (grove#112)
 
-> **`draft` — one canvas, one open question.** grove#112 asked where grove's
+> **`gated` — converged, awaiting the adversary verdict + the intent gate.**
+> grove#112 asked where grove's
 > vendoring boundary should sit, after the 2026-07-21 fleet rollout priced the
 > current model honestly: a 4-repo campaign, three-way charter merges, drift,
 > one repo unstamped. The answer drafted here: **move the agent fleet into the
@@ -297,3 +298,33 @@ changelog link is the consumer's record.
 - **AC3**: every propagation item above exists as a tracked follow-up (spec
   amendment, skills rewrite, D6 campaign) — none lands silently with the ADR
   itself (**no build rides this decision**; #112 asked for a decision only).
+
+## Self-check (gate → `gated`)
+
+*(No decision rubric exists in grove-self — honest-absent; checked against
+the house axes, the same four the `decision-adversary` judges.)*
+
+- **Internal coherence**: D1 (the fleet leaves the repo) and D2 (the
+  declarations stay) compose because the split fixes the authority arrow
+  *before* the move; D3's verified-prior posture cannot bleed into the
+  deterministic reads — the two-disciplines boundary is stated inside D3
+  itself; D4's record-not-lock is the premise D7's single-pin rides; D6
+  makes the existing stock ride the adopting change. No decision here
+  contradicts another.
+- **Contradiction sweep**: every standing decision this touches is either
+  preserved by construction (adr-0012 — D2's authority arrow; adr-0014 —
+  the bootstrap discriminator's carriers stay repo-committed) or amended
+  **by name with a pointer owed at approval** (adr-0007 in part, adr-0008's
+  companion location, adr-0018 D5's layout table, adr-0001's copy count) —
+  none silently. adr-0021 is generalized (collapsed case, lockstep valve),
+  not reversed; adr-0008's non-restatement rule is explicitly held (D7).
+- **Build-on-settled-ground**: the four `depends_on` are all `approved`
+  (verified against their frontmatter 2026-07-21); the harness facts D1/D4
+  rest on were verified against Claude Code docs 2026-07-21, not assumed;
+  all three forks and both refinements were the maintainer's in-session
+  direction (2026-07-21), recorded per-decision with who/when.
+- **Honest scope**: the load-bearing costs are surfaced, not buried —
+  per-machine skew is preventable by no mechanism and only *disclosed*
+  (D4 is never sold as enforcement); the in-repo reviewable diff shrinks;
+  consumers lose unilateral charter surgery; the rename sweep is named.
+  No build rides the decision (AC3).
