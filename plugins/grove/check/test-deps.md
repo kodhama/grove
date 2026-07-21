@@ -184,3 +184,23 @@ spec-0003 §A asks and spec-0002 §A verdicts — deriving no obligations and
 gating nothing; the pins above (`spec-0003-review-asks-and-audit@v1`,
 `spec-0002-review-bookkeeping-check@v4`) already carry its upstream context,
 so no block change is owed.
+
+## The local owed-map preview (`shell/preview.mjs`, `bin/preview.mjs`)
+
+Read-only local tooling (grove#108): the same §B/§C computation CI runs,
+composed offline over an EMPTY record stream — `readProtectedPolicy` →
+`bootstrapSelfDetect` → `assemblePolicy` → `computeChanged` → `buildTree` →
+`runCheck({comments: []})` → `render` — so every owed pair surfaces with its
+reasons before a PR exists (`test/preview.test.mjs`). It reuses the pipeline
+wholesale (no re-derivation) and preserves the CI boundaries it composes:
+policy from the protected branch only (§C.0/INV1 — a preview cannot be
+softened by editing policy in-branch), the adr-0014 bootstrap self-detect
+(not-installed reports `installed:false`, never a forged empty owed-map),
+merge-base diff parity (`origin/<default>...HEAD`), and the scoped-mode
+carrier fail-close. Informational, not a gate: the bin exits 0 on any
+successful preview (red rows are the OUTPUT); it posts nothing and derives
+no obligations, so — like the sweep — the pins above
+(`spec-0002-review-bookkeeping-check@v4`) already carry its upstream
+context and no block change is owed. Consumed by the `review-preview`
+plugin skill, whose remedy proposals stay INV14-honest: the skill proposes
+policy edits, the human's merge approves them.
