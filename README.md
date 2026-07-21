@@ -76,7 +76,7 @@ the checkpoint-resume bounds shared with `run-resumer`.
 - **`decisions/`** — this repo's own ADRs (append-only; see its README).
 - **`specs/`** — this repo's own specs, if any (see its README).
 - **`charters/`** — the portable role charters: what each agent is,
-  what it does, its boundaries, and its placeholders. This is the artifact
+  what it does, its boundaries, and its config tokens. This is the artifact
   grove ships.
 - **`plugins/grove/`** — the Claude Code plugin: the `agents/` payload
   (subagent definitions generated from the charters in two-copy

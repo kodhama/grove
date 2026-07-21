@@ -73,9 +73,9 @@ Second, the append-only supersession mechanics for decisions live in
 2. Write `charters/<role-slug>.md` with the frontmatter above
    (`status: draft`, `type: charter`, `owner: agent` or `human`) and
    the shape every existing charter uses: `## What this role is`,
-   `## Method`, `## Boundaries`, `## Placeholders` (angle-bracketed
-   tokens for anything project-specific — see "The placeholder door"
-   in `charters/README.md`).
+   `## Method`, `## Boundaries`, `## Config tokens (adr-0026 D3)`
+   (angle-bracketed tokens for anything project-specific — see "The
+   config-token door" in `charters/README.md`).
 3. Self-check: does it cite provenance (which ADR or prior role it
    generalizes from, or "no dedicated legacy definition existed")? Does
    it pass the zero-nouns grep (below)? Flip `status: draft` →
@@ -162,12 +162,12 @@ started in any consuming project** — it never hardcodes a noun specific
 to the project grove itself was lifted out of, or to any other
 specific consuming project. Where a role genuinely needs a
 project-specific value (a test command, a spec path, an issue-tracker
-convention), it declares an explicit angle-bracketed placeholder (e.g.
+convention), it declares an explicit angle-bracketed config token (e.g.
 `<TEST_CMD>`) instead of quietly assuming a default. Concretely, this
 means no source-project product name, codename, persona name, or
 internal taxonomy/numbering scheme belongs in a charter, spec, or
 decision — anything that specific is either generalized into a
-placeholder or left out.
+config token or left out.
 
 Before opening a PR that touches `charters/`, `specs/`, or
 `decisions/`, run this repo's acceptance check for those tokens against
