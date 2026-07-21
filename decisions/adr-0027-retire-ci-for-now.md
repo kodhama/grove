@@ -1,7 +1,7 @@
 ---
 id: adr-0027-retire-ci-for-now
 type: adr
-status: gated  # self-checked (shaper) 2026-07-21 after the maintainer's in-session direction ("Yes, let's retire CI"); answers grove#119; supersedes-in-part adr-0026 (CI-floor parts) and operationally suspends spec-0002/spec-0003/adr-0023; decision-adversary SOUND at 7494a8f (3 non-blocking findings folded, with the maintainer's ask-function refinement — the hand-off survives as prose, D2); scoped re-review pending, then the maintainer's intent act
+status: gated  # self-checked (shaper) 2026-07-21 after the maintainer's in-session direction ("Yes, let's retire CI"); answers grove#119; supersedes-in-part adr-0026 (CI-floor parts) and operationally suspends spec-0002/spec-0003/adr-0023; decision-adversary SOUND at 7494a8f (3 non-blocking folded, with the maintainer's ask-function refinement — the hand-off survives as prose, D2) → SOUND on scoped re-review at 11252a9 (D2 hand-off verified clause-by-clause vs adr-0023; F4/F5 folded pre-gate); awaiting the maintainer's intent act
 depends_on: [adr-0026-thin-vendor-boundary, adr-0012-methodology-delivery-machinery]
 informed_by: [adr-0013-check-scope-mode, adr-0022-strict-mode-review-friction, adr-0024-enforced-gate-under-ship-agent, adr-0025-decline-review-waiver, adr-0023-review-triage-blackboard, spec-0002-review-bookkeeping-check, spec-0003-review-asks-and-audit]
 owner: agent
@@ -26,9 +26,11 @@ updated: 2026-07-21
 > enforcement need to justify it. The **ask function survives the medium**
 > (D2): producers still close every pass with a prose hand-off — the nudge,
 > the dispatcher-routing signal, the reviewer orientation — only the record
-> machinery goes. Five Decided, none Open, one Parked. Adversary: **SOUND at
-> `7494a8f`** (3 non-blocking findings, folded with the maintainer's
-> ask-function refinement; scoped re-review on the delta pending).
+> machinery goes. Five Decided, none Open, one Parked. Adversary: **SOUND**
+> round 1 at `7494a8f` (3 non-blocking, folded with the ask-function
+> refinement) → **SOUND on scoped re-review at `11252a9`** — the D2
+> hand-off verified clause-by-clause against adr-0023; F4/F5 precision
+> notes folded pre-gate (adr-0021 pattern). Awaiting the intent act.
 
 ## Decision state
 
@@ -71,8 +73,10 @@ updated: 2026-07-21
   routing input** (the signal drives which reviewer gets dispatched — with the
   mechanical owed-map gone this is a real input to a routing judgment, not
   paperwork feeding a machine), and **reviewer orientation**. It stays
-  **advisory and non-self-exempting** (the adr-0023 D3 lineage): a hand-off
-  can never exempt, retype, or soften anything. So adr-0023 D2's closing-ask
+  **advisory, untargeted, and non-self-exempting** (the adr-0023 D2/D3
+  lineage): it names no reviewer — *which* reviewer is the dispatcher's
+  routing call — and a hand-off can never exempt, retype, or soften
+  anything. So adr-0023 D2's closing-ask
   **principle is preserved, re-homed as prose**; only its **record mechanism**
   (the fenced `grove-review-ask` block, the `record-ask` skill, the spec-0003
   §A layer) suspends with D1.
