@@ -1,4 +1,3 @@
-<!-- vendored from ../../.claude/agents/run-resumer.md — the repo's canonical copy; keep in sync -->
 ---
 name: run-resumer
 description: >
@@ -64,10 +63,23 @@ done, checkpointed, or you are genuinely blocked — and say which.
 - If you cannot identify the task or the checkpoint, say so loudly on
   the issue and stop — a loud failure beats a guessed resumption.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<PR_CONTRACT_SECTIONS>` — the sections this project's PR contract
   requires.
+
+Tokens resolve at use time from this repo's **shared config file
+`.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/run-resumer.md` for local rules and worked
+examples — both consumer-authoritative, seeded by `/grove:setup`,
+never clobbered by grove (adr-0026 D3). Treat every value as a
+**verified prior, not ground truth**: present → verify on use (does
+the command still run, the path still resolve?); on mismatch, disclose
+loudly and route a fix to the config file — the stale token is the
+root cause — never silently substitute a "better" value or work around
+a broken one. Absent (no file, or no such key) → self-detect from this
+repo's own conventions and disclose the judgment. An explicit "none
+exists yet" is a value, not a gap.
 
 **Closing hand-off (adr-0027 D2).** A resumed producing pass also owes
 its closing hand-off: declare, in plain prose on the change-request,

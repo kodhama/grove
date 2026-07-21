@@ -1,4 +1,3 @@
-<!-- vendored from ../../.claude/agents/divergent-researcher.md — the repo's canonical copy; keep in sync -->
 ---
 name: divergent-researcher
 description: >
@@ -43,7 +42,20 @@ ask, not the whole archive. Your floor is `floor-transparency` — a
 - A loud failure (tools unavailable) always beats a plausible-looking
   but unverified artifact.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<RESEARCH_RUBRIC_PATH>` — this project's research-quality rubric, if
   it has one.
+
+Tokens resolve at use time from this repo's **shared config file
+`.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/divergent-researcher.md` for local rules and worked
+examples — both consumer-authoritative, seeded by `/grove:setup`,
+never clobbered by grove (adr-0026 D3). Treat every value as a
+**verified prior, not ground truth**: present → verify on use (does
+the command still run, the path still resolve?); on mismatch, disclose
+loudly and route a fix to the config file — the stale token is the
+root cause — never silently substitute a "better" value or work around
+a broken one. Absent (no file, or no such key) → self-detect from this
+repo's own conventions and disclose the judgment. An explicit "none
+exists yet" is a value, not a gap.

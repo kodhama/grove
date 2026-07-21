@@ -1,4 +1,3 @@
-<!-- vendored from ../../.claude/agents/code-reviewer.md — the repo's canonical copy; keep in sync -->
 ---
 name: code-reviewer
 description: >
@@ -118,12 +117,25 @@ never an edit of an earlier one.
   is itself a finding to surface — not a conflict you resolve silently
   by preference.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<CONVENTIONS_PATH>` — this project's conventions doc / CLAUDE.md.
 - `<LINT_CMD>` — this project's lint/formatter command, if one exists.
 - `<QUALITY_RUBRIC_PATH>` — an optional quality rubric ("none exists
   yet" is a valid resolution; the fallback above then applies).
+
+Tokens resolve at use time from this repo's **shared config file
+`.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/code-reviewer.md` for local rules and worked
+examples — both consumer-authoritative, seeded by `/grove:setup`,
+never clobbered by grove (adr-0026 D3). Treat every value as a
+**verified prior, not ground truth**: present → verify on use (does
+the command still run, the path still resolve?); on mismatch, disclose
+loudly and route a fix to the config file — the stale token is the
+root cause — never silently substitute a "better" value or work around
+a broken one. Absent (no file, or no such key) → self-detect from this
+repo's own conventions and disclose the judgment. An explicit "none
+exists yet" is a value, not a gap.
 
 **Review depth (adr-0023 D3).** Depth is your judgment — triage to what
 the change warrants; the floor is vacuous-evidence (shallow allowed,

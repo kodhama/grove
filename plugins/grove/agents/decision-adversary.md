@@ -1,4 +1,3 @@
-<!-- vendored from ../../.claude/agents/decision-adversary.md — the repo's canonical copy; keep in sync -->
 ---
 name: decision-adversary
 description: >

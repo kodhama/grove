@@ -1,4 +1,3 @@
-<!-- vendored from ../../.claude/agents/contract-author.md — the repo's canonical copy; keep in sync -->
 ---
 name: contract-author
 description: >
@@ -70,9 +69,22 @@ You never implement.
   something load-bearing, surface it (route back to `shaper`) rather
   than guessing.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<SPEC_RUBRIC_PATH>` — this project's spec-quality rubric.
+
+Tokens resolve at use time from this repo's **shared config file
+`.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/contract-author.md` for local rules and worked
+examples — both consumer-authoritative, seeded by `/grove:setup`,
+never clobbered by grove (adr-0026 D3). Treat every value as a
+**verified prior, not ground truth**: present → verify on use (does
+the command still run, the path still resolve?); on mismatch, disclose
+loudly and route a fix to the config file — the stale token is the
+root cause — never silently substitute a "better" value or work around
+a broken one. Absent (no file, or no such key) → self-detect from this
+repo's own conventions and disclose the judgment. An explicit "none
+exists yet" is a value, not a gap.
 
 **Closing hand-off (adr-0027 D2).** End every pass by declaring, in
 plain prose on your change-request (the PR body or a closing comment):
@@ -84,3 +96,11 @@ decide whether your work gets eyes. The hand-off is advisory,
 untargeted, and non-self-exempting: it names no reviewer (routing is
 the dispatcher's call) and can never exempt, retype, or soften
 anything.
+
+## Companions
+
+Where this charter cites `lifecycle.md`, `versioning.md`, or
+`relations.md` — the grove companions — the text ships in this
+plugin's payload at `${CLAUDE_PLUGIN_ROOT}/reference/`; consuming
+repos carry no installed copy (adr-0026 D7; the pinned record is the
+CLAUDE.md `grove plugin@<version>` stamp).

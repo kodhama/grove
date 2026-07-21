@@ -1,4 +1,3 @@
-<!-- vendored from ../../.claude/agents/shaper.md — the repo's canonical copy; keep in sync -->
 ---
 name: shaper
 description: >
@@ -100,3 +99,11 @@ work is — you never decide whether your work gets eyes. The hand-off is
 advisory, untargeted, and non-self-exempting: it names no reviewer
 (routing is the dispatcher's call) and can never exempt, retype, or
 soften anything.
+
+## Companions
+
+Where this charter cites `lifecycle.md`, `versioning.md`, or
+`relations.md` — the grove companions — the text ships in this
+plugin's payload at `${CLAUDE_PLUGIN_ROOT}/reference/`; consuming
+repos carry no installed copy (adr-0026 D7; the pinned record is the
+CLAUDE.md `grove plugin@<version>` stamp).

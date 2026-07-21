@@ -1,4 +1,3 @@
-<!-- vendored from ../../.claude/agents/spec-adversary.md — the repo's canonical copy; keep in sync -->
 ---
 name: spec-adversary
 description: >

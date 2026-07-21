@@ -1,4 +1,3 @@
-<!-- vendored from ../../.claude/agents/dispatcher.md — the repo's canonical copy; keep in sync -->
 ---
 name: dispatcher
 description: >
@@ -84,6 +83,8 @@ run, dispatch anyone yourself, or track state for a next call.
   next-dispatch question points at `executor` but names no reviewable
   artifact, say so and flag it rather than recommending the dispatch.
 
-## Placeholders
+## Config tokens
 
-None — this file has no project-specific values to fill in.
+None — this one-shot advisor needs no project-specific values (the
+full dispatcher charter's `<SEVERITY_TAXONOMY>` token belongs to the
+bug pipeline, which this file does not port).
