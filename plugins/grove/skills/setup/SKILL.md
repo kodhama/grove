@@ -13,13 +13,13 @@ values. Nothing here is invented from scratch, and nothing outside what's listed
 
 ## 1. Pick which agent roles to compose
 
-Ask which of the thirteen agent roles to install; default to **all thirteen** if the user has no
+Ask which of the fourteen agent roles to install; default to **all fourteen** if the user has no
 preference. Show the roster (from `${CLAUDE_PLUGIN_ROOT}/reference/agents/README.md`) so they can
 pick a subset if they want a lighter install:
 
 `divergent-researcher`, `shaper`, `decision-adversary`, `contract-author`, `spec-adversary`,
 `executor`, `conformance-reviewer`, `code-reviewer`, `validator`, `dispatcher`, `run-resumer`,
-`propagation-remediator`, `corpus-reviewer`.
+`propagation-remediator`, `corpus-reviewer`, `auditor`.
 
 ## 2. Copy the chosen agent definitions
 
@@ -178,7 +178,7 @@ grove's own.
 Append this block to the project's `CLAUDE.md` (create the file if it doesn't exist). Touch
 **nothing else** in the file. **Before editing, save a pre-write copy** of the existing `CLAUDE.md`
 somewhere temporary (skip if the file doesn't exist yet) — the verification below diffs against it.
-Fill in `<ROLES_LIST>` with the roles actually installed (e.g. "all thirteen roles" or a named
+Fill in `<ROLES_LIST>` with the roles actually installed (e.g. "all fourteen roles" or a named
 subset) and `<SHA>` with the output of
 `git -C "${CLAUDE_PLUGIN_ROOT}" rev-parse --short HEAD` (if that command fails — not a git checkout
 — use `unknown`; an honest stamp beats none):
