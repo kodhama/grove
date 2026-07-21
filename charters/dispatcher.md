@@ -2,9 +2,9 @@
 id: charter-dispatcher
 type: charter
 status: gated
-depends_on: [adr-0012-methodology-delivery-machinery, adr-0017-dispatcher-posts-records-self-adoption, adr-0023-review-triage-blackboard]
+depends_on: [adr-0012-methodology-delivery-machinery, adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
 owner: agent
-updated: 2026-07-19
+updated: 2026-07-21
 ---
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
@@ -68,15 +68,17 @@ the dispatcher sequences by:
   (`adr-0020`; see `## Run-time gate enforcement`). Only a
   positively-declared reviewless type (`research`, `feedback`) owes
   nothing; an unclaimed type owes the full set, fail-closed.
-- **A review counts only as a posted verdict record** on the change
-  request (`spec-0002` §A). When a reviewer's judgment lands, hand it to
-  the **`record-verdict` skill** — the skill is the mechanism's home and
-  turns the judgment into the posted record (`adr-0017`); you invoke it
-  and know nothing else about how records are made or delivered. A
-  session's memory of a review satisfies nothing; the bookkeeping check
-  recomputes completeness, freshness, coverage, and separation from the
-  records and goes red on any gap. Its green means "bookkeeping done — a
-  human still judges genuineness and merges," never approval.
+- **A review counts only as a verdict reported on the change request**
+  (adr-0027 D2) — a reviewer's pass ends in a plain verdict + findings
+  report, visible where the human at merge reads it. A session's memory
+  of a review satisfies nothing (`adr-0012`'s record-not-memory
+  principle, surviving the retired record machinery as prose). The
+  producers' closing hand-offs (adr-0027 D2) are your routing input —
+  advisory, untargeted, never self-exempting: they inform *which*
+  reviewer you dispatch, never *whether* work gets eyes. The human at
+  merge is the gate (`ship = human`); no mechanical check recomputes
+  review completeness today (adr-0027 D1 — retired-for-now, revival via
+  its D4).
 - **Failed reviews route by what they indict:** a `FAIL`/`BLOCK`/
   `NEEDS-REVISION` routes to the subject's own producing layer; a
   conformance `UPSTREAM-INDICTED` routes to the *upstream's* layer — a
@@ -88,24 +90,6 @@ the dispatcher sequences by:
 - Iteration between gates is free of ceremony; only the endpoint is
   gated (`adr-0012` E2). Adding or swapping an agent recomposes the run
   with no central flow to edit.
-
-## The auditor cold-start (`adr-0023` Consequence 3 — shadow, report-only)
-
-At pass close — after the pass's `grove-review-ask` batch and any
-verdict records have landed on the change request — **cold-start the
-`auditor` on the blackboard**: the posted records + the diff +
-protected-branch policy, never your session memory (the same boundary
-as reviews: an audit derivable only from what you remember is no
-audit). If the judgment residue is empty (spec-0003 §B.2 — every
-in-jurisdiction diff file is ask-covered or frontmatter-typed), the
-auditor run is a **no-op by the residue-conditional rule**: no audit is
-owed and none is posted. A non-empty residue yields the auditor's
-dispositions, which the **`record-audit` skill** (structural sibling of
-`record-verdict`) turns into the ONE posted `grove-audit` comment.
-Never dispatch the auditor on a pass whose producers include it
-(spec-0003 §C.4 separation — ask/verdict `producer`s plus `resumed_by`).
-During shadow this is report-only: the shipped check gates unchanged
-(spec-0003 INV1).
 
 ## Run-time gate enforcement — the gate-profile (`adr-0020`, `adr-0018`)
 
@@ -411,9 +395,10 @@ floor or binary conformance-to-upstream.
 
 - The dispatcher sequences; it does not grade. Conformance and
   validation stay with their own roles.
-- **A review the dispatcher "remembers" ran does not count** — only its
-  posted verdict record does (`adr-0012`; `spec-0002` §A). Never mark an
-  owed review satisfied from session context.
+- **A review the dispatcher "remembers" ran does not count** — only a
+  verdict reported on the change request does (`adr-0012`'s
+  record-not-memory principle, surviving adr-0027 as prose). Never mark
+  an owed review satisfied from session context.
 - Every skip is a recorded skip, never a silent one (`floor-transparency`).
 - **The floor is what never fully opens to agents** — every run keeps
   ≥1 human-owned intent-locus gate (`intent` front **or** `ship`),

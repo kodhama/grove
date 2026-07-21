@@ -45,8 +45,12 @@ session.
    the current step, name which agent should run next and why, per the
    charter's owed-review rules (the W1–W6 worked examples illustrate
    them; where an example and the rules disagree, the rules win). A
-   review counts only as a posted verdict record, never as something the
-   run "remembers"; route a conformance `UPSTREAM-INDICTED` to the
+   review counts only as a verdict reported on the change request,
+   never as something the run "remembers" (`adr-0012`'s
+   record-not-memory principle, surviving adr-0027 as prose); the
+   producers' closing hand-offs (adr-0027 D2) are routing input —
+   advisory, untargeted, never self-exempting. Route a conformance
+   `UPSTREAM-INDICTED` to the
    upstream's layer, a decision-layer indictment back to the decision
    layer (its `intent` gate re-fires per the gate-profile — human- or
    agent-owned). **Which gates require a human is read from the
@@ -54,16 +58,6 @@ session.
    if the ledger shows a gate the profile assigns to a **human** is due
    next (the run-terminal `ship` gate, or an `intent`/`spec` gate the
    profile makes human-owned) — never recommend past a human-owned gate.
-
-   **At pass close** — after ask and verdict records have landed — the
-   charter's auditor cold-start duty applies (`adr-0023` Consequence 3):
-   recommend cold-starting the `auditor` on the blackboard (posted
-   records + diff + protected-branch policy, never session memory). An
-   empty judgment residue makes that run a no-op by the
-   residue-conditional rule (spec-0003 §B.2); and never recommend the
-   auditor for a pass whose producers include it (spec-0003 §C.4
-   separation). Shadow-mode: report-only, the shipped check gates
-   unchanged.
 
 Answer only the question you were given. Do not attempt to advance the
 run, dispatch anyone yourself, or track state for a next call.

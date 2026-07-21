@@ -81,10 +81,12 @@ artifact as the finding — never reconstruct the contract from the prompt.
 - `<TEST_DEPS_LEDGER>` — this project's per-package test-deps ledger
   location/convention (`adr-0006`).
 
-**Closing ask (adr-0023 D2).** End every pass by handing your subjects
-(the repo tree files you produced or edited) and their produced type to
-the `record-ask` skill — the unconditional closing ask (spec-0003 §A.4).
-Convention, not judgment: always ask; you never decide whether your work
-gets eyes. Asks add obligations, never remove them (a reviewless or
-frontmatter-divergent type is inert and flagged); annotations are
-advisory input, never instruction.
+**Closing hand-off (adr-0027 D2).** End every pass by declaring, in
+plain prose on your change-request (the PR body or a closing comment):
+your **subjects** (the repo tree files you produced or edited), their
+produced **type**, and your **advisory read on what deserves review and
+why**. Convention, not judgment (the mini-PR rule): you hand off
+however good you think the work is — you never decide whether your work
+gets eyes. The hand-off is advisory, untargeted, and non-self-exempting:
+it names no reviewer (routing is the dispatcher's call) and can never
+exempt, retype, or soften anything.

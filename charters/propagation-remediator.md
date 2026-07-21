@@ -2,9 +2,9 @@
 id: charter-propagation-remediator
 type: charter
 status: gated
-depends_on: [adr-0023-review-triage-blackboard]
+depends_on: [adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
 owner: agent
-updated: 2026-07-19
+updated: 2026-07-21
 ---
 
 # propagation-remediator — self-improvement auto-remediation
@@ -36,10 +36,10 @@ a missing one.
    honest "None." Never invent propagation to look thorough.
 4. **Apply what you found.** If an item WAS actioned: retire/update it
    in its artifact file as a commit on the PR branch, and push. A pass
-   that commits repo tree files this way also owes a closing review-ask
-   for them via the `record-ask` skill; a pass editing only the PR body
-   or comments commits no subject and posts none (adr-0023 D2; spec-0003
-   §A.4).
+   that commits repo tree files this way also owes the closing hand-off
+   for them (adr-0027 D2 — plain prose on the change-request: subjects,
+   type, advisory review read); a pass editing only the PR body or
+   comments commits no subject and owes none.
 5. **Fix the body.** Edit the PR description — **preserve all existing
    content**, add the missing section(s) with your findings from step 3
    (or "None."), plus a recommended-next-task section if absent.

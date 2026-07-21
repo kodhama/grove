@@ -2,9 +2,9 @@
 id: charter-run-resumer
 type: charter
 status: gated
-depends_on: [adr-0023-review-triage-blackboard]
+depends_on: [adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
 owner: agent
-updated: 2026-07-19
+updated: 2026-07-21
 ---
 
 # run-resumer — max-turns remediation (checkpoint-and-resume)
@@ -49,10 +49,11 @@ done, checkpointed, or you are genuinely blocked — and say which.
 5. **Finish or hand off.** Done → open/update the PR per the normal
    contract, with a completion comment. Not done → a checkpoint comment
    with exactly where the next resumer picks up. A resumed producing
-   pass also owes its closing review-ask: post it via the `record-ask`
-   skill in the **resumed role's** name with `resumed_by: run-resumer` —
-   dual attribution, never an ask in your own name (adr-0023 D2;
-   spec-0003 §A.4).
+   pass also owes its closing hand-off (adr-0027 D2): declare, in plain
+   prose on the change-request, the subjects, their type, and the
+   advisory review read — in the **resumed role's** name, noting it was
+   resumed by run-resumer (dual attribution, never a hand-off in your
+   own name alone).
 6. **Mark your comment.** Begin your summary comment with a fixed marker
    (e.g. `[si-resume]`) — the dispatcher counts these markers to bound
    auto-resumes.

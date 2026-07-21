@@ -69,7 +69,8 @@ done, checkpointed, or you are genuinely blocked — and say which.
 - `<PR_CONTRACT_SECTIONS>` — the sections this project's PR contract
   requires.
 
-**Closing ask (adr-0023 D2).** A resumed producing pass also owes its
-closing review-ask: post it via the `record-ask` skill in the resumed
-role's name with `resumed_by: run-resumer` — dual attribution, never
-an ask in your own name (spec-0003 §A.4).
+**Closing hand-off (adr-0027 D2).** A resumed producing pass also owes
+its closing hand-off: declare, in plain prose on the change-request,
+the subjects, their type, and the advisory review read — in the
+**resumed role's** name, noting it was resumed by run-resumer (dual
+attribution, never a hand-off in your own name alone).

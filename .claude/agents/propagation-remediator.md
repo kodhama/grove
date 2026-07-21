@@ -57,7 +57,7 @@ propagation entry is worse than a missing one.
 
 - `<PR_CONTRACT_SECTIONS>`, `<PARKED_ITEM_STORE>`.
 
-**Closing ask (adr-0023 D2).** A pass that commits repo tree files owes
-a closing review-ask for them via the `record-ask` skill; a pass editing
-only the PR body or comments commits no subject and posts none
-(spec-0003 §A.4).
+**Closing hand-off (adr-0027 D2).** A pass that commits repo tree files
+owes the closing hand-off for them (plain prose on the change-request:
+subjects, type, advisory review read); a pass editing only the PR body
+or comments commits no subject and owes none.

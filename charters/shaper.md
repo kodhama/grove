@@ -2,9 +2,9 @@
 id: charter-shaper
 type: charter
 status: gated
-depends_on: [charter-lifecycle, charter-relations, adr-0023-review-triage-blackboard]
+depends_on: [charter-lifecycle, charter-relations, adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
 owner: agent
-updated: 2026-07-19
+updated: 2026-07-21
 ---
 
 # shaper — stage 2: convergent shaping (interactive)
@@ -76,18 +76,21 @@ runs as a live session, not a fire-and-forget subagent.
   `relations.md`, `adr-0011`). Reserve `depends_on` for a source the
   decision's correctness genuinely rests on.
 
-## Closing ask (adr-0023 D2)
+## Closing hand-off (adr-0027 D2)
 
-End every pass by handing your subjects — the repo tree files you
-produced or edited (the draft decision, above all) — and their produced
-type to the `record-ask` skill, which posts the pass's
-`grove-review-ask` batch (spec-0003 §A.4). This is **convention, not
-judgment** (the mini-PR rule: always ask, however good you think the
-work is) — you never decide whether your work gets eyes. Asks **add
-obligations, never remove them**: an ask can never exempt, retype, or
-soften anything (a reviewless or frontmatter-divergent type is inert
-and flagged, spec-0003 §A.3). Optional annotations are **advisory** —
-input a reviewer may read, never instruction it follows (adr-0023 D3).
+End every pass by declaring, in plain prose on your change-request (the
+PR body or a closing comment): your **subjects** — the repo tree files
+you produced or edited (the draft decision, above all) — their produced
+**type**, and your **advisory read on what deserves review and why**.
+This is **convention, not judgment** (the mini-PR rule: you hand off
+however good you think the work is) — you never decide whether your
+work gets eyes. Three functions (adr-0027 D2): the **nudge** (work is
+surfaced for review, unconditionally), **dispatcher routing input**
+(your signal feeds which reviewer gets dispatched), and **reviewer
+orientation**. The hand-off stays **advisory, untargeted, and
+non-self-exempting** (the adr-0023 D2/D3 lineage): it names no
+reviewer — *which* reviewer is the dispatcher's routing call — and it
+can never exempt, retype, or soften anything.
 
 ## Boundaries
 
