@@ -35,6 +35,20 @@ updated: 2026-07-12
 
 # ADR-0007: `code-reviewer` — an independent, severity-gated code-quality review, stack-agnostic by placeholder, alongside the conformance gate
 
+> **Superseded in part by `adr-0026-thin-vendor-boundary` (2026-07-21;
+> append-only pointer, adr-0026 Propagation 3 / D3).** Decision 2's
+> customization mechanism — **the placeholder door** (inline
+> angle-bracketed charter placeholders `<CONVENTIONS_PATH>` / `<LINT_CMD>` /
+> `<QUALITY_RUBRIC_PATH>`, resolved at install) — is superseded by
+> **adr-0026 D3's config-token door**: those tokens now resolve **at use
+> time** from the consuming repo's shared `.grove/config.toml` plus an
+> optional per-role addendum `.grove/agents/code-reviewer.md`, both
+> consumer-authoritative (`/grove:setup` seeds them, grove never clobbers).
+> The code-reviewer's **stack-agnosticism principle stands** (judge against
+> the project's own declared sources; flag their absence as a finding);
+> only the mechanism moves — inline placeholders → the D3 config-token
+> door. Ratified text below unedited (append-only).
+
 ## Decision
 
 1. **Charter a new role, `code-reviewer` — the independent code-quality

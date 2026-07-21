@@ -9,6 +9,19 @@ updated: 2026-07-08
 
 # ADR-0001: lift trellis's corpus linter into grove as the corpus-reviewer role
 
+> **Superseded in part by `adr-0026-thin-vendor-boundary` (2026-07-21;
+> append-only pointer, adr-0026 Propagation 3).** This decision's
+> **three-copy kept-in-sync rule** — canonical `charters/corpus-reviewer.md`,
+> the vendored `.claude/agents/` copy, and the plugin `reference/agents/`
+> payload copy, all held in sync — collapses under adr-0026 to a **two-copy
+> lockstep**: the canonical `charters/<role>.md` ↔ the plugin `agents/`
+> payload (`plugins/grove/agents/<role>.md`), synced in the same PR. The
+> fleet is plugin-carried (adr-0026 D1); consumers never vendor
+> `.claude/agents/` charters again, and grove-self runs the plugin fleet
+> natively. Collapsing even the two copies into one home is parked
+> (adr-0026 P1). The corpus-reviewer role itself — the lift this decision
+> made — stands unchanged. Ratified text below unedited (append-only).
+
 ## Context
 
 Installing grove into the trellis repo (kodhama grove-install wave,
