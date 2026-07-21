@@ -9,6 +9,14 @@ updated: 2026-07-20
 
 # ADR-0024: the review-bookkeeping check as an enforceable gate under `ship = agent` (grove#94, Option 1, profile-conditional)
 
+> **Suspended (courtesy pointer) by `adr-0027-retire-ci-for-now`
+> (2026-07-21; its adversary F3).** D1's head-SHA status delivery
+> presupposes the check, which is retired-for-now (suspended, code
+> preserved). No divergence results: this decision's D5 `ship = agent`
+> trigger **is** adr-0027 D4's revival trigger — the same event that
+> would activate this gate revives the check it rides on, so both
+> decisions fire together or not at all.
+
 > **`gated` — converged, awaiting the intent gate.** grove#94 (verified on
 > math-quest): the check cannot be a hard merge gate that *records* satisfy.
 > Record-posting greens an `issue_comment`-triggered run whose status
