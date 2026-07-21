@@ -21,9 +21,16 @@ function parseArgs(argv) {
   const out = { defaultBranch: null, head: 'HEAD', json: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--default-branch') out.defaultBranch = argv[++i];
-    else if (a === '--head') out.head = argv[++i];
-    else if (a === '--json') out.json = true;
+    if (a === '--default-branch' || a === '--head') {
+      const v = argv[++i];
+      // loud-fail parity with the module's own resolution ethos: a flag with
+      // no value must not silently fall through to auto-resolution/defaults.
+      if (v == null || v.startsWith('--')) {
+        throw new Error(`grove preview: ${a} requires a value`);
+      }
+      if (a === '--default-branch') out.defaultBranch = v;
+      else out.head = v;
+    } else if (a === '--json') out.json = true;
     else throw new Error(`grove preview: unknown argument ${a}`);
   }
   return out;

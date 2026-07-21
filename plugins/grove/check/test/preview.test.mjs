@@ -112,9 +112,11 @@ test('preview surfaces the owed-map with an EMPTY record stream — every owed p
     .map((r) => `${r.review}:${r.subject}`);
   assert.ok(pairs.includes('conformance:specs/thing.md'), `owed-map has the spec pair (got ${pairs})`);
   assert.ok(pairs.includes('code-reviewer:notes.md'), `owed-map has the untyped-code pair (got ${pairs})`);
-  // the load-bearing NO-NETWORK pin: the entire run is git-runner calls; this
-  // suite never installed a fetch and the module imports none — every input
-  // above arrived via the fake runner.
+  // no-network: the REAL guarantee is the module's static import closure
+  // (shell/preview.mjs and its transitive imports contain no fetch/http/net —
+  // verified by review; a runtime assertion cannot pin an absence). This
+  // assertion is only the sanity check that the inputs above arrived via the
+  // injected runner.
   assert.ok(gitRunner.calls.length > 0);
 });
 
@@ -148,6 +150,96 @@ test('preview: grove NOT installed on the protected branch -> installed:false, n
   assert.equal(out.installed, false);
   assert.ok(out.summary, 'carries the bootstrap summary for the caller to print');
   assert.equal('derivation' in out, false);
+});
+
+// --- scoped-mode carrier fail-close parity (adr-0013 AC4 / §C.2, INV21) ---
+// The code-review mutation finding: deleting the preview's carrier-probe block
+// leaves protectedPaths undefined, which resolveCarriers reads as an EMPTY
+// protected-branch listing -> BOTH carriers falsely unresolved (over-red).
+// These two tests pin parity in both directions: present carriers produce no
+// carrier rows (bites the deletion mutation), absent carriers red exactly as
+// CI would.
+
+const SCOPED_POLICY_MD = [
+  '```grove-review-policy',
+  'schema: 1',
+  'scope: scoped',
+  'artifact_dirs: [decisions, specs]',
+  'reviewless_types: [research]',
+  'prose_extensions: [.md, .txt, .rst]',
+  'check_runtime_dir: tools/check/',
+  'check_workflow_path: .github/workflows/wf.yml',
+  '```',
+].join('\n');
+
+function scopedRepoResponder({ changedOut, headFiles, protectedExtra = [] }) {
+  const protectedFiles = {
+    'charters/review-policy.md': SCOPED_POLICY_MD,
+    'charters/conformance-reviewer.md': CONFORMANCE_MD,
+    'charters/code-reviewer.md': CODE_REVIEWER_MD,
+  };
+  return (args) => {
+    if (args[0] === 'show') {
+      const ref = args[1];
+      const sep = ref.indexOf(':');
+      const at = ref.slice(0, sep);
+      const path = ref.slice(sep + 1);
+      if (at === 'origin/main') return protectedFiles[path];
+      if (at === 'HEAD') return headFiles[path];
+      return undefined;
+    }
+    if (args[0] === 'ls-tree') {
+      const all = args.includes('origin/main')
+        ? [...Object.keys(protectedFiles), ...protectedExtra]
+        : Object.keys(headFiles);
+      // path-filtered listing (`-- <path>`): the carrier existence probe
+      const sepIdx = args.indexOf('--');
+      if (sepIdx !== -1) {
+        const filter = args[sepIdx + 1].replace(/\/$/, '');
+        return all.filter((p) => p === filter || p.startsWith(filter + '/')).join('\n');
+      }
+      return all.join('\n');
+    }
+    if (args[0] === 'diff') return changedOut;
+    return undefined;
+  };
+}
+
+test('scoped mode: carriers PRESENT on the protected branch -> NO carrier-unresolved rows (bites the probe-deletion mutation)', async () => {
+  const headFiles = {
+    'specs/thing.md': '---\nid: spec-thing\ntype: spec\nstatus: approved\n---\nbody',
+  };
+  const gitRunner = fakeRunner(
+    scopedRepoResponder({
+      changedOut: 'M\tspecs/thing.md',
+      headFiles,
+      protectedExtra: ['tools/check/lib/a.mjs', '.github/workflows/wf.yml'],
+    }),
+  );
+  const out = await runPreview({ gitRunner, defaultBranch: 'main' });
+  assert.equal(out.installed, true);
+  const carrierRows = out.derivation.rows.filter((r) =>
+    r.reasons.some((x) => x.code === 'carrier-unresolved'),
+  );
+  assert.deepEqual(carrierRows, [], 'existing carriers must not red (parity with CI)');
+  // and the probe genuinely consulted the protected branch for the carriers
+  const probes = gitRunner.calls.filter(
+    (a) => a[0] === 'ls-tree' && a.includes('origin/main') && a.includes('--'),
+  );
+  assert.ok(probes.length >= 2, `expected carrier probes at origin/main (got ${probes.length})`);
+});
+
+test('scoped mode: carriers ABSENT on the protected branch -> carrier-unresolved reds, same as CI (adr-0013 AC4)', async () => {
+  const gitRunner = fakeRunner(
+    scopedRepoResponder({ changedOut: '', headFiles: {}, protectedExtra: [] }),
+  );
+  const out = await runPreview({ gitRunner, defaultBranch: 'main' });
+  assert.equal(out.installed, true);
+  const carrierPaths = out.derivation.rows
+    .filter((r) => r.reasons.some((x) => x.code === 'carrier-unresolved'))
+    .map((r) => r.subject)
+    .sort();
+  assert.deepEqual(carrierPaths, ['.github/workflows/wf.yml', 'tools/check/'].sort());
 });
 
 test('preview renders the same §D view text CI prints (render reuse, not a re-implementation)', async () => {

@@ -16,22 +16,33 @@ cannot cover (typed/unclaimed-frontmatter files).
 
 ## 0. Self-detect + locate the runtime
 
-Same discipline as `record-verdict`: the check must be installed on the
-**protected default branch** for anything to be owed.
+Same discipline as `record-verdict`: the install discriminator is
+**policy presence on the protected default branch** (`adr-0014`) —
+**never machinery-file presence** (a missing runtime with policy present
+is `adr-0013`'s carrier-red state, where CI still gates).
 
-- **consumer** (`adr-0018` D10 split): the runtime lives at the
-  `check_runtime_dir` in `.grove/internal/review-wiring.toml` (default
-  `.grove/internal/check/`). Preview entry:
-  `node .grove/internal/check/bin/preview.mjs`.
-- **grove-self:** `node plugins/grove/check/bin/preview.mjs`.
-- Neither exists → **not installed** → say plainly "bookkeeping check
-  not installed — nothing owed; preview skipped" and stop. If the bin
-  itself reports not-installed (the `adr-0014` bootstrap: no policy on
-  `origin/<default>`), relay that and stop.
-- An **older installed runtime** may predate `bin/preview.mjs`. Do NOT
-  improvise a substitute (running the CI entry needs a PR + token and is
-  not this preview). Say the runtime predates the preview and suggest a
-  grove refresh; stop.
+- **First, the policy question** (protected branch only, never PR
+  HEAD/working tree): `git show origin/<default>:charters/review-policy.md`
+  contains a `grove-review-policy` block (grove-self), else
+  `git show origin/<default>:.grove/review.toml` exists (consumer,
+  `adr-0018` D10). **Absent** → **not installed** → say plainly
+  "bookkeeping check not installed on `<default>` — nothing owed;
+  preview skipped" and stop. **Cannot read** (no remote, git failure) →
+  fail loudly and stop — never fold a read failure into the no-op.
+- **Policy present → the check gates.** Now locate the preview runtime:
+  **consumer** — the `check_runtime_dir` in
+  `.grove/internal/review-wiring.toml` (default `.grove/internal/check/`),
+  entry `node <runtime>/bin/preview.mjs`; **grove-self** —
+  `node plugins/grove/check/bin/preview.mjs`.
+- **Policy present but the runtime or its `bin/preview.mjs` is absent**
+  (an older or broken install): say "**cannot preview** — the installed
+  runtime is missing or predates the preview; **the check still gates
+  on CI**; suggest a grove refresh" and stop. **Never** say "nothing
+  owed" here — that would be a false pre-push green in exactly the
+  carrier-red state. Do NOT improvise a substitute (the CI entry needs
+  a PR + token and is not this preview).
+- If the bin itself reports not-installed (its own `adr-0014`
+  bootstrap), relay that and stop.
 
 ## 1. Run the preview
 
