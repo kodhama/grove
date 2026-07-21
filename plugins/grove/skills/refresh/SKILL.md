@@ -39,7 +39,9 @@ worktree** — never the shared checkout. The plugin source
 - **What's installed:** which roles in `.claude/agents/`, whether the
   check is installed (`.grove/internal/check/` + the workflow +
   `.grove/review.toml`), whether gates machinery exists
-  (`.grove/internal/gates/` + `.grove/gates.toml`).
+  (`.grove/internal/gates/` + `.grove/gates.toml`), and whether the
+  optional telemetry skill is installed
+  (`.claude/skills/grove-status/SKILL.md` — setup step 9).
 
 ## 2. The authority split — the load-bearing table
 
@@ -63,6 +65,10 @@ consumer's, the template is grove's):
   resolutions: `<INSTALL_PATH>`, `<NODE_VERSION>`.
 - `.grove/internal/review-wiring.toml` *(if check installed)* —
   resolutions: the two carrier-path keys.
+- `.claude/skills/grove-status/SKILL.md` *(if the telemetry skill is
+  installed — setup step 9)* ← `reference/skills/grove-status/SKILL.md`,
+  vendoring header stripped — resolution: `<WISP_VENDOR_PATH>`, read from
+  the installed copy.
 
 **Agent charters (`.claude/agents/`) — the same idea, per role:**
 
@@ -85,8 +91,11 @@ consumer's, the template is grove's):
 
 **Consumer-authoritative — NEVER touch:** `.grove/gates.toml`,
 `.grove/review.toml` (including its allowlist), `decisions/`, `specs/`,
-the repo's own code and docs. A refresh that "fixes" a consumer file is a
-clobber, not a refresh.
+the repo's own code and docs — with exactly one carve-out: step 4's
+**migration repointing** edits consumer files, but only the stale
+old-root companion paths in them, each edit listed in the hand-back. A
+refresh that "fixes" any other consumer content is a clobber, not a
+refresh.
 
 **CLAUDE.md — managed block only:** update the roles phrase and the
 `grove plugin@<sha>` stamp **between the markers**, nothing else. Setup
@@ -131,15 +140,18 @@ When step 2 is done: `grep -rn '<[A-Z_]\+>' .claude/agents/` must return
   that refreshes it.
 - Placeholder grep (step 3) returns zero.
 - `git status --short` touches **only**: `.grove/`, `.claude/agents/`,
+  `.claude/skills/grove-status/` (if the telemetry skill was refreshed),
   CLAUDE.md, the workflow file (if re-copied), and step-4 pointer files.
   Anything else in the diff is a bug in this refresh — fix or revert it.
 
 ## 6. Hand back
 
-Setup step 12's restraint applies verbatim: **perform no git of your own**
-— no add, commit, branch, push, or PR — unless the user has explicitly
-directed a landing (e.g. "open the PR"), in which case follow their
-direction exactly and stop at their gate; never merge. Report: old →
+Setup step 12's restraint applies — **perform no git of your own**: no
+add, commit, branch, push, or PR — with one carve-out setup does not
+have (stated here as this skill's own rule, not attributed to setup):
+when the user has **explicitly directed a landing** (e.g. "open the
+PR"), follow their direction exactly and stop at their gate; never
+merge. Report: old →
 new stamp, every surface re-copied, every template re-resolution and
 ported value, every added role with each token's resolution provenance
 (port / derive / honest-absent), every pointer updated by a migration,
