@@ -1,7 +1,7 @@
 ---
 id: adr-0026-thin-vendor-boundary
 type: adr
-status: gated  # self-checked (shaper) 2026-07-21 after in-session convergence (7 Decided, 0 Open); no decision rubric exists in grove-self (honest-absent) — checked against the house axes (adr-0025 pattern); decision-adversary NEEDS-REVISION at 61e68f6 (F1 blocking: adr-0012 pointer omitted from Propagation) — F1–F6 folded; scoped re-review pending, then the maintainer's intent act
+status: gated  # self-checked (shaper) 2026-07-21 after in-session convergence (7 Decided, 0 Open; no decision rubric in grove-self, honest-absent — house axes per adr-0025); decision-adversary NEEDS-REVISION at 61e68f6 (F1 blocking: adr-0012 pointer omitted) → F1–F6 folded at b3c24e5 → SOUND on scoped re-review (b3c24e5, all six verified resolved); awaiting the maintainer's intent act
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0018-gate-profile-and-trigger-split, adr-0021-gate-profile-self-adoption, spec-0002-review-bookkeeping-check]
 informed_by: [adr-0008-lifecycle-enum-companion, adr-0014-install-is-invisible-and-ungated, adr-0023-review-triage-blackboard, adr-0010-versioning-is-operational, adr-0001-corpus-reviewer-lift]
 owner: agent
@@ -25,10 +25,11 @@ updated: 2026-07-21
 > loud divergence disclosure, not a lock** — per-project plugin pinning does
 > not exist in the harness, verified against Claude Code docs 2026-07-21).
 > Seven items Decided, none Open — **converged 2026-07-21** — three Parked.
-> Adversary pass at `61e68f6`: **NEEDS-REVISION** — F1 (blocking: the
+> Adversary history: **NEEDS-REVISION** at `61e68f6` (F1 blocking: the
 > adr-0012 pointer was missing from Propagation; its carrier-siting letter
-> is genuinely amended by D2) + F2–F6 folded same-day; scoped re-review on
-> the delta, then the intent gate.
+> is genuinely amended by D2) → F1–F6 folded → **SOUND on scoped re-review**
+> at `b3c24e5`, all six verified resolved against sources. Awaiting the
+> maintainer's intent act.
 
 ## Decision state
 
