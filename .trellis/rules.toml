@@ -1,0 +1,20 @@
+# Rows govern rule activation live (see the authority note in the project instructions).
+
+seeded_from = "author-adapt"  # provenance only — the rows below win if they diverge
+strictness  = "adaptive"  # firm (a·conductor) | adaptive (b·author-adapt)
+
+[rules]  # one row per assessable catalog slug (signature-catalog-v1)
+inv-directional-flow      = { active = true }
+inv-handover-points       = { active = true }
+inv-intent-locus          = { active = true }
+inv-ratifiable-artifacts  = { active = true }
+inv-graph-maintenance     = { active = true }
+inv-self-improvement      = { active = true }
+inv-gate-at-handover      = { active = true }
+inv-independent-judgment  = { active = true }
+inv-auditable-archive     = { active = true }
+inv-bounded-context       = { active = true }
+inv-minimal-first         = { active = true }
+inv-clarify-before-commit = { active = true }
+floor-transparency        = { active = true }  # floor — applies regardless of this row
+floor-intent-gate         = { active = true }  # floor — applies regardless of this row

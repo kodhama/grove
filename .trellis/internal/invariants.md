@@ -166,18 +166,26 @@ ratified: 2026-07-04
 - **`inv-self-improvement`** *(restored first-class, `decision-0018`; neighbor of `inv-graph-maintenance`)*
   - what: the process learns from friction and gets better — improvement signals are surfaced and
     acted on, deliberately, so a glitch does not happen twice.
-  - directive: When something breaks or causes friction, fix the root cause so it can't happen twice — don't just re-run it and move on.
+  - directive: When something breaks or causes friction, fix the root cause so it can't happen twice — don't just re-run it and move on. And notice the friction you are about to create: when you introduce a new pattern — a convention, a naming scheme, a format — the existing stock now sitting outside it is a signal to surface, riding the same change: migrate it, or name the exemption and ask — never resolve it silently in prose.
   - why: **a process glitch never happens twice** — friction becomes a fix, not a recurring tax.
   - signature: a trigger format (`condition → action`) stored where it fires; improvement signals
     surfaced through the project's **chosen channel** (asked/inferred, never assumed); retirement in
-    the same change; prune-bias (the trigger set does not grow monotonically).
+    the same change; prune-bias (the trigger set does not grow monotonically); the entropy lean as
+    proactive notice — a pattern-introducing change throws off a retrofit-scope signal (what now
+    sits outside the pattern?); migrate-or-exempt is surfaced through the channel, asked not
+    assumed, never resolved in boundary prose (SI-1 applied at change-introduction time).
   - honored:
     - *(CI)* a flaky test recurs → a trigger is filed, the root cause fixed, the trigger retired in the
       same change.
     - *(process)* a repeated review miss becomes a checklist item that rides the PR you already write.
+    - *(structure)* a change that introduces a pattern ships with its retrofit question — "the old
+      suite now sits outside this convention: migrate or exempt?" — and the human rules on it.
   - violated:
-    - *(CI)* the same pipeline step fails weekly and everyone just re-runs it, forever.
+    - *(CI)* the same pipeline step fails weekly and everyone just re-runs it, forever — or a new
+      convention lands and the old stock stays loose beside it, exempted by prose nobody approved.
     - *(process)* a PR raises the same open question every time, with no follow-up, and it rots unowned.
+    - *(structure)* a new directory convention lands while the old stock stays loose beside it,
+      exempted by confident boundary prose nobody approved — two conventions in one tree.
   - class: `trellis-design`  ·  mechanizable: `false` (the surfacing floor — improvement signals reach the
     declared channel — is checkable; the proactive-notice disposition is not)  ·  intent_locus: `false`
   - default_C1: `default-on-but-skippable`  ·  default_C2: `human`
