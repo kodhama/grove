@@ -1,7 +1,7 @@
 ---
 id: adr-0026-thin-vendor-boundary
 type: adr
-status: gated  # self-checked (shaper) 2026-07-21 after in-session convergence (7 Decided, 0 Open; no decision rubric in grove-self, honest-absent — house axes per adr-0025); decision-adversary NEEDS-REVISION at 61e68f6 (F1 blocking: adr-0012 pointer omitted) → F1–F6 folded at b3c24e5 → SOUND on scoped re-review (b3c24e5, all six verified resolved); awaiting the maintainer's intent act
+status: approved  # maintainer's intent act ("Approved", in-session, 2026-07-21) — recorded in-PR by the shaper per lifecycle.md; the flip records the human act, it does not perform it; decision-adversary SOUND on scoped re-review at b3c24e5 (NEEDS-REVISION at 61e68f6 first, F1 blocking on the adr-0012 pointer, folded); author (shaper) ≠ approver (maintainer); the PR merge is the ship act (this repo's gate profile: ship = human) and is not performed by this flip
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0018-gate-profile-and-trigger-split, adr-0021-gate-profile-self-adoption, spec-0002-review-bookkeeping-check]
 informed_by: [adr-0008-lifecycle-enum-companion, adr-0014-install-is-invisible-and-ungated, adr-0023-review-triage-blackboard, adr-0010-versioning-is-operational, adr-0001-corpus-reviewer-lift]
 owner: agent
