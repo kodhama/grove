@@ -29,7 +29,7 @@ updated: 2026-07-10
 
 > **This charter is shaped differently from its siblings.** grove-status
 > is not a dispatched agent role: it has no stage in the W1–W6 pipeline,
-> no `.claude/agents/grove-status.md` counterpart, and the dispatcher
+> no agent-payload counterpart (no `plugins/grove/agents/grove-status.md`), and the dispatcher
 > never sequences it as a step. It is the shared runtime-reporting
 > contract every *other* chartered role composes into its own work, at
 > its own state transitions — SKILL.md's own description: "Use at role

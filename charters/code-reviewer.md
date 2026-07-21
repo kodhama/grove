@@ -3,7 +3,7 @@ id: charter-code-reviewer
 type: charter
 status: gated
 implements: adr-0007-code-reviewer-agent  # the realized contract (its chartering ADR); machine-readable fidelity selector per adr-0012
-depends_on: [adr-0007-code-reviewer-agent, adr-0012-methodology-delivery-machinery, adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
+depends_on: [adr-0007-code-reviewer-agent, adr-0012-methodology-delivery-machinery, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now]
 owner: agent
 updated: 2026-07-21
 ---
@@ -161,10 +161,22 @@ evidence at whatever depth you chose. Two hard rules:
   is itself a finding to surface — not a conflict you resolve silently
   by preference.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<CONVENTIONS_PATH>` — the consuming project's conventions doc /
   CLAUDE.md (highest-priority standards source).
 - `<LINT_CMD>` — the project's lint/formatter command, if one exists.
 - `<QUALITY_RUBRIC_PATH>` — an optional project quality rubric ("none
   exists yet" is a valid resolution; the fallback above then applies).
+Tokens resolve at use time from the consuming repo's **shared config
+file `.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/code-reviewer.md` for local rules and
+worked examples — both consumer-authoritative, seeded by
+`/grove:setup`, never clobbered by grove (`adr-0026` D3). Treat every
+value as a **verified prior, not ground truth**: present → verify on
+use (does the command still run, the path still resolve?); on
+mismatch, disclose loudly and route a fix to the config file — the
+stale token is the root cause — never silently substitute a "better"
+value or work around a broken one. Absent (no file, or no such key) →
+self-detect from the repo's own conventions and disclose the judgment.
+An explicit "none exists yet" is a value, not a gap.

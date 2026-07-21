@@ -2,7 +2,7 @@
 id: charter-executor
 type: charter
 status: gated
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now]
 owner: agent
 updated: 2026-07-21
 ---
@@ -97,9 +97,22 @@ anything.
 - Scope to the spec — no drive-by refactoring, no requirements invented
   beyond it.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<TEST_CMD>`, `<TYPECHECK_CMD>` — the consuming project's test and
   typecheck commands.
 - `<TEST_DEPS_LEDGER>` — the consuming project's per-package test-deps
   ledger location/convention (`adr-0006`).
+
+Tokens resolve at use time from the consuming repo's **shared config
+file `.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/executor.md` for local rules and
+worked examples — both consumer-authoritative, seeded by
+`/grove:setup`, never clobbered by grove (`adr-0026` D3). Treat every
+value as a **verified prior, not ground truth**: present → verify on
+use (does the command still run, the path still resolve?); on
+mismatch, disclose loudly and route a fix to the config file — the
+stale token is the root cause — never silently substitute a "better"
+value or work around a broken one. Absent (no file, or no such key) →
+self-detect from the repo's own conventions and disclose the judgment.
+An explicit "none exists yet" is a value, not a gap.

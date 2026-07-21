@@ -3,7 +3,7 @@ id: charter-conformance-reviewer
 type: charter
 status: gated
 implements: adr-0012-methodology-delivery-machinery  # the realized contract for the every-layer fidelity remit (adr-0012); machine-readable fidelity selector
-depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0012-methodology-delivery-machinery, charter-versioning, charter-relations, adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
+depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0012-methodology-delivery-machinery, charter-versioning, charter-relations, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now]
 owner: agent
 updated: 2026-07-21
 ---
@@ -173,7 +173,19 @@ evidence at whatever depth you chose. Two hard rules:
   decision — say so: that is itself a conformance failure to surface, not
   a pass (`adr-0005`, decision 3).
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<TYPECHECK_CMD>`, `<TEST_CMD>`, `<PR_CONTRACT_SECTIONS>`,
   `<PARKED_ITEM_STORE>`, `<TEST_DEPS_LEDGER>`.
+Tokens resolve at use time from the consuming repo's **shared config
+file `.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/conformance-reviewer.md` for local rules and
+worked examples — both consumer-authoritative, seeded by
+`/grove:setup`, never clobbered by grove (`adr-0026` D3). Treat every
+value as a **verified prior, not ground truth**: present → verify on
+use (does the command still run, the path still resolve?); on
+mismatch, disclose loudly and route a fix to the config file — the
+stale token is the root cause — never silently substitute a "better"
+value or work around a broken one. Absent (no file, or no such key) →
+self-detect from the repo's own conventions and disclose the judgment.
+An explicit "none exists yet" is a value, not a gap.

@@ -2,7 +2,7 @@
 id: charter-dispatcher
 type: charter
 status: gated
-depends_on: [adr-0012-methodology-delivery-machinery, adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
+depends_on: [adr-0012-methodology-delivery-machinery, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now]
 owner: agent
 updated: 2026-07-21
 ---
@@ -15,7 +15,8 @@ updated: 2026-07-21
 > source project's own product-specific severity taxonomy in favor of a
 > placeholder.
 
-> **`.claude/agents/dispatcher.md` is scoped, not a full peer of the
+> **The `grove:dispatcher` plugin agent (`plugins/grove/agents/dispatcher.md`)
+> is scoped, not a full peer of the
 > other agents.** ADR-0030's team table marks head-gardener
 > "cold-started: the interactive session (v0)." A genuinely
 > cold-started subagent cannot hold the live, multi-turn dispatch state
@@ -416,7 +417,19 @@ floor or binary conformance-to-upstream.
   reviewable `gated`/`approved` artifact must exist — conversation alone
   never qualifies.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<SEVERITY_TAXONOMY>` — the consuming project's bug-severity tiers, if
   it wants them.
+Tokens resolve at use time from the consuming repo's **shared config
+file `.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/dispatcher.md` for local rules and
+worked examples — both consumer-authoritative, seeded by
+`/grove:setup`, never clobbered by grove (`adr-0026` D3). Treat every
+value as a **verified prior, not ground truth**: present → verify on
+use (does the command still run, the path still resolve?); on
+mismatch, disclose loudly and route a fix to the config file — the
+stale token is the root cause — never silently substitute a "better"
+value or work around a broken one. Absent (no file, or no such key) →
+self-detect from the repo's own conventions and disclose the judgment.
+An explicit "none exists yet" is a value, not a gap.

@@ -1,10 +1,10 @@
 ---
 id: charter-corpus-reviewer
 type: charter
-status: approved  # ratified by PR #6 (2026-07-08); amended 2026-07-12 for adr-0006 duties (re-ratified on this PR's merge); amended 2026-07-12 per adr-0008 (lifecycle check sources the companion); amended 2026-07-12 per adr-0010 (changes: cross-check duty + pin-semantics repoint — re-ratified on this PR's merge); amended 2026-07-13 per adr-0011 (types + resolves informed_by; flags a @version pin on informed_by as a category error; flags informed_by → draft for the conformance-reviewer's honesty judgment)
-depends_on: [adr-0001-corpus-reviewer-lift, adr-0006-operational-conformance-mechanism, adr-0008-lifecycle-enum-companion, charter-versioning, charter-relations]
+status: approved  # ratified by PR #6 (2026-07-08); amended 2026-07-12 for adr-0006 duties (re-ratified on this PR's merge); amended 2026-07-12 per adr-0008 (lifecycle check sources the companion); amended 2026-07-12 per adr-0010 (changes: cross-check duty + pin-semantics repoint — re-ratified on this PR's merge); amended 2026-07-13 per adr-0011 (types + resolves informed_by; flags a @version pin on informed_by as a category error; flags informed_by → draft for the conformance-reviewer's honesty judgment); amended 2026-07-21 per adr-0026 (D3: placeholder door → shared-config tokens; D7: companion cited plugin-carried, not installed)
+depends_on: [adr-0001-corpus-reviewer-lift, adr-0006-operational-conformance-mechanism, adr-0008-lifecycle-enum-companion, charter-versioning, charter-relations, adr-0026-thin-vendor-boundary]
 owner: agent
-updated: 2026-07-13
+updated: 2026-07-21
 ---
 
 # corpus-reviewer — standing: the record audits itself honestly
@@ -42,9 +42,10 @@ from whoever produced the artifacts. The family core, in every repo:
 1. **Frontmatter** present on every artifact; `id` / `type` / `status` /
    `depends_on` / `owner` present and well-typed (`depends_on` a list).
 2. **Lifecycle membership:** `status` ∈ the state enum declared in the
-   lifecycle companion (`.grove/lifecycle.md` in a consuming project;
-   the canonical `charters/lifecycle.md` in grove itself — `adr-0008`
-   as amended), never a per-repo restatement.
+   lifecycle companion (plugin-carried under the version stamp in a
+   consuming project — `adr-0026` D7; the canonical
+   `charters/lifecycle.md` in grove itself — `adr-0008` as amended),
+   never a per-repo restatement.
 3. **Id uniqueness** across the corpus.
 4. **Reference resolution:** every `depends_on` entry resolves to an
    existing artifact `id` or a declared external-reference prefix.
@@ -106,7 +107,7 @@ failure the record keeps. If you cannot check something (a contract
 path missing, a lifecycle undeclared), say "could not check" loudly —
 never silently skip, never assume conformance.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<ARTIFACT_DIRS>` — the corpus this project's records live in
   (family default: `decisions/`, `specs/`; add what the project keeps).
@@ -117,3 +118,15 @@ never silently skip, never assume conformance.
 - `<REPO_TYPED_CHECKS>` — extra typed-artifact checks, if the project
   declares any ("none" is valid; trellis's instance keeps its
   catalog/profile/floor checks here).
+Tokens resolve at use time from the consuming repo's **shared config
+file `.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/corpus-reviewer.md` for local rules and
+worked examples — both consumer-authoritative, seeded by
+`/grove:setup`, never clobbered by grove (`adr-0026` D3). Treat every
+value as a **verified prior, not ground truth**: present → verify on
+use (does the command still run, the path still resolve?); on
+mismatch, disclose loudly and route a fix to the config file — the
+stale token is the root cause — never silently substitute a "better"
+value or work around a broken one. Absent (no file, or no such key) →
+self-detect from the repo's own conventions and disclose the judgment.
+An explicit "none exists yet" is a value, not a gap.
