@@ -75,10 +75,21 @@ consumer's, the template is grove's):
 
 - A role whose reference charter is **unchanged** since the installed
   version: leave the installed copy **byte-untouched**.
-- A role whose reference charter **changed**: take the new reference text
-  (vendoring header stripped), **re-apply this repo's resolved
-  placeholder values** (read each token's answer out of the
-  currently-installed copy), drop the `## Placeholders` section.
+- A role whose reference charter **changed**: **three-way merge, never a
+  blind re-copy** — base = the reference charter at the *installed*
+  version, local = the installed copy, remote = the current reference
+  (e.g. `git merge-file`; header-stripped throughout). The reason: an
+  installed charter may carry **non-token local adaptations** (project
+  idioms, worked examples, localized rules) that "new text + token
+  re-application" silently drops — a lossy path two repos hit in the
+  2026-07-21 rollout (design-system's pinned-tag rule; wisp's
+  machinery-absent adaptations). Resolve conflicts with **upstream
+  winning where content genuinely competes** (the reference is grove's),
+  local adaptations kept where they merely extend; re-apply token
+  values; drop `## Placeholders`. **Flag every conflict resolution and
+  every kept local adaptation in the hand-back.** *(No stamp / the
+  installed-version reference unavailable → fall back to a careful
+  two-way diff of installed vs current reference, same flagging.)*
 - A role **added** upstream since the install: copy it in, resolve every
   `<[A-Z_]+>` token — **port-first** (the same token's resolved value in
   this repo's other installed roles), else **derive** from the repo's own
