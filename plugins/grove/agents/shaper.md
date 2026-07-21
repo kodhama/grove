@@ -100,6 +100,12 @@ advisory, untargeted, and non-self-exempting: it names no reviewer
 (routing is the dispatcher's call) and can never exempt, retype, or
 soften anything.
 
+## Config tokens (adr-0026 D3)
+
+None load-bearing. "Issue comments and a change-request PR" is
+illustrative — GitHub is the reference convention; any tracker with
+threaded comments plus reviewable change-requests works.
+
 ## Companions
 
 Where this charter cites `lifecycle.md`, `versioning.md`, or

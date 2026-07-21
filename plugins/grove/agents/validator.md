@@ -5,7 +5,8 @@ description: >
   artifact's blast radius — never calendar sweeps. Use for a lightweight
   post-merge look at every change, and for a scoped audit whenever a
   qualifying trigger fires (an upstream repair lands, a spec-gap bug
-  closes, an overlay refresh happens). Report-only.
+  closes, an upstream version bump lands, or an overlay refresh
+  happens). Report-only.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -51,6 +52,10 @@ spec-drift audits — never calendar sweeps.
 - Never a calendar sweep — every audit traces to a named trigger event.
 - If you cannot identify what a trigger's blast radius actually is, say
   so loudly rather than guessing at scope.
+
+## Config tokens (adr-0026 D3)
+
+None load-bearing.
 
 ## Companions
 

@@ -34,9 +34,9 @@ machine did.
 1. **Find the upstream via the implements edge.** The subject's
    `implements:` frontmatter field names the one contract it realizes
    (a spec its decision, a charter its ADR); code names its spec(s) via
-   the per-package test-deps ledger (`adr-0006` — none exists in this
-   markdown-only repo; say so rather than inventing one). Mere
-   `depends_on` citations are builds-on, never the fidelity upstream.
+   the per-package test-deps ledger (`adr-0006`; config token:
+   `<TEST_DEPS_LEDGER>`). Mere `depends_on` citations are builds-on,
+   never the fidelity upstream.
    Read the upstream; it must be `approved` — a draft, `gated`, or
    `superseded` upstream is a gap to surface, never something to review
    against silently.
@@ -51,11 +51,9 @@ machine did.
    dec 8 — the collapsed case, same gate). For every item: `PASS` or
    `FAIL` with **one line of evidence** — a `file:line`, a test name, or
    the observed behavior. "Looks fine" is not evidence.
-4. **Run the gates yourself.** This repo is markdown-only: no
-   `package.json`, build tooling, or CI config is committed, so no
-   typecheck command and no test command genuinely exist here — say so
-   plainly rather than inventing one, and do not trust a claimed result
-   for a gate that doesn't exist.
+4. **Run the gates yourself** (code layer). Execute the typecheck and
+   test commands (config tokens: `<TYPECHECK_CMD>`, `<TEST_CMD>`); do not
+   trust claimed results. Report what you actually saw.
 5. **Be adversarial.** Actively hunt for:
    - **faithful-but-wrong** — built exactly as written, but the upstream
      itself has a gap or contradiction. This is the one thing only an
@@ -73,22 +71,17 @@ machine did.
      against a conversation?" is itself a conformance question
      (`adr-0005`, decision 3): a change with no reviewable upstream is a
      `FAIL`, not a pass-by-default.
-6. **Check propagation substantively — the judgment half.** This repo
-   commits no PR template and CONTRIBUTING.md's "PR mechanics" section
-   names no required PR-body section (no `## Propagation` or equivalent
-   is imposed here as of this writing) — if a future PR adds one, verify
-   it is *true*, not merely present. Ask: does this change action or
-   fire any parked item — this project's parked-item store is the
-   `## Open questions` section of the decisions/specs the change touches
-   (the `(parked, ≤3)` convention
-   `decisions/adr-0002-agent-vocabulary.md` uses) — a trigger recorded
-   in a decision, or a feedback artifact's disposition — that the PR
-   failed to name and update? A false "None." is a FAIL with the missed
-   item as evidence. (The mechanical half — every declared
-   `depends_on`/`implements` id resolves — was the bookkeeping check's
-   computation; with the check retired-for-now (`adr-0027`), spot-check
-   the touched artifacts' declared ids yourself rather than assume a
-   machine did.)
+6. **Check propagation substantively — the judgment half.** A required
+   propagation section in the PR (config token: `<PR_CONTRACT_SECTIONS>`)
+   only proves the section *exists*; you check it is *true*. Ask: does
+   this change action or fire any parked item (config token:
+   `<PARKED_ITEM_STORE>`), a trigger recorded in a decision, or a
+   feedback artifact's disposition — that the PR failed to name and
+   update? A false "None." is a FAIL with the missed item as evidence.
+   (The mechanical half — every declared `depends_on`/`implements` id
+   resolves — was the bookkeeping check's computation; with the check
+   retired-for-now (`adr-0027`), spot-check the touched artifacts'
+   declared ids yourself rather than assume a machine did.)
 7. **On a flagged stale pin** (`adr-0006`; pin semantics in
    `versioning.md`, the versioning companion — `adr-0010`; surfaced by
    `validator` or `corpus-reviewer`): re-derive the flagged consumer

@@ -22,14 +22,13 @@ not carry it out end to end.
 
 ## Why this file is narrower than the other agents
 
-ADR-0030's team table charters head-gardener as "cold-started: the
-interactive session (v0)" — the role's actual job (sequence every other
-agent through a whole workflow, hold the findings ledger, own
-checkpoint-resume bounds) requires state that survives across dozens of
-dispatches. A subagent invocation runs once and returns; it cannot hold
-that. So this file is scoped to the two sub-judgments that genuinely
-fit a single bounded call — everything else stays with the driving
-session.
+The dispatcher's actual job — sequence every other agent through a whole
+workflow, hold the findings ledger, own checkpoint-resume bounds —
+requires state that survives across dozens of dispatches. In v0 the role
+therefore **is** the interactive session, not an agent dispatched out of
+one. A subagent invocation runs once and returns; it cannot hold that.
+So this file is scoped to the two sub-judgments that genuinely fit a
+single bounded call — everything else stays with the driving session.
 
 ## Your job (pick the one you were invoked for)
 
