@@ -1,0 +1,26 @@
+# .grove/config.toml — grove-self's shared role config (adr-0026 D3).
+#
+# One file, shared across roles: the config-shaped tokens the grove charters
+# declare, key = the token name. Consumer-authoritative — and here the
+# consumer is grove itself (its own first consumer: the adr-0021
+# grove-to-grove pattern, inv-self-improvement). Every value is a VERIFIED
+# PRIOR, not ground truth: an agent verifies it on use, discloses a mismatch
+# loudly and routes the fix back to this file, and never silently
+# substitutes or works around a stale value. An explicit "none — …" is an
+# honest value, not a gap. This file is agent-read config (judgment on
+# read); it is never a deterministic machinery read (adr-0026 D3 boundary).
+
+TEST_CMD = "npm test --prefix plugins/grove/gates && npm test --prefix plugins/grove/check"
+TYPECHECK_CMD = "none — zero-dependency plain Node; no typechecker configured"
+LINT_CMD = "none — no linter or formatter configured"
+TEST_DEPS_LEDGER = "per-package nearest-ancestor test-deps.md with a fenced grove-test-deps block (adr-0006; e.g. plugins/grove/gates/test-deps.md)"
+PR_CONTRACT_SECTIONS = "none committed — no PR template or CI-enforced PR-body contract exists; check by hand until one does"
+PARKED_ITEM_STORE = "a decision's '### Parked' section, or a tracked issue on kodhama/grove"
+CONVENTIONS_PATH = "CLAUDE.md"
+QUALITY_RUBRIC_PATH = "none exists yet"
+SPEC_RUBRIC_PATH = "none exists yet"
+RESEARCH_RUBRIC_PATH = "none exists yet"
+ARTIFACT_DIRS = ["decisions/", "specs/"]
+ARTIFACT_CONTRACT_PATHS = ["decisions/README.md", "specs/README.md"]
+REPO_TYPED_CHECKS = "none — no extra typed-artifact checks beyond the family core"
+SEVERITY_TAXONOMY = "none declared"

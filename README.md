@@ -13,9 +13,13 @@ is what they tend, and what they are; informally, and with real
 affection, its druids.
 
 This repo is the **reference implementation and distribution home**. A
-consuming project adopts grove by vendoring the charters + agents it
-needs and wiring the placeholders (below) to its own paths and commands —
-the same door pattern Trellis uses for its own overlay.
+consuming project adopts grove by installing the Claude Code plugin —
+the agent fleet is **plugin-carried** (`adr-0026`): the roles load as
+namespaced `grove:<role>` subagents wherever the plugin is enabled,
+and the repo keeps only what it owns — its gate-profile, the shared
+role config the charters' tokens resolve from (`.grove/config.toml`),
+optional per-role addenda, and its own corpus. Nothing of grove's
+prose is vendored into a consumer again.
 
 ## The team
 
@@ -52,8 +56,10 @@ role is evidence about the artifacts it was given, not just the agent.
 | propagation-remediator | remediation | writes an honest missing propagation section when a PR's contract check fails | yes |
 | corpus-reviewer | standing | artifact-corpus conformance vs the repo's own contract (frontmatter, lifecycle, `depends_on`, supersession); report-only | yes |
 
-Full charters, each with a `## Placeholders` section naming exactly what a
-consuming project must fill in, live in [`charters/`](charters/).
+Full charters live in [`charters/`](charters/); each token-bearing one
+carries a `## Config tokens` section naming exactly what a consuming
+repo resolves in its `.grove/config.toml` (`adr-0026` D3 — values are
+verified priors the roles check at use time, never ground truth).
 
 ## Dispatch and workflows
 
@@ -72,8 +78,11 @@ the checkpoint-resume bounds shared with `run-resumer`.
 - **`charters/`** — the portable role charters: what each agent is,
   what it does, its boundaries, and its placeholders. This is the artifact
   grove ships.
-- **`.claude/agents/`** — Claude Code subagent definitions generated from
-  the charters, ready to drop into a consuming project's `.claude/agents/`.
+- **`plugins/grove/`** — the Claude Code plugin: the `agents/` payload
+  (subagent definitions generated from the charters in two-copy
+  lockstep, auto-loaded as `grove:<role>`), the setup/refresh/remove/
+  set-profile skills, the gate-profile machinery, and the plugin-carried
+  companions (`adr-0026`).
 - **`.claude/skills/grove-status/`** — the runtime-status skill an
   agent uses to report itself onto a [wisp](https://github.com/kodhama/wisp)
   event bus, if one is vendored (telemetry is optional by construction —
@@ -93,32 +102,34 @@ The canonical route is the Claude Code plugin (kodhama-0002 §3):
 /grove:setup
 ```
 
-`/grove:setup` is a composing interview: it asks which agent roles to
-install (default: all thirteen), copies their definitions into your project's
-`.claude/agents/`, and resolves every placeholder (test/typecheck
-commands, your VCS/issue-tracker conventions, your parked-item store,
-your spec/research rubric paths) to your project's real values —
-honestly, with "none exists yet" where a convention genuinely doesn't.
-Telemetry is composed only if you have [wisp](https://github.com/kodhama/wisp)
-available; grove never requires it. See
+Installing the plugin loads all thirteen roles as `grove:<role>`
+subagents — nothing is copied into your repo. `/grove:setup` then
+composes only what your repo owns: the gate-profile floor
+(`.grove/gates.toml` + machinery), the shared role config
+(`.grove/config.toml` — your test/typecheck commands, VCS/issue-tracker
+conventions, parked-item store, rubric paths, resolved interactively
+and honestly, with "none exists yet" where a convention genuinely
+doesn't), a short dial-explainer, and the managed `CLAUDE.md` block
+with the `grove plugin@<version>` stamp (`adr-0026` D4 — a ratified
+record with loud skew disclosure, never a lock). Telemetry is composed
+only if you have [wisp](https://github.com/kodhama/wisp) available;
+grove never requires it. See
 [`plugins/grove/README.md`](plugins/grove/README.md) for the full plugin
 contents.
 
 ### Manual path
 
-If you can't or don't want to install a Claude Code plugin, hand-vendor
-instead:
-
-1. Vendor the charters and/or `.claude/agents/` definitions you need.
-2. Fill in each charter's placeholders (test/typecheck commands, your
-   parked-item store, your spec-quality rubric path, your VCS/issue
-   tracker conventions).
-3. If you want live telemetry, vendor [wisp](https://github.com/kodhama/wisp)
-   and set the vendor path the `grove-status` skill expects
-   (`<WISP_VENDOR_PATH>` — see the skill's own doc and
-   [`charters/grove-status.md`](charters/grove-status.md)).
-4. Run `trellis setup` in your project if you also want the governance
-   overlay grove itself runs on (recommended, not required).
+If you can't or don't want to install a Claude Code plugin, the
+charters are plain markdown — you can hand-copy what you need
+(everything here is open source). Know what you're taking on: grove's
+own tooling no longer composes or maintains vendored copies
+(`adr-0026` — the merge-on-update class is exactly what the plugin
+route deleted), so keeping hand-vendored charters current is entirely
+yours. If you go this way: copy from [`charters/`](charters/), resolve
+each `## Config tokens` entry to your project's real values, vendor
+[wisp](https://github.com/kodhama/wisp) if you want the `grove-status`
+telemetry skill, and run `trellis setup` if you also want the
+governance overlay grove itself runs on (recommended, not required).
 
 ## Status
 
