@@ -13,13 +13,13 @@ values. Nothing here is invented from scratch, and nothing outside what's listed
 
 ## 1. Pick which agent roles to compose
 
-Ask which of the fourteen agent roles to install; default to **all fourteen** if the user has no
+Ask which of the thirteen agent roles to install; default to **all thirteen** if the user has no
 preference. Show the roster (from `${CLAUDE_PLUGIN_ROOT}/reference/agents/README.md`) so they can
 pick a subset if they want a lighter install:
 
 `divergent-researcher`, `shaper`, `decision-adversary`, `contract-author`, `spec-adversary`,
 `executor`, `conformance-reviewer`, `code-reviewer`, `validator`, `dispatcher`, `run-resumer`,
-`propagation-remediator`, `corpus-reviewer`, `auditor`.
+`propagation-remediator`, `corpus-reviewer`.
 
 ## 2. Copy the chosen agent definitions
 

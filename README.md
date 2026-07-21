@@ -29,8 +29,8 @@ decision-adversary, spec-adversary, code-reviewer; `adr-0012`) — plus
 the dispatcher that sequences them (it holds live
 run state across every stage rather than occupying one, so it carries
 no stage number of its own), plus two remediation roles that keep runs
-from silently dying, plus one standing audit role over the artifact
-record itself — thirteen roles in all. Every role except the dispatcher
+from silently dying, plus one standing corpus-conformance role over the
+artifact record itself — thirteen roles in all. Every role except the dispatcher
 and the shaper is a **stateless cold start**: all context travels
 through artifacts and their
 `depends_on` graph, never through conversation history. A floundering cold

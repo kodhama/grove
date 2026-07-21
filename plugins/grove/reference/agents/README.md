@@ -42,4 +42,3 @@ file's own "Why this file is narrower" section and
 | `propagation-remediator.md` | remediation | writes an honest missing propagation section |
 | `dispatcher.md` | dispatch | one-shot classify/next-dispatch advisor only — not a sequencer |
 | `corpus-reviewer.md` | standing | artifact-corpus conformance vs the repo's own contract; report-only |
-| `auditor.md` | pass close | owed-set completeness judge on the blackboard; report-only during shadow, never reviews content |
