@@ -55,6 +55,13 @@ updated: 2026-07-21
   `agents/` payload dir, auto-loaded and namespaced; plugin agents' ordinary
   tool use is unrestricted (so the D3 read-if-present door works); there is
   **no per-project plugin version pin** (priced in D4).
+  <!-- adr-0029 (2026-07-22): D1's plugin-carried fleet is exactly what breaks
+  agent loading on NON-INTERACTIVE surfaces (cloud/CI/headless/SDK) — a run
+  degrades silently to the generic agents (grove#125). adr-0029 solves this
+  PER-SURFACE (explicit load: cloud env Setup-script, CI action inputs, headless
+  --plugin-dir, SDK local path), **preserving this boundary** — the fleet is
+  never re-vendored into a consumer repo. Append-only pointer; Recipe A (re-vendor)
+  was rejected as an undoing of this D1. See adr-0029. -->
 
 - **D2 — the declarations split: the owed-map's inputs stay on the protected
   branch, as authored source** *(shaper, from the spec-0002/adr-0012

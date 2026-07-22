@@ -1,7 +1,7 @@
 ---
 id: adr-0029-non-interactive-loading
 type: adr
-status: gated  # drafted 2026-07-22 from the grove#125 investigation; Recipe B agreed by the maintainer in-session. grove:decision-adversary NEEDS-REVISION → F1 (an internal-coherence overclaim of #127's role, verified against source) + F2 (a verification-phrasing hedge) folded; the crux (A-rejection, adr-0026 preserved, adr-0027 consistency, undocumented-behavior priced-and-gated) held SOUND. Converged, AWAITS the human intent gate (profile: intent = human). This flip records the act, it does not perform it.
+status: approved  # maintainer's intent act ("approve adr-0029", in-session, 2026-07-22) — recorded in-PR per lifecycle.md; the flip records the act, it does not perform it. grove:decision-adversary NEEDS-REVISION → F1 (overclaim of #127's role, verified vs source) + F2 folded → gated; crux (A-rejection, adr-0026 preserved, adr-0027 consistency, undocumented-behavior priced-and-gated) held SOUND. author (shaper) ≠ approver (maintainer); the PR #129 merge is the ship act (ship = human).
 depends_on: [adr-0026-thin-vendor-boundary, charter-versioning]
 informed_by: [adr-0027-retire-ci-for-now, adr-0028-plugin-release-tagging]
 owner: agent
