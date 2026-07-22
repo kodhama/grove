@@ -51,7 +51,7 @@ defines the *forms*, it does not operate anyone's release process").
   of a release the human has **already** cut.
 
 - **D3 — the bump *level* is agent-proposed in the bump PR, human-approved
-  at merge; `validator` backstops** *(maintainer, 2026-07-22)*. The semver
+  at merge** *(maintainer, 2026-07-22)*. The semver
   level for a prose-charter fleet has no compiler to derive it — it is
   judgment. The authoring agent **proposes** the level in the bump PR by
   the consumer-observable magnitude of change:
