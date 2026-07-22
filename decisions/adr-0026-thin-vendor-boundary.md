@@ -146,6 +146,13 @@ updated: 2026-07-21
   repo), the harness offers no per-project pin, and grove's marketplace being
   third-party means auto-update is off by default — updates are deliberate
   acts. The stamp records; the check discloses; nothing pretends to enforce.
+  <!-- adr-0028 (2026-07-22): the SOURCE-side release practice this valve
+  implies — plugin.json as authoritative, the git tag cut by a deterministic
+  CI job, the human-cut = the merge of the manifest-bump PR — is
+  operationalized by adr-0028-plugin-release-tagging. Note: D4's own "bumped
+  only by PR / review seam / links changelog" above describes the CONSUMER's
+  CLAUDE.md stamp; grove's own manifest bump is the parallel act on the source
+  side, whose practice adr-0028 sets. Append-only pointer, no in-place edit. -->
 
 - **D5 — own roles stay repo-level** *(uncontested; #112 constraint 5)*.
   A role a repo genuinely owns (the trellis corpus-linter lineage,
