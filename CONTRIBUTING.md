@@ -2,8 +2,8 @@
 
 grove ships a collection of artifacts — **charters** (`charters/`),
 **specs** (`specs/`), **decisions** (`decisions/`), and their executable
-counterparts (`.claude/agents/`, `.claude/skills/`) — not a binary or a
-service. Contributing here means proposing, gating, and (for a human)
+counterparts (the plugin payload `plugins/grove/agents/`, plus
+`.claude/skills/`) — not a binary or a service. Contributing here means proposing, gating, and (for a human)
 approving changes to those artifacts. This guide is sourced from the
 charters already in this repo (see `specs/0001-contributing-guide.md`
 for the spec this guide implements, and its Provenance section for
@@ -73,18 +73,19 @@ Second, the append-only supersession mechanics for decisions live in
 2. Write `charters/<role-slug>.md` with the frontmatter above
    (`status: draft`, `type: charter`, `owner: agent` or `human`) and
    the shape every existing charter uses: `## What this role is`,
-   `## Method`, `## Boundaries`, `## Placeholders` (angle-bracketed
-   tokens for anything project-specific — see "The placeholder door"
-   in `charters/README.md`).
+   `## Method`, `## Boundaries`, `## Config tokens (adr-0026 D3)`
+   (angle-bracketed tokens for anything project-specific — see "The
+   config-token door" in `charters/README.md`).
 3. Self-check: does it cite provenance (which ADR or prior role it
    generalizes from, or "no dedicated legacy definition existed")? Does
    it pass the zero-nouns grep (below)? Flip `status: draft` →
    `status: gated` only once both are true.
 4. **If the role is cold-started** (most are — check the team table in
    the root `README.md`), also add a matching
-   `.claude/agents/<role-slug>.md` in the **same PR**: the `name` /
-   `description` / `tools` frontmatter Claude Code expects, plus the
-   charter's body. If the role is interactive or otherwise shouldn't
+   `plugins/grove/agents/<role-slug>.md` in the **same PR** (the
+   two-copy lockstep, `adr-0026` P1): the `name` / `description` /
+   `tools` frontmatter Claude Code expects, plus the charter's body in
+   second person. If the role is interactive or otherwise shouldn't
    get a subagent file (see the shaper/dispatcher exceptions
    below), say so explicitly in the PR body instead of leaving the
    pairing silently unaddressed.
@@ -102,16 +103,16 @@ pointer chain).
 1. Branch off `main`, edit the charter file directly.
 2. Re-run the self-check: the edited charter still names every required
    section, still cites provenance, still passes the zero-nouns grep.
-3. **Check whether the charter has a paired `.claude/agents/` file** —
-   most do (see the team table in `README.md` and
-   `.claude/agents/README.md`). If it does, **update that file in the
-   same PR.** There is no generator that derives one from the other:
-   as of this writing `.claude/agents/*.md` files are hand-authored
-   parallel copies of their charters (same body, plus
-   `name`/`description`/`tools` frontmatter, minus the provenance
-   note). An edit to one and not the other silently drifts the two out
-   of sync — the next reader of either file gets a stale picture with
-   no signal that it's stale.
+3. **Check whether the charter has a paired `plugins/grove/agents/`
+   payload file** — most do (see the team table in `README.md` and the
+   roster in `plugins/grove/README.md`). If it does, **update that file
+   in the same PR** (the two-copy lockstep, `adr-0026` P1). There is no
+   generator that derives one from the other: as of this writing the
+   payload files are hand-authored parallel copies of their charters
+   (same body in second person, plus `name`/`description`/`tools`
+   frontmatter, minus the provenance note). An edit to one and not the
+   other silently drifts the two out of sync — the next reader of
+   either file gets a stale picture with no signal that it's stale.
 4. Open the PR describing what changed and why (a charter edit is
    still a real change to a self-checked artifact — treat the PR body
    as the record of that self-check, not just a diff).
@@ -161,12 +162,12 @@ started in any consuming project** — it never hardcodes a noun specific
 to the project grove itself was lifted out of, or to any other
 specific consuming project. Where a role genuinely needs a
 project-specific value (a test command, a spec path, an issue-tracker
-convention), it declares an explicit angle-bracketed placeholder (e.g.
+convention), it declares an explicit angle-bracketed config token (e.g.
 `<TEST_CMD>`) instead of quietly assuming a default. Concretely, this
 means no source-project product name, codename, persona name, or
 internal taxonomy/numbering scheme belongs in a charter, spec, or
 decision — anything that specific is either generalized into a
-placeholder or left out.
+config token or left out.
 
 Before opening a PR that touches `charters/`, `specs/`, or
 `decisions/`, run this repo's acceptance check for those tokens against
@@ -218,10 +219,10 @@ person's name, a Slack channel, an internal URL).
   the maintainer's own intent act (recorded per
   `charters/lifecycle.md`), even more tightly than the general rule
   above (`charters/shaper.md`).
-- **`dispatcher`**'s `.claude/agents/dispatcher.md` is a scoped
-  one-shot advisor (workflow classification, next-dispatch
-  recommendation only) — it is **not** a full port of
-  `charters/dispatcher.md`, because that role requires live,
-  multi-turn dispatch state a cold-started subagent call cannot hold.
-  Don't expect every charter to have a 1:1, fully-equivalent
-  `.claude/agents/` file — check the charter's own notes first.
+- **`dispatcher`**'s payload file (`plugins/grove/agents/dispatcher.md`,
+  loaded as `grove:dispatcher`) is a scoped one-shot advisor (workflow
+  classification, next-dispatch recommendation only) — it is **not** a
+  full port of `charters/dispatcher.md`, because that role requires
+  live, multi-turn dispatch state a cold-started subagent call cannot
+  hold. Don't expect every charter to have a 1:1, fully-equivalent
+  payload file — check the charter's own notes first.

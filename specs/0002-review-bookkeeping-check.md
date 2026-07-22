@@ -12,6 +12,16 @@ status_note: promoted draft → gated on the passing self-check (contract-author
 
 # spec-0002 — the review-bookkeeping check (Layer A)
 
+> **Operationally retired (dormant) by `adr-0027-retire-ci-for-now`
+> (2026-07-21).** The check this spec specifies is suspended: the
+> `grove-review-bookkeeping` workflow is unwired and no CI runs it. The
+> runtime (`plugins/grove/check/`) and this spec are **preserved in-repo,
+> kept `approved`**, so revival is a re-wiring, not a rebuild. Revival
+> route: adr-0027 D4 — a provider-agnostic installer, when a real
+> enforcement need returns (`ship = agent`, a protected branch requiring
+> the check, or a non-Claude/CI-only audience). This banner is a
+> suspension pointer, not an amendment: no clause below is changed by it.
+
 The mechanism that makes review bookkeeping mechanical: append-only
 **verdict records posted as structured PR comments**, an **owed-map
 assembled at run-time from one rule**, and a deterministic **check** that

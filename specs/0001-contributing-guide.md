@@ -10,6 +10,20 @@ version: 1  # counter initialized 2026-07-12 with the R2/R8 amendment (kodhama-0
 
 # spec-0001 — CONTRIBUTING.md content requirements
 
+> **Diverges from its product (append-only pointer) — `adr-0026-thin-vendor-boundary`
+> (2026-07-21).** The grove#115 build wave reshaped this spec's product
+> (`CONTRIBUTING.md`) off the vendored-charter model and retired the
+> per-repo `.claude/agents/` directory (adr-0026 D1; the fleet is now
+> plugin-carried, `charters/` ↔ plugin `agents/` under the P1 two-copy
+> lockstep). This spec still normatively mandates the
+> `.claude/agents/<role>.md` pairing (below), so it now **diverges from
+> the repo it governs** at that clause. A `contract-author` amendment
+> from adr-0026 is **owed** to bring these requirements into line — it is
+> a stage-3 act (gated by the spec gate), deliberately NOT folded into
+> the #115 implementation PR. This is a pointer, not an amendment: no
+> clause below is changed by it, and the spec stays `approved` pending
+> that amendment.
+
 ## Provenance and authorizing intent
 
 This spec is written by the `contract-author` role, but there is no

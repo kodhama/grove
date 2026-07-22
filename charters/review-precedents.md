@@ -10,6 +10,12 @@ updated: 2026-07-19
 
 # review-precedents — the owed-review case-law log (adr-0023 D7)
 
+> **Dormant — the adr-0023 lineage is suspended by
+> `adr-0027-retire-ci-for-now` (2026-07-21).** With the check and the
+> auditor retired-for-now, no machinery consumes this log; it is kept
+> (append-only case law survives suspension) and resumes with adr-0027
+> D4's revival.
+
 > Provenance: `adr-0023` D7 — one append-only file recording each
 > maintainer overrule of an owed-review outcome. This is the precedent
 > corpus the review-triage judgment layer (the in-session auditor, and

@@ -12,6 +12,19 @@ status_note: authored from the approved adr-0023 (D1–D7); self-checked to gate
 
 # spec-0003 — review-asks and the audit record (shadow contract)
 
+> **Operationally retired (dormant) by `adr-0027-retire-ci-for-now`
+> (2026-07-21).** The asks/audit layer this spec specifies is suspended
+> with the check: the `grove-review-ask`/`grove-audit` record classes are
+> no longer posted, the `record-ask`/`record-audit` skills and the
+> `auditor` role are retired, and no comparator runs. The code
+> (`plugins/grove/check/lib/asks.mjs`, `lib/audit.mjs`) and this spec are
+> **preserved in-repo, kept `approved`**; revival via adr-0027 D4.
+> adr-0023 D2's closing-ask **principle survives, re-homed as prose**
+> (adr-0027 D2): every producing pass still ends with an advisory,
+> untargeted, non-self-exempting prose hand-off on its change-request —
+> only the record medium suspends. This banner is a suspension pointer,
+> not an amendment: no clause below is changed by it.
+
 The contract for `adr-0023`'s shadow adoption (phases 0–2, grove-self
 only, report-only): two new **append-only record classes** on the PR
 comment stream — the producer's `grove-review-ask` (D2) and the

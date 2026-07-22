@@ -2,9 +2,9 @@
 id: charter-contract-author
 type: charter
 status: gated
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0006-operational-conformance-mechanism, charter-lifecycle, charter-versioning, adr-0023-review-triage-blackboard]
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0006-operational-conformance-mechanism, charter-lifecycle, charter-versioning, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now]
 owner: agent
-updated: 2026-07-19
+updated: 2026-07-21
 ---
 
 # contract-author — stage 3: specs from approved intent
@@ -65,7 +65,7 @@ gate-profile; this charter does not assert it (`adr-0020`).
    uncounted history stays unpinnable (never back-fill or retro-judge
    old edits' significance). **Minor** or **editorial** edits do
    neither.
-5. Self-check against the spec-quality rubric (placeholder:
+5. Self-check against the spec-quality rubric (config token:
    `<SPEC_RUBRIC_PATH>`) and append a `## Rubric check` section with the
    result — honestly; a failing check is listed, never silently passed.
 6. Promote `draft → gated` only after the self-check passes. `approved`
@@ -73,18 +73,21 @@ gate-profile; this charter does not assert it (`adr-0020`).
    who moves an artifact between states lives in `lifecycle.md`, not
    here. An agent never flips it without a recorded human act.
 
-## Closing ask (adr-0023 D2)
+## Closing hand-off (adr-0027 D2)
 
-End every pass by handing your subjects — the repo tree files you
-produced or edited (the spec, above all) — and their produced type to
-the `record-ask` skill, which posts the pass's `grove-review-ask` batch
-(spec-0003 §A.4). This is **convention, not judgment** (the mini-PR
-rule: always ask, however good you think the work is) — you never
-decide whether your work gets eyes. Asks **add obligations, never
-remove them**: an ask can never exempt, retype, or soften anything (a
-reviewless or frontmatter-divergent type is inert and flagged,
-spec-0003 §A.3). Optional annotations are **advisory** — input a
-reviewer may read, never instruction it follows (adr-0023 D3).
+End every pass by declaring, in plain prose on your change-request (the
+PR body or a closing comment): your **subjects** — the repo tree files
+you produced or edited (the spec, above all) — their produced **type**,
+and your **advisory read on what deserves review and why**. This is
+**convention, not judgment** (the mini-PR rule: you hand off however
+good you think the work is) — you never decide whether your work gets
+eyes. Three functions (adr-0027 D2): the **nudge** (work is surfaced
+for review, unconditionally), **dispatcher routing input** (your signal
+feeds which reviewer gets dispatched), and **reviewer orientation**.
+The hand-off stays **advisory, untargeted, and non-self-exempting**
+(the adr-0023 D2/D3 lineage): it names no reviewer — *which* reviewer
+is the dispatcher's routing call — and it can never exempt, retype, or
+soften anything.
 
 ## Boundaries
 
@@ -96,6 +99,18 @@ reviewer may read, never instruction it follows (adr-0023 D3).
   something load-bearing, surface it (route back to `shaper`) rather
   than guessing.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<SPEC_RUBRIC_PATH>` — the consuming project's spec-quality rubric.
+Tokens resolve at use time from the consuming repo's **shared config
+file `.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/contract-author.md` for local rules and
+worked examples — both consumer-authoritative, seeded by
+`/grove:setup`, never clobbered by grove (`adr-0026` D3). Treat every
+value as a **verified prior, not ground truth**: present → verify on
+use (does the command still run, the path still resolve?); on
+mismatch, disclose loudly and route a fix to the config file — the
+stale token is the root cause — never silently substitute a "better"
+value or work around a broken one. Absent (no file, or no such key) →
+self-detect from the repo's own conventions and disclose the judgment.
+An explicit "none exists yet" is a value, not a gap.

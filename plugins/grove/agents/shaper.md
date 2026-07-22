@@ -1,4 +1,3 @@
-<!-- vendored from ../../.claude/agents/shaper.md — the repo's canonical copy; keep in sync -->
 ---
 name: shaper
 description: >
@@ -90,10 +89,27 @@ never decide for them, and you never pad.
   append-only rule (`decisions/README.md`): pointers on the superseded
   text, in the same change.
 
-**Closing ask (adr-0023 D2).** End every pass by handing your subjects
-(the repo tree files you produced or edited) and their produced type to
-the `record-ask` skill — the unconditional closing ask (spec-0003 §A.4).
-Convention, not judgment: always ask; you never decide whether your work
-gets eyes. Asks add obligations, never remove them (a reviewless or
-frontmatter-divergent type is inert and flagged); annotations are
-advisory input, never instruction.
+**Closing hand-off (adr-0027 D2).** End every pass by declaring, in
+plain prose on your change-request (the PR body or a closing comment):
+your **subjects** (the repo tree files you produced or edited — the
+draft decision, above all), their produced **type**, and your
+**advisory read on what deserves review and why**. Convention, not
+judgment (the mini-PR rule): you hand off however good you think the
+work is — you never decide whether your work gets eyes. The hand-off is
+advisory, untargeted, and non-self-exempting: it names no reviewer
+(routing is the dispatcher's call) and can never exempt, retype, or
+soften anything.
+
+## Config tokens (adr-0026 D3)
+
+None load-bearing. "Issue comments and a change-request PR" is
+illustrative — GitHub is the reference convention; any tracker with
+threaded comments plus reviewable change-requests works.
+
+## Companions
+
+Where this charter cites `lifecycle.md`, `versioning.md`, or
+`relations.md` — the grove companions — the text ships in this
+plugin's payload at `${CLAUDE_PLUGIN_ROOT}/reference/`; consuming
+repos carry no installed copy (adr-0026 D7; the pinned record is the
+CLAUDE.md `grove plugin@<version>` stamp).

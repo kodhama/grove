@@ -2,20 +2,23 @@
 
 The portable role charters — what grove actually ships. Each file
 charters one agent: what it is, its method, its boundaries, and (where
-the role needs a project-specific value) an explicit placeholder for the
-consuming project to fill in. These are narrative artifacts; their
-executable counterparts — ready-to-drop-in Claude Code subagent
-definitions generated from the same charters — live in
-[`.claude/agents/`](../.claude/agents/).
+the role needs a project-specific value) an explicit config token the
+consuming repo resolves (`adr-0026` D3, below). These are narrative
+artifacts; their executable counterparts — the Claude Code subagent
+definitions generated from the same charters, auto-loaded as
+`grove:<role>` wherever the grove plugin is enabled — live in the
+plugin payload, [`plugins/grove/agents/`](../plugins/grove/agents/).
+The two are a **two-copy lockstep** (`adr-0026` P1, ex `adr-0021` D4):
+a charter edit updates its payload counterpart in the same PR.
 
 One file, [`grove-status.md`](grove-status.md), charters a skill rather
 than an agent role — the shared runtime-telemetry contract every role
-composes into its own work. It has no `.claude/agents/` counterpart and
+composes into its own work. It has no agent-payload counterpart and
 no pipeline stage; its own charter says so explicitly rather than
 forcing the "one file, one agent" shape above onto it. Another,
 [`lifecycle.md`](lifecycle.md), is the lifecycle companion (`adr-0008`)
-— the artifact state enum, stated once and shipped in the payload — not
-a role either.
+— the artifact state enum, stated once and shipped in the plugin
+payload under the version stamp (`adr-0026` D7) — not a role either.
 
 ## Artifact contract
 
@@ -40,17 +43,25 @@ independently reviewed by a human or a `spec-adversary` pass. They carry
 the accountable human is the repo maintainer, recorded once here rather
 than swept across every file).
 
-## The placeholder door
+## The config-token door (`adr-0026` D3 — supersedes the placeholder door)
 
 A charter is written to be **cold-started in any consuming project**, so
 it never hardcodes a project-specific value. Where the role genuinely
 needs one (a test command, a spec path, a parked-item store, an issue
-tracker convention), the charter declares an explicit placeholder —
+tracker convention), the charter declares an explicit token —
 angle-bracketed, e.g. `<TYPECHECK_CMD>` — instead of quietly assuming a
-default. The consuming project fills the placeholder in; nothing in a
-charter is a silent assumption about the host repo. This is the
-signature-pair door: a role's charter must be writable, and read as
-correct, **without** any noun specific to the project it was lifted from.
+default. Tokens resolve **at use time** from the consuming repo's shared
+config file, `.grove/config.toml` (key = the token name), plus an
+optional per-role addendum `.grove/agents/<role>.md` for local rules
+and worked examples — both consumer-authoritative: `/grove:setup` seeds
+them, grove never clobbers them. Every resolved value is a **verified
+prior, not ground truth**: a role verifies it on use and, on mismatch,
+discloses loudly and routes a fix to the config file — never a silent
+substitution; absent a value, it self-detects and discloses. An honest
+"none exists yet" is a value, not a gap. Nothing in a charter is a
+silent assumption about the host repo — a role's charter must be
+writable, and read as correct, **without** any noun specific to the
+project it was lifted from.
 
 ## Provenance
 

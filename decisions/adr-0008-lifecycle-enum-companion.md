@@ -34,6 +34,23 @@ updated: 2026-07-18  # append-only amendment (adr-0018 D5): install target -> .g
 > per the append-only rule; `adr-0018` is the authoritative record of
 > this change.
 
+> **Amendment (2026-07-21, append-only — amended again by
+> `adr-0026-thin-vendor-boundary` D7, unconditionally; adr-0026
+> Propagation 3):** the lifecycle companion no longer installs into a
+> consumer repo at all. Under adr-0026 D7 the companions travel **with the
+> fleet in the plugin payload** (`${CLAUDE_PLUGIN_ROOT}/reference/lifecycle.md`;
+> canonical `charters/lifecycle.md`), under the single D4 version stamp —
+> so wherever this decision's ratified text and the amendments above read a
+> consumer install target (`.claude/agents/lifecycle.md` →
+> `.grove/lifecycle.md` → `.grove/internal/lifecycle.md`), read
+> **plugin-carried, no installed consumer copy**; repo citations switch to
+> standard-form ("per the grove lifecycle companion, `plugin@<stamp>`").
+> The move is **unconditional** — D7 decided it, not contingent on the CI
+> floor (adr-0026 adversary F2). The enum-lives-in-a-companion decision
+> itself stands; adr-0008's "no repo restates the enum" rule is explicitly
+> held (adr-0026 D7). `adr-0026` is the authoritative record; ratified text
+> below unedited per the append-only rule.
+
 ## Context
 
 Under the family's "restate nothing" direction (kodhama#29 / draft kodhama-0008), a repo no longer hand-authors the operating model — it inherits it via the plugins. That forces a question grove must answer for its own methodology: **where does the lifecycle enum (`draft → gated → approved → superseded`) live** once each repo stops declaring it in `.trellis/profile.md`?

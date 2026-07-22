@@ -1,6 +1,6 @@
 ---
 name: remove
-description: Remove grove from this project — delete the composed agents/skill, strip the managed CLAUDE.md block, and ask before deleting anything, touching nothing else. Use when the user asks to remove, uninstall, undo, or take out grove from their repo.
+description: Remove grove from this project — delete the composed .grove/ overlay and optional skill, strip the managed CLAUDE.md block, and ask before deleting anything, touching nothing else. Also reverses what older grove installs vendored. Use when the user asks to remove, uninstall, undo, or take out grove from their repo.
 ---
 
 # Remove grove from this project
@@ -8,31 +8,49 @@ description: Remove grove from this project — delete the composed agents/skill
 Cleanly reverse what `/grove:setup` composed. This is augment-never-clobber **in reverse**: remove
 only what grove added, asking before any deletion, and preserve everything else byte-for-byte.
 
+**The agent roles themselves are not files in this repo** (`adr-0026`: the fleet is
+plugin-carried, loaded as `grove:<role>` from the plugin). Removing repo files does not unload
+them — tell the user that disabling or uninstalling the plugin itself is
+`/plugin` (uninstall `grove@kodhama`), outside this skill's file work.
+
 ## 1. Find what was composed
 
-List the agent files present in `.claude/agents/` (the thirteen possible roles:
-`divergent-researcher`, `shaper`, `decision-adversary`, `contract-author`, `spec-adversary`,
-`executor`, `conformance-reviewer`, `code-reviewer`, `validator`, `dispatcher`, `run-resumer`,
-`propagation-remediator`, `corpus-reviewer`, plus their `README.md`), and check whether
-`.claude/skills/grove-status/` exists. Also check whether the **GitHub bookkeeping check** was
-installed — whether via setup step 7 or the standalone `/grove:check-install`, both write the same
-pieces: the `.grove/internal/check/` runtime directory, the workflow file
-`.github/workflows/grove-review-bookkeeping.yml`, and the split policy carrier — `.grove/review.toml`
-plus `.grove/internal/review-wiring.toml` (`adr-0018` D10).
+A current (thin-vendor, post-`adr-0026`) install comprises:
 
-Also look for the **tooling-ignore entry** setup (or `/grove:check-install`) may have added: a
-`.grove/` line (or a `.grove/**` glob) in any of the consumer's ignore files — `.eslintignore`,
-`.prettierignore`, `.markdownlintignore`, the `ignores` field of `eslint.config.*`, or the
-`files.ignore` array in `biome.json`. Setup writes this only with consent, so it may not be present;
-find it if it is (step 6 reverses it).
+- **`.grove/gates.toml`** — the gate-profile (consumer-authoritative).
+- **`.grove/config.toml`** — the shared role config (consumer-authoritative, `adr-0026` D3).
+- **`.grove/agents/<role>.md`** — optional per-role addenda the consumer may have authored.
+- **`.grove/README.md`** — the dial-explainer.
+- **`.grove/internal/gates/`** + **`.grove/internal/enforcement.toml`** — the grove-managed
+  floor-guard machinery and C1 defaults.
+- The managed **`CLAUDE.md` block** (`grove:begin`…`grove:end`, with the version stamp).
+- Optionally **`.claude/skills/grove-status/`** — the telemetry skill, if wisp was available.
+
+**Older installs left more** — check for each of these too:
+
+- **Pre-`adr-0026` (vendored-fleet) installs:** grove role files vendored into
+  `.claude/agents/` (up to fourteen roles — the pre-`adr-0026` roster included `auditor`, since
+  retired by `adr-0027` — plus their `README.md`) and installed companions —
+  `.grove/internal/{lifecycle,versioning,relations}.md` (or, older still, at the `.grove/` root).
+- **Pre-`adr-0027` (CI check) installs:** the `.grove/internal/check/` runtime, the workflow file
+  `.github/workflows/grove-review-bookkeeping.yml`, and the split policy carrier —
+  `.grove/review.toml` plus `.grove/internal/review-wiring.toml` (`adr-0018` D10). Both the
+  setup-era check step and the then-standalone `/grove:check-install` wrote the same pieces.
+
+Also look for the **tooling-ignore entry** setup may have added (with consent): a `.grove/` line
+(or a `.grove/**` glob) in `.eslintignore`, `.prettierignore`, `.markdownlintignore`, the
+`ignores` field of `eslint.config.*`, or the `files.ignore` array in `biome.json`. It may not be
+present; find it if it is (step 6 reverses it).
 
 ## 2. Ask before deleting
 
 Show the user the exact list of files you found and ask for confirmation before deleting any of
-them. Delete only what they confirm — if they want to keep a role they've since hand-edited or
-diverged from the vendored copy, leave it. Do not assume every file in `.claude/agents/` was put
-there by grove; if a file's origin is unclear (no way to tell it apart from something the user wrote
-themselves), ask rather than delete it.
+them. Delete only what they confirm. Files carrying the **consumer's own choices** deserve an
+explicit call-out before removal: `.grove/gates.toml` (a tuned profile), `.grove/config.toml`
+(their resolved tokens), and any `.grove/agents/` addenda (entirely their authorship). Do not
+assume every file in `.claude/agents/` was put there by grove — a repo's **own** roles live there
+legitimately (`adr-0026` D5); if a file's origin is unclear (no way to tell it apart from
+something the user wrote themselves), ask rather than delete it.
 
 ## 3. Strip the managed block from `CLAUDE.md`
 
@@ -56,68 +74,64 @@ added real decisions/specs into those directories, **do not delete the directori
 same as step 2. An empty seeded store with nothing added since is safe to remove if the user
 confirms; a store with real content is not grove's to delete.
 
-## 5. Remove the GitHub bookkeeping check, if installed
+## 5. Remove the core `.grove/` overlay
 
-If the check was installed (setup step 7 or `/grove:check-install` — same pieces either way),
-reverse exactly those three pieces (augment-never-clobber in reverse — remove only what the
-install wrote, and **ask before deleting anything unexpected**):
+Same augment-never-clobber-in-reverse discipline, **asking before deleting anything the user may
+have tuned**:
 
-- **`.grove/internal/check/`** — the vendored check runtime. Safe to delete if it matches the vendored copy;
-  if the user has hand-edited it, ask before removing. (Zero deps were installed, so there is no
-  `node_modules` to clean up.)
-- **`.github/workflows/grove-review-bookkeeping.yml`** — the workflow file. Remove **only** this
-  file; **touch no other workflow** in `.github/workflows/`. If the directory is left empty and
-  grove created it, removing the empty directory is fine; if it holds other workflows, leave it.
-- **`.grove/review.toml`** — the consumer policy carrier (`adr-0018` D10). Holds the install-recorded
-  `scope` mode and the corpus policy (`artifact_dirs` / allowlist / `reviewless_types`). If the user
-  has since edited any of those for their own corpus, **ask first** (same as step 2) rather than
-  discarding their tuning; an untouched install-written copy is safe to remove on confirmation.
-- **`.grove/internal/review-wiring.toml`** — the grove-authoritative wiring carrying the
-  `check_runtime_dir` / `check_workflow_path` keys (`adr-0013` / `adr-0018` D10). Grove-managed, so
-  safe to remove on confirmation; nothing else carries those keys.
+- **`.grove/gates.toml`** — if the user has switched presets or hand-edited a row, **ask first**
+  rather than discarding their choice; an untouched install-written copy is safe to remove on
+  confirmation.
+- **`.grove/config.toml`** — their resolved tokens; same ask-first discipline.
+- **`.grove/agents/`** addenda — consumer-authored; confirm explicitly per file.
+- **`.grove/README.md`** — the regenerated dial-explainer; safe on confirmation.
+- **`.grove/internal/gates/`** — the grove-managed floor-guard machinery. Safe to delete if it
+  matches the vendored copy; if hand-edited, ask.
+- **`.grove/internal/enforcement.toml`** — grove-managed C1 defaults; safe on confirmation.
 
-Leave the rest of `.grove/` (the `internal/lifecycle.md` / `internal/versioning.md` /
-`internal/relations.md` companions and the gate-profile pieces below) exactly as it was here — they
-are removed in step 5b, not with the check. If the check was never installed, skip this step.
+## 5b. Legacy pieces, if an older install left them
 
-## 5b. Remove the gate-profile and companions (core `.grove/` payload)
+- **Vendored fleet (pre-`adr-0026`):** the grove role files in `.claude/agents/` and their
+  `README.md`. If the user has hand-edited or locally adapted any (the reason the D6 migration
+  harvests before deleting), ask per file; never touch a role the repo owns.
+- **Installed companions (pre-`adr-0026`):** `.grove/internal/{lifecycle,versioning,relations}.md`
+  (or at the `.grove/` root on the oldest layouts). Reference prose; safe on confirmation unless
+  hand-edited.
+- **The GitHub bookkeeping check (pre-`adr-0027`):** reverse exactly these pieces —
+  - **`.grove/internal/check/`** — the vendored check runtime. Safe to delete if it matches the
+    vendored copy; if hand-edited, ask. (Zero deps were installed, so there is no `node_modules`
+    to clean up.)
+  - **`.github/workflows/grove-review-bookkeeping.yml`** — remove **only** this file; **touch no
+    other workflow**. If the directory is left empty and grove created it, removing the empty
+    directory is fine; if it holds other workflows, leave it.
+  - **`.grove/review.toml`** — the consumer policy carrier (`adr-0018` D10). If the user has
+    edited its scope/allowlist for their own corpus, **ask first**; an untouched install-written
+    copy is safe on confirmation.
+  - **`.grove/internal/review-wiring.toml`** — grove-managed wiring; safe on confirmation.
 
-Every install lands these (`adr-0018`), so unless the user is keeping grove's other pieces, reverse
-them too — same augment-never-clobber-in-reverse discipline, **asking before deleting anything the
-user may have tuned**:
-
-- **`.grove/gates.toml`** — the consumer-authoritative gate-profile. If the user has switched presets
-  or hand-edited a row for their own oversight preferences, **ask first** (as in step 2) rather than
-  discarding their choice; an untouched install-written copy is safe to remove on confirmation.
-- **`.grove/internal/gates/`** — the vendored floor-guard machinery. Safe to delete if it matches the
-  vendored copy; if hand-edited, ask.
-- **`.grove/internal/enforcement.toml`** — the grove-managed C1 defaults. Grove-authoritative
-  (regenerated on update), so safe to remove on confirmation.
-- **`.grove/internal/lifecycle.md` / `versioning.md` / `relations.md`** — the companions. Reference
-  prose; safe to remove on confirmation unless the user hand-edited them.
-
-If `.grove/internal/` is left empty after removals and grove created it, removing the empty directory
-is fine; likewise `.grove/` itself once nothing grove-owned remains.
+If `.grove/internal/` is left empty after removals and grove created it, removing the empty
+directory is fine; likewise `.grove/` itself once nothing grove-owned remains.
 
 ## 6. Strip the `.grove/` tooling-ignore entry, if setup added one
 
-The symmetric inverse of setup's step 8 (**augment-never-clobber in reverse**): if setup added a
-`.grove/` (or `.grove/**`) line to any linter/formatter ignore — the entries found in step 1 —
-offer to remove it, and on a **yes** remove **only that one line**, touching **nothing else** in the
-file. Discipline, per ignore file:
+The symmetric inverse of setup's ignore offer (**augment-never-clobber in reverse**): if setup
+added a `.grove/` (or `.grove/**`) line to any linter/formatter ignore — the entries found in
+step 1 — offer to remove it, and on a **yes** remove **only that one line**, touching **nothing
+else** in the file. Discipline, per ignore file:
 
-- Remove **only** the `.grove/` entry setup wrote; every other ignore line the user maintains stays
-  exactly as it was.
+- Remove **only** the `.grove/` entry setup wrote; every other ignore line the user maintains
+  stays exactly as it was.
 - If setup **created** a dedicated ignore file solely to hold that line (e.g. a `.prettierignore`
-  or `.markdownlintignore` that now contains only `.grove/`), removing the now-empty file is fine on
-  confirmation; if the file holds other entries, leave the file and strip only the one line.
-- If a `.grove/` line's origin is unclear (the user may have added it themselves), **ask rather than
-  delete** — same discipline as step 2. If no such entry exists, skip this step.
+  or `.markdownlintignore` that now contains only `.grove/`), removing the now-empty file is fine
+  on confirmation; if the file holds other entries, leave the file and strip only the one line.
+- If a `.grove/` line's origin is unclear (the user may have added it themselves), **ask rather
+  than delete** — same discipline as step 2. If no such entry exists, skip this step.
 
 ## 7. Confirm
 
-Tell the user exactly what you removed (which agent files, the `grove-status` skill if present, the
-GitHub bookkeeping check pieces — `.grove/internal/check/`, the workflow, `.grove/review.toml` +
-`.grove/internal/review-wiring.toml` — if they
-were installed, any `.grove/` tooling-ignore line stripped and from which file, and the `CLAUDE.md`
-block). If nothing was present, say so plainly — **do not invent changes**.
+Tell the user exactly what you removed (which `.grove/` files, the `grove-status` skill if
+present, any legacy pieces — vendored role files, installed companions, the check runtime +
+workflow + policy carriers — any `.grove/` tooling-ignore line stripped and from which file, and
+the `CLAUDE.md` block), and remind them the plugin itself (the `grove:<role>` agents and these
+skills) unloads via `/plugin`, not file deletion. If nothing was present, say so plainly — **do
+not invent changes**.

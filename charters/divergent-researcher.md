@@ -2,9 +2,9 @@
 id: charter-divergent-researcher
 type: charter
 status: gated
-depends_on: []
+depends_on: [adr-0026-thin-vendor-boundary]
 owner: agent
-updated: 2026-07-07
+updated: 2026-07-21
 ---
 
 # divergent-researcher — stage 1: research discipline
@@ -40,7 +40,7 @@ unverified artifact.
 3. Write the artifact with the shared frontmatter (see
    `decisions/README.md`), `type: discovery` (or the consuming project's
    equivalent research-artifact type), `status: draft`.
-4. Self-check against the research-quality rubric (placeholder:
+4. Self-check against the research-quality rubric (config token:
    `<RESEARCH_RUBRIC_PATH>`) before promoting `draft → gated`. An
    artifact with any untagged load-bearing claim may not be promoted.
 
@@ -51,7 +51,19 @@ unverified artifact.
 - A loud failure (tools unavailable) always beats a plausible-looking
   but unverified artifact.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<RESEARCH_RUBRIC_PATH>` — the consuming project's research-quality
   rubric, if it has one.
+Tokens resolve at use time from the consuming repo's **shared config
+file `.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/divergent-researcher.md` for local rules and
+worked examples — both consumer-authoritative, seeded by
+`/grove:setup`, never clobbered by grove (`adr-0026` D3). Treat every
+value as a **verified prior, not ground truth**: present → verify on
+use (does the command still run, the path still resolve?); on
+mismatch, disclose loudly and route a fix to the config file — the
+stale token is the root cause — never silently substitute a "better"
+value or work around a broken one. Absent (no file, or no such key) →
+self-detect from the repo's own conventions and disclose the judgment.
+An explicit "none exists yet" is a value, not a gap.

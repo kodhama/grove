@@ -4,7 +4,7 @@ type: charter
 status: gated
 depends_on: [adr-0006-operational-conformance-mechanism, charter-versioning, charter-relations, adr-0016-implements-edge-taxonomy]
 owner: agent
-updated: 2026-07-18
+updated: 2026-07-21
 ---
 
 # validator — stage 5: per-PR critique + triggered drift audits
@@ -62,6 +62,6 @@ rather than gating every merge.
 - If you cannot identify what a trigger's blast radius actually is, say
   so loudly rather than guessing at scope.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 None load-bearing.

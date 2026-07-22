@@ -44,7 +44,13 @@ updated: 2026-07-21
   consumer owns** — `.grove/gates.toml`, `.grove/review.toml`, the D3
   config/addenda, its own chartered roles (D5), its corpus; **(b) what CI
   reads from the protected branch** — the check runtime, the workflow, the
-  wiring file, and the D2 declarations carrier. Verified harness facts this
+  wiring file, and the D2 declarations carrier.
+  <!-- "CI-read floor" REVERSED by adr-0027 (grove#119, 2026-07-21): the
+  review-bookkeeping check is retired-for-now (suspended, code preserved),
+  so class (b) empties — the consumer repo keeps no check runtime,
+  workflow, wiring file, or declarations carrier; it keeps only class (a),
+  what it owns. D1's plugin-carried-fleet core stands unchanged. See
+  adr-0027. --> Verified harness facts this
   rests on (Claude Code docs, 2026-07-21): plugins ship agents from an
   `agents/` payload dir, auto-loaded and namespaced; plugin agents' ordinary
   tool use is unrestricted (so the D3 read-if-present door works); there is
@@ -52,7 +58,16 @@ updated: 2026-07-21
 
 - **D2 — the declarations split: the owed-map's inputs stay on the protected
   branch, as authored source** *(shaper, from the spec-0002/adr-0012
-  analysis; part of the accepted package)*. The reviewer
+  analysis; part of the accepted package)*.
+  <!-- MOOTED by adr-0027 (grove#119, 2026-07-21): this split exists only
+  to let the check read declarations from the protected branch; with the
+  check retired-for-now (adr-0027 D1), the carrier feeds nothing — the
+  declarations carrier is NOT built, and the `grove-review-declaration`
+  blocks are removed from the reviewer charters rather than split into a
+  carrier (adr-0027 D3). The non-CI thin-vendor core (D1/D3/D4/D5
+  namespacing/D6/D7) stands. A revival of the check (adr-0027 D4) would
+  re-open this split from this decided text, not a blank page. See
+  adr-0027. --> The reviewer
   `grove-review-declaration` blocks move **out of charter prose** into a
   repo-committed declarations carrier the §C.1 assembly discovers — the same
   split-by-reader adr-0018 D10 performed on `review-policy.md`. Two clauses
@@ -138,7 +153,11 @@ updated: 2026-07-21
   coexistence collision-free by construction (`corpus-reviewer` vs
   `grove:corpus-reviewer`). Own-role reviewers keep their declaration blocks
   feeding the §C.1 assembly — discovery covers both carriers (spec detail,
-  Propagation). Flip side, named: a repo **cannot shadow** a plugin agent
+  Propagation).
+  <!-- Sub-clause MOOTED by adr-0027 (2026-07-21, its D3 / adversary F2):
+  no §C.1 assembly runs while the check is retired, so own-role
+  declaration blocks feed nothing; D5's namespacing/own-role core stands.
+  See adr-0027. --> Flip side, named: a repo **cannot shadow** a plugin agent
   under its name — repo-specific behavior flows through D3's door only.
 
 - **D6 — migration: one final campaign; the stock rides the change**

@@ -10,6 +10,21 @@ updated: 2026-07-18
 
 # ADR-0018: the gate-profile mechanism + the trigger-vs-intent-gate split (in-domain)
 
+> **D5's layout table amended by `adr-0026-thin-vendor-boundary`
+> (2026-07-21; append-only pointer, adr-0026 Propagation 3).** D5 placed
+> the grove-authoritative subtree — the companions
+> (`lifecycle.md`/`versioning.md`/`relations.md`), the `check/` tool, and
+> `enforcement.toml` — under `.grove/internal/`. Under adr-0026 the **fleet
+> and its companions are plugin-carried** (D1/D7), so the companions
+> **leave `.grove/internal/` for the plugin payload** and that subtree
+> shrinks; a consumer keeps only what it owns. adr-0026 D5 **reaffirms D5's
+> own-roles rule** — a role a repo genuinely owns stays repo-level in
+> `.claude/agents/`, collision-free by namespacing (`corpus-reviewer` vs
+> `grove:corpus-reviewer`). (The `check/` runtime and `enforcement.toml`
+> were since retired-for-now by `adr-0027`, emptying the subtree further.)
+> The gate-profile decisions D1–D11 and the authority-split principle
+> stand. Ratified text below unedited (append-only).
+
 > **`gated` — converged, awaiting review.** All in-domain questions are
 > Decided; the one substantive Open (approval-channel authenticity) is
 > resolved by **D11**. The shaper self-checked this to `gated` (see

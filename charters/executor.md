@@ -2,9 +2,9 @@
 id: charter-executor
 type: charter
 status: gated
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard]
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now]
 owner: agent
-updated: 2026-07-19
+updated: 2026-07-21
 ---
 
 # executor — stage 4: test-first implementation from artifacts only
@@ -49,7 +49,7 @@ artifact as the finding — never reconstruct the contract from the prompt.
    together in one motion is not TDD, even under a "test-first" label —
    the observed-red step is what makes the test trustworthy. Run the
    project's own test and typecheck gates yourself before reporting done
-   (placeholders: `<TEST_CMD>`, `<TYPECHECK_CMD>`).
+   (config tokens: `<TEST_CMD>`, `<TYPECHECK_CMD>`).
 3. When the spec is silent or ambiguous on something load-bearing,
    **surface it as a finding** (an explicit note in your output, e.g.
    under `## Assumptions`) — never a silently-chosen default. A cold
@@ -68,18 +68,21 @@ artifact as the finding — never reconstruct the contract from the prompt.
 6. Hand off to the stage-4½ gates — the `conformance-reviewer` and
    the `code-reviewer` — you do not grade your own work.
 
-## Closing ask (adr-0023 D2)
+## Closing hand-off (adr-0027 D2)
 
-End every pass by handing your subjects — the repo tree files you
-produced or edited — and their produced type to the `record-ask` skill,
-which posts the pass's `grove-review-ask` batch (spec-0003 §A.4). This
-is **convention, not judgment** (the mini-PR rule: always ask, however
-good you think the work is) — you never decide whether your work gets
-eyes. Asks **add obligations, never remove them**: an ask can never
-exempt, retype, or soften anything (a reviewless or frontmatter-
-divergent type is inert and flagged, spec-0003 §A.3). Optional
-annotations are **advisory** — input a reviewer may read, never
-instruction it follows (adr-0023 D3).
+End every pass by declaring, in plain prose on your change-request (the
+PR body or a closing comment): your **subjects** — the repo tree files
+you produced or edited — their produced **type**, and your **advisory
+read on what deserves review and why**. This is **convention, not
+judgment** (the mini-PR rule: you hand off however good you think the
+work is) — you never decide whether your work gets eyes. Three
+functions (adr-0027 D2): the **nudge** (work is surfaced for review,
+unconditionally), **dispatcher routing input** (your signal feeds which
+reviewer gets dispatched), and **reviewer orientation**. The hand-off
+stays **advisory, untargeted, and non-self-exempting** (the adr-0023
+D2/D3 lineage): it names no reviewer — *which* reviewer is the
+dispatcher's routing call — and it can never exempt, retype, or soften
+anything.
 
 ## Boundaries
 
@@ -94,9 +97,22 @@ instruction it follows (adr-0023 D3).
 - Scope to the spec — no drive-by refactoring, no requirements invented
   beyond it.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<TEST_CMD>`, `<TYPECHECK_CMD>` — the consuming project's test and
   typecheck commands.
 - `<TEST_DEPS_LEDGER>` — the consuming project's per-package test-deps
   ledger location/convention (`adr-0006`).
+
+Tokens resolve at use time from the consuming repo's **shared config
+file `.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/executor.md` for local rules and
+worked examples — both consumer-authoritative, seeded by
+`/grove:setup`, never clobbered by grove (`adr-0026` D3). Treat every
+value as a **verified prior, not ground truth**: present → verify on
+use (does the command still run, the path still resolve?); on
+mismatch, disclose loudly and route a fix to the config file — the
+stale token is the root cause — never silently substitute a "better"
+value or work around a broken one. Absent (no file, or no such key) →
+self-detect from the repo's own conventions and disclose the judgment.
+An explicit "none exists yet" is a value, not a gap.

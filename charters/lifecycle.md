@@ -1,10 +1,10 @@
 ---
 id: charter-lifecycle
 type: charter
-status: approved  # maintainer's intent act 2026-07-12 ("merge", PR #48) — in-PR flip recording the act, adr-0007 precedent; conformance-reviewed against adr-0008 before approval
-depends_on: [adr-0008-lifecycle-enum-companion]
+status: approved  # maintainer's intent act 2026-07-12 ("merge", PR #48) — in-PR flip recording the act, adr-0007 precedent; conformance-reviewed against adr-0008 before approval; amended 2026-07-21 per adr-0026 D7 (delivery: plugin-carried under the version stamp, no longer installed per-repo)
+depends_on: [adr-0008-lifecycle-enum-companion, adr-0026-thin-vendor-boundary]
 owner: agent
-updated: 2026-07-12
+updated: 2026-07-21
 ---
 
 # lifecycle — the artifact state enum, stated once
@@ -12,11 +12,11 @@ updated: 2026-07-12
 > Provenance: created per `adr-0008-lifecycle-enum-companion`
 > (2026-07-12), which resolved where the lifecycle enum lives once no
 > repo restates it: a dedicated companion artifact, shipped in the
-> payload. Canonical here, vendored to
-> `plugins/grove/reference/lifecycle.md`, installed by `/grove:setup`
-> to each consuming project's `.grove/lifecycle.md` (grove's own inert
-> namespace — not Claude Code's `.claude/agents/` loader directory;
-> `adr-0008` as amended 2026-07-12).
+> payload. Canonical here, shipped in the
+> plugin payload at `plugins/grove/reference/lifecycle.md` under the
+> single version stamp (`adr-0026` D7 — no longer installed per-repo; a
+> consuming repo cites it standard-form: *"per the grove lifecycle
+> companion, `plugin@<stamp>`"*; `adr-0008` as amended).
 
 > **This file is not an agent role.** Like `grove-status.md`, it has no
 > pipeline stage and is never dispatched. It is the methodology

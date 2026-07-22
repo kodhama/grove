@@ -2,10 +2,10 @@
 ---
 id: charter-versioning
 type: charter
-status: approved  # maintainer's intent act 2026-07-12 ("#51 approved", grove#51) — in-PR flip recording the act (charters/lifecycle.md, adr-0007 precedent); conformance-reviewed against adr-0010 before approval; amended 2026-07-13 per adr-0011 (edge taxonomy split to relations.md — the `changes:` edge definition and all `depends_on`-class language moved out; version forms/pins/cross-check stay)
-depends_on: [adr-0010-versioning-is-operational, adr-0011-relations-companion]
+status: approved  # maintainer's intent act 2026-07-12 ("#51 approved", grove#51) — in-PR flip recording the act (charters/lifecycle.md, adr-0007 precedent); conformance-reviewed against adr-0010 before approval; amended 2026-07-13 per adr-0011 (edge taxonomy split to relations.md — the `changes:` edge definition and all `depends_on`-class language moved out; version forms/pins/cross-check stay); amended 2026-07-21 per adr-0026 D7 (delivery: plugin-carried under the version stamp, no longer installed per-repo)
+depends_on: [adr-0010-versioning-is-operational, adr-0011-relations-companion, adr-0026-thin-vendor-boundary]
 owner: agent
-updated: 2026-07-13
+updated: 2026-07-21
 ---
 
 # versioning — conformance-detection semantics, stated once
@@ -15,10 +15,10 @@ updated: 2026-07-13
 > machinery for the sync principle (trellis's, mechanism-free), homed in
 > grove. Origin decision: `trellis/decision-0045` (stays as the historical
 > record; semantics evolve here). Canonical at `charters/versioning.md`,
-> vendored to `plugins/grove/reference/versioning.md`, installed by
-> `/grove:setup` to each consuming project's `.grove/internal/versioning.md`
-> (grove's inert namespace — the `adr-0008` axis pattern, one file per
-> config axis).
+> shipped in the plugin payload at `plugins/grove/reference/versioning.md`
+> under the single version stamp (`adr-0026` D7 — no longer installed
+> per-repo; a consuming repo cites it standard-form: *"per the grove
+> versioning companion, `plugin@<stamp>`"*).
 
 > **This file is not an agent role.** Like `lifecycle.md`, it has no
 > pipeline stage and is never dispatched. It is the semantics statement
@@ -137,8 +137,8 @@ it set (`id@version` / `<repo>/<id>@version`).
   that taxonomy's single home is `relations.md` (`adr-0011`); where this
   file names an edge, it points there. Trellis's spine contract keeps
   shape-only, methodology-defined clauses (the maintainer's Q1 ruling);
-  the binding to this file happens through the installed
-  `.grove/internal/versioning.md`.
+  the binding to this file happens through the plugin-carried copy at
+  the consuming repo's pinned stamp (`adr-0026` D7).
 - **Practices are the artifacts' own.** design-system cuts its git
   tags; the trellis payload stamps its content-hash — this file defines
   the *forms*, it does not operate anyone's release process.

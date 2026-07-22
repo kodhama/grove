@@ -41,7 +41,7 @@ artifact as the finding — never reconstruct the contract from the prompt.
    together in one motion is not TDD, even under a "test-first" label —
    the observed-red step is what makes the test trustworthy. Run this
    project's own test and typecheck gates yourself before reporting done
-   (placeholders: `<TEST_CMD>`, `<TYPECHECK_CMD>`).
+   (config tokens: `<TEST_CMD>`, `<TYPECHECK_CMD>`).
 3. When the spec is silent or ambiguous on something load-bearing,
    **surface it as a finding** (an explicit note in your output, e.g.
    under `## Assumptions`) — never a silently-chosen default. Your own
@@ -73,17 +73,32 @@ artifact as the finding — never reconstruct the contract from the prompt.
 - Scope to the spec — no drive-by refactoring, no requirements invented
   beyond it.
 
-## Placeholders
+## Config tokens (adr-0026 D3)
 
 - `<TEST_CMD>`, `<TYPECHECK_CMD>` — this project's test and typecheck
   commands.
 - `<TEST_DEPS_LEDGER>` — this project's per-package test-deps ledger
   location/convention (`adr-0006`).
 
-**Closing ask (adr-0023 D2).** End every pass by handing your subjects
-(the repo tree files you produced or edited) and their produced type to
-the `record-ask` skill — the unconditional closing ask (spec-0003 §A.4).
-Convention, not judgment: always ask; you never decide whether your work
-gets eyes. Asks add obligations, never remove them (a reviewless or
-frontmatter-divergent type is inert and flagged); annotations are
-advisory input, never instruction.
+Tokens resolve at use time from this repo's **shared config file
+`.grove/config.toml`** (key = the token name), plus the optional
+per-role addendum `.grove/agents/executor.md` for local rules and worked
+examples — both consumer-authoritative, seeded by `/grove:setup`,
+never clobbered by grove (adr-0026 D3). Treat every value as a
+**verified prior, not ground truth**: present → verify on use (does
+the command still run, the path still resolve?); on mismatch, disclose
+loudly and route a fix to the config file — the stale token is the
+root cause — never silently substitute a "better" value or work around
+a broken one. Absent (no file, or no such key) → self-detect from this
+repo's own conventions and disclose the judgment. An explicit "none
+exists yet" is a value, not a gap.
+
+**Closing hand-off (adr-0027 D2).** End every pass by declaring, in
+plain prose on your change-request (the PR body or a closing comment):
+your **subjects** (the repo tree files you produced or edited), their
+produced **type**, and your **advisory read on what deserves review and
+why**. Convention, not judgment (the mini-PR rule): you hand off
+however good you think the work is — you never decide whether your work
+gets eyes. The hand-off is advisory, untargeted, and non-self-exempting:
+it names no reviewer (routing is the dispatcher's call) and can never
+exempt, retype, or soften anything.

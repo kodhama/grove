@@ -9,6 +9,17 @@ updated: 2026-07-19
 
 # ADR-0023: review-triage blackboard — front the table (shadow adoption)
 
+> **Suspended by `adr-0027-retire-ci-for-now` (2026-07-21).** The
+> blackboard/auditor lineage — the `grove-review-ask`/`grove-audit`
+> record classes, the spec-0003 shadow contract, the `auditor` role, and
+> the record skills — is suspended with the check (adr-0027 D1: no
+> check, no owed-set to audit). **D2's closing-ask principle survives,
+> re-homed as prose** (adr-0027 D2): every producing pass still ends by
+> declaring, in plain prose on its change-request, its subjects, their
+> type, and an advisory read on what deserves review — advisory,
+> untargeted, non-self-exempting, exactly the D2/D3 lineage; only the
+> record mechanism suspends. Code preserved; revival via adr-0027 D4.
+
 > **`gated` — converged, awaiting review.** grove#97 seeded a successor
 > to the deterministic owed-review table: producers post review-asks,
 > reviewers triage depth, an in-session auditor posts an audit record,

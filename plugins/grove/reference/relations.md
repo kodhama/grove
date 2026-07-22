@@ -2,10 +2,10 @@
 ---
 id: charter-relations
 type: charter
-status: approved  # maintainer's intent act 2026-07-13 (grove#58 "#58 approved. Passes the gate. Execute to the same PR.") — conformance-reviewed against adr-0011 before approval; in-PR flip recording the act
-depends_on: [adr-0011-relations-companion, adr-0016-implements-edge-taxonomy]
+status: approved  # maintainer's intent act 2026-07-13 (grove#58 "#58 approved. Passes the gate. Execute to the same PR.") — conformance-reviewed against adr-0011 before approval; in-PR flip recording the act; amended 2026-07-21 per adr-0026 D7 (delivery: plugin-carried under the version stamp, no longer installed per-repo)
+depends_on: [adr-0011-relations-companion, adr-0016-implements-edge-taxonomy, adr-0026-thin-vendor-boundary]
 owner: agent
-updated: 2026-07-18
+updated: 2026-07-21
 ---
 
 # relations — the artifact edge taxonomy, stated once
@@ -16,10 +16,11 @@ updated: 2026-07-18
 > home call) — and named the new provenance relation `informed_by`
 > (deliberately not `cites`, which collides with
 > `inv-directional-flow`'s own use of "cites" for the flow/dependency
-> edge). Canonical at `charters/relations.md`, vendored to
-> `plugins/grove/reference/relations.md`, installed by `/grove:setup` to
-> each consuming project's `.grove/internal/relations.md` (the `adr-0008` axis
-> pattern, one file per config axis).
+> edge). Canonical at `charters/relations.md`, shipped in the
+> plugin payload at `plugins/grove/reference/relations.md` under the
+> single version stamp (`adr-0026` D7 — no longer installed per-repo; a
+> consuming repo cites it standard-form: *"per the grove relations
+> companion, `plugin@<stamp>`"*).
 
 > **This file is not an agent role.** Like `lifecycle.md` and
 > `versioning.md`, it has no pipeline stage and is never dispatched. It

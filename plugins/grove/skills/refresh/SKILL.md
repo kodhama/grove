@@ -1,23 +1,32 @@
 ---
 name: refresh
-description: Bring an existing grove install up to the current plugin version — re-copy the grove-authoritative surfaces verbatim, port template resolutions, migrate a pre-adr-0018 layout, and never touch a consumer-authoritative file. Use when the user asks to refresh, update, upgrade, or roll out grove in a repo that already has it. First installs are /grove:setup, not this.
+description: Bring an installed grove overlay to the current plugin version — re-copy the grove-managed floor verbatim, regenerate the dial-explainer, and bump the CLAUDE.md version stamp. Never touches a consumer-authoritative file. Use when the user asks to refresh, update, upgrade, or roll out grove in a repo that already has it. First installs are /grove:setup, not this.
 ---
 
 # Refresh an installed grove overlay
 
-Setup composes grove onto a project once, interactively; **refresh brings
-an existing install to the current plugin version, mechanically.** The
-disciplines are deliberately inverted: setup asks before every overwrite
-(non-clobber, the file might be the consumer's); refresh re-copies the
-grove-authoritative surfaces **without asking** (they are grove's, vendored,
-regenerated on update — `adr-0018` D5) and **never touches** the
-consumer-authoritative ones. Everything in this skill hangs off that
-authority split — when in doubt about a file, treat it as
-consumer-authoritative and leave it alone, flagging it in the hand-back.
+Setup composes grove's repo-owned floor onto a project once, interactively;
+**refresh brings an existing install to the current plugin version,
+mechanically.** Since `adr-0026` the agent fleet is plugin-carried
+(`grove:<role>`, auto-loaded), so a fleet update is a **plugin update, not a
+repo edit** — what refresh maintains in the repo is only the thin floor:
 
-Provenance: distilled from the 2026-07-21 fleet rollout (math-quest
-refresh + trellis/wisp/design-system layout migrations), the third
-hand-derived refresh — the repetition that justified this skill.
+1. **floor re-copy** — the grove-managed machinery, verbatim;
+2. **dial-explainer regeneration** — `.grove/README.md`;
+3. **stamp bump** — the CLAUDE.md `grove plugin@<version>` record (`adr-0026`
+   D4), which is where a fleet update gets its in-repo review seam (the PR
+   that lands the bump links the release changelog).
+
+The old refresh's three-way charter-merge engine is **retired entirely**
+(`adr-0026` D6 — there are no vendored charters left to merge in a
+thin-vendor install; the merge class is deleted, not mitigated).
+
+The disciplines are deliberately inverted from setup's: setup asks before
+every overwrite (the file might be the consumer's); refresh re-copies the
+**grove-managed** surfaces without asking (they are grove's, regenerated on
+update — `adr-0018` D5) and **never touches** the consumer-authoritative
+ones. When in doubt about a file, treat it as consumer-authoritative and
+leave it alone, flagging it in the hand-back.
 
 ## 0. Work in a fresh working copy
 
@@ -26,156 +35,99 @@ If there is **any** possibility of in-flight work in the local checkout
 worktree** — never the shared checkout. The plugin source
 (`${CLAUDE_PLUGIN_ROOT}`) is **read-only** throughout.
 
-## 1. Read the installed state
+## 1. Read the installed state — and gate on the install's generation
 
-- **Version stamp:** the `grove plugin@<sha>` line inside CLAUDE.md's
-  `grove:begin`/`grove:end` block. Record old → new
-  (`git -C "${CLAUDE_PLUGIN_ROOT}" rev-parse --short HEAD`; `unknown` if
-  not a checkout — an honest stamp beats none). A missing stamp is a
-  finding, not a blocker: proceed by content-diff and **add** the stamp.
-- **Layout generation:** companions at `.grove/` **root** = pre-`adr-0018`
-  → step 4 (migration) applies. Companions under `.grove/internal/` =
-  modern → skip step 4.
-- **What's installed:** which roles in `.claude/agents/`, whether the
-  check is installed (`.grove/internal/check/` + the workflow +
-  `.grove/review.toml`), whether gates machinery exists
-  (`.grove/internal/gates/` + `.grove/gates.toml`), and whether the
-  optional telemetry skill is installed
-  (`.claude/skills/grove-status/SKILL.md` — setup step 9).
+- **Version stamp:** the `grove plugin@<version>` line inside CLAUDE.md's
+  `grove:begin`/`grove:end` block. Record old → new (new = the `version`
+  field of `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`). **Disclose
+  the comparison loudly** (`adr-0026` D4) — including the case where the
+  stamp already differs from what a collaborator's install would run. An
+  older `plugin@<git-sha>` stamp form, or a missing stamp, is a finding, not
+  a blocker: proceed and land the current-form stamp.
+- **Generation gate — pre-`adr-0026` installs stop here.** If the repo still
+  carries a **vendored fleet** (grove role files in `.claude/agents/` —
+  charter-length role definitions, possibly locally adapted) or **installed
+  companions** (`.grove/lifecycle.md`, `.grove/versioning.md`,
+  `.grove/relations.md`, or their `.grove/internal/` forms), this install
+  predates the thin-vendor boundary. **Do not half-refresh it**: harvesting
+  local charter adaptations into `.grove/config.toml` / `.grove/agents/`
+  addenda and deleting the vendored copies is the one-time **D6 migration
+  campaign** (grove#116), a reviewed pass of its own, not this skill. Say so,
+  point at the campaign, and stop — a stamp bump on an unmigrated layout
+  would record a version whose shape the repo doesn't have.
+- **What's installed:** gates machinery (`.grove/internal/gates/` +
+  `.grove/gates.toml`), the shared config (`.grove/config.toml`), the
+  dial-explainer (`.grove/README.md`), and whether the optional telemetry
+  skill is installed (`.claude/skills/grove-status/SKILL.md`).
+- **Retired CI check (pre-adr-0027 installs):** a repo may still carry the
+  retired review-bookkeeping check — `.grove/internal/check/`, the
+  `.github/workflows/grove-review-bookkeeping.yml` workflow,
+  `.grove/review.toml`, `.grove/internal/review-wiring.toml`. Refresh **no
+  longer maintains those** (grove stopped vendoring CI carriers); do not
+  re-copy or update them — flag their presence in the hand-back and point at
+  adr-0027 (removal is `/grove:remove`'s check step, the consumer's call).
 
 ## 2. The authority split — the load-bearing table
 
-**Grove-authoritative — re-copy VERBATIM, no asking** (delete files that
-no longer exist upstream; never copy grove's `test/` dirs or
-`test-deps.md`):
+**Grove-managed — re-copy VERBATIM, no asking** (delete files that no longer
+exist upstream; never copy grove's `test/` dirs or `test-deps.md`):
 
 | Destination | Source |
 |---|---|
-| `.grove/internal/check/{lib,shell,bin,package.json}` *(if check installed)* | `${CLAUDE_PLUGIN_ROOT}/check/` |
 | `.grove/internal/gates/{lib,bin,package.json}` | `${CLAUDE_PLUGIN_ROOT}/gates/` |
 | `.grove/internal/enforcement.toml` | `reference/gates/enforcement.toml` |
-| `.grove/internal/{lifecycle,versioning,relations}.md` | `reference/{lifecycle,versioning,relations}.md` — strip a first-line `<!-- vendored from … -->` comment |
+
+**Grove-managed — regenerate:** `.grove/README.md`, the dial-explainer
+(setup step 4's content, citing the companions standard-form with the new
+stamp). If the consumer hand-edited it, flag the overwrite in the hand-back —
+its own header says it is regenerated.
 
 **Resolved-template class — diff the template; if it changed, re-copy it
-re-applying the resolutions the install already made** (read the resolved
-values out of the currently-installed file; the resolutions are the
-consumer's, the template is grove's):
+re-applying the resolutions the install already made** (the resolutions are
+the consumer's, the template is grove's):
 
-- `.github/workflows/grove-review-bookkeeping.yml` *(if check installed)* —
-  resolutions: `<INSTALL_PATH>`, `<NODE_VERSION>`.
-- `.grove/internal/review-wiring.toml` *(if check installed)* —
-  resolutions: the two carrier-path keys.
 - `.claude/skills/grove-status/SKILL.md` *(if the telemetry skill is
-  installed — setup step 9)* ← `reference/skills/grove-status/SKILL.md`,
-  vendoring header stripped — resolution: `<WISP_VENDOR_PATH>`, read from
-  the installed copy; drop its `## Placeholders` section once resolved
-  (setup step 9's closing instruction — the reference copy carries one).
-
-**Agent charters (`.claude/agents/`) — the same idea, per role:**
-
-- A role whose reference charter is **unchanged** since the installed
-  version: leave the installed copy **byte-untouched**.
-- A role whose reference charter **changed**: **three-way merge, never a
-  blind re-copy** — base = the reference charter at the *installed*
-  version, local = the installed copy, remote = the current reference
-  (e.g. `git merge-file`; header-stripped throughout). The reason: an
-  installed charter may carry **non-token local adaptations** (project
-  idioms, worked examples, localized rules) that "new text + token
-  re-application" silently drops — a lossy path two repos hit in the
-  2026-07-21 rollout (design-system's pinned-tag rule; wisp's
-  machinery-absent adaptations). Resolve conflicts with **upstream
-  winning where content genuinely competes** (the reference is grove's),
-  local adaptations kept where they merely extend; re-apply token
-  values; drop `## Placeholders`. **Flag every conflict resolution and
-  every kept local adaptation in the hand-back.** *(No stamp / the
-  installed-version reference unavailable → fall back to a careful
-  two-way diff of installed vs current reference, same flagging.)*
-- A role **added** upstream since the install: copy it in, resolve every
-  `<[A-Z_]+>` token — **port-first** (the same token's resolved value in
-  this repo's other installed roles), else **derive** from the repo's own
-  conventions (package.json scripts, docs), else the honest explicit
-  *"none exists yet — flagged rather than silently assumed"* statement
-  (setup step 3's idiom). Drop `## Placeholders` once resolved.
-- **Grove-self-relative paths are not tokens but still need adapting:**
-  a reference charter may carry paths that only resolve in the grove repo
-  itself (e.g. `plugins/grove/check/lib/…`, a bare `charters/…` file). A
-  verbatim copy would dangle in the consumer. Adapt each: an installed
-  counterpart exists → the install-layout path (`.grove/internal/check/…`);
-  grove-only content → the absolute grove URL (the grove#55 convention).
-  **Flag every such adaptation in the hand-back** — it is a judgment,
-  not a copy. *(Surfaced by the auditor charter in the 2026-07-21
-  rollout, math-quest #329.)*
-- `.claude/agents/README.md`: update the roster prose; keep the
-  repo-specific resolved prose.
-- Removing a role the consumer chose at setup is **not** refresh's call —
-  refresh adds and updates, never subtracts roles.
+  installed)* ← `reference/skills/grove-status/SKILL.md`, vendoring header
+  stripped — resolution: `<WISP_VENDOR_PATH>`, read from the installed copy;
+  drop its `## Placeholders` section once resolved.
 
 **Consumer-authoritative — NEVER touch:** `.grove/gates.toml`,
-`.grove/review.toml` (including its allowlist), `decisions/`, `specs/`,
-the repo's own code and docs — with exactly one carve-out: step 4's
-**migration repointing** edits consumer files, but only the stale
-old-root companion paths in them, each edit listed in the hand-back. A
-refresh that "fixes" any other consumer content is a clobber, not a
-refresh.
+`.grove/config.toml`, the `.grove/agents/` addenda, `.grove/review.toml`
+where a pre-adr-0027 install left one, `decisions/`, `specs/`, the repo's own
+code and docs, and anything in `.claude/agents/` (a repo's **own** roles live
+there — `adr-0026` D5 — and are none of grove's business). A refresh that
+"fixes" consumer content is a clobber, not a refresh. Stale `config.toml`
+values are the **agents'** job to catch at use time (the D3 verified-prior
+posture), never refresh's to rewrite.
 
-**CLAUDE.md — managed block only:** update the roles phrase and the
-`grove plugin@<sha>` stamp **between the markers**, nothing else. Setup
-step 6's discipline verbatim: pre-edit copy first; after, exactly one
-`grove:begin` and one `grove:end`, and a diff against the pre-edit copy
-showing changes only between them. A misfire fires `adr-0003`'s trigger —
-report it, never leave a mangled CLAUDE.md.
+**CLAUDE.md — managed block only:** update the block text to setup step 6's
+current form and the `grove plugin@<version>` stamp **between the markers**,
+nothing else. Setup step 6's discipline verbatim: pre-edit copy first; after,
+exactly one `grove:begin` and one `grove:end`, and a diff against the
+pre-edit copy showing changes only between them. A misfire fires `adr-0003`'s
+trigger — report it, never leave a mangled CLAUDE.md.
 
-## 3. Placeholder hygiene
-
-When step 2 is done: `grep -rn '<[A-Z_]\+>' .claude/agents/` must return
-**zero** matches. A leftover token is an unfinished refresh, not a nit.
-
-## 4. Layout migration (pre-`adr-0018` installs only)
-
-- Delete the root companions (`.grove/lifecycle.md`, `.grove/versioning.md`,
-  `.grove/relations.md`); land fresh copies in `.grove/internal/` (step 2
-  table).
-- **Update every pointer:** `grep -rn '\.grove/\(lifecycle\|versioning\|relations\)'`
-  across the repo (excluding `.git`) and repoint each old-root reference
-  to `.grove/internal/…`. List every updated pointer in the hand-back;
-  flag an ambiguous one rather than guessing.
-- If the install predates the gates machinery entirely (no
-  `.grove/internal/gates/`, no `.grove/gates.toml`): install it per setup
-  step 2a — the machinery copies are mechanical, but the **preset choice
-  is the consumer's** (ask, `steward` default — this is the one
-  interactive moment a migration can have; a plain refresh has none).
-  Validate with `node .grove/internal/gates/bin/resolve-profile.mjs
-  .grove/gates.toml` → exit 0.
-
-## 5. Verify — every claim empirically, before handing back
+## 3. Verify — every claim empirically, before handing back
 
 - `node .grove/internal/gates/bin/resolve-profile.mjs .grove/gates.toml`
   exits 0.
-- `node --check` passes on the refreshed runtime's entry points (at
-  minimum `check/bin/check.mjs`, `check/bin/preview.mjs`,
-  `gates/bin/resolve-profile.mjs` — those that exist).
-- *(check installed)* The refreshed runtime parses this repo's own policy
-  (`parseToml` over `.grove/review.toml` succeeds), and the live proof:
-  `node .grove/internal/check/bin/preview.mjs` runs exit-0 and prints the
-  branch's owed-map — the refreshed machinery working on the very change
-  that refreshes it.
-- Placeholder grep (step 3) returns zero.
-- `git status --short` touches **only**: `.grove/`, `.claude/agents/`,
-  `.claude/skills/grove-status/` (if the telemetry skill was refreshed),
-  CLAUDE.md, the workflow file (if re-copied), and step-4 pointer files.
-  Anything else in the diff is a bug in this refresh — fix or revert it.
+- `node --check` passes on the refreshed runtime's entry points (at minimum
+  `.grove/internal/gates/bin/resolve-profile.mjs`).
+- `git status --short` touches **only**: `.grove/internal/`,
+  `.grove/README.md`, `.claude/skills/grove-status/` (if the telemetry skill
+  was refreshed), and CLAUDE.md. Anything else in the diff is a bug in this
+  refresh — fix or revert it.
 
-## 6. Hand back
+## 4. Hand back
 
-Setup step 12's restraint applies — **perform no git of your own**: no
-add, commit, branch, push, or PR — with one carve-out setup does not
-have (stated here as this skill's own rule, not attributed to setup):
-when the user has **explicitly directed a landing** (e.g. "open the
-PR"), follow their direction exactly and stop at their gate; never
-merge. Report: old →
-new stamp, every surface re-copied, every template re-resolution and
-ported value, every added role with each token's resolution provenance
-(port / derive / honest-absent), every pointer updated by a migration,
-the verification results, and — plainly — anything you were unsure of.
-The consumer-authoritative surfaces you did not touch are part of the
-report, not an omission.
+Setup step 11's restraint applies — **perform no git of your own**: no add,
+commit, branch, push, or PR — with one carve-out setup does not have (stated
+here as this skill's own rule): when the user has **explicitly directed a
+landing** (e.g. "open the PR"), follow their direction exactly and stop at
+their gate; never merge. Report: old → new stamp (and the loud D4 disclosure
+of any divergence found), every surface re-copied or regenerated, the
+template re-resolution if any, every legacy piece flagged (pre-adr-0027 CI
+carriers; a pre-adr-0026 layout means you stopped and pointed at the
+migration), the verification results, and — plainly — anything you were
+unsure of. The consumer-authoritative surfaces you did not touch are part of
+the report, not an omission.

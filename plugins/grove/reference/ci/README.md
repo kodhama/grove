@@ -1,5 +1,14 @@
 # The grove review-bookkeeping check
 
+> **Retired for now (`adr-0027-retire-ci-for-now`, 2026-07-21).** grove
+> no longer vendors this CI check: setup does not offer it and the
+> `check-install` skill is retired. These templates and the runtime
+> (`plugins/grove/check/`) are **preserved, dormant**, so that adr-0027
+> D4's revival route — a provider-agnostic installer, when a real
+> enforcement need returns — is a re-wiring, not a rebuild. Nothing
+> below is installed today; `/grove:remove` still reverses historical
+> installs.
+
 Consumer orientation for the optional GitHub CI check grove installs
 (`spec-0002`, `adr-0012` Layer A). Install it via `/grove:setup`
 (offered during install) or standalone, any time later, with
