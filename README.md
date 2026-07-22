@@ -97,7 +97,7 @@ the checkpoint-resume bounds shared with `run-resumer`.
 The canonical route is the Claude Code plugin (kodhama-0002 §3):
 
 ```
-/plugin marketplace add kodhama/kodhama
+/plugin marketplace add kodhama/stewards
 /plugin install grove@kodhama
 /grove:setup
 ```

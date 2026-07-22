@@ -9,7 +9,7 @@ ever vendored into your repo.
 ## Install
 
 ```
-/plugin marketplace add kodhama/kodhama
+/plugin marketplace add kodhama/stewards
 /plugin install grove@kodhama
 ```
 
