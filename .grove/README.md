@@ -22,10 +22,24 @@ of running inside the repo that authors the payload. Effect of each dial:
   examples) a generic `grove:<role>` agent reads when present. None
   authored here yet.
 
+**How the fleet loads.** The thirteen roles ship in
+`plugins/grove/agents/` as `grove:<role>` subagents (`adr-0026` D1) — but
+they are **not** auto-loaded just by living in this tree. To run them
+against your own working copy — the dogfood path, including charter edits
+on an unmerged branch — launch with `claude --plugin-dir ./plugins/grove`,
+which loads the payload **live from the working tree** for that session
+(and `/reload-plugins` re-reads it within a session). Without the flag, a
+session gets `grove:<role>` only from an *installed* grove plugin, which
+reflects the last **published** version — not your edits. Do **not**
+reintroduce a `.claude/agents/` copy of the fleet to shortcut this: a
+project-tier agent shadows the `--plugin-dir` payload (precedence:
+Project > Plugin), silently overriding your live edits — the very
+copy-drift `adr-0026` P1 retired.
+
 **No version stamp here.** Consuming repos record `grove plugin@<version>`
-in their CLAUDE.md managed block (`adr-0026` D4); grove-self runs the
-canonical `charters/` and the payload in this same tree, so there is
-nothing to pin. The operating model itself (lifecycle enum, versioning
+in their CLAUDE.md managed block (`adr-0026` D4); grove-self loads its
+fleet from this same tree via `--plugin-dir` (above), so there is no
+published version to pin. The operating model itself (lifecycle enum, versioning
 grammar, edge taxonomy) is not restated here either (`adr-0008`): it is
 canonical in `charters/{lifecycle,versioning,relations}.md` and
 plugin-carried for consumers (`adr-0026` D7).
