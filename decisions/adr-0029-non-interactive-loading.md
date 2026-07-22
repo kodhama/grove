@@ -1,7 +1,7 @@
 ---
 id: adr-0029-non-interactive-loading
 type: adr
-status: draft  # drafted 2026-07-22 from the grove#125 investigation (two sessions: docs research + a live cloud_default verification); Recipe B agreed by the maintainer in-session. NOT ratified — awaits grove:decision-adversary, then the human intent gate (profile: intent = human). This flip records the act, it does not perform it.
+status: gated  # drafted 2026-07-22 from the grove#125 investigation; Recipe B agreed by the maintainer in-session. grove:decision-adversary NEEDS-REVISION → F1 (an internal-coherence overclaim of #127's role, verified against source) + F2 (a verification-phrasing hedge) folded; the crux (A-rejection, adr-0026 preserved, adr-0027 consistency, undocumented-behavior priced-and-gated) held SOUND. Converged, AWAITS the human intent gate (profile: intent = human). This flip records the act, it does not perform it.
 depends_on: [adr-0026-thin-vendor-boundary, charter-versioning]
 informed_by: [adr-0027-retire-ci-for-now, adr-0028-plugin-release-tagging]
 owner: agent
@@ -45,7 +45,8 @@ this decides how grove closes it **without re-vendoring**.
   claude plugin install grove@kodhama --scope user || true
   ```
   The install lands in the plugin cache before launch → `grove:<role>`
-  present on turn 1, skipping the first-session auto-sync race (anthropics/
+  **expected** on turn 1 (predicted; AC2 verifies it end-to-end before
+  rollout), skipping the first-session auto-sync race (anthropics/
   claude-code#63028). **Nothing is added to the consumer repo → `adr-0026`
   intact.** **Org-shared environments** carry the Setup-script for every
   member, which is the *uniform rollout* grove#125 asked for.
@@ -58,9 +59,17 @@ this decides how grove closes it **without re-vendoring**.
   | **Headless `claude -p`** | `--plugin-dir` / `--plugin-url` (do not rely on default auto-sync) |
   | **Agent SDK** | `plugins: [{ type: "local", path }]` (marketplace install is not available to the SDK) |
   The consumer's committed `.claude/settings.json` (`enabledPlugins` +
-  `extraKnownMarketplaces`, per #127) remains the **resolution** floor every
-  surface builds on; it is necessary everywhere and sufficient only where the
-  surface auto-installs.
+  `extraKnownMarketplaces`, per #127) is a **baseline resolution + intent
+  declaration** — it makes `@kodhama` resolvable and names the plugin. It is
+  the **load path only on surfaces that auto-install from committed settings**
+  (default non-bare headless, per docs — pending AC2-class verification), where
+  it is both necessary and sufficient; interactive local resolves + declares
+  from it but still needs a one-time install confirm. On the **explicit-path
+  surfaces** (cloud, CI, bare headless, SDK) each mechanism **re-declares the
+  marketplace/plugin independently** — D2's cloud recipe runs `plugin
+  marketplace add` + `plugin install` itself — so there the committed settings
+  are a baseline declaration of intent, **not** the load path (redundant for
+  loading, not necessary).
 
 - **D4 — grove owns the uniform rollout** *(maintainer-accepted; grove#125's
   ask)*. Consumers do not each patch independently (drift). grove provides
@@ -86,9 +95,11 @@ this decides how grove closes it **without re-vendoring**.
   fleet stays plugin-carried, never re-vendored. D1 is a direct consequence.
 - **adr-0027**: CI retirement — the CI load path (D3, action inputs) is
   consistent with it (deterministic install-before-run, no bookkeeping check).
-- **grove#127** (merged, `b9f0c83`): committed `extraKnownMarketplaces` — the
-  resolution floor D3 builds on. Necessary; this ADR settles what makes it
-  *sufficient* per surface.
+- **grove#127** (merged, `b9f0c83`): committed `extraKnownMarketplaces` — a
+  **baseline resolution + intent declaration**, the load path on auto-install
+  surfaces; on the explicit-path surfaces each mechanism re-declares
+  independently (D3), so #127 is a baseline there, not the load path. This ADR
+  settles the per-surface load path.
 
 ## Honest costs (surfaced, not buried)
 
@@ -135,7 +146,8 @@ this decides how grove closes it **without re-vendoring**.
    `setup`/`refresh` step or skill that emits the cloud Setup-script + the CI
    action inputs + the headless/SDK guidance, uniformly for consumers. Its own
    reviewed step (AC3).
-2. **grove#127** stands (the resolution floor); the READMEs' install route is
+2. **grove#127** stands (the baseline resolution + intent declaration — not
+   the load path on explicit-path surfaces, D3); the READMEs' install route is
    corrected to `kodhama/stewards` (grove#128, merged).
 3. **grove#125 closes** when D2 is verified end-to-end (AC2) and the rollout
    carrier lands.
