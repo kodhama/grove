@@ -1,7 +1,7 @@
 ---
 id: adr-0028-plugin-release-tagging
 type: adr
-status: draft  # drafted 2026-07-22 from the settled in-session shaping with the maintainer; NOT ratified — awaits decision-adversary, then the human intent gate (profile: intent = human). The flip to approved records the maintainer's act; this draft does not perform it.
+status: gated  # drafted 2026-07-22 (in-session shaping); decision-adversary NEEDS-REVISION → F1 (a false validator-backstop claim) verified against source + folded, F2–F5 precision notes folded, the crux (adr-0027 consistency) held SOUND; converged, AWAITS the human intent gate (profile: intent = human). The flip to approved records the maintainer's act; this does not perform it.
 depends_on: [adr-0026-thin-vendor-boundary, charter-versioning]
 informed_by: [adr-0027-retire-ci-for-now, adr-0010-versioning-is-operational]
 owner: agent
@@ -41,9 +41,11 @@ defines the *forms*, it does not operate anyone's release process").
   `grove-vX.Y.Z`), not a significance counter or a content hash. The
   "human-cut" act is the maintainer **approving and merging the PR that
   bumps `plugin.json`** — that merge is where judgment (the level) and the
-  human gate both happen (adr-0026 D4: "bumped only by PR … the PR is where
-  a fleet update gets its in-repo review seam … links the release
-  changelog"). This **resolves the doctrine question** the practice raised:
+  human gate both happen. (adr-0026 D4 makes the *consumer's* `grove
+  plugin@<version>` **stamp** a PR-bumped, review-seamed, changelog-linked
+  act; grove's own **manifest** bump on the source side is the parallel act —
+  this ADR sets that practice rather than quoting D4's consumer-stamp seam
+  for it.) This **resolves the doctrine question** the practice raised:
   "human-cut" names the *release boundary a human owns*, not a requirement
   that a human type `git tag`. The tag is the deterministic materialization
   of a release the human has **already** cut.
@@ -59,19 +61,33 @@ defines the *forms*, it does not operate anyone's release process").
     by semver convention);
   - **major** — reserved for post-`1.0` breaking changes.
 
-  `validator`'s existing **"version-bump drift trigger"** (versioning.md)
-  covers the manifest: a fleet-changing PR that ships a behavior change with
-  **no** `plugin.json` bump is flagged. The human's bookkeeping stays at
-  **zero** — the agent proposes, the human ratifies the level by merging.
+  The control on a *missing* bump is the **human ratifying the visible
+  version diff at merge** — the bump, or its absence, is right there in the
+  PR's `plugin.json` change. `validator`'s existing version-bump trigger does
+  **not** cover this: that trigger fires *after* a bump lands and checks
+  downstream **pin-lag** (consumers trailing the new version —
+  `plugins/grove/agents/validator.md`, versioning.md), never the *absence* of
+  a bump. Catching an omitted bump mechanically would be a **new remit
+  extension to build** (Propagation 3), not an existing capability. The
+  human's bookkeeping stays at **zero** — the agent proposes the level, the
+  human ratifies it by merging.
 
 - **D4 — the tag is materialized by a deterministic, idempotent CI job in
   grove's own `.github/`, in its OWN workflow** *(maintainer, 2026-07-22)*.
   On push to `main` (path-filtered to the manifest), a job creates
   `grove-v<version>` **iff that tag does not already exist**. Properties:
-  **idempotent** (`tag = f(manifest)`; re-runs no-op; if CI ever misses a
-  bump, the next push re-checks and tags — self-healing); **tag-only** (no
-  PR, no Release object, no gate — it **blocks nothing**); **zero-judgment**
-  (the judgment already happened upstream, D3). It lives in a dedicated
+  **idempotent** (`tag = f(manifest)`; re-runs no-op — the current head
+  converges to its tag once any manifest-touching push succeeds). It is *not*
+  self-healing across a **skipped** version: because the job is path-filtered
+  to the manifest and tags the *then-current* version, a version whose tag
+  failed during an outage is not recovered by a later bump (that push carries
+  a new version and tags it) — it needs a hand-cut, exactly like the one-time
+  `grove-v0.1.0` seed (Consequences 2). **tag-only** (no PR, no Release
+  object, no gate — it **blocks nothing**); **zero-judgment** (the judgment
+  already happened upstream, D3). **No recursion**: the tag push does not
+  match `push: branches: [main]`, and pushes made with the default
+  `GITHUB_TOKEN` do not spawn new workflow runs — so neither this job nor
+  `grove-tests.yml` retriggers. It lives in a dedicated
   `release-tag.yml`, **not** folded into `grove-tests.yml`, because it has a
   **different trigger** (push-to-`main`-only vs PR+push), a **different
   permission** (`contents: write` vs `read` — isolated and auditable), and a
@@ -113,8 +129,10 @@ stays"** — the tag job is on the "stays" side.
   defines grove's plugin release **practice** and **does not amend**
   versioning.md's forms.
 - **adr-0027 D4**: the check "never needed Claude — it runs in GitHub
-  Actions"; deterministic mechanical work belongs in Actions. `grove-tests.yml`
-  kept through the retirement.
+  Actions," and installing it via the plugin "was a coupling smell." *(That
+  deterministic mechanical work therefore belongs in Actions is this ADR's
+  inference from D4, not D4's decided text.)* `grove-tests.yml` kept through
+  the retirement.
 
 ## Honest costs (surfaced, not buried)
 
@@ -130,10 +148,13 @@ stays"** — the tag job is on the "stays" side.
 3. **Mechanism ahead of its consumer.** Nothing pins the tag yet. Counter:
    standalone navigability value now, ~20 lines of YAML, and the anchor
    exists from `0.1.0`.
-4. **The bump level is judgment, so it can be misjudged.** But it is off the
-   human (agent proposes, human ratifies at merge), `validator` backstops,
-   and a wrong level is **disclosed skew** (the adr-0026 D4 idiom), not
-   breakage.
+4. **The bump level is judgment, so it can be misjudged — and no mechanical
+   check catches an *omitted* bump today** (validator's trigger checks
+   downstream pin-lag *after* a bump, not its absence — the adversary's F1).
+   The control is the human ratifying the visible `plugin.json` diff at merge;
+   a wrong-or-missing level is **disclosed skew** (the adr-0026 D4 idiom), not
+   breakage. Mechanical missing-bump detection is a possible future remit
+   extension (Propagation 3), not claimed here.
 
 ## Rejected options
 
