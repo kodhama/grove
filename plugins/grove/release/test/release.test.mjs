@@ -3,7 +3,15 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -18,8 +26,14 @@ import {
   validateSurfaceMatrix,
   validateVersionText,
 } from '../lib/release.mjs';
+import {
+  ensureFreshOutputRoot,
+  prepareCodexSupportProbe,
+  validateCodexExecEvidence,
+} from '../lib/codex-probe.mjs';
 
 const execFileAsync = promisify(execFile);
+const REPOSITORY_ROOT = resolve(import.meta.dirname, '..', '..', '..', '..');
 const fixtureRoots = new Set();
 
 after(async () => {
@@ -285,6 +299,243 @@ test('INV15/S11 — actual package composes and discovers its inventory-derived 
   assert.match(stdout, /package smoke passed/i);
   assert.match(stdout, /12 native/i);
   assert.match(stdout, /2 driving/i);
+});
+
+test('INV20/S18 — probe preparation isolates candidate state without launching Codex', async () => {
+  const root = await fixtureRoot();
+  const outputRoot = join(root, 'codex-probe');
+  const result = await prepareCodexSupportProbe({
+    repositoryRoot: REPOSITORY_ROOT,
+    outputRoot,
+    repositoryCommit: 'test-commit',
+    requireCleanGit: false,
+    verifyCandidate: false,
+  });
+
+  const manifest = JSON.parse(await readFile(join(outputRoot, 'probe-manifest.json'), 'utf8'));
+  const marketplace = JSON.parse(await readFile(
+    join(outputRoot, 'marketplace', '.agents', 'plugins', 'marketplace.json'),
+    'utf8',
+  ));
+  const runner = await readFile(join(outputRoot, 'run-probe.mjs'), 'utf8');
+  const launchers = await readdir(join(outputRoot, 'consumer', '.codex', 'agents'));
+  const config = await readFile(join(outputRoot, 'consumer', '.grove', 'config.toml'), 'utf8');
+  const addendum = await readFile(join(outputRoot, 'consumer', '.grove', 'agents', 'executor.md'), 'utf8');
+  const probeConfig = await readFile(join(outputRoot, 'codex-home', 'config.toml'), 'utf8');
+  const drivingPrompt = await readFile(
+    join(outputRoot, 'prompts', '01-driving-session.md'),
+    'utf8',
+  );
+  const nativePrompt = await readFile(
+    join(outputRoot, 'prompts', '02-native-batch-1.md'),
+    'utf8',
+  );
+  const scopedPrompt = await readFile(
+    join(outputRoot, 'prompts', '06-scoped-dispatcher.md'),
+    'utf8',
+  );
+  const configPrompt = await readFile(
+    join(outputRoot, 'prompts', '07-config-addendum.md'),
+    'utf8',
+  );
+  const help = await execFileAsync(process.execPath, [join(outputRoot, 'run-probe.mjs'), '--help']);
+
+  assert.equal(result.codexLaunched, false);
+  assert.equal(manifest.surface_id, 'codex-exec-non-ephemeral');
+  assert.equal(manifest.repository_commit, 'test-commit');
+  assert.equal(manifest.expected.native.length, 12);
+  assert.equal(manifest.expected.driving_session.length, 2);
+  assert.deepEqual(manifest.phases.map((phase) => phase.expected_count), [2, 4, 4, 4, 2, 1, 1]);
+  assert.deepEqual(
+    marketplace.plugins[0].source,
+    { source: 'local', path: './plugins/grove' },
+  );
+  assert.equal(launchers.filter((name) => name.endsWith('.toml')).length, 12);
+  assert.match(config, /fixture-support-command-030/);
+  assert.match(addendum, /fixture-executor-addendum-030/);
+  assert.match(probeConfig, /cli_auth_credentials_store = "file"/);
+  assert.match(probeConfig, /max_concurrent_threads_per_session = 1/);
+  assert.doesNotMatch(drivingPrompt, new RegExp(manifest.expected.driving_session[0].digest));
+  assert.doesNotMatch(nativePrompt, new RegExp(manifest.expected.native[0].digest));
+  assert.doesNotMatch(nativePrompt, new RegExp(manifest.expected.native[0].source));
+  assert.doesNotMatch(scopedPrompt, /scoped-advisor/);
+  assert.doesNotMatch(configPrompt, /fixture-support-command-030/);
+  assert.doesNotMatch(configPrompt, /fixture-executor-addendum-030/);
+  assert.match(runner, /CODEX_HOME/);
+  assert.match(runner, /codex exec/);
+  assert.doesNotMatch(runner, /--ephemeral/);
+  assert.doesNotMatch(runner, /\.\.\.process\.env/);
+  assert.match(runner, /activeChild === childForSignal/);
+  assert.match(runner, /terminatePid\(pid, 'SIGKILL'\)/);
+  assert.match(help.stdout, /external Terminal/);
+  assert.equal(await readdir(join(outputRoot, 'codex-home')).then((items) => items.length), 2);
+
+  const resultsMarker = join(outputRoot, 'results', 'keep.txt');
+  const retainedRoleProof = join(outputRoot, 'logs', '02-native-batch-1-agent-metadata.json');
+  await writeFile(resultsMarker, 'retain\n');
+  await writeFile(
+    retainedRoleProof,
+    `${JSON.stringify([{
+      thread_id: 'child-1',
+      observed_agent_role: 'grove_executor',
+      observed_parent_thread_id: 'root',
+      observed_cli_version: '0.145.0',
+      session_meta_sha256: 'a'.repeat(64),
+    }])}\n`,
+  );
+  manifest.paths.sqlite_home = 'results';
+  await writeFile(join(outputRoot, 'probe-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  await assert.rejects(
+    execFileAsync(process.execPath, [join(outputRoot, 'run-probe.mjs'), '--sanitize']),
+    /manifest path sqlite_home/i,
+  );
+  assert.equal(await readFile(resultsMarker, 'utf8'), 'retain\n');
+
+  manifest.paths.sqlite_home = 'codex-sqlite';
+  await writeFile(join(outputRoot, 'probe-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  const sqliteMarker = join(outputRoot, 'codex-sqlite', '.grove-probe-state.json');
+  const marker = JSON.parse(await readFile(sqliteMarker, 'utf8'));
+  await rm(sqliteMarker);
+  await assert.rejects(
+    execFileAsync(process.execPath, [join(outputRoot, 'run-probe.mjs'), '--sanitize']),
+    /ENOENT|probe state marker/i,
+  );
+  await writeFile(sqliteMarker, `${JSON.stringify({ ...marker, repository_commit: 'other' })}\n`);
+  await assert.rejects(
+    execFileAsync(process.execPath, [join(outputRoot, 'run-probe.mjs'), '--sanitize']),
+    /probe state marker does not match/i,
+  );
+  await writeFile(sqliteMarker, `${JSON.stringify(marker)}\n`);
+  await execFileAsync(process.execPath, [join(outputRoot, 'run-probe.mjs'), '--sanitize']);
+  assert.equal(await readFile(resultsMarker, 'utf8'), 'retain\n');
+  assert.match(await readFile(retainedRoleProof, 'utf8'), /observed_agent_role/);
+  await assert.rejects(readFile(join(outputRoot, 'codex-home', 'config.toml')), /ENOENT/);
+});
+
+test('INV20 — probe output containment rejects a symlink into the repository', async () => {
+  const root = await fixtureRoot();
+  const repositoryRoot = join(root, 'repository');
+  const inside = join(repositoryRoot, 'probe-output');
+  const outsideAlias = join(root, 'outside-alias');
+  await mkdir(inside, { recursive: true });
+  await symlink(inside, outsideAlias);
+  await assert.rejects(
+    ensureFreshOutputRoot(repositoryRoot, outsideAlias),
+    /symbolic link|outside the repository/i,
+  );
+});
+
+test('S18 — raw Codex events must prove exact sequential custom-agent invocations', () => {
+  const expected = [
+    {
+      native_id: 'grove_executor',
+      invocation: 'EXECUTOR-CHALLENGE',
+      required_observations: ['cold-native'],
+    },
+    { native_id: 'grove_code_reviewer', invocation: 'REVIEWER-CHALLENGE' },
+  ];
+  const spawn = (threadId, invocation) => ({
+    type: 'item.completed',
+    item: {
+      type: 'collab_tool_call',
+      tool: 'spawn_agent',
+      status: 'completed',
+      prompt: `return ${invocation}`,
+      sender_thread_id: 'root',
+      receiver_thread_ids: [threadId],
+      agents_states: { [threadId]: { status: 'running', message: null } },
+    },
+  });
+  const wait = (threadId, invocation) => ({
+    type: 'item.completed',
+    item: {
+      type: 'collab_tool_call',
+      tool: 'wait',
+      status: 'completed',
+      receiver_thread_ids: [threadId],
+      agents_states: { [threadId]: { status: 'completed', message: invocation } },
+    },
+  });
+  const valid = [
+    { type: 'thread.started', thread_id: 'root' },
+    spawn('child-1', 'EXECUTOR-CHALLENGE'),
+    wait('child-1', 'EXECUTOR-CHALLENGE cold-native'),
+    spawn('child-2', 'REVIEWER-CHALLENGE'),
+    wait('child-2', 'REVIEWER-CHALLENGE'),
+    { type: 'turn.completed', usage: {} },
+  ];
+  const roles = {
+    'child-1': {
+      agent_role: 'grove_executor',
+      parent_thread_id: 'root',
+      cli_version: '0.145.0',
+      session_meta_sha256: 'a'.repeat(64),
+      session_metadata: 'codex-home/sessions/child-1.jsonl',
+    },
+    'child-2': {
+      agent_role: 'grove_code_reviewer',
+      parent_thread_id: 'root',
+      cli_version: '0.145.0',
+      session_meta_sha256: 'b'.repeat(64),
+      session_metadata: 'codex-home/sessions/child-2.jsonl',
+    },
+  };
+  assert.deepEqual(
+    validateCodexExecEvidence(valid, expected, roles).invocations.map((item) => item.native_id),
+    ['grove_executor', 'grove_code_reviewer'],
+  );
+  assert.deepEqual(
+    validateCodexExecEvidence(valid, expected, roles).invocations.map((item) => ({
+      role: item.observed_agent_role,
+      parent: item.observed_parent_thread_id,
+      version: item.observed_cli_version,
+      hash: item.session_meta_sha256,
+    })),
+    [
+      {
+        role: 'grove_executor',
+        parent: 'root',
+        version: '0.145.0',
+        hash: 'a'.repeat(64),
+      },
+      {
+        role: 'grove_code_reviewer',
+        parent: 'root',
+        version: '0.145.0',
+        hash: 'b'.repeat(64),
+      },
+    ],
+  );
+  assert.throws(
+    () => validateCodexExecEvidence(valid, expected, {
+      ...roles,
+      'child-1': { ...roles['child-1'], agent_role: 'worker' },
+    }),
+    /does not prove custom agent role grove_executor/i,
+  );
+  assert.throws(
+    () => validateCodexExecEvidence(
+      [valid[0], valid[1], valid[3], valid[4], valid[5]],
+      expected,
+      roles,
+    ),
+    /completed sequential work by grove_executor/i,
+  );
+  assert.throws(
+    () => validateCodexExecEvidence(
+      [
+        valid[0],
+        valid[1],
+        wait('child-1', 'EXECUTOR-CHALLENGE'),
+        valid[3],
+        valid[4],
+        valid[5],
+      ],
+      expected,
+      roles,
+    ),
+    /completed sequential work by grove_executor/i,
+  );
 });
 
 test('surface matrix rejects missing, duplicate, extra, and unclassified rows', () => {

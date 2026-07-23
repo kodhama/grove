@@ -10,6 +10,7 @@
     "docs": "node bin/sync-docs.mjs",
     "check": "node bin/validate-release.mjs --check",
     "check:release": "node bin/validate-release.mjs --release",
-    "smoke:codex": "node bin/smoke-codex-projection.mjs"
+    "smoke:codex": "node bin/smoke-codex-projection.mjs",
+    "probe:codex": "node bin/prepare-codex-support-probe.mjs"
   }
 }

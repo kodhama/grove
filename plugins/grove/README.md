@@ -32,6 +32,41 @@ stricter: it also rejects every `candidate` surface. A release cannot be
 tagged until each candidate is backed by a complete support record and
 promoted to `supported`, or is explicitly classified `unsupported`.
 
+## Prepare the isolated Codex support probe
+
+From the repository root, on a clean committed candidate:
+
+```sh
+npm run probe:codex --prefix plugins/grove/release
+```
+
+Preparation runs the generated-package, release-package, and static Codex
+composition checks; snapshots the exact candidate; composes a fresh consumer;
+and creates a local marketplace, isolated `CODEX_HOME`/SQLite/temp roots,
+structured prompts, schemas, and an evidence runner. It **never launches
+Codex**, reads existing Codex state, copies credentials, or changes the
+surface matrix.
+
+The command prints one `node .../run-probe.mjs` command to run from a separate
+interactive Terminal. That runner authenticates only the isolated home,
+verifies it has exactly one enabled Grove candidate, and executes sequential
+non-ephemeral phases: both driving roles, three native batches of four, a
+separate executor/reviewer check, the scoped dispatcher, and the executor
+config/addendum sentinels. The probe-local config caps subagent concurrency at
+one. Each phase has a bounded timeout and retains JSONL, exact argv,
+timestamps, exit code, stderr, structured output, and a minimal mapping from
+each spawned thread to the observed custom-agent role, parent thread, CLI
+version, and raw session-metadata hash recorded by the isolated Codex session.
+This safe projection remains with the logs; full session metadata and
+instructions remain only in the isolated home.
+
+The runner writes an incomplete attempt at the first failure. On success it
+writes a validator-clean **candidate** support record, but never promotes
+`surfaces.json`; raw events still require review. The isolated home may contain
+login state, so do not archive it. After retaining evidence, run the printed
+`--sanitize` command to remove only that marked probe home, SQLite state, and
+runtime temp directory.
+
 ## Install through Claude
 
 The existing Claude marketplace channel remains:
