@@ -5,7 +5,7 @@ status: approved  # maintainer's intent act ("consider the ADR approved", in-ses
 depends_on: [adr-0026-thin-vendor-boundary, charter-versioning]
 informed_by: [adr-0027-retire-ci-for-now, adr-0010-versioning-is-operational]
 owner: agent
-updated: 2026-07-22
+updated: 2026-07-23
 ---
 
 # ADR-0028: grove's plugin release-tagging — manifest-authoritative version, human-cut by merge, deterministic tag
@@ -236,3 +236,13 @@ stays"** — the tag job is on the "stays" side.
   channel, no versioning.md amendment (all parked/deferred). ✓
 - **Honest costs surfaced** — the write permission, the timing, the
   ahead-of-consumer build, the judgment risk. ✓
+
+## Forward annotation — ADR-0031 (2026-07-23)
+
+ADR-0031 partially supersedes D1's Claude-manifest version authority.
+`plugins/grove/VERSION` is now the single Grove release authority, and both
+host manifests plus declared package carriers must equal it. The release tag
+remains `grove-v<VERSION>`, the maintainer's merge remains the human release
+act, and automation remains deterministic and tag-only. If that tag already
+exists, automation now peels it to a commit and no-ops only when it equals the
+workflow event commit; it never moves a conflicting tag.

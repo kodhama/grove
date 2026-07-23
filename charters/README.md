@@ -3,13 +3,11 @@
 The portable role charters — what grove actually ships. Each file
 charters one agent: what it is, its method, its boundaries, and (where
 the role needs a project-specific value) an explicit config token the
-consuming repo resolves (`adr-0026` D3, below). These are narrative
-artifacts; their executable counterparts — the Claude Code subagent
-definitions generated from the same charters, auto-loaded as
-`grove:<role>` wherever the grove plugin is enabled — live in the
-plugin payload, [`plugins/grove/agents/`](../plugins/grove/agents/).
-The two are a **two-copy lockstep** (`adr-0026` P1, ex `adr-0021` D4):
-a charter edit updates its payload counterpart in the same PR.
+consuming repo resolves (`adr-0026` D3, below). These are the sole authored
+role contracts. Deterministic host projections for Claude Code and Codex live
+under [`plugins/grove/`](../plugins/grove/); a charter edit regenerates those
+read-through adapters in the same PR (`adr-0031`). The projections are
+validated outputs, never a second role corpus.
 
 One file, [`lifecycle.md`](lifecycle.md), is the lifecycle companion (`adr-0008`)
 — the artifact state enum, stated once and shipped in the plugin
@@ -31,12 +29,9 @@ updated: YYYY-MM-DD
 ---
 ```
 
-Charters in this wave are `status: gated` — self-checked against the
-acceptance grep (below) and against their source material, but not yet
-independently reviewed by a human or a `spec-adversary` pass. They carry
-`owner: agent` (the source project's convention: `owner:` means *author*;
-the accountable human is the repo maintainer, recorded once here rather
-than swept across every file).
+Each artifact's frontmatter is authoritative for its current lifecycle state
+and author. `owner:` means *author*; accountability remains with the repo
+maintainer. Do not infer one shared status or owner for the directory.
 
 ## The config-token door (`adr-0026` D3 — supersedes the placeholder door)
 

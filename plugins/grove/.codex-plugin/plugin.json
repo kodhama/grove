@@ -1,0 +1,28 @@
+{
+  "name": "grove",
+  "version": "0.3.0",
+  "description": "Grove for Codex: skills, references, and project-scoped launcher metadata generated from one canonical thirteen-role methodology.",
+  "author": {
+    "name": "kodhama",
+    "url": "https://github.com/kodhama"
+  },
+  "homepage": "https://github.com/kodhama/grove",
+  "repository": "https://github.com/kodhama/grove",
+  "license": "MIT",
+  "keywords": ["agents", "governance", "workflow"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Grove",
+    "shortDescription": "A chartered agent-team operating model",
+    "longDescription": "Install Grove's generated Codex skills and references, then compose its repo-owned floor and eligible project launchers with setup.",
+    "developerName": "kodhama",
+    "category": "Developer Tools",
+    "capabilities": ["Skills", "Project setup"],
+    "websiteURL": "https://github.com/kodhama/grove",
+    "defaultPrompt": [
+      "Set up Grove for this repository.",
+      "Show Grove's supported surfaces.",
+      "Use Grove to route this change."
+    ]
+  }
+}

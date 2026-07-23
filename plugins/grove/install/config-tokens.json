@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "tokens": [
+    "TEST_CMD",
+    "TYPECHECK_CMD",
+    "LINT_CMD",
+    "TEST_DEPS_LEDGER",
+    "PR_CONTRACT_SECTIONS",
+    "PARKED_ITEM_STORE",
+    "CONVENTIONS_PATH",
+    "QUALITY_RUBRIC_PATH",
+    "SPEC_RUBRIC_PATH",
+    "RESEARCH_RUBRIC_PATH",
+    "ARTIFACT_DIRS",
+    "ARTIFACT_CONTRACT_PATHS",
+    "REPO_TYPED_CHECKS",
+    "SEVERITY_TAXONOMY"
+  ],
+  "list_tokens": [
+    "ARTIFACT_DIRS",
+    "ARTIFACT_CONTRACT_PATHS"
+  ]
+}

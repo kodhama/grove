@@ -1,0 +1,13 @@
+{
+  "name": "grove-role-projections",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic host projections of Grove's canonical role charters.",
+  "scripts": {
+    "generate": "node bin/generate.mjs",
+    "check": "node bin/generate.mjs --check",
+    "test": "node --test",
+    "typecheck": "node --check config.mjs && node --check lib/*.mjs && node --check bin/*.mjs && node --check test/*.mjs"
+  }
+}

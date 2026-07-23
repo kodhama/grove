@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "host": "codex",
+  "surface_id": "codex-exec-non-ephemeral",
+  "grove_version": "0.3.0",
+  "host_version": "codex-cli 0.145.0",
+  "clean_environment": {
+    "consumer_empty": true,
+    "candidate_only": false,
+    "fresh_session": true,
+    "profile": "steward",
+    "surface_provenance": "user-explicit",
+    "session": "fresh non-ephemeral codex exec",
+    "sandbox": "read-only",
+    "approval_policy": "never",
+    "enabled_grove_plugins": [
+      "grove@kodhama 0.2.0",
+      "grove@grove-dev-030 0.3.0"
+    ],
+    "isolation_observation": "Only Grove 0.3.0 supplied grove:role-* skills, but duplicate lifecycle skills mean this was not a candidate-only host environment."
+  },
+  "install_load_path": "Local native Codex marketplace -> grove@grove-dev-030 -> /Users/gundi/.codex/plugins/cache/grove-dev-030/grove/0.3.0; setup then generated project .codex/agents launchers.",
+  "launcher_form": {
+    "kind": "project-scoped Codex custom-agent TOML",
+    "count": 12,
+    "path": ".codex/agents/<native_id>.toml",
+    "contains_charter_body": false,
+    "target": "installed grove:role-<canonical-id> skill and canonical reference"
+  },
+  "role_identities": {
+    "driving_session": [
+      {
+        "canonical_id": "dispatcher",
+        "exposure": "driving-session",
+        "source": "charters/dispatcher.md",
+        "digest": "9961fd1792f3b21343aec90ade15335bd4c4f681c83fbf99410bddef0850ceef"
+      },
+      {
+        "canonical_id": "shaper",
+        "exposure": "driving-session",
+        "source": "charters/shaper.md",
+        "digest": "20a09193caae4e9be7f86d7b0fe9ca0c4499dd7b968f2500b8d20446534a95a6"
+      }
+    ],
+    "native": [
+      ["code-reviewer", "grove_code_reviewer", "cold-native", "charters/code-reviewer.md", "a73a41cdebf423f9bba617a0c8066ceacf3dd19d348f70a0f53bc70e13fd235a"],
+      ["conformance-reviewer", "grove_conformance_reviewer", "cold-native", "charters/conformance-reviewer.md", "06c2e52f0ea442d6f7c6c3a9004376cb0876260cccc1f4e3f457b078cd78d65b"],
+      ["contract-author", "grove_contract_author", "cold-native", "charters/contract-author.md", "2285985e6071db5d881ed6a158e48218040b3bea53bad7de327548c9fa8c8e47"],
+      ["corpus-reviewer", "grove_corpus_reviewer", "cold-native", "charters/corpus-reviewer.md", "b84aa2829f05d3b4b6b19af717b5ffafe70589e10205f66c8bcc96cd60ee6ef3"],
+      ["decision-adversary", "grove_decision_adversary", "cold-native", "charters/decision-adversary.md", "0ed0d6ddb257e26dc7d54cac0098f1ea30fd6d442d0769e7e1c93056b6c511b9"],
+      ["dispatcher", "grove_dispatcher", "scoped-advisor", "charters/dispatcher.md", "9961fd1792f3b21343aec90ade15335bd4c4f681c83fbf99410bddef0850ceef"],
+      ["divergent-researcher", "grove_divergent_researcher", "cold-native", "charters/divergent-researcher.md", "7a67ee0f9ea5f2990b286a5ac341b14fc3818787a8099fd9f98ace443a39d333"],
+      ["executor", "grove_executor", "cold-native", "charters/executor.md", "8531d32a9793d32f6517c84d9fdbf620467cdeb2b88f72a28d0e514f5d434f03"],
+      ["propagation-remediator", "grove_propagation_remediator", "cold-native", "charters/propagation-remediator.md", "4a723a1e138182d25630fe0c3fb09ed144478edf6399fb38eba46220a5f16527"],
+      ["run-resumer", "grove_run_resumer", "cold-native", "charters/run-resumer.md", "f311c8fd9144d6751f94b31d4798344bef2c2e32917bc1158b287a4554c1d687"],
+      ["spec-adversary", "grove_spec_adversary", "cold-native", "charters/spec-adversary.md", "a21ca8ac5e26da567636e3e10e1d191befb14b75ea4995bece30cdbae20a4098"],
+      ["validator", "grove_validator", "cold-native", "charters/validator.md", "c58eae46db62e54a66d502b0584a02c44a3d4189f1df90a5e84bf9df8241dc44"]
+    ],
+    "unexpected_native_ids": []
+  },
+  "producer_reviewer_separation": {
+    "producer": {
+      "native_id": "grove_executor",
+      "invocation": "INV-GROVE-EXECUTOR-20260723"
+    },
+    "reviewer": {
+      "native_id": "grove_code_reviewer",
+      "invocation": "INV-GROVE-CODE-REVIEWER-20260723"
+    },
+    "separate": true
+  },
+  "driving_session_roles": {
+    "dispatcher_invocation": "DRIVING-DISPATCHER-20260723",
+    "shaper_invocation": "DRIVING-SHAPER-20260723",
+    "delegated": false,
+    "matched_inventory": true
+  },
+  "spawned_dispatcher": {
+    "native_id": "grove_dispatcher",
+    "exposure": "scoped-advisor",
+    "invocation": "INV-GROVE-DISPATCHER-20260723",
+    "advertised_driving_session": false
+  },
+  "config_and_addendum": {
+    "role": "grove_executor",
+    "config_sentinel": "fixture-support-command-030",
+    "addendum_sentinel": "fixture-executor-addendum-030",
+    "both_observed": true
+  },
+  "outcome": "incomplete-environment",
+  "observed_at": "2026-07-23",
+  "procedure": [
+    "Compose a new empty consumer with setup for host=codex, surface_id=codex-exec-non-ephemeral, provenance=user-explicit, and preset=steward.",
+    "Install the exact 0.3.0 package from a local native Codex marketplace.",
+    "Run a fresh non-ephemeral codex exec in the consumer with read-only sandbox and approval_policy=never.",
+    "Invoke both driving-session discovery skills without delegation, enumerate the inventory-derived native set, invoke every exact native id independently, and compare canonical id, exposure, source, and digest.",
+    "Require distinct executor and code-reviewer invocation tokens, scoped-only spawned dispatcher output, no extra native ids, and the executor fixture config/addendum sentinels."
+  ],
+  "conclusion": "All role and exposure probes passed, but co-installed Grove 0.2.0 means the clean candidate-only support precondition was not met. This record is bridge evidence, not a release-support record."
+}

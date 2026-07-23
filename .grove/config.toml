@@ -10,8 +10,8 @@
 # honest value, not a gap. This file is agent-read config (judgment on
 # read); it is never a deterministic machinery read (adr-0026 D3 boundary).
 
-TEST_CMD = "npm test --prefix plugins/grove/gates && npm test --prefix plugins/grove/check"
-TYPECHECK_CMD = "none — zero-dependency plain Node; no typechecker configured"
+TEST_CMD = "npm test --prefix plugins/grove/build && npm test --prefix plugins/grove/operations && npm test --prefix plugins/grove/release && npm test --prefix plugins/grove/gates && npm test --prefix plugins/grove/check"
+TYPECHECK_CMD = "npm run typecheck --prefix plugins/grove/build && npm run typecheck --prefix plugins/grove/operations && npm run typecheck --prefix plugins/grove/release && npm run typecheck --prefix plugins/grove/gates && npm run typecheck --prefix plugins/grove/check"
 LINT_CMD = "none — no linter or formatter configured"
 TEST_DEPS_LEDGER = "per-package nearest-ancestor test-deps.md with a fenced grove-test-deps block (adr-0006; e.g. plugins/grove/gates/test-deps.md)"
 PR_CONTRACT_SECTIONS = "none committed — no PR template or CI-enforced PR-body contract exists; check by hand until one does"
@@ -20,7 +20,7 @@ CONVENTIONS_PATH = "CLAUDE.md"
 QUALITY_RUBRIC_PATH = "none exists yet"
 SPEC_RUBRIC_PATH = "none exists yet"
 RESEARCH_RUBRIC_PATH = "none exists yet"
-ARTIFACT_DIRS = ["decisions/", "specs/"]
-ARTIFACT_CONTRACT_PATHS = ["decisions/README.md", "specs/README.md"]
+ARTIFACT_DIRS = ["charters/", "decisions/", "specs/"]
+ARTIFACT_CONTRACT_PATHS = ["charters/README.md", "decisions/README.md", "specs/README.md"]
 REPO_TYPED_CHECKS = "none — no extra typed-artifact checks beyond the family core"
 SEVERITY_TAXONOMY = "none declared"

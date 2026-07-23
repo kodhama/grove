@@ -5,7 +5,7 @@ status: approved  # maintainer's intent act ("approve adr-0029", in-session, 202
 depends_on: [adr-0026-thin-vendor-boundary, charter-versioning]
 informed_by: [adr-0027-retire-ci-for-now, adr-0028-plugin-release-tagging]
 owner: agent
-updated: 2026-07-22
+updated: 2026-07-23
 ---
 
 # ADR-0029: grove's non-interactive agent-loading contract — per-surface explicit load, thin-vendor preserved (grove#125)
@@ -176,3 +176,13 @@ this decides how grove closes it **without re-vendoring**.
   using existing platform primitives. ✓
 - **Honest costs surfaced** — env-scoped, four-mechanism, version-pin,
   undocumented-behavior, fresh-session-unverified. ✓
+
+## Forward annotation — ADR-0031 (2026-07-23)
+
+ADR-0031 extends this decision's explicit per-surface loading rule across
+Claude and Codex. `plugins/grove/surfaces.json` is the machine-readable
+support authority: every exact surface records its load or bridge state,
+release classification, evidence, and user-visible disclosure. Evidence never
+flows between rows, and bridge viability alone is not support. The
+no-revendoring boundary stands; any future self-contained Codex launcher body
+still requires a new approved intent decision.

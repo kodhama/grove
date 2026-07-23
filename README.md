@@ -1,8 +1,8 @@
 # grove
 
 **Grove** is a portable agent-swarm operating model: chartered roles
-("grove agents"), workflows, and a dispatch contract, distributed as
-markdown charters + Claude Code agent definitions + a skill — **no
+("grove agents"), workflows, and a dispatch contract, distributed from one
+canonical corpus through generated Claude Code and Codex adapters — **no
 binary, no service**. The name is the druids' own: a grove is a
 community of trees — and, in the druidic orders, the name of the
 community itself. It grows along a
@@ -12,14 +12,12 @@ trained along a trellis*. The agents are **grove agents** — the grove
 is what they tend, and what they are; informally, and with real
 affection, its druids.
 
-This repo is the **reference implementation and distribution home**. A
-consuming project adopts grove by installing the Claude Code plugin —
-the agent fleet is **plugin-carried** (`adr-0026`): the roles load as
-namespaced `grove:<role>` subagents wherever the plugin is enabled,
-and the repo keeps only what it owns — its gate-profile, the shared
-role config the charters' tokens resolve from (`.grove/config.toml`),
-optional per-role addenda, and its own corpus. Nothing of grove's
-prose is vendored into a consumer again.
+This repo is the **reference implementation and package home**. Claude Code
+and Codex have separate marketplace channels, but both packages derive from
+the same charters. A consumer keeps only what it owns — its gate profile, the
+shared role config the charters' tokens resolve from (`.grove/config.toml`),
+optional per-role addenda, its host adapter, and its own corpus. Nothing of
+Grove's charter prose is copied into a consumer.
 
 ## The team
 
@@ -78,17 +76,15 @@ the checkpoint-resume bounds shared with `run-resumer`.
 - **`charters/`** — the portable role charters: what each agent is,
   what it does, its boundaries, and its config tokens. This is the artifact
   grove ships.
-- **`plugins/grove/`** — the Claude Code plugin: the `agents/` payload
-  (subagent definitions generated from the charters in two-copy
-  lockstep, auto-loaded as `grove:<role>`), the setup/refresh/remove/
-  set-profile skills, the gate-profile machinery, and the plugin-carried
-  companions (`adr-0026`).
+- **`plugins/grove/`** — the dual-host package: generated Claude/Codex
+  adapters, setup/refresh/remove/set-profile skills, the gate-profile
+  machinery, shared release version, surface evidence, and release checks.
 - **`.trellis/`** — the Trellis governance overlay this repo runs on
   itself (bootstrapped via `trellis setup`, not hand-copied).
 
-## Adopting grove in your project
+## Adopting Grove in your project
 
-The canonical route is the Claude Code plugin (kodhama-0002 §3):
+Claude Code uses the existing marketplace:
 
 ```
 /plugin marketplace add kodhama/stewards
@@ -96,8 +92,9 @@ The canonical route is the Claude Code plugin (kodhama-0002 §3):
 /grove:setup
 ```
 
-Installing the plugin loads all thirteen roles as `grove:<role>`
-subagents — nothing is copied into your repo. `/grove:setup` then
+The package supplies generated `grove:<role>` definitions; whether they load
+is classified per exact surface below. Nothing is copied into your repo.
+`/grove:setup` then
 composes only what your repo owns: the gate-profile floor
 (`.grove/gates.toml` + machinery), the shared role config
 (`.grove/config.toml` — your test/typecheck commands, VCS/issue-tracker
@@ -109,9 +106,47 @@ record with loud skew disclosure, never a lock). See
 [`plugins/grove/README.md`](plugins/grove/README.md) for the full plugin
 contents.
 
+Codex uses the host-native catalog in `kodhama/stewards`. That catalog owns
+`.agents/plugins/marketplace.json`; this repository does not create an
+in-tree marketplace:
+
+```sh
+codex plugin marketplace add kodhama/stewards
+codex plugin add grove@kodhama
+```
+
+Start a fresh task and run Grove setup with an explicit surface id. The Codex
+plugin carries skills and references. Eligible project-scoped native launchers
+are generated under `.codex/agents/` by setup; neither the package nor those
+launchers duplicate a charter body.
+
+## Surface support
+
+Support is claimed per exact host surface, never by family resemblance. This
+table is generated from
+[`plugins/grove/surfaces.json`](plugins/grove/surfaces.json); a candidate is
+available for integration evidence but is not release-supported.
+
+<!-- grove-surface-matrix:begin (generated from plugins/grove/surfaces.json) -->
+| Surface | Release state | Load/bridge state | Disclosure |
+|---|---|---|---|
+| `claude-interactive` | Unsupported | host-native | The package has an established interactive load path, but Grove does not claim 0.3.0 support until the complete release record passes. |
+| `claude-cloud` | Unsupported | host-native | Unsupported until a fresh cloud session proves the full role-discovery contract. |
+| `claude-github-action` | Unsupported | host-native | Unsupported until the action load path passes the full role-discovery contract. |
+| `claude-headless` | Unsupported | host-native | Unsupported in 0.3.0; the local plugin load command is known, but no role-discovery claim is inferred from a probe blocked before inference. |
+| `claude-agent-sdk` | Unsupported | host-native | Unsupported until the local-plugin SDK load passes the full role-discovery contract. |
+| `codex-cli-interactive` | Unsupported | unknown | Unsupported; Grove will not infer parity from codex exec. |
+| `codex-exec-non-ephemeral` | Candidate — not supported | bridge-viable | Candidate, not release-supported. Package composition and every role exposure were observed on non-ephemeral Codex exec, but the retained host environment was not candidate-only. |
+| `codex-exec-ephemeral` | Unsupported | partial-primitive | Unsupported; partial skill loading is not a Grove role bridge. |
+| `codex-desktop-local` | Unsupported | unknown | Unsupported until a desktop-local bridge and full support record pass. |
+| `codex-cloud-web` | Unsupported | unknown | Unsupported; no Grove role-loading claim is made for cloud/web. |
+| `codex-ide` | Unsupported | documentation-constraint | Unsupported until an IDE-specific load path is verified. |
+| `codex-sdk` | Unsupported | unknown | Unsupported; no Grove role-loading claim is made for the SDK. |
+<!-- grove-surface-matrix:end -->
+
 ### Manual path
 
-If you can't or don't want to install a Claude Code plugin, the
+If you can't or don't want to install either host package, the
 charters are plain markdown — you can hand-copy what you need
 (everything here is open source). Know what you're taking on: grove's
 own tooling no longer composes or maintains vendored copies

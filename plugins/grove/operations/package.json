@@ -1,0 +1,11 @@
+{
+  "name": "grove-consumer-operations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Host-neutral, zero-dependency consumer lifecycle operations for Grove.",
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "node --check lib/*.mjs && node --check bin/*.mjs && node --check test/*.mjs"
+  }
+}

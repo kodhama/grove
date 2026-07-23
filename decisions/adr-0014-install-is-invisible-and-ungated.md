@@ -5,7 +5,7 @@ status: approved  # maintainer intent act 2026-07-18 ("approved. run the build w
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0013-check-scope-mode]
 informed_by: [adr-0005-tdd-and-artifact-gated-dispatch]  # trellis/decision-0048/0049 carried as PROSE provenance below, not a frontmatter edge — a CHOSEN option (adr-0011 permits informed_by → draft AND cross-repo forms), made because cross-repo resolution is shape-check-only so a machine edge adds little verifiable value; not because the edge is disallowed
 owner: agent
-updated: 2026-07-18
+updated: 2026-07-23
 ---
 
 # ADR-0014: installing grove is invisible to the consumer's tooling, and grove does not gate its own arrival
@@ -353,3 +353,12 @@ precedes the human gate.
 Not claiming the adversary has validated this — the decision-adversary pass
 precedes the human gate; the `approved` intent act is the maintainer's
 (`gated → approved` flip), never the shaper's.
+
+## Forward annotation — ADR-0031 (2026-07-23)
+
+ADR-0031 partially supersedes this decision's Claude-only install surface.
+Setup, refresh, set-profile, and remove now share one host-neutral,
+git-neutral operation contract. Their declared host writes include exact
+managed blocks in `CLAUDE.md` or `AGENTS.md` and, where the selected Codex
+surface is eligible, generated Grove-owned `.codex/agents/` launchers. The
+original no-git-action and bounded-ownership requirements remain unchanged.

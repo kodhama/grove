@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "kind": "codex-bridge-spike",
+  "observed_at": "2026-07-23",
+  "environment": {
+    "codex_version": "codex-cli 0.145.0",
+    "grove_plugin_version": "0.1.0",
+    "os": "Darwin 23.6.0 arm64",
+    "fixture": "/private/tmp/grove-codex-spike",
+    "plugin_skill_source": "/Users/gundi/.codex/plugins/cache/kodhama/grove/0.1.0/skills/setup/SKILL.md"
+  },
+  "fixture_contract": {
+    "launcher": ".codex/agents/grove_probe.toml",
+    "launcher_shape": "project-scoped custom agent with read-only sandbox and thin developer instructions",
+    "probe": "spawn grove_probe; load the installed grove:setup skill; resolve a plugin-relative role reference; return only diagnostic identity"
+  },
+  "observations": [
+    {
+      "surface_id": "codex-exec-non-ephemeral",
+      "command": "codex exec --skip-git-repo-check -C /private/tmp/grove-codex-spike -s read-only -c 'approval_policy=\"never\"' --json 'Spawn the custom agent named grove_probe. Wait for it. Return only its final answer.'",
+      "exit_code": 0,
+      "result": "bridge-viable",
+      "observed": [
+        "the project launcher spawned under its native id",
+        "the spawned agent loaded the installed grove:setup skill",
+        "the spawned agent resolved the plugin-relative agents/decision-adversary.md file"
+      ],
+      "limits": "This is a loading-primitive result, not a full thirteen-role support record."
+    },
+    {
+      "surface_id": "codex-exec-ephemeral",
+      "command": "codex exec --ephemeral --skip-git-repo-check -C /private/tmp/grove-codex-spike -s read-only -c 'approval_policy=\"never\"' --json 'Spawn the custom agent named grove_probe. Wait for it. Return only its final answer.'",
+      "exit_code": 0,
+      "result": "partial-primitive",
+      "observed": [
+        "the project launcher spawned under its native id",
+        "the spawned agent loaded the installed grove:setup skill"
+      ],
+      "limits": "The corrected run did not probe the plugin-relative role reference or the full role contract."
+    },
+    {
+      "surface_id": "codex-cli-interactive",
+      "result": "not-tested",
+      "limits": "No interactive TTY run was performed."
+    },
+    {
+      "surface_id": "codex-desktop-local",
+      "result": "not-tested",
+      "limits": "No fresh desktop session smoke test was performed."
+    },
+    {
+      "surface_id": "codex-ide",
+      "result": "not-tested",
+      "limits": "The product constraint is documentation-derived; it was not observed in this spike."
+    }
+  ],
+  "discarded_attempts": [
+    {
+      "reason": "invalid CLI syntax",
+      "command_fragment": "-a never",
+      "exit_code": 2
+    },
+    {
+      "reason": "sandbox denied Codex state-database writes before the probe ran",
+      "exit_code": 1
+    }
+  ]
+}

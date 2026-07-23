@@ -393,3 +393,14 @@ the house axes, the same four the `decision-adversary` judges.)*
   (D4 is never sold as enforcement); the in-repo reviewable diff shrinks;
   consumers lose unilateral charter surgery; the rename sweep is named.
   No build rides the decision (AC3).
+
+## Forward annotation — ADR-0031 (2026-07-23)
+
+ADR-0031 partially supersedes the single-host projection boundary. The
+canonical charters remain the sole authored method corpus, while deterministic
+Claude and Codex projections now derive from that corpus and metadata. Codex's
+documented project-launcher bridge is a narrow consumer-side exception: setup
+may generate thin `.codex/agents/*.toml` loading pointers, but neither the
+plugin nor those launchers carry an independently authored charter body. The
+consumer-authoritative `.grove/` config and verified-prior token boundary
+remain unchanged.

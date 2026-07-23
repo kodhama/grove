@@ -1,9 +1,9 @@
 # Contributing to grove
 
 grove ships a collection of artifacts — **charters** (`charters/`),
-**specs** (`specs/`), **decisions** (`decisions/`), and their executable
-counterparts (the plugin payload `plugins/grove/agents/`, plus
-`.claude/skills/`) — not a binary or a service. Contributing here means proposing, gating, and (for a human)
+**specs** (`specs/`), **decisions** (`decisions/`), and generated Claude/Codex
+package projections under `plugins/grove/` — not a binary or a service.
+Contributing here means proposing, gating, and (for a human)
 approving changes to those artifacts. This guide is sourced from the
 charters already in this repo (see `specs/0001-contributing-guide.md`
 for the spec this guide implements, and its Provenance section for
@@ -80,15 +80,9 @@ Second, the append-only supersession mechanics for decisions live in
    generalizes from, or "no dedicated legacy definition existed")? Does
    it pass the zero-nouns grep (below)? Flip `status: draft` →
    `status: gated` only once both are true.
-4. **If the role is cold-started** (most are — check the team table in
-   the root `README.md`), also add a matching
-   `plugins/grove/agents/<role-slug>.md` in the **same PR** (the
-   two-copy lockstep, `adr-0026` P1): the `name` / `description` /
-   `tools` frontmatter Claude Code expects, plus the charter's body in
-   second person. If the role is interactive or otherwise shouldn't
-   get a subagent file (see the shaper/dispatcher exceptions
-   below), say so explicitly in the PR body instead of leaving the
-   pairing silently unaddressed.
+4. Update the role inventory metadata when the role has a host exposure, then
+   run `npm run generate --prefix plugins/grove/build`. Never author either
+   host projection as a second source of role instructions.
 5. Open the PR. It stays open at `gated` until a human reviews and
    merges it — that is the correct resting state, not an unfinished
    task (see "PR mechanics" below).
@@ -103,16 +97,9 @@ pointer chain).
 1. Branch off `main`, edit the charter file directly.
 2. Re-run the self-check: the edited charter still names every required
    section, still cites provenance, still passes the zero-nouns grep.
-3. **Check whether the charter has a paired `plugins/grove/agents/`
-   payload file** — most do (see the team table in `README.md` and the
-   roster in `plugins/grove/README.md`). If it does, **update that file
-   in the same PR** (the two-copy lockstep, `adr-0026` P1). There is no
-   generator that derives one from the other: as of this writing the
-   payload files are hand-authored parallel copies of their charters
-   (same body in second person, plus `name`/`description`/`tools`
-   frontmatter, minus the provenance note). An edit to one and not the
-   other silently drifts the two out of sync — the next reader of
-   either file gets a stale picture with no signal that it's stale.
+3. Run `npm run generate --prefix plugins/grove/build`, then
+   `npm run check --prefix plugins/grove/build`. Host payloads are generated
+   from the charter and inventory metadata; do not edit them directly.
 4. Open the PR describing what changed and why (a charter edit is
    still a real change to a self-checked artifact — treat the PR body
    as the record of that self-check, not just a diff).

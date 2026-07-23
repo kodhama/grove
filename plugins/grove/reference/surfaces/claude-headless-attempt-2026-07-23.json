@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "host": "claude",
+  "surface_id": "claude-headless",
+  "grove_version": "0.3.0",
+  "host_version": "Claude Code 2.1.199",
+  "observed_at": "2026-07-23",
+  "install_load_path": "claude -p --plugin-dir <fresh Grove 0.3.0 package> --agent grove:executor",
+  "fixture": "Fresh steward-profile consumer composed for claude-headless, with a unique config token and executor addendum.",
+  "outcome": "blocked-before-inference",
+  "error": {
+    "api_error_status": 429,
+    "message": "Monthly spend limit reached",
+    "input_tokens": 0,
+    "output_tokens": 0
+  },
+  "conclusion": "No role, discovery, or support claim can be derived from this attempt. Keep the surface unsupported until the complete support record runs."
+}

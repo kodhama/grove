@@ -10,7 +10,7 @@
 # pass. The review-bookkeeping check and a human still gate the merge; this
 # does not displace reviews as the gate, it backstops them.
 #
-# Both packages are zero-dependency (`type: module`, no deps): `npm test` is
+# All packages are zero-dependency (`type: module`, no deps): `npm test` is
 # `node --test`, `npm run typecheck` is `node --check` over the .mjs sources —
 # so no install step is needed.
 
@@ -40,6 +40,9 @@ jobs:
         package:
           - plugins/grove/gates
           - plugins/grove/check
+          - plugins/grove/build
+          - plugins/grove/operations
+          - plugins/grove/release
     steps:
       - name: Check out
         uses: actions/checkout@v4

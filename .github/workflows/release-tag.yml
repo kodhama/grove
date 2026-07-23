@@ -1,14 +1,15 @@
 # grove — release tag materializer (adr-0028).
 #
-# Cuts the git tag `grove-v<version>` that mirrors the plugin manifest's
-# version. It does NOT decide the version and it gates nothing: the judgment
+# Cuts the git tag `grove-v<version>` that mirrors the package's host-neutral
+# VERSION. It does NOT decide the version: the judgment
 # (the semver level) and the human act both happen UPSTREAM, when the
 # maintainer approves and merges the PR that bumps
-# `plugins/grove/.claude-plugin/plugin.json` (adr-0028 D2/D3). This job only
+# `plugins/grove/VERSION` (adr-0031, preserving adr-0028 D2/D3). This job only
 # materializes the tag that release already implies.
 #
 # Deterministic + idempotent: it creates `grove-v<version>` only if that tag
-# does not already exist, so re-runs are no-ops. It is NOT self-healing across
+# is absent. A rerun no-ops only after peeling an existing tag and proving it
+# identifies the same workflow-event commit. It is NOT self-healing across
 # a skipped version — a version whose tag failed during an outage needs a
 # hand-cut, like the one-time `grove-v0.1.0` seed (adr-0028 Consequences 2).
 #
@@ -22,10 +23,9 @@ name: release-tag
 on:
   push:
     branches: [main]
-    # Only wake when the manifest itself changed. The idempotent existence
-    # check below is the correctness backstop; this filter is efficiency.
+    # VERSION is the sole release authority (adr-0031/spec-0004).
     paths:
-      - "plugins/grove/.claude-plugin/plugin.json"
+      - "plugins/grove/VERSION"
 
 # WRITE — unlike grove-tests.yml (read-only), this pushes a tag. The default
 # GITHUB_TOKEN with contents:write suffices; no PAT. This is grove CI's only
@@ -35,24 +35,58 @@ permissions:
 
 jobs:
   tag:
-    name: tag the release if the manifest version is new
+    name: validate and tag the release authority
     runs-on: ubuntu-latest
     steps:
       - name: Check out
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Materialize grove-v<version> if absent
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check generated adapters
+        run: npm run check --prefix plugins/grove/build
+
+      - name: Test every release-coupled package
+        run: |
+          npm test --prefix plugins/grove/build
+          npm test --prefix plugins/grove/operations
+          npm test --prefix plugins/grove/release
+          npm test --prefix plugins/grove/gates
+          npm test --prefix plugins/grove/check
+
+      - name: Typecheck every release-coupled package
+        run: |
+          npm run typecheck --prefix plugins/grove/build
+          npm run typecheck --prefix plugins/grove/operations
+          npm run typecheck --prefix plugins/grove/release
+          npm run typecheck --prefix plugins/grove/gates
+          npm run typecheck --prefix plugins/grove/check
+
+      - name: Smoke the package-level Codex projection
+        run: npm run smoke:codex --prefix plugins/grove/release
+
+      - name: Validate release candidate
+        run: npm run check:release --prefix plugins/grove/release
+
+      - name: Materialize grove-v<version>
         run: |
           set -euo pipefail
-          v=$(jq -r .version plugins/grove/.claude-plugin/plugin.json)
-          if [ -z "$v" ] || [ "$v" = "null" ]; then
-            echo "::error::no version in plugin.json"; exit 1
-          fi
+          v=$(tr -d '\n' < plugins/grove/VERSION)
           tag="grove-v$v"
-          if git ls-remote --tags --exit-code origin "refs/tags/$tag" >/dev/null 2>&1; then
-            echo "$tag already exists — no-op"
+          tag_ref="refs/tags/$tag"
+          git fetch --force --tags origin
+          if git show-ref --verify --quiet "$tag_ref"; then
+            tag_commit=$(git rev-parse "$tag_ref^{commit}")
+            node plugins/grove/release/bin/check-tag.mjs "$GITHUB_SHA" "$tag_commit"
+            echo "$tag already identifies $GITHUB_SHA — no-op"
             exit 0
           fi
-          git tag "$tag"
-          git push origin "$tag"
-          echo "created and pushed $tag"
+          node plugins/grove/release/bin/check-tag.mjs "$GITHUB_SHA"
+          git tag "$tag" "$GITHUB_SHA"
+          git push origin "$tag_ref"
+          echo "created and pushed $tag at $GITHUB_SHA"
