@@ -355,6 +355,11 @@ test('INV20/S18 — probe preparation isolates candidate state without launching
   assert.match(addendum, /fixture-executor-addendum-030/);
   assert.match(probeConfig, /cli_auth_credentials_store = "file"/);
   assert.match(probeConfig, /max_concurrent_threads_per_session = 1/);
+  assert.match(
+    drivingPrompt,
+    /"native_id": null/,
+    'driving-role assignments must disambiguate adapter skill names from native agent ids',
+  );
   assert.doesNotMatch(drivingPrompt, new RegExp(manifest.expected.driving_session[0].digest));
   assert.doesNotMatch(nativePrompt, new RegExp(manifest.expected.native[0].digest));
   assert.doesNotMatch(nativePrompt, new RegExp(manifest.expected.native[0].source));

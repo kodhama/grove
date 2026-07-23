@@ -319,6 +319,7 @@ function expectedBlock(identities) {
 function drivingPrompt(identities) {
   const assignments = identities.map(({ canonical_id, invocation }) => ({
     canonical_id,
+    native_id: null,
     invocation,
   }));
   return `This is a Grove support-evidence probe, not role work.
@@ -326,7 +327,9 @@ Do not delegate or spawn any agent. In this driving session, load and inspect
 the installed Grove dispatcher and shaper role skills. Discover each role's
 source, canonical digest, and driving-session exposure from the installed
 skill/reference, then return only JSON matching the supplied schema. Preserve
-each assigned invocation token exactly.
+each assigned invocation token exactly. These driving roles have no native
+custom-agent id: preserve native_id as null; role-* skill names are loading
+adapters, not native ids.
 
 Assignments:
 ${expectedBlock(assignments)}
