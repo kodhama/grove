@@ -316,3 +316,10 @@ evidence; Stewards owns catalog/provisioner availability and acquisition
 evidence; the consumer owns selection and environment prerequisites. A mutable
 catalog selector is publication only, not Grove support, release identity, or
 effective support.
+
+## Forward annotation — ADR-0034 (2026-07-24)
+
+ADR-0034 supersedes ADR-0033's shared release-certification adoption.
+This ADR's Grove-owned version, adapters, surface matrix, evidence, release
+validator, and tag workflow remain current. Stewards integration is narrowed
+to marketplace-test metadata and CI marketplace/plugin setup authoring.

@@ -1,13 +1,15 @@
 ---
 id: adr-0033-adopt-family-plugin-contracts
 type: adr
-status: approved  # maintainer intent act: authorized the family-wide rollout and merge when independently sound; decision-adversary SOUND preceded this recording
+status: superseded
 depends_on: [adr-0028-plugin-release-tagging, adr-0029-non-interactive-loading, adr-0031-multi-host-distribution, stewards/kodhama-0015-family-plugin-release-and-surface-contract, stewards/kodhama-0016-distribution-availability-and-effective-support]
 owner: agent
 updated: 2026-07-24
 ---
 
 # ADR-0033: Grove adopts the family plugin release, surface, and distribution contracts
+
+> **Superseded by `adr-0034-narrow-stewards-marketplace-provisioning`.**
 
 ## Decision state
 
