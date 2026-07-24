@@ -31,16 +31,17 @@ updated: 2026-07-24
   *(maintainer, 2026-07-23/24)*. The first evidence should compare cold runs
   from the same ratified input and repository state, separating planner value
   from the effect of changing the executor's model tier.
+- **D4 — relay the advisory plan directly; persist only on checkpoint**
+  *(maintainer, 2026-07-24; chose Option A)*. The planner returns a bounded
+  packet to the driving-session dispatcher, which passes it verbatim alongside
+  the authoritative artifact pointer into a separately cold executor. The
+  ordinary path performs no external write. If the existing checkpoint/resume
+  seam fires, its task/change-request checkpoint carries the packet or its
+  validated remainder. Loss before executor dispatch costs a replan, never a
+  correctness or gate claim.
 
 ### Open
 
-- **O1 — transient transport.** Choose between **relay + checkpoint on demand**
-  (the dispatcher passes the packet verbatim to a fresh executor and persists
-  it only when the existing resume seam fires; recommended) and **always
-  durable** (post every packet to a task/change-request before executor
-  dispatch). The comparison below makes the trade-off explicit; the
-  maintainer has expressed no prior durability preference and asked for the
-  recommendation rather than delegating the choice.
 - **O2 — routing obligation.** Is planning required before every executor
   invocation, required only for code-bearing work derived from a spec, or
   selected case-by-case by a complexity judgment?
@@ -146,7 +147,7 @@ no executable plan and surfaces the gap upstream. It never resolves product
 intent, writes tests/code, edits the spec, or disguises an inference as a
 verified repository fact.
 
-## O1 options — how the packet reaches the executor
+## D4 — how the packet reaches the executor
 
 | Dimension | A — relay + checkpoint on demand | B — always durable task/change-request post |
 |---|---|---|
@@ -161,7 +162,7 @@ verified repository fact.
 | Auditability | Final code, tests, review findings, and any exceptional checkpoint remain auditable; the discarded working route does not. | The exact proposed route is auditable even when execution immediately disproves or abandons it. |
 | Main risk | A narrow loss/recompute window between planner completion and executor/checkpoint. | Platform coupling, history noise, stale-plan ambiguity, and readers mistaking advisory prose for a governed artifact. |
 
-### A. Direct dispatcher relay, checkpoint only when needed — recommended
+### A. Direct dispatcher relay, checkpoint only when needed — chosen
 
 The planner returns the packet as its bounded final output. The driving-session
 dispatcher passes that output verbatim, alongside the authoritative artifact
@@ -181,7 +182,7 @@ rerun planning. The packet is working material, not durable evidence. This
 accepts a small recomputation risk because no correctness or gate-clearance
 claim rests on the packet.
 
-### B. Always post the packet to a task/change-request
+### B. Always post the packet to a task/change-request — rejected
 
 The plan is a clearly marked advisory comment, not a repo artifact.
 
@@ -203,7 +204,7 @@ Grove already has a checkpoint/resume seam for exactly that need. Option A
 keeps the common path host-neutral and write-free while paying persistence
 only on the exceptional path that consumes it.
 
-Option B becomes preferable if the maintainer wants **plan history itself** to
+Option B would become preferable if the maintainer wanted **plan history itself** to
 be a product capability: humans routinely inspect plans before execution,
 post-hoc plan adherence is evaluated, or planning and execution commonly cross
 asynchronous sessions. None of those requirements is established yet.
@@ -285,7 +286,15 @@ conformance target is added.
 
 ## Rejected options
 
-*(none yet — O1/O2 alternatives remain live.)*
+- **Always post every plan to a task/change-request.** Rejected for the first
+  increment in favor of D4: immediate durability does not justify an
+  authenticated external write, permanent history noise, platform coupling,
+  and stale-plan conventions when the packet is advisory and the existing
+  checkpoint seam already covers interrupted work.
+- **Use a temporary filesystem packet as production transport.** Rejected:
+  inherits direct relay's lack of durable project visibility while adding
+  path, ownership, cleanup, lifetime, and cross-host semantics. Out-of-tree
+  files remain valid experiment evidence, not runtime transport.
 
 ## Acceptance criteria for this decision
 
