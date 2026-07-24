@@ -13,8 +13,8 @@ updated: 2026-07-24
 > maintainer wants to test whether a stronger planning pass can make a
 > lower-cost executor effective without weakening Grove's artifact authority,
 > strict TDD, independent review, or dual-host delivery. This draft records the
-> settled starting boundary and the questions still requiring a maintainer
-> decision.
+> converged shaping boundary; it remains a draft pending independent
+> adversarial review and the applicable intent-gate act.
 
 ## Decision state
 
@@ -64,8 +64,8 @@ updated: 2026-07-24
   C may finish at most one accepted-quality result behind A, must introduce no
   additional blocking independent-review finding, must consume at least 30%
   fewer premium-model tokens, and must reduce weighted cost per accepted
-  completion by at least 20%. Whether C has sufficiently outperformed
-  medium-only control B remains to be made testable.
+  completion by at least 20%. D9 separately makes the required advantage over
+  medium-only control B testable.
 - **D9 — require a material planner advantage over medium-only control**
   *(maintainer, 2026-07-24; chose Option A)*. Across nine runs per arm,
   treatment C must earn at least one more accepted-quality result than B or,
@@ -81,11 +81,14 @@ updated: 2026-07-24
   exact mappings. A surface that cannot honor or explicitly reject a class
   cannot silently substitute a model and claim support for the optimized
   route.
+- **D11 — name the role `implementation-planner`** *(maintainer, 2026-07-24;
+  chose Option A)*. This is the normative machine-readable role identity. Its
+  specificity distinguishes implementation decomposition from Grove's
+  interactive shaping role and from a host's generic planning mode.
 
 ### Open
 
-- **O5 — role name.** `implementation-planner` is the working name. The
-  decision has not yet made that machine-readable identity normative.
+- None.
 
 ### Parked
 
@@ -150,9 +153,9 @@ contract without pretending it is already supported: the experiment harness
 must pin exact models, and each host adapter must independently prove its
 mapping before the optimized route is supportable there.
 
-## Candidate role contract
+## `implementation-planner` role contract
 
-The working `implementation-planner` is cold-started and read-only.
+The `implementation-planner` is cold-started and read-only.
 
 ### Inputs
 
@@ -394,6 +397,11 @@ conformance target is added.
   chosen: concrete names would couple the one authored kernel to provider
   catalogs and model churn. Exact selections belong in adapter/runtime mapping
   and reproducible support evidence.
+- **Name the role `execution-planner`.** Not chosen: it can be read as planning
+  orchestration or execution generally rather than decomposing an approved
+  contract for implementation.
+- **Name the role `planner`.** Not chosen: the generic identity is easily
+  confused with host plan modes and does not state the role's bounded subject.
 
 ## Acceptance criteria for this decision
 
@@ -410,4 +418,20 @@ conformance target is added.
 
 ## Self-check
 
-Not yet run. The draft has one Open item and is not converged.
+Passed by the shaper on 2026-07-24:
+
+- D1–D2 keep the packet outside artifact authority and add neither a gate nor
+  a repo artifact.
+- D4–D5 define host-neutral transport and deterministic routing, including the
+  explicit W3 bug split.
+- D6–D9 preregister a three-arm staged experiment that separates planner value
+  from the executor-model downgrade and makes rejection/adoption measurable.
+- D10 assigns portable resource intent without claiming unsupported concrete
+  model control, and D11 fixes the role identity.
+- The propagation section names charter, dispatcher, executor, adapter,
+  checkpoint, inventory, support-evidence, and release consequences without
+  implementing them.
+
+The canvas has eleven Decided items, zero Open items, and remains `draft`
+pending independent decision-adversary review and the applicable intent-gate
+act.
