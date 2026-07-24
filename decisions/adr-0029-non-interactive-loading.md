@@ -186,3 +186,13 @@ release classification, evidence, and user-visible disclosure. Evidence never
 flows between rows, and bridge viability alone is not support. The
 no-revendoring boundary stands; any future self-contained Codex launcher body
 still requires a new approved intent decision.
+
+## Forward annotation — ADR-0033 (2026-07-24)
+
+Approved ADR-0033's adoption of Stewards `kodhama-0015`/`0016` partially
+supersedes **D4 only**, and only its assignment of the generic rollout carrier
+to Grove. Stewards owns reusable marketplace registration, exact package
+acquisition, and pre-agent provisioning. D1–D3 stand: Grove still owns
+thin-vendor preservation, its product-specific setup/load/bridge behavior,
+and exact-surface support evidence. A successful Stewards install never
+promotes a Grove support row.
