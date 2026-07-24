@@ -76,12 +76,13 @@ updated: 2026-07-24
   performs equivalently.
 - **D10 — Grove owns portable resource intent; host adapters own concrete
   mapping** *(maintainer, 2026-07-24; chose Option A)*. Canonical dispatch
-  metadata assigns the planner `reasoning-heavy` and the executor
-  `execution-medium`; each host adapter/runtime mapping resolves those classes
-  to an available concrete model. The experiment harness pins and records the
-  exact mappings. A surface that cannot honor or explicitly reject a class
-  cannot silently substitute a model and claim support for the optimized
-  route.
+  metadata in `plugins/grove/roles.json` assigns the planner
+  `reasoning-heavy` and the executor `execution-medium`;
+  `plugins/grove/install/hosts.json` owns each versioned host default; and an
+  optional consumer-owned `.grove/config.toml` override may replace that
+  host's class mappings. The experiment harness pins and records the effective
+  mappings. A surface that cannot honor or explicitly reject a class cannot
+  silently substitute a model and claim support for the optimized route.
 - **D11 — name the role `implementation-planner`** *(maintainer, 2026-07-24;
   chose Option A)*. This is the normative machine-readable role identity. Its
   specificity distinguishes implementation decomposition from Grove's
@@ -117,12 +118,17 @@ updated: 2026-07-24
   priced from the dated provider snapshot; zero acceptances yields infinite
   cost per acceptance. A genuinely upstream-invalid task is replaced across
   all three arms.
+- **D16 — use versioned adapter defaults plus consumer-owned overrides**
+  *(maintainer, 2026-07-24; chose Option A after adversary F5)*. Role resource
+  intent lives in `plugins/grove/roles.json`; concrete per-host defaults live
+  in `plugins/grove/install/hosts.json`; and optional overrides live under
+  `[resources.<host>]` in consumer-authoritative `.grove/config.toml`. An exact
+  host override wins over its default. Missing classes, unknown selectors, and
+  cross-host fallback fail before dispatch. Experiment and support evidence
+  record the effective class-to-model map.
 
 ### Open
 
-- **O15 — resource-map carrier.** Name the exact canonical owner of each host's
-  concrete resource-class mapping and reconcile it with consumer-owned
-  configuration.
 - **O16 — lifecycle and review record.** After revisions, rerun the self-check,
   move `draft` to `gated`, and obtain a fresh decision-adversary verdict on an
   authenticated change-request; the session-only preview cannot clear a gate.
@@ -189,6 +195,13 @@ portable per-role model tier. D10 makes that tier intent part of the follow-up
 contract without pretending it is already supported: the experiment harness
 must pin exact models, and each host adapter must independently prove its
 mapping before the optimized route is supportable there.
+
+The ownership chain is explicit: `plugins/grove/roles.json` is the canonical
+role-to-resource-class declaration; `plugins/grove/install/hosts.json` carries
+Grove's versioned per-host defaults; and optional
+`.grove/config.toml [resources.<host>]` entries are consumer-authoritative
+overrides under ADR-0026 D3. Resolution never crosses hosts and never silently
+falls back. The effective mapping is evidence, not hidden runtime state.
 
 ## `implementation-planner` role contract
 
@@ -416,6 +429,8 @@ contract would cover:
 - executor authority/verification wording;
 - checkpoint/resume behavior;
 - the three-arm experiment harness and retained out-of-tree evidence;
+- role-inventory resource intent, host-default maps, consumer override schema,
+  and fail-loud resolution;
 - generated role inventory/counts, discovery, and dual-host parity tests; and
 - release-candidate requalification and a separately judged version bump.
 
@@ -491,6 +506,12 @@ conformance target is added.
 - **Allow three remediation dispatches per experiment run.** Not chosen after
   adversary F4: it raises and varies the maximum spend while letting repeated
   repair obscure whether the original planning treatment helped.
+- **Ship adapter defaults with no consumer override.** Not chosen after
+  adversary F5: it is reproducible but prevents a consumer from selecting an
+  available model that satisfies the same portable resource intent.
+- **Require every consumer to provide every concrete mapping.** Not chosen
+  after adversary F5: it removes Grove's versioned default behavior and makes a
+  missing project configuration block otherwise supported dispatch.
 
 ## Acceptance criteria for this decision
 
@@ -508,5 +529,6 @@ conformance target is added.
 ## Self-check
 
 The 2026-07-24 self-check is stale because independent review found five
-revision items. Rerun it only after O15–O16 close. The canvas currently has
-fifteen Decided items and two Open items.
+revision items. Rerun it after the substantive O12–O15 revisions now recorded,
+then close O16 through lifecycle transition and re-review. The canvas currently
+has sixteen Decided items and one Open item.
