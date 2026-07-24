@@ -95,8 +95,8 @@ Claude Code uses the existing marketplace:
 The package supplies generated `grove:<role>` definitions; whether they load
 is classified per exact surface below. Nothing is copied into your repo.
 `/grove:setup` then
-composes only what your repo owns: the gate-profile floor
-(`.grove/gates.toml` + machinery), the shared role config
+composes only what your repo owns: the gate-profile dial
+(`.grove/gates.toml`; executable machinery stays in the installed plugin), the shared role config
 (`.grove/config.toml` — your test/typecheck commands, VCS/issue-tracker
 conventions, parked-item store, rubric paths, resolved interactively
 and honestly, with "none exists yet" where a convention genuinely
@@ -125,10 +125,11 @@ launchers do not duplicate the runtime charter body.
 
 Support is claimed per exact host surface, never by family resemblance. This
 table is generated from
-[`plugins/grove/surfaces.json`](plugins/grove/surfaces.json); a candidate is
+[`plugins/grove/metadata/surfaces.json`](plugins/grove/metadata/surfaces.json);
+a candidate is
 available for integration evidence but is not release-supported.
 
-<!-- grove-surface-matrix:begin (generated from plugins/grove/surfaces.json) -->
+<!-- grove-surface-matrix:begin (generated from plugins/grove/metadata/surfaces.json) -->
 | Surface | Release state | Load/bridge state | Disclosure |
 |---|---|---|---|
 | `claude-interactive` | Unsupported | host-native | The package has an established interactive load path, but Grove does not claim 0.3.0 support until the complete release record passes. |
@@ -137,7 +138,7 @@ available for integration evidence but is not release-supported.
 | `claude-headless` | Unsupported | host-native | Unsupported in 0.3.0; the local plugin load command is known, but no role-discovery claim is inferred from a probe blocked before inference. |
 | `claude-agent-sdk` | Unsupported | host-native | Unsupported until the local-plugin SDK load passes the full role-discovery contract. |
 | `codex-cli-interactive` | Unsupported | unknown | Unsupported; Grove will not infer parity from codex exec. |
-| `codex-exec-non-ephemeral` | Supported | bridge-viable | Supported for Grove 0.3.0 on non-ephemeral Codex CLI 0.145.0 exec with gpt-5.6-sol, the OpenAI provider, MultiAgentV2, and setup-generated project launchers. |
+| `codex-exec-non-ephemeral` | Candidate — not supported | bridge-viable | Bridge-viable after the v4 package split; candidate only until a fresh non-ephemeral Codex support record passes against the exact package snapshot. |
 | `codex-exec-ephemeral` | Unsupported | partial-primitive | Unsupported; partial skill loading is not a Grove role bridge. |
 | `codex-desktop-local` | Unsupported | unknown | Unsupported until a desktop-local bridge and full support record pass. |
 | `codex-cloud-web` | Unsupported | unknown | Unsupported; no Grove role-loading claim is made for cloud/web. |

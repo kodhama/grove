@@ -2,5 +2,20 @@
   "name": "grove",
   "version": "0.3.0",
   "description": "Grove for Claude Code: generated host adapters over one canonical thirteen-role methodology, with repo-owned configuration and lifecycle skills.",
-  "author": { "name": "kodhama" }
+  "author": { "name": "kodhama" },
+  "agents": [
+    "./adapters/claude/agents/code-reviewer.md",
+    "./adapters/claude/agents/conformance-reviewer.md",
+    "./adapters/claude/agents/contract-author.md",
+    "./adapters/claude/agents/corpus-reviewer.md",
+    "./adapters/claude/agents/decision-adversary.md",
+    "./adapters/claude/agents/dispatcher.md",
+    "./adapters/claude/agents/divergent-researcher.md",
+    "./adapters/claude/agents/executor.md",
+    "./adapters/claude/agents/propagation-remediator.md",
+    "./adapters/claude/agents/run-resumer.md",
+    "./adapters/claude/agents/spec-adversary.md",
+    "./adapters/claude/agents/validator.md"
+  ],
+  "skills": "./adapters/claude/skills/"
 }

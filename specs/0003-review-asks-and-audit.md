@@ -17,7 +17,7 @@ status_note: authored from the approved adr-0023 (D1–D7); self-checked to gate
 > with the check: the `grove-review-ask`/`grove-audit` record classes are
 > no longer posted, the `record-ask`/`record-audit` skills and the
 > `auditor` role are retired, and no comparator runs. The code
-> (`plugins/grove/check/lib/asks.mjs`, `lib/audit.mjs`) and this spec are
+> (`retired/review-bookkeeping/check/lib/asks.mjs`, `lib/audit.mjs`) and this spec are
 > **preserved in-repo, kept `approved`**; revival via adr-0027 D4.
 > adr-0023 D2's closing-ask **principle survives, re-homed as prose**
 > (adr-0027 D2): every producing pass still ends with an advisory,

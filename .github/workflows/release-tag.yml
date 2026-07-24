@@ -49,29 +49,29 @@ jobs:
           node-version: "22"
 
       - name: Check generated adapters
-        run: npm run check --prefix plugins/grove/build
+        run: npm run check --prefix tooling/grove/build
 
       - name: Test every release-coupled package
         run: |
-          npm test --prefix plugins/grove/build
-          npm test --prefix plugins/grove/operations
-          npm test --prefix plugins/grove/release
-          npm test --prefix plugins/grove/gates
-          npm test --prefix plugins/grove/check
+          npm test --prefix tooling/grove/build
+          npm test --prefix tooling/grove/release
+          npm test --prefix tooling/grove/tests/lifecycle
+          npm test --prefix tooling/grove/tests/gates
+          npm test --prefix tooling/grove/probes
 
       - name: Typecheck every release-coupled package
         run: |
-          npm run typecheck --prefix plugins/grove/build
-          npm run typecheck --prefix plugins/grove/operations
-          npm run typecheck --prefix plugins/grove/release
-          npm run typecheck --prefix plugins/grove/gates
-          npm run typecheck --prefix plugins/grove/check
+          npm run typecheck --prefix tooling/grove/build
+          npm run typecheck --prefix tooling/grove/release
+          npm run typecheck --prefix tooling/grove/tests/lifecycle
+          npm run typecheck --prefix tooling/grove/tests/gates
+          npm run typecheck --prefix tooling/grove/probes
 
       - name: Smoke the package-level Codex projection
-        run: npm run smoke:codex --prefix plugins/grove/release
+        run: npm run smoke:codex --prefix tooling/grove/probes
 
-      - name: Validate release candidate
-        run: npm run check:release --prefix plugins/grove/release
+      - name: Validate release candidate and external host-discovery gate
+        run: npm run check:release --prefix tooling/grove/release
 
       - name: Materialize grove-v<version>
         run: |
@@ -82,11 +82,11 @@ jobs:
           git fetch --force --tags origin
           if git show-ref --verify --quiet "$tag_ref"; then
             tag_commit=$(git rev-parse "$tag_ref^{commit}")
-            node plugins/grove/release/bin/check-tag.mjs "$GITHUB_SHA" "$tag_commit"
+            node tooling/grove/release/bin/check-tag.mjs "$GITHUB_SHA" "$tag_commit"
             echo "$tag already identifies $GITHUB_SHA — no-op"
             exit 0
           fi
-          node plugins/grove/release/bin/check-tag.mjs "$GITHUB_SHA"
+          node tooling/grove/release/bin/check-tag.mjs "$GITHUB_SHA"
           git tag "$tag" "$GITHUB_SHA"
           git push origin "$tag_ref"
           echo "created and pushed $tag at $GITHUB_SHA"

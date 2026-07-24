@@ -10,10 +10,10 @@
 # honest value, not a gap. This file is agent-read config (judgment on
 # read); it is never a deterministic machinery read (adr-0026 D3 boundary).
 
-TEST_CMD = "npm test --prefix plugins/grove/build && npm test --prefix plugins/grove/operations && npm test --prefix plugins/grove/release && npm test --prefix plugins/grove/gates && npm test --prefix plugins/grove/check"
-TYPECHECK_CMD = "npm run typecheck --prefix plugins/grove/build && npm run typecheck --prefix plugins/grove/operations && npm run typecheck --prefix plugins/grove/release && npm run typecheck --prefix plugins/grove/gates && npm run typecheck --prefix plugins/grove/check"
+TEST_CMD = "npm test --prefix tooling/grove/build && npm test --prefix tooling/grove/tests/lifecycle && npm test --prefix tooling/grove/release && npm test --prefix tooling/grove/tests/gates && npm test --prefix tooling/grove/probes && npm test --prefix retired/review-bookkeeping/check"
+TYPECHECK_CMD = "npm run typecheck --prefix tooling/grove/build && npm run typecheck --prefix tooling/grove/tests/lifecycle && npm run typecheck --prefix tooling/grove/release && npm run typecheck --prefix tooling/grove/tests/gates && npm run typecheck --prefix tooling/grove/probes && npm run typecheck --prefix retired/review-bookkeeping/check"
 LINT_CMD = "none — no linter or formatter configured"
-TEST_DEPS_LEDGER = "per-package nearest-ancestor test-deps.md with a fenced grove-test-deps block (adr-0006; e.g. plugins/grove/gates/test-deps.md)"
+TEST_DEPS_LEDGER = "per-package nearest-ancestor test-deps.md with a fenced grove-test-deps block (adr-0006; e.g. tooling/grove/tests/gates/test-deps.md)"
 PR_CONTRACT_SECTIONS = "none committed — no PR template or CI-enforced PR-body contract exists; check by hand until one does"
 PARKED_ITEM_STORE = "a decision's '### Parked' section, or a tracked issue on kodhama/grove"
 CONVENTIONS_PATH = "CLAUDE.md"

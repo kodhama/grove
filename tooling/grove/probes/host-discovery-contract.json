@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "contract": "grove-live-host-clean-install-discovery",
+  "release_blocking": true,
+  "claimed_pass": false,
+  "precondition": "Run against one immutable released Grove package through each host's real clean marketplace channel; static generation or manifest inspection cannot satisfy this contract.",
+  "completion_rule": "All four cases must retain the required artifacts, bind them to the same package tree SHA-256 and host version, and pass independent review before S22/S23 or either host surface may be promoted to supported.",
+  "cases": [
+    {
+      "host": "claude",
+      "layout": "shallow",
+      "consumer_path_shape": "<temp>/consumer",
+      "required_artifacts": [
+        "host-version.txt",
+        "marketplace-install-transcript.txt",
+        "discovered-components.json",
+        "invocation-results.json",
+        "package-tree-sha256.txt"
+      ]
+    },
+    {
+      "host": "claude",
+      "layout": "deep-with-spaces",
+      "consumer_path_shape": "<temp>/one two/three four/five six/seven eight/nine ten/eleven twelve/thirteen fourteen/fifteen sixteen/consumer",
+      "required_artifacts": [
+        "host-version.txt",
+        "marketplace-install-transcript.txt",
+        "discovered-components.json",
+        "invocation-results.json",
+        "package-tree-sha256.txt"
+      ]
+    },
+    {
+      "host": "codex",
+      "layout": "shallow",
+      "consumer_path_shape": "<temp>/consumer",
+      "required_artifacts": [
+        "host-version.txt",
+        "marketplace-install-transcript.txt",
+        "discovered-components.json",
+        "invocation-results.json",
+        "package-tree-sha256.txt"
+      ]
+    },
+    {
+      "host": "codex",
+      "layout": "deep-with-spaces",
+      "consumer_path_shape": "<temp>/one two/three four/five six/seven eight/nine ten/eleven twelve/thirteen fourteen/fifteen sixteen/consumer",
+      "required_artifacts": [
+        "host-version.txt",
+        "marketplace-install-transcript.txt",
+        "discovered-components.json",
+        "invocation-results.json",
+        "package-tree-sha256.txt"
+      ]
+    }
+  ]
+}

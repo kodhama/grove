@@ -1,0 +1,254 @@
+{
+  "schema": 1,
+  "roles": [
+    {
+      "id": "code-reviewer",
+      "source": "charters/code-reviewer.md",
+      "description": "Independent code-quality gate: asks whether a change is good code regardless of the contract, alongside the conformance reviewer; read-only and severity-graded.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob", "Bash"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_code_reviewer"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/code-reviewer.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/code-reviewer.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-code-reviewer/SKILL.md"
+      }
+    },
+    {
+      "id": "conformance-reviewer",
+      "source": "charters/conformance-reviewer.md",
+      "description": "Independent fidelity review of an artifact against its approved upstream contract; read-only, with PASS, FAIL, or UPSTREAM-INDICTED verdicts.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob", "Bash"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_conformance_reviewer"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/conformance-reviewer.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/conformance-reviewer.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-conformance-reviewer/SKILL.md"
+      }
+    },
+    {
+      "id": "contract-author",
+      "source": "charters/contract-author.md",
+      "description": "Stage-3 author of testable specs from approved decisions; never implements.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob", "Write", "Edit"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_contract_author"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/contract-author.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/contract-author.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-contract-author/SKILL.md"
+      }
+    },
+    {
+      "id": "corpus-reviewer",
+      "source": "charters/corpus-reviewer.md",
+      "description": "Standing read-only audit of the artifact corpus for frontmatter, lifecycle, identity, dependency, directional-flow, and supersession integrity.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_corpus_reviewer"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/corpus-reviewer.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/corpus-reviewer.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-corpus-reviewer/SKILL.md"
+      }
+    },
+    {
+      "id": "decision-adversary",
+      "source": "charters/decision-adversary.md",
+      "description": "Stage-2½ independent soundness adversary for gated decisions; judges coherence, standing-decision conflicts, argument soundness, and settled ground.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob", "Bash"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_decision_adversary"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/decision-adversary.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/decision-adversary.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-decision-adversary/SKILL.md"
+      }
+    },
+    {
+      "id": "dispatcher",
+      "source": "charters/dispatcher.md",
+      "description": "One-shot dispatch advisor for a bounded workflow classification or next-dispatch recommendation; the full dispatcher remains in the driving session.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob"]
+      },
+      "exposures": [
+        {
+          "class": "driving-session"
+        },
+        {
+          "class": "scoped-advisor",
+          "native_id": "grove_dispatcher",
+          "source_fragment": "scoped-agent-boundary"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/dispatcher.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/dispatcher.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-dispatcher/SKILL.md"
+      }
+    },
+    {
+      "id": "divergent-researcher",
+      "source": "charters/divergent-researcher.md",
+      "description": "Stage-1 divergent research, problem refinement, landscape scanning, and evidence gathering, with loud failure when research tools are unavailable.",
+      "tool_policy": {
+        "claude": ["WebSearch", "WebFetch", "Read", "Write", "Grep", "Glob"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_divergent_researcher"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/divergent-researcher.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/divergent-researcher.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-divergent-researcher/SKILL.md"
+      }
+    },
+    {
+      "id": "executor",
+      "source": "charters/executor.md",
+      "description": "Stage-4 strict test-first implementation from approved or ratified-gated artifacts, cold-started from the artifact dependency graph.",
+      "tool_policy": {
+        "claude": ["Bash", "Read", "Grep", "Glob", "Edit", "Write"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_executor"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/executor.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/executor.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-executor/SKILL.md"
+      }
+    },
+    {
+      "id": "propagation-remediator",
+      "source": "charters/propagation-remediator.md",
+      "description": "Self-improvement remediation for missing propagation and recommended-next-task records, evaluated against the parked-item graph.",
+      "tool_policy": {
+        "claude": ["Bash", "Read", "Grep", "Glob"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_propagation_remediator"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/propagation-remediator.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/propagation-remediator.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-propagation-remediator/SKILL.md"
+      }
+    },
+    {
+      "id": "run-resumer",
+      "source": "charters/run-resumer.md",
+      "description": "Checkpoint-based continuation when a dispatched run reaches its turn cap, bounded to two automatic resumes before human attention.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob", "Bash", "Edit", "Write"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_run_resumer"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/run-resumer.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/run-resumer.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-run-resumer/SKILL.md"
+      }
+    },
+    {
+      "id": "shaper",
+      "source": "charters/shaper.md",
+      "description": "Interactive, multi-turn convergent decision shaping with the maintainer in the driving session.",
+      "tool_policy": {
+        "claude": ["Bash", "Read", "Grep", "Glob", "Edit", "Write"]
+      },
+      "exposures": [
+        {
+          "class": "driving-session"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/shaper.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-shaper/SKILL.md"
+      }
+    },
+    {
+      "id": "spec-adversary",
+      "source": "charters/spec-adversary.md",
+      "description": "Stage-3½ independent intrinsic-quality adversary for gated specs, separate from fidelity review.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob", "Bash"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_spec_adversary"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/spec-adversary.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/spec-adversary.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-spec-adversary/SKILL.md"
+      }
+    },
+    {
+      "id": "validator",
+      "source": "charters/validator.md",
+      "description": "Stage-5 per-change critique and triggered spec-drift audit of one artifact's blast radius; report-only.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob", "Bash"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_validator"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/validator.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/validator.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-validator/SKILL.md"
+      }
+    }
+  ]
+}

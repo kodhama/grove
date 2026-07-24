@@ -17,11 +17,11 @@ branch does not publish or self-release it.
 From the repository root:
 
 ```sh
-npm run generate --prefix plugins/grove/build
-npm run check --prefix plugins/grove/build
-npm run docs --prefix plugins/grove/release
-npm test --prefix plugins/grove/release
-npm run check --prefix plugins/grove/release
+npm run generate --prefix tooling/grove/build
+npm run check --prefix tooling/grove/build
+npm run docs --prefix tooling/grove/release
+npm test --prefix tooling/grove/release
+npm run check --prefix tooling/grove/release
 ```
 
 Generation is deterministic. Its check mode reports stale, missing, or
@@ -30,7 +30,7 @@ and Codex manifests against `VERSION`, validates the surface record and
 evidence paths, rejects plugin-carried Codex custom-agent TOML, and verifies
 the matrix-derived support tables in both READMEs.
 
-`npm run check:release --prefix plugins/grove/release` is intentionally
+`npm run check:release --prefix tooling/grove/release` is intentionally
 stricter: it also rejects every `candidate` surface. A release cannot be
 tagged until each candidate is backed by a complete support record and
 promoted to `supported`, or is explicitly classified `unsupported`.
@@ -40,18 +40,25 @@ promoted to `supported`, or is explicitly classified `unsupported`.
 From the repository root, on a clean committed candidate:
 
 ```sh
-npm run probe:codex --prefix plugins/grove/release
+npm run prepare:codex --prefix tooling/grove/probes
 ```
 
 Preparation runs the generated-package, release-package, and static Codex
-composition checks; snapshots the exact candidate; composes a fresh consumer;
-and creates a local marketplace, isolated `CODEX_HOME`/SQLite/temp roots,
-structured prompts, schemas, and an evidence runner. It **never launches
-Codex**, reads existing Codex state, copies credentials, or changes the
-surface matrix.
+composition checks; snapshots the exact candidate; and creates a local
+marketplace, isolated `CODEX_HOME`/SQLite/temp roots, structured prompts,
+schemas, and an evidence runner. Because candidate surfaces are never
+write-authorized, fresh-consumer plan generation uses a separately hash-bound
+composition-only copy whose one candidate row is temporarily marked supported.
+The marketplace and all evidence still use the untouched exact candidate
+snapshot. The seam is recorded in `probe-manifest.json`. Preparation **never
+launches Codex**, reads existing Codex state, copies credentials, or changes
+the source surface matrix.
 
 The command prints one `node .../run-probe.mjs` command to run from a separate
-interactive Terminal. That runner authenticates only the isolated home,
+interactive Terminal. First run that command with `--preflight`; the
+non-interactive preflight verifies the exact package digest, launcher bytes,
+composition seam, and every source-side harness module hash without launching
+Codex. The normal runner then authenticates only the isolated home,
 verifies it has exactly one enabled Grove candidate, and executes sequential
 non-ephemeral phases: both driving roles, three native batches of four, a
 separate executor/reviewer check, the scoped dispatcher, and the executor
@@ -72,13 +79,20 @@ instructions remain only in the isolated home.
 
 The runner writes an incomplete attempt at the first failure. On success it
 writes a validator-clean **candidate** support record, but never promotes
-`surfaces.json`. The validator checks internal structure and artifact bindings;
+`metadata/surfaces.json`. The validator checks internal structure and artifact bindings;
 an independent reviewer must still compare those hashes with the retained raw
 files and inspect the raw events before promotion. That review is the external
 trust boundary: the JSON validator does not claim to authenticate who created
 the files. The isolated home may contain login state, so do not archive it.
 After retaining evidence, run the printed `--sanitize` command to remove only
 that marked probe home, SQLite state, and runtime temp directory.
+
+The Codex probe does not satisfy the cross-host shallow/deep discovery cases
+by itself. [`tooling/grove/probes/host-discovery-contract.json`](../../tooling/grove/probes/host-discovery-contract.json)
+is the explicit release-blocking external artifact contract for clean
+marketplace installs on Claude and Codex at both shallow and eight-level-deep
+paths containing spaces. Those S22/S23 cases remain unpassed until all four
+live-host evidence bundles exist and pass independent review.
 
 ## Install through Claude
 
@@ -118,11 +132,12 @@ review.
 
 ## Current surface evidence
 
-The table below is generated from [`surfaces.json`](surfaces.json). “Candidate”
-means the loading primitive is available for integration testing, not that the
-surface is supported for release.
+The table below is generated from
+[`metadata/surfaces.json`](metadata/surfaces.json). “Candidate” means the
+loading primitive is available for integration testing, not that the surface
+is supported for release.
 
-<!-- grove-surface-matrix:begin (generated from plugins/grove/surfaces.json) -->
+<!-- grove-surface-matrix:begin (generated from plugins/grove/metadata/surfaces.json) -->
 | Surface | Release state | Load/bridge state | Disclosure |
 |---|---|---|---|
 | `claude-interactive` | Unsupported | host-native | The package has an established interactive load path, but Grove does not claim 0.3.0 support until the complete release record passes. |
@@ -131,7 +146,7 @@ surface is supported for release.
 | `claude-headless` | Unsupported | host-native | Unsupported in 0.3.0; the local plugin load command is known, but no role-discovery claim is inferred from a probe blocked before inference. |
 | `claude-agent-sdk` | Unsupported | host-native | Unsupported until the local-plugin SDK load passes the full role-discovery contract. |
 | `codex-cli-interactive` | Unsupported | unknown | Unsupported; Grove will not infer parity from codex exec. |
-| `codex-exec-non-ephemeral` | Supported | bridge-viable | Supported for Grove 0.3.0 on non-ephemeral Codex CLI 0.145.0 exec with gpt-5.6-sol, the OpenAI provider, MultiAgentV2, and setup-generated project launchers. |
+| `codex-exec-non-ephemeral` | Candidate — not supported | bridge-viable | Bridge-viable after the v4 package split; candidate only until a fresh non-ephemeral Codex support record passes against the exact package snapshot. |
 | `codex-exec-ephemeral` | Unsupported | partial-primitive | Unsupported; partial skill loading is not a Grove role bridge. |
 | `codex-desktop-local` | Unsupported | unknown | Unsupported until a desktop-local bridge and full support record pass. |
 | `codex-cloud-web` | Unsupported | unknown | Unsupported; no Grove role-loading claim is made for cloud/web. |
@@ -144,15 +159,17 @@ support is earned per exact matrix row; evidence never flows between rows.
 
 ## Package boundaries
 
-- `agents/`, `skills/`, and `reference/` are generated host projections or
-  package references.
+- `adapters/` contains generated host projections and thin host-specific
+  loading adapters; `reference/` contains generated runtime references.
+- `runtime/` contains only shipped lifecycle and gate-resolution machinery.
+- `metadata/` contains package inventories, ownership records, the package
+  allowlist, and the sole support authority, `metadata/surfaces.json`.
 - `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` carry the same
   value as `VERSION`.
-- `surfaces.json` is the sole source for support claims.
-- `release/` contains zero-dependency validation and immutable-tag decision
-  logic.
-- `check/` is the dormant review-bookkeeping runtime retained by ADR-0027; it
-  is not installed by setup.
+- `tooling/grove/build/`, `tooling/grove/release/`, and
+  `tooling/grove/probes/` are repository tooling and are not packaged.
+- `retired/review-bookkeeping/` preserves the dormant ADR-0027 machinery
+  outside the production package.
 
 For role definitions, dispatch behavior, and workflow semantics, read the
 canonical charters rather than this packaging guide.

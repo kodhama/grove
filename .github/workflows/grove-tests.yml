@@ -7,8 +7,8 @@
 # regression that slipped a review.
 #
 # GREEN HERE IS NOT APPROVAL — it only proves the code builds and its tests
-# pass. The review-bookkeeping check and a human still gate the merge; this
-# does not displace reviews as the gate, it backstops them.
+# pass. Normal review and the maintainer's merge decision still gate the
+# merge; this does not displace review, it backstops it.
 #
 # All packages are zero-dependency (`type: module`, no deps): `npm test` is
 # `node --test`, `npm run typecheck` is `node --check` over the .mjs sources —
@@ -33,16 +33,17 @@ jobs:
     name: test — ${{ matrix.package }}
     runs-on: ubuntu-latest
     strategy:
-      # Report both packages independently — one failing suite shouldn't mask
-      # the other's result.
+      # Report all six suites independently — five retained packages plus the
+      # preserved review-bookkeeping suite. One failure must not mask another.
       fail-fast: false
       matrix:
         package:
-          - plugins/grove/gates
-          - plugins/grove/check
-          - plugins/grove/build
-          - plugins/grove/operations
-          - plugins/grove/release
+          - tooling/grove/build
+          - tooling/grove/release
+          - tooling/grove/tests/gates
+          - tooling/grove/tests/lifecycle
+          - tooling/grove/probes
+          - retired/review-bookkeeping/check
     steps:
       - name: Check out
         uses: actions/checkout@v5

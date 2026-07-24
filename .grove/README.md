@@ -9,8 +9,8 @@ of running inside the repo that authors the payload. Effect of each dial:
   (`intent` / `spec` / `build` / `ship`): `human` or `agent`. The floor
   (`adr-0018`): `intent` or `ship` must be `human`, validated on every
   run-sequencing read. Collapsed case: the machinery resolves from the
-  native payload (`runtime_dir = "plugins/grove/gates/"`, `adr-0021`
-  D1/D2), so no installed `.grove/internal/` exists here. Switch presets
+  active installed package's `runtime/gates/` default (`adr-0035`), so no
+  `.grove/internal/` exists here. Switch presets
   with `/grove:set-profile`.
 - **`config.toml`** — the shared role tokens (`adr-0026` D3) grove agents
   resolve at use time: test/typecheck commands, corpus paths, rubric
@@ -22,9 +22,10 @@ of running inside the repo that authors the payload. Effect of each dial:
   examples) a generic `grove:<role>` agent reads when present. None
   authored here yet.
 
-**How the fleet loads.** The thirteen roles ship in
-`plugins/grove/agents/` as `grove:<role>` subagents (`adr-0026` D1) — but
-they are **not** auto-loaded just by living in this tree. To run them
+**How the fleet loads.** Twelve native Claude agent envelopes ship in
+`plugins/grove/adapters/claude/agents/`; the interactive shaper remains a
+driving-task loader, while dispatcher has both driving and scoped-advisor
+exposures. They are **not** auto-loaded just by living in this tree. To run them
 against your own working copy — the dogfood path, including charter edits
 on an unmerged branch — launch with `claude --plugin-dir ./plugins/grove`,
 which loads the payload **live from the working tree** for that session
