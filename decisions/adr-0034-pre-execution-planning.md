@@ -12,9 +12,9 @@ updated: 2026-07-24
 > **Draft shaping canvas — nothing here authorizes implementation.** The
 > maintainer wants to test whether a stronger planning pass can make a
 > lower-cost executor effective without weakening Grove's artifact authority,
-> strict TDD, independent review, or dual-host delivery. This draft records the
-> converged shaping boundary; it remains a draft pending independent
-> adversarial review and the applicable intent-gate act.
+> strict TDD, independent review, or dual-host delivery. Independent
+> adversarial review returned `NEEDS-REVISION`; this canvas now tracks those
+> revisions before a fresh self-check and re-review.
 
 ## Decision state
 
@@ -85,10 +85,33 @@ updated: 2026-07-24
   chose Option A)*. This is the normative machine-readable role identity. Its
   specificity distinguishes implementation decomposition from Grove's
   interactive shaping role and from a host's generic planning mode.
+- **D12 — declare planning triggers locally, never as dispatcher-owned flow**
+  *(maintainer, 2026-07-24; chose Option A after adversary F1)*. The
+  `implementation-planner` declaration triggers on code-bearing spec work; the
+  executor declaration requires its advisory packet except for D5's localized
+  implementation-slip route. The generic dispatcher discovers and enacts
+  those declarations. No central pipeline or ADR-0012 exception is added.
 
 ### Open
 
-- None.
+- **O12 — standing fleet contract.** ADR-0031's approved host-equivalence test
+  hardcodes thirteen discoverable roles. Decide whether its append-only
+  amendment should derive the exact count from canonical inventory or replace
+  thirteen with fourteen for this role addition.
+- **O13 — interruption recovery wording.** Reconcile D4's no-task-required
+  common path with the fact that the existing run-resumer checkpoint carrier
+  requires an identifiable task/change-request; otherwise interruption before
+  executor dispatch can only replan.
+- **O14 — experiment metric semantics.** Define accepted-quality timing,
+  bounded retries, weighted-cost arithmetic, loop counting, and
+  zero-accepted-completion handling before the thresholds can authorize
+  adoption.
+- **O15 — resource-map carrier.** Name the exact canonical owner of each host's
+  concrete resource-class mapping and reconcile it with consumer-owned
+  configuration.
+- **O16 — lifecycle and review record.** After revisions, rerun the self-check,
+  move `draft` to `gated`, and obtain a fresh decision-adversary verdict on an
+  authenticated change-request; the session-only preview cannot clear a gate.
 
 ### Parked
 
@@ -341,7 +364,8 @@ contract would cover:
 
 - the canonical planning-role charter and generated host projections;
 - the exact packet grammar and stale/conflict behavior;
-- dispatcher trigger and verbatim relay behavior;
+- local planner/executor trigger declarations and generic dispatcher enactment,
+  including verbatim relay behavior;
 - executor authority/verification wording;
 - checkpoint/resume behavior;
 - the three-arm experiment harness and retained out-of-tree evidence;
@@ -402,6 +426,9 @@ conformance target is added.
   contract for implementation.
 - **Name the role `planner`.** Not chosen: the generic identity is easily
   confused with host plan modes and does not state the role's bounded subject.
+- **Make the planner route a dispatcher-owned workflow branch.** Rejected
+  after adversary F1: ADR-0012 requires routing to emerge from local
+  agent/artifact declarations so adding an agent does not edit a central flow.
 
 ## Acceptance criteria for this decision
 
@@ -418,20 +445,6 @@ conformance target is added.
 
 ## Self-check
 
-Passed by the shaper on 2026-07-24:
-
-- D1–D2 keep the packet outside artifact authority and add neither a gate nor
-  a repo artifact.
-- D4–D5 define host-neutral transport and deterministic routing, including the
-  explicit W3 bug split.
-- D6–D9 preregister a three-arm staged experiment that separates planner value
-  from the executor-model downgrade and makes rejection/adoption measurable.
-- D10 assigns portable resource intent without claiming unsupported concrete
-  model control, and D11 fixes the role identity.
-- The propagation section names charter, dispatcher, executor, adapter,
-  checkpoint, inventory, support-evidence, and release consequences without
-  implementing them.
-
-The canvas has eleven Decided items, zero Open items, and remains `draft`
-pending independent decision-adversary review and the applicable intent-gate
-act.
+The 2026-07-24 self-check is stale because independent review found five
+revision items. Rerun it only after O12–O16 close. The canvas currently has
+twelve Decided items and five Open items.
