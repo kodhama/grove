@@ -107,13 +107,19 @@ updated: 2026-07-24
   requires one. If no carrier exists and the transient relay is lost, the
   dispatcher cold-runs the planner again from the unchanged authoritative
   artifact and repository basis.
+- **D15 — preregister accepted quality, bounded remediation, and cost
+  arithmetic** *(maintainer, 2026-07-24; chose Option A after adversary F4)*.
+  One experimental run includes its initial calls and at most two additional
+  remediation dispatches, classified without double-counting as either an
+  executor retry or a reviewer-return loop. It is accepted only when all
+  required tests/typechecks pass, conformance returns `PASS`, and code review
+  has no blocking finding within that bound. Every triggered model call is
+  priced from the dated provider snapshot; zero acceptances yields infinite
+  cost per acceptance. A genuinely upstream-invalid task is replaced across
+  all three arms.
 
 ### Open
 
-- **O14 — experiment metric semantics.** Define accepted-quality timing,
-  bounded retries, weighted-cost arithmetic, loop counting, and
-  zero-accepted-completion handling before the thresholds can authorize
-  adoption.
 - **O15 — resource-map carrier.** Name the exact canonical owner of each host's
   concrete resource-class mapping and reconcile it with consumer-owned
   configuration.
@@ -359,6 +365,33 @@ Measure:
 - invalid plan anchors, executor deviations with reasons, unused steps, and
   ambiguities caught before implementation.
 
+One run starts with the arm's first model invocation and ends with its final
+independent-review result. It may contain at most two remediation dispatches
+after the initial executor attempt:
+
+- an **executor retry** repeats execution after failure or unusable output
+  before independent review; and
+- a **reviewer-return loop** is one blocking independent-review result followed
+  by a fresh executor remediation dispatch.
+
+Each remediation dispatch receives exactly one classification, so D9's sum
+cannot double-count it. A run earns one **accepted-quality result** only when,
+within the two-dispatch bound, all declared required test and typecheck
+commands pass, conformance returns `PASS`, and code review reports no blocking
+finding. Reaching the bound without all three conditions is an unaccepted run.
+
+Weighted cost is the sum, across every planner, executor, reviewer, and
+remediation model call triggered by the run, of each reported token category
+multiplied by its dated provider price (including a distinct cached-token rate
+where the provider publishes one). Cost per accepted completion is total arm
+cost divided by its accepted-quality count; a zero count is positive infinity,
+never omitted or coerced to zero.
+
+If independent review establishes that the ratified upstream itself is invalid
+rather than an arm failing to implement it, the matched task is removed from
+all three arms and replaced with a preregistered task from the same size
+stratum. No single arm receives a selective exclusion.
+
 After all 27 runs, treatment C may be adopted only if, across its nine runs, it:
 
 - finishes at most one accepted-quality result behind baseline A;
@@ -452,6 +485,12 @@ conformance target is added.
   the plan, recreating the durable-write path rejected by D4. The chosen route
   accepts rare replanning without adding a platform/authentication precondition
   to every successful run.
+- **Allow only one remediation dispatch per experiment run.** Not chosen after
+  adversary F4: it is cheaper but makes one stochastic miss dominate a small
+  task/arm sample.
+- **Allow three remediation dispatches per experiment run.** Not chosen after
+  adversary F4: it raises and varies the maximum spend while letting repeated
+  repair obscure whether the original planning treatment helped.
 
 ## Acceptance criteria for this decision
 
@@ -469,5 +508,5 @@ conformance target is added.
 ## Self-check
 
 The 2026-07-24 self-check is stale because independent review found five
-revision items. Rerun it only after O14–O16 close. The canvas currently has
-fourteen Decided items and three Open items.
+revision items. Rerun it only after O15–O16 close. The canvas currently has
+fifteen Decided items and two Open items.
