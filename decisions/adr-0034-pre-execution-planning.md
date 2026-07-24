@@ -39,15 +39,17 @@ updated: 2026-07-24
   seam fires, its task/change-request checkpoint carries the packet or its
   validated remainder. Loss before executor dispatch costs a replan, never a
   correctness or gate claim.
+- **D5 — plan code-bearing spec work, with a bounded localized-bug
+  exception** *(maintainer, 2026-07-24; chose Option B)*. Every code-bearing
+  handoff from a ratified spec routes through the planner. Under W3, a spec gap
+  first amends and reconverges the spec and then plans; a wrong upstream
+  decision returns to shaping; and only a reproduced, root-caused, localized
+  implementation slip against an adequate spec may route directly to
+  executor. A non-local implementation slip still receives a plan without
+  manufacturing a spec amendment. Decision-only non-code work remains direct.
 
 ### Open
 
-- **O2 — routing obligation.** The maintainer is leaning toward the semantic
-  boundary in Option B, with bug behavior made explicit: code-bearing work
-  derived from a spec plans; a spec-gap bug first amends and reconverges its
-  missing contract, then plans; only a reproduced, root-caused, localized
-  implementation slip against an already-adequate spec may route directly to
-  executor. Confirmation remains open.
 - **O3 — experiment and adoption threshold.** Which task sample, repetitions,
   quality floor, and cost improvement are enough to adopt the role? The
   current recommendation is a three-arm cold comparison: current premium
@@ -218,14 +220,14 @@ and cross-host semantics. It remains available to the experiment harness for
 capturing measurements outside the repo, but is not recommended as production
 transport.
 
-## O2 options — when planning fires
+## D5 — when planning fires
 
-### A. Every executor invocation
+### A. Every executor invocation — rejected
 
 Simple and maximally consistent, but spends a planning call on non-code edits,
 localized regressions, and trivial mechanical work.
 
-### B. Every code-bearing spec → executor handoff — recommended candidate
+### B. Every code-bearing spec → executor handoff — chosen
 
 Code-bearing forward construction from a spec receives a plan. Decision-only
 non-code work continues directly to executor.
@@ -248,7 +250,7 @@ line-count threshold. It is observable and testable, preserves the rule that
 implementation-slip regressions need not manufacture a spec change, and still
 gives non-local bugs access to planning.
 
-### C. Dispatcher judgment based on complexity
+### C. Dispatcher judgment based on complexity — rejected
 
 Potentially cheapest per task, but “complex enough” is not yet defined. It
 creates selection bias in the experiment and recreates ADR-0005's parked,
@@ -311,6 +313,14 @@ conformance target is added.
   inherits direct relay's lack of durable project visibility while adding
   path, ownership, cleanup, lifetime, and cross-host semantics. Out-of-tree
   files remain valid experiment evidence, not runtime transport.
+- **Plan every executor invocation.** Rejected: it spends a planning call on
+  decision-only non-code work and on bounded implementation slips for which
+  reproduction and root-cause localization already supply the executable
+  route.
+- **Let the dispatcher decide whether work is “complex enough” to plan.**
+  Rejected: no observable threshold exists, so the rule would introduce
+  selection bias into the experiment and create an under-specified bypass
+  around the planner.
 
 ## Acceptance criteria for this decision
 
@@ -327,4 +337,4 @@ conformance target is added.
 
 ## Self-check
 
-Not yet run. The draft has five Open items and is not converged.
+Not yet run. The draft has three Open items and is not converged.
