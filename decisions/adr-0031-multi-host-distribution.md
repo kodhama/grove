@@ -305,3 +305,14 @@ authorize an all-at-once packaging rewrite.
 - **Transparency:** the Codex native-agent packaging gap and the possible
   generated-TOML fallback are explicit.
 - **Intent gate:** no recommendation is recorded as maintainer-approved.
+
+## Forward annotation — ADR-0033 (2026-07-24)
+
+ADR-0033 adopts the Stewards family release/surface and distribution contracts
+without changing this decision's one kernel, dual adapters, Grove-owned
+`VERSION`, manifests, tag, or product support matrix. Read §3's external host
+channels through the new boundary: Grove owns the package and behavioral
+evidence; Stewards owns catalog/provisioner availability and acquisition
+evidence; the consumer owns selection and environment prerequisites. A mutable
+catalog selector is publication only, not Grove support, release identity, or
+effective support.
