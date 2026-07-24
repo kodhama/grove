@@ -38,6 +38,8 @@ After setup or refresh:
    instructions are added to unmarked `AGENTS.md` prose, Claude-only rules go
    in `.claude/rules/`, Grove dials go in `.grove/`, and neither the block nor
    the `CLAUDE.md` adapter is hand-edited.
+8. Non-Grove managed overlays may remain in `CLAUDE.md`; Grove preserves their
+   markers and contents byte-for-byte.
 
 ## Recognized syntax
 
@@ -72,14 +74,16 @@ Composition implements this complete two-file matrix:
 | present, no block | absent or no block | append canonical block; create/ensure adapter while preserving unrelated prose in its original file |
 | one valid block | absent or no block | replace only that block; create/ensure adapter |
 | absent or no block | one valid legacy block | remove that block from Claude, append the canonical block to Agents, ensure the adapter, and preserve other prose in its original file |
-| one valid block | byte-identical file with the same block | retain the whole shared copy in Agents, update its block, and collapse Claude to the exact adapter |
+| one valid block | byte-identical file with the same block | retain the shared copy in Agents, update its Grove block, move a valid Trellis managed block to Claude when present, and collapse the rest of Claude to the adapter |
 | one valid block | non-byte-identical file with one valid block | refuse as ambiguous |
 | malformed markers in either file, or an import cycle | any | refuse |
 
 The byte-identical collapse is the only intentional per-file preservation
 exception: duplicated non-Grove prose is removed from `CLAUDE.md` but remains
-unchanged in `AGENTS.md`. Every other matrix row preserves unrelated bytes in
-the same file.
+unchanged in `AGENTS.md`. A valid Trellis managed block is the exception within
+that exception: it moves byte-for-byte from the shared copy to `CLAUDE.md`,
+where its Claude imports work, and is removed from `AGENTS.md`. Every other
+matrix row preserves unrelated bytes in the same file.
 
 Running composition twice with the same plugin version produces no second-run
 diff.

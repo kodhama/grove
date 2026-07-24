@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const MANIFEST_PATH = resolve(SCRIPT_DIR, "..", ".claude-plugin", "plugin.json");
 const COMMANDS = new Set(["compose", "strip", "check"]);
+const CLAUDE_ONLY_MANAGED_BLOCKS = new Set(["trellis"]);
 
 class ContractRefusal extends Error {}
 
@@ -237,6 +238,47 @@ function inspectText(text, label) {
   return { block, agentsImports, claudeImports };
 }
 
+function findManagedBlock(text, owner) {
+  const active = activeLineRecords(text);
+  const begins = active.filter((record) => {
+    const trimmed = record.content.trim();
+    return (
+      trimmed.startsWith(`<!-- ${owner}:begin`) && trimmed.endsWith("-->")
+    );
+  });
+  const ends = active.filter((record) => {
+    const trimmed = record.content.trim();
+    return trimmed.startsWith(`<!-- ${owner}:end`) && trimmed.endsWith("-->");
+  });
+  if (
+    begins.length !== 1 ||
+    ends.length !== 1 ||
+    begins[0].start >= ends[0].start
+  ) {
+    return null;
+  }
+  return {
+    start: begins[0].start,
+    end: ends[0].end,
+    text: text.slice(begins[0].start, ends[0].end),
+  };
+}
+
+function extractClaudeOnlyManagedBlocks(text) {
+  const blocks = [...CLAUDE_ONLY_MANAGED_BLOCKS]
+    .map((owner) => findManagedBlock(text, owner))
+    .filter(Boolean)
+    .sort((left, right) => left.start - right.start);
+  let remainder = text;
+  for (const block of blocks.toReversed()) {
+    remainder = removeBlock(remainder, block);
+  }
+  return {
+    remainder,
+    text: blocks.map((block) => block.text).join(newlineFor(text)),
+  };
+}
+
 function newlineFor(text) {
   const match = text.match(/\r\n|\n|\r/);
   return match?.[0] ?? "\n";
@@ -349,8 +391,10 @@ export function composeTexts({ agentsText, claudeText, version }) {
         "AGENTS.md and CLAUDE.md both contain non-identical Grove-bearing content",
       );
     }
-    nextAgents = replaceBlock(agentsText, agents.block, version);
-    nextClaude = `@AGENTS.md${newlineFor(claudeText)}`;
+    const updatedAgents = replaceBlock(agentsText, agents.block, version);
+    const extracted = extractClaudeOnlyManagedBlocks(updatedAgents);
+    nextAgents = extracted.remainder;
+    nextClaude = ensureAgentsImport(extracted.text);
     migratedFrom = "byte-identical-copy";
   } else if (agents.block) {
     nextAgents = replaceBlock(agentsText, agents.block, version);

@@ -86,6 +86,31 @@ test("compose preserves project and Claude-only prose", () => {
   );
 });
 
+test("compose preserves a Trellis managed block in CLAUDE", () => {
+  const trellis = [
+    "<!-- trellis:begin (managed by trellis — edit .trellis/, not this block) -->",
+    "This project follows Trellis:",
+    "@.trellis/internal/trellis.md",
+    "@.trellis/rules.toml",
+    "<!-- trellis:end -->",
+    "",
+  ].join("\n");
+  const claudeText = `@AGENTS.md\n\n${trellis}`;
+  const result = composeTexts({
+    agentsText: block(),
+    claudeText,
+    version: VERSION,
+  });
+  assert.equal(result.claudeText, claudeText);
+  assert.doesNotThrow(() =>
+    checkTexts({
+      agentsText: result.agentsText,
+      claudeText: result.claudeText,
+      version: VERSION,
+    }),
+  );
+});
+
 test("compose migrates a legacy Claude block without moving custom prose", () => {
   const legacy = `# Claude only\n\n${block()}`;
   const result = composeTexts({
@@ -110,6 +135,34 @@ test("compose collapses byte-identical files", () => {
   assert.equal(result.agentsText, duplicated);
   assert.equal(result.claudeText, "@AGENTS.md\n");
   assert.equal(result.migratedFrom, "byte-identical-copy");
+});
+
+test("compose keeps Trellis in CLAUDE when collapsing byte-identical files", () => {
+  const trellis = [
+    "<!-- trellis:begin (managed by trellis — edit .trellis/, not this block) -->",
+    "This project follows Trellis:",
+    "@.trellis/internal/trellis.md",
+    "@.trellis/rules.toml",
+    "<!-- trellis:end -->",
+    "",
+  ].join("\n");
+  const duplicated = `# Shared\n\n${block()}\n${trellis}`;
+  const result = composeTexts({
+    agentsText: duplicated,
+    claudeText: duplicated,
+    version: VERSION,
+  });
+  assert.match(result.agentsText, /^# Shared/);
+  assert.doesNotMatch(result.agentsText, /<!-- trellis:begin/);
+  assert.equal(result.claudeText, `@AGENTS.md\n\n${trellis}`);
+  assert.equal(result.migratedFrom, "byte-identical-copy");
+  assert.doesNotThrow(() =>
+    checkTexts({
+      agentsText: result.agentsText,
+      claudeText: result.claudeText,
+      version: VERSION,
+    }),
+  );
 });
 
 test("compose refuses two non-identical Grove-bearing files without writes", async () => {
@@ -446,9 +499,16 @@ test("check command is read-only and reports canonical state", async () => {
 });
 
 test("source wiring keeps AGENTS canonical and current-truth prose aligned", async () => {
-  assert.equal(await readFile(join(REPO_ROOT, "CLAUDE.md"), "utf8"), "@AGENTS.md\n");
+  const repoAgents = await readFile(join(REPO_ROOT, "AGENTS.md"), "utf8");
+  const repoClaude = await readFile(join(REPO_ROOT, "CLAUDE.md"), "utf8");
+  assert.match(repoClaude, /^@AGENTS\.md\n/);
+  assert.equal(repoClaude.match(/^@AGENTS\.md$/gm)?.length, 1);
+  assert.match(repoClaude, /<!-- trellis:begin/);
+  assert.match(repoClaude, /@\.trellis\/internal\/trellis\.md/);
+  assert.match(repoClaude, /@\.trellis\/rules\.toml/);
+  assert.doesNotMatch(repoAgents, /<!-- trellis:begin/);
   assert.match(
-    await readFile(join(REPO_ROOT, "AGENTS.md"), "utf8"),
+    repoAgents,
     /AGENTS\.md` is the canonical home for shared project instructions/,
   );
   assert.match(

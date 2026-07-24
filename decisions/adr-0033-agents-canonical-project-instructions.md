@@ -42,8 +42,11 @@ copied into `CLAUDE.md`.
 ### D2. Claude is an adapter
 
 `CLAUDE.md` contains exactly one active `@AGENTS.md` import. It may also contain
-genuinely Claude-specific instructions, but shared instructions do not live
-there.
+genuinely Claude-specific instructions or managed overlays, but shared
+instructions do not live there. In Grove's own repository, Trellis's managed
+import block remains in `CLAUDE.md`: Codex's documented instruction discovery
+does not include Claude's `@file` imports, so moving that block to `AGENTS.md`
+would not make its imported content available to Codex.
 
 Grove preserves existing Claude-specific prose byte-for-byte while ensuring the
 import. When no Claude-specific prose exists, the whole file is:
@@ -61,6 +64,8 @@ import. When no Claude-specific prose exists, the whole file is:
 - Another overlay may own its own marked block in `AGENTS.md`.
 - `CLAUDE.md` is an adapter plus optional Claude-only prose; Grove never treats
   either as shared-rule authority.
+- A Claude-only overlay such as Trellis may retain its marked block in
+  `CLAUDE.md`; Grove preserves it as unrelated prose.
 
 ### D4. Setup and refresh migrate safely
 
@@ -74,7 +79,8 @@ The helper:
 3. replaces or appends the Grove block in `AGENTS.md`;
 4. removes a legacy Grove block from `CLAUDE.md`;
 5. collapses byte-identical `AGENTS.md` / `CLAUDE.md` copies to the canonical
-   `AGENTS.md` plus the adapter;
+   `AGENTS.md` plus the adapter, while moving a valid Trellis managed block
+   byte-for-byte to `CLAUDE.md`;
 6. preserves all unrelated prose; and
 7. is idempotent.
 
@@ -121,4 +127,3 @@ vary across platforms; Claude's documented import is explicit and portable.
 - Legacy consumers migrate during their next setup or refresh.
 - Grove gains a small zero-dependency helper and fixture suite because
   cross-file migration is no longer safe as prose-only agent work.
-

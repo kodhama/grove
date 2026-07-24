@@ -26,18 +26,13 @@ for the full rationale.
 ## Maintaining project instructions
 
 `AGENTS.md` is the canonical home for shared project instructions. Add shared
-rules here outside managed blocks. `CLAUDE.md` is only the Claude adapter and
-must keep importing this file; put genuinely Claude-only rules in
-`.claude/rules/`.
+rules here outside managed blocks. `CLAUDE.md` must keep importing this file
+and may carry Claude-only managed overlays; put other genuinely Claude-only
+rules in `.claude/rules/`.
 
 Grove owns its marked block plus `.grove/README.md` and `.grove/internal/**`.
 Edit Grove's project choices in `.grove/config.toml`, `.grove/gates.toml`, and
 `.grove/agents/**`. Trellis owns its marked block and `.trellis/internal/**`;
-edit its active project choices in `.trellis/rules.toml`.
-
-<!-- trellis:begin (managed by trellis — edit .trellis/, not this block) -->
-This project follows **Trellis** — working rules you are expected to follow while you work here. They are imported below:
-@.trellis/internal/trellis.md
-@.trellis/rules.toml
-<!-- trellis:end -->
-
+edit its active project choices in `.trellis/rules.toml`. Trellis's managed
+block stays in `CLAUDE.md` because Codex's documented instruction discovery
+does not include Claude's `@file` import syntax.
