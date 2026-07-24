@@ -59,13 +59,19 @@ updated: 2026-07-24
   the three tasks that baseline A passes, or if C reduces neither premium
   tokens nor weighted cost on any task. Otherwise expand to 27 runs. Passing
   this screen never authorizes early adoption.
+- **D8 — use the balanced baseline-adoption floor** *(maintainer, 2026-07-24;
+  chose Option A)*. Across the nine treatment runs in the completed experiment,
+  C may finish at most one accepted-quality result behind A, must introduce no
+  additional blocking independent-review finding, must consume at least 30%
+  fewer premium-model tokens, and must reduce weighted cost per accepted
+  completion by at least 20%. Whether C has sufficiently outperformed
+  medium-only control B remains to be made testable.
 
 ### Open
 
-- **O3 — final adoption threshold.** What quality non-inferiority margin and
-  premium-token/weighted-cost improvement must treatment C show after all 27
-  runs, and how much must it outperform medium executor control B to prove the
-  planner earned its additional cold call? The phase-one rule is settled.
+- **O3 — planner-value threshold.** What exact advantage over medium executor
+  control B proves that the planner earned its additional cold call? The
+  phase-one rule and final comparison against premium baseline A are settled.
 - **O4 — model/resource ownership.** Does Grove define portable resource
   classes such as `reasoning-heavy` and `execution-medium` for adapters to map,
   or does concrete model selection remain entirely in the experiment harness
@@ -304,11 +310,16 @@ Measure:
 - invalid plan anchors, executor deviations with reasons, unused steps, and
   ambiguities caught before implementation.
 
-The adoption floor should be preregistered before running the sample:
-treatment C must be non-inferior to baseline A on completion and independent
-review quality, materially reduce premium-token spend or weighted cost, and
-outperform control B sufficiently to show that the planner earned its extra
-cold run. Fewer total raw tokens are desirable but not assumed.
+After all 27 runs, treatment C may be adopted only if, across its nine runs, it:
+
+- finishes at most one accepted-quality result behind baseline A;
+- introduces no additional blocking independent-review finding;
+- consumes at least 30% fewer premium-model tokens than A; and
+- reduces weighted cost per accepted completion by at least 20% versus A.
+
+It must also outperform control B sufficiently to show that the planner earned
+its extra cold run; that last operational threshold remains open. Fewer total
+raw tokens are desirable but not assumed.
 
 ## Consequences and propagation if approved
 
@@ -353,6 +364,12 @@ conformance target is added.
   the full budget even when the first complete task/arm block already shows
   that the planner treatment is plainly unpromising. D6 retains the 27-run
   endpoint while preregistering the early-stop boundary.
+- **Require treatment C to match every baseline-A quality result and save 40%
+  of premium tokens plus 25% of weighted cost.** Not chosen: this strict
+  package increases false rejection risk in a nine-run treatment sample.
+- **Allow C to trail A by two quality results while saving only 20% of premium
+  tokens and 10% of weighted cost.** Not chosen: this package can adopt a
+  material quality regression for a modest efficiency gain.
 
 ## Acceptance criteria for this decision
 
