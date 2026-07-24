@@ -92,7 +92,7 @@ jobs:
       # fetch of just the base + default branch is possible but fiddlier; depth 0
       # is the robust default — trim it later if clone time becomes a concern.)
       - name: Check out the PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.ctx.outputs.head }}
           fetch-depth: 0
@@ -109,7 +109,7 @@ jobs:
       # The check is zero-dependency (type: module, no npm install) — only a
       # modern Node runtime is needed.
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "<NODE_VERSION>"
 
