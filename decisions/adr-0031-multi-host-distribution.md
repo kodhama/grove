@@ -4,7 +4,7 @@ type: adr
 status: approved  # maintainer's intent act 2026-07-23 ("Approved ... go ahead, I'll check at the end"); self-checked by the shaper; conformance scoped re-review PASS after graph fixes; decision-adversary NEEDS-REVISION on draft readiness, revision folded, scoped re-review SOUND; the later ship gate remains human
 depends_on: [adr-0014-install-is-invisible-and-ungated, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0028-plugin-release-tagging, adr-0029-non-interactive-loading]
 owner: agent
-updated: 2026-07-23
+updated: 2026-07-24  # forward annotation for adr-0034's fleet-completeness amendment
 ---
 
 # ADR-0031: one grove fleet, distributed through Claude and Codex
@@ -329,3 +329,12 @@ ADR-0034 supersedes ADR-0033's shared release-certification adoption.
 This ADR's Grove-owned version, adapters, surface matrix, evidence, release
 validator, and tag workflow remain current. Stewards integration is narrowed
 to marketplace-test metadata and CI marketplace/plugin setup authoring.
+
+## Forward annotation — ADR-0034 (effective upon approval)
+
+ADR-0034 partially amends §5 item 3's hardcoded thirteen-role discovery
+contract. Host-equivalence instead requires discovery of every role identity
+in the canonical inventory, and each release's evidence must state and assert
+the exact expected count. The first release containing
+`implementation-planner` must therefore prove fourteen roles. The remainder of
+§5 and this decision's one-kernel, dual-adapter architecture stand unchanged.

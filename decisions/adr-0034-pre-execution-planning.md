@@ -91,13 +91,17 @@ updated: 2026-07-24
   executor declaration requires its advisory packet except for D5's localized
   implementation-slip route. The generic dispatcher discovers and enacts
   those declarations. No central pipeline or ADR-0012 exception is added.
+- **D13 — derive fleet completeness from canonical inventory, with an exact
+  release count** *(maintainer, 2026-07-24; chose Option A after adversary
+  F2)*. This decision partially amends ADR-0031 §5 item 3: host-equivalence
+  requires discovery of every role identity declared by the canonical
+  inventory, while each release's evidence records and asserts the exact
+  expected count. The first release containing `implementation-planner` must
+  prove fourteen. A same-change forward annotation on ADR-0031 carries the
+  append-only amendment.
 
 ### Open
 
-- **O12 — standing fleet contract.** ADR-0031's approved host-equivalence test
-  hardcodes thirteen discoverable roles. Decide whether its append-only
-  amendment should derive the exact count from canonical inventory or replace
-  thirteen with fourteen for this role addition.
 - **O13 — interruption recovery wording.** Reconcile D4's no-task-required
   common path with the fact that the existing run-resumer checkpoint carrier
   requires an identifiable task/change-request; otherwise interruption before
@@ -429,6 +433,10 @@ conformance target is added.
 - **Make the planner route a dispatcher-owned workflow branch.** Rejected
   after adversary F1: ADR-0012 requires routing to emerge from local
   agent/artifact declarations so adding an agent does not edit a central flow.
+- **Replace ADR-0031's hardcoded thirteen with hardcoded fourteen.** Rejected
+  after adversary F2: it repairs this release but requires another standing-ADR
+  amendment for every future role addition. Inventory-derived completeness
+  keeps the rule stable while exact release evidence still catches omissions.
 
 ## Acceptance criteria for this decision
 
@@ -446,5 +454,5 @@ conformance target is added.
 ## Self-check
 
 The 2026-07-24 self-check is stale because independent review found five
-revision items. Rerun it only after O12–O16 close. The canvas currently has
-twelve Decided items and five Open items.
+revision items. Rerun it only after O13–O16 close. The canvas currently has
+thirteen Decided items and four Open items.
