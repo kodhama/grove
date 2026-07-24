@@ -47,14 +47,19 @@ updated: 2026-07-24
   implementation slip against an adequate spec may route directly to
   executor. A non-local implementation slip still receives a plan without
   manufacturing a spec amendment. Decision-only non-code work remains direct.
+- **D6 — use a staged 9 → 27 run experiment** *(maintainer, 2026-07-24;
+  chose Option C)*. Phase one runs three task sizes across all three arms once
+  (nine cold runs). A preregistered futility rule may stop an unpromising
+  treatment; otherwise phase two adds two repetitions of every task/arm cell
+  for 27 runs total. Nine runs can reject an evidently poor direction but
+  cannot establish adoption by themselves.
 
 ### Open
 
-- **O3 — experiment and adoption threshold.** Which task sample, repetitions,
-  quality floor, and cost improvement are enough to adopt the role? The
-  current recommendation is a three-arm cold comparison: current premium
-  executor; medium executor without a planner; premium planner followed by a
-  medium executor.
+- **O3 — experiment thresholds.** What exact phase-one futility rule, final
+  quality floor, and cost improvement are enough to continue and then adopt?
+  The three arms and staged 9 → 27 scale are settled; their decision thresholds
+  are not.
 - **O4 — model/resource ownership.** Does Grove define portable resource
   classes such as `reasoning-heavy` and `execution-medium` for adapters to map,
   or does concrete model selection remain entirely in the experiment harness
@@ -265,9 +270,12 @@ isolated runs in randomized order:
 2. **B — downgrade control:** medium executor, no planner;
 3. **C — planner treatment:** premium planner → medium executor.
 
-Use at least three tasks spanning small/medium/large code-bearing work and,
-where budget permits, repeat each arm. The planner arm always plans within the
-sample so routing discretion cannot bias the result.
+Phase one uses three tasks spanning small/medium/large code-bearing work and
+runs every arm once: nine cold runs. A preregistered futility rule decides
+whether to stop; the pilot cannot adopt the role at this sample size. If it
+continues, phase two adds two repetitions of every task/arm cell, producing 27
+runs total. The planner arm always plans within the sample so routing
+discretion cannot bias the result.
 
 Measure:
 
@@ -321,6 +329,13 @@ conformance target is added.
   Rejected: no observable threshold exists, so the rule would introduce
   selection bias into the experiment and create an under-specified bypass
   around the planner.
+- **Adopt from a fixed nine-run pilot.** Rejected: one run per task/arm cell is
+  useful as a futility screen but too exposed to run variance to justify
+  adoption.
+- **Commit to all 27 runs before screening the treatment.** Rejected: it spends
+  the full budget even when the first complete task/arm block already shows
+  that the planner treatment is plainly unpromising. D6 retains the 27-run
+  endpoint while preregistering the early-stop boundary.
 
 ## Acceptance criteria for this decision
 
