@@ -1,6 +1,6 @@
 {
   "name": "grove",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A portable agent-swarm operating model for Claude Code: thirteen chartered agent roles auto-loaded as grove:<role> subagents, a dispatch contract, a gate-profile floor, and setup/refresh/remove skills. Plugin-carried fleet, repo-owned config — no binary, no service.",
   "author": { "name": "kodhama" }
 }

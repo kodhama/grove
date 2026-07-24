@@ -10,6 +10,10 @@ updated: 2026-07-18
 
 # ADR-0014: installing grove is invisible to the consumer's tooling, and grove does not gate its own arrival
 
+> **Superseded in part by `adr-0033`.** The augment-never-clobber installation
+> boundary remains current; the managed instruction block now lives in
+> `AGENTS.md` with a Claude adapter.
+
 > **STATUS: `approved`** (maintainer intent act 2026-07-18, after
 > decision-adversary rounds 1–2 → SOUND; see the self-check). Opened as a
 > shaping change-request cross-read by

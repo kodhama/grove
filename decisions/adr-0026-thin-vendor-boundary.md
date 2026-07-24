@@ -10,6 +10,10 @@ updated: 2026-07-23
 
 # ADR-0026: the thin-vendor boundary — plugin-carried fleet, repo-owned floor (grove#112)
 
+> **Superseded in part by `adr-0033`.** D4's stamp remains the in-repo
+> ratified record; its canonical location is now the managed `AGENTS.md` block,
+> loaded by Claude through `CLAUDE.md`.
+
 > **`gated` — converged, awaiting the adversary verdict + the intent gate.**
 > grove#112 asked where grove's
 > vendoring boundary should sit, after the 2026-07-21 fleet rollout priced the

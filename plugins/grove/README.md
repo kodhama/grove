@@ -25,8 +25,9 @@ loaded). It composes only what your repo owns: the gate-profile
 the **shared role config** `.grove/config.toml` (your test/typecheck commands,
 corpus paths, rubric paths — resolved interactively, with an honest "none
 exists yet" where a convention genuinely doesn't), a short dial-explainer at
-`.grove/README.md`, and the managed CLAUDE.md block carrying the
-`grove plugin@<version>` stamp. The stamp is a **ratified record with loud
+`.grove/README.md`, the managed `AGENTS.md` block carrying the
+`grove plugin@<version>` stamp, and Claude's `@AGENTS.md` adapter. The stamp is
+a **ratified record with loud
 divergence disclosure, never a lock** (`adr-0026` D4) — plugin installs are
 per-user, so two collaborators can run different fleet versions against one
 repo; grove discloses that skew, it cannot prevent it.
@@ -63,6 +64,8 @@ repo; grove discloses that skew, it cannot prevent it.
   (`adr-0027` D1: operationally retired, code kept so the D4 revival — a
   provider-agnostic installer — is a re-wiring, not a rebuild). Not installed
   by setup.
+- **`scripts/instruction-entrypoints.mjs`** — zero-dependency, fixture-tested
+  composition and migration for canonical `AGENTS.md` plus Claude's adapter.
 
 ## The roster
 
@@ -110,7 +113,7 @@ two must never drift apart. Release tags are the experimentation valve.
 
 ## Versioning (adr-0026 D4)
 
-`plugin.json` carries the explicit plugin version. A consumer's CLAUDE.md
+`plugin.json` carries the explicit plugin version. A consumer's `AGENTS.md`
 `grove plugin@<version>` stamp is the in-repo ratified record, bumped only by
 PR (`/grove:refresh`). Setup, refresh, and any grove agent reading the stamp
 at role-start disclose an installed↔stamp divergence loudly — and never

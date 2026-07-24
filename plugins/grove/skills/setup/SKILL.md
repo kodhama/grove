@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Compose grove's repo-owned floor onto this project — the gate-profile, the shared role config (.grove/config.toml), the dial-explainer, and the managed CLAUDE.md block with the plugin version stamp. The agent roles themselves are plugin-carried (grove:<role>) and are never copied. Use when the user asks to set up, add, install, or compose grove in their repo.
+description: Compose grove's repo-owned floor onto this project — the gate-profile, the shared role config (.grove/config.toml), the dial-explainer, and the managed AGENTS.md block with the plugin version stamp plus the Claude adapter. The agent roles themselves are plugin-carried and are never copied. Use when the user asks to set up, add, install, or compose grove in their repo.
 ---
 
 # Compose grove into this project
@@ -10,9 +10,10 @@ Since `adr-0026` (the thin-vendor boundary), the thirteen agent roles are **plug
 load automatically as namespaced `grove:<role>` subagents wherever this plugin is enabled, so
 **setup copies no charter prose and no agent definitions** — there is no role-picking step, and
 unused roles are simply inert. What you compose is exactly what the repo owns: the gate-profile
-floor, the shared role config, a short dial-explainer, and the managed `CLAUDE.md` block. Augment,
-never clobber — the same discipline Trellis's own `/trellis:setup` uses; nothing outside what's
-listed below is touched.
+floor, the shared role config, a short dial-explainer, the managed `AGENTS.md`
+block, and Claude's `@AGENTS.md` adapter. Augment, never clobber — the same
+discipline Trellis's own `/trellis:setup` uses; nothing outside what's listed
+below is touched.
 
 ## 0. Gate on the install's generation — a pre-`adr-0026` layout stops here
 
@@ -117,7 +118,7 @@ self-detect on absence — `adr-0026` D3).
 | `TEST_DEPS_LEDGER` | executor, conformance-reviewer | this project's per-package test-deps ledger location/convention (`adr-0006`; grove's worked example: a nearest-ancestor `test-deps.md` with a fenced `grove-test-deps` block) |
 | `PR_CONTRACT_SECTIONS` | conformance-reviewer, propagation-remediator, run-resumer | which sections a PR body must carry — first ask which VCS/host and issue tracker this project uses, since the answer shapes how this resolves |
 | `PARKED_ITEM_STORE` | conformance-reviewer, propagation-remediator | where this project tracks deferred/parked items (a TODO/ROADMAP file, a `decisions/` entry, issue labels, …) |
-| `CONVENTIONS_PATH` | code-reviewer | where this project declares its code conventions (its CLAUDE.md, a style guide; "none exists yet" is valid — the charter's fallback then applies) |
+| `CONVENTIONS_PATH` | code-reviewer | where this project declares its code conventions (normally its shared `AGENTS.md`, or a style guide; "none exists yet" is valid — the charter's fallback then applies) |
 | `QUALITY_RUBRIC_PATH` | code-reviewer | this project's code-quality rubric path — optional by charter |
 | `SPEC_RUBRIC_PATH` | contract-author | this project's spec-quality rubric path |
 | `RESEARCH_RUBRIC_PATH` | divergent-researcher | this project's research-quality rubric path |
@@ -152,7 +153,7 @@ the knobs do — while the normative model itself is **never restated per-repo**
 
 Close it citing the companions **standard-form**: *"the operating model (lifecycle enum,
 versioning grammar, edge taxonomy) ships in the grove plugin — per the grove lifecycle /
-versioning / relations companions, `plugin@<stamp>` (the stamp in this repo's CLAUDE.md)."* No
+versioning / relations companions, `plugin@<stamp>` (the stamp in this repo's AGENTS.md)."* No
 copy of the companions is installed (`adr-0026` D7).
 
 ## 5. Seed minimal `decisions/` and `specs/` stores, if missing
@@ -166,51 +167,33 @@ lifecycle companion standard-form (*"per the grove lifecycle companion, `plugin@
 never a restatement (`adr-0008`; `adr-0026` D7). Adapt, don't invent a heavier process than
 grove's own.
 
-## 6. Compose the managed block into `CLAUDE.md` — the stamp + the skew rule (`adr-0026` D4)
+## 6. Compose the shared entrypoints — `AGENTS.md` canonical, Claude as adapter (`adr-0033`)
 
-Read the installed plugin version from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` (the
-`version` field). Append this block to the project's `CLAUDE.md` (create the file if it doesn't
-exist). Touch **nothing else** in the file. **Before editing, save a pre-write copy** of the
-existing `CLAUDE.md` somewhere temporary (skip if the file doesn't exist yet) — the verification
-below diffs against it. Fill `<VERSION>` with that version:
+Run the bundled deterministic helper from the project root:
 
-```
-<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->
-Work items matching a grove workflow (W1–W6 — e.g. a bug report → the bug
-pipeline, a research ask → divergent research) run as grove runs, sequenced
-through grove's chartered agent roles, loaded from the grove plugin as
-`grove:<role>` subagents (all thirteen). Anything else — conversation, trivial
-asks, out-of-scope questions — proceeds normally. This repo's dials live in
-`.grove/` (see its README). Version skew (adr-0026 D4): at role start, if the
-installed grove plugin's version differs from the stamp below, disclose the
-divergence loudly in your report and continue — the stamp is the in-repo
-ratified record, never a lock; grove never enforces it.
-grove plugin@<VERSION>
-<!-- grove:end -->
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/instruction-entrypoints.mjs" compose --project-root "$PWD"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/instruction-entrypoints.mjs" check --project-root "$PWD"
 ```
 
-This block is **the D4 mismatch check's home**: the stamp is the record, and the instruction
-travels in every session's context — every `grove:<role>` agent (and the driving session) sees it
-at role start. On a **re-run** of setup, additionally compare the installed version against the
-existing stamp yourself and disclose any divergence before updating.
+The helper reads the installed version from
+`${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`, composes the current Grove
+block and stamp into `AGENTS.md`, and ensures `CLAUDE.md` contains one
+`@AGENTS.md` import. It also migrates the legacy Grove block from `CLAUDE.md`
+and collapses byte-identical `AGENTS.md` / `CLAUDE.md` copies. It preserves
+unrelated prose, refuses malformed/ambiguous states without writing, and is
+idempotent (`adr-0033`; `spec-0004`).
 
-If a `grove:begin … grove:end` block already exists (a re-run), **replace only what is between the
-markers** — idempotent, never a second block, never a change outside the markers.
+Before running it, locate any existing `grove plugin@<version>` stamp in either
+entrypoint and disclose old → installed version loudly (`adr-0026` D4). After
+composition, report the helper's JSON result, including any migration source.
+If either command exits non-zero, stop with its diagnostic; do not hand-edit
+around the refusal.
 
-**Verify the write.** After composing the block, check both of these:
-
-1. **Exactly one block**: `grep -c 'grove:begin' CLAUDE.md` and `grep -c 'grove:end' CLAUDE.md`
-   must each print `1`.
-2. **Nothing outside the markers changed**: `diff` the pre-write copy against the new file — every
-   changed or added line must lie between the markers (on a first install: one appended block and
-   nothing else; on a file grove created: the block is the whole file).
-
-If either check fails, **fix it before moving on**: restore from the pre-write copy and re-attempt
-the edit once. If it fails again, stop — show the user the pre-write copy's location, the exact
-diff, and the intended block, and say plainly that the write misfired. **Never leave a mangled
-`CLAUDE.md` silently in place.** A misfire here — observed by you or reported by a user — fires the
-armed trigger in grove's `decisions/adr-0003-managed-block-routing-rule.md`: report it as an issue
-on `kodhama/grove`, so this prose edit gets replaced by a bundled deterministic upsert script.
+The generated block is the D4 mismatch check's home and also carries the
+maintenance route: shared rules go in unmarked `AGENTS.md` prose, Claude-only
+rules in `.claude/rules/`, and Grove dials in `.grove/`. Neither the block nor
+the Claude adapter is a hand-edit surface.
 
 ## 7. Offer to make grove invisible to the consumer's tooling (whole `.grove/`)
 
@@ -243,7 +226,7 @@ nothing without it.** If declined, note that plainly and move on; nothing is cha
   above); never create config a tool doesn't already use.
 
 **This is the one place setup writes outside grove's own footprint** — outside the `.grove/`
-namespace and the managed `CLAUDE.md` block. Treat it as exactly that: an **offered, consented,
+namespace and the managed `AGENTS.md` block plus Claude adapter. Treat it as exactly that: an **offered, consented,
 augment-never-clobber exception**, and in the step 9 confirm name precisely which ignore file and
 which line you touched (or that none were, or that the offer was declined). Never a silent write.
 
@@ -263,7 +246,8 @@ Tell the user exactly what you wrote: the **gate-profile** — which preset you 
 (`.grove/internal/gates/`) and C1 defaults (`.grove/internal/enforcement.toml`) landed — every
 `config.toml` key you seeded and to what value (or the honest "none exists yet" statements you
 wrote instead), the dial-explainer (`.grove/README.md`), whether `decisions/`/`specs/` were
-seeded, the `CLAUDE.md` block + the exact version stamped, and **which tooling-ignore files and lines step 7 touched** (naming each `.grove/` line
+seeded, the `AGENTS.md` block + exact version stamped, the `CLAUDE.md`
+adapter/migration result, and **which tooling-ignore files and lines step 7 touched** (naming each `.grove/` line
 and its file — or that no linter/formatter was found, or that the offer was declined). Remind them
 nothing was copied into `.claude/agents/` — the roles are the plugin's. They can remove all of it
 any time with `/grove:remove`.

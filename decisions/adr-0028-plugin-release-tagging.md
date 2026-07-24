@@ -10,6 +10,9 @@ updated: 2026-07-22
 
 # ADR-0028: grove's plugin release-tagging — manifest-authoritative version, human-cut by merge, deterministic tag
 
+> **Superseded in part by `adr-0033`.** The release practice remains current;
+> references to the consumer stamp now resolve to its `AGENTS.md` home.
+
 Operationalizes `adr-0026` D4 (versioned releases + the stamp as record).
 D4 named the valve — "explicit plugin versioning (the `plugin.json`
 `version` field / release tags)" — without settling *how* the tag is cut,

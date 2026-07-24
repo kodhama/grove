@@ -190,4 +190,4 @@ Where this charter cites `lifecycle.md`, `versioning.md`, or
 `relations.md` — the grove companions — the text ships in this
 plugin's payload at `${CLAUDE_PLUGIN_ROOT}/reference/`; consuming
 repos carry no installed copy (adr-0026 D7; the pinned record is the
-CLAUDE.md `grove plugin@<version>` stamp).
+AGENTS.md `grove plugin@<version>` stamp).

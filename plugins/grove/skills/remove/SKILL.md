@@ -1,6 +1,6 @@
 ---
 name: remove
-description: Remove grove from this project — delete the composed .grove/ overlay and optional skill, strip the managed CLAUDE.md block, and ask before deleting anything, touching nothing else. Also reverses what older grove installs vendored. Use when the user asks to remove, uninstall, undo, or take out grove from their repo.
+description: Remove grove from this project — delete the composed .grove/ overlay and optional skill, strip the managed block from AGENTS.md or a legacy CLAUDE.md, and ask before deleting anything, touching nothing else. Also reverses what older grove installs vendored. Use when the user asks to remove, uninstall, undo, or take out grove from their repo.
 ---
 
 # Remove grove from this project
@@ -23,7 +23,8 @@ A current (thin-vendor, post-`adr-0026`) install comprises:
 - **`.grove/README.md`** — the dial-explainer.
 - **`.grove/internal/gates/`** + **`.grove/internal/enforcement.toml`** — the grove-managed
   floor-guard machinery and C1 defaults.
-- The managed **`CLAUDE.md` block** (`grove:begin`…`grove:end`, with the version stamp).
+- The managed **`AGENTS.md` block** (`grove:begin`…`grove:end`, with the
+  version stamp), or its legacy location in `CLAUDE.md`.
 
 **Older installs left more** — check for each of these too:
 
@@ -54,20 +55,21 @@ assume every file in `.claude/agents/` was put there by grove — a repo's **own
 legitimately (`adr-0026` D5); if a file's origin is unclear (no way to tell it apart from
 something the user wrote themselves), ask rather than delete it.
 
-## 3. Strip the managed block from `CLAUDE.md`
+## 3. Strip the managed block from the project entrypoints
 
-In the project's `CLAUDE.md`, remove the managed block **between and including** these markers:
+After the step 2 confirmation, run:
 
-```
-<!-- grove:begin … -->
-   … (the grove routing rule + version stamp) …
-<!-- grove:end -->
+```sh
+node "${CLAUDE_PLUGIN_ROOT}/scripts/instruction-entrypoints.mjs" strip --project-root "$PWD"
 ```
 
-Remove **only** that block (and the single blank line that preceded it). **Touch nothing else** —
-every other line of the user's `CLAUDE.md` must stay exactly as it was. If, after removal,
-`CLAUDE.md` contains only whitespace (grove created the file and nothing else was ever added to
-it), delete it; otherwise leave it in place.
+The deterministic helper removes every valid Grove marker block from
+`AGENTS.md` and legacy `CLAUDE.md`, preserves every unrelated byte, and leaves
+the generic `@AGENTS.md` adapter in place because shared project instructions
+or another overlay may still need it. Malformed markers refuse without writes.
+
+The helper never deletes an entrypoint. If either becomes whitespace-only,
+show that exact file and ask separately before deleting it; otherwise leave it.
 
 ## 4. decisions/ and specs/ stores
 
@@ -134,6 +136,6 @@ else** in the file. Discipline, per ignore file:
 Tell the user exactly what you removed (which `.grove/` files, any legacy pieces — the
 `grove-status` adapter if present, vendored role files, installed companions, the check runtime +
 workflow + policy carriers — any `.grove/` tooling-ignore line stripped and from which file, and
-the `CLAUDE.md` block), and remind them the plugin itself (the `grove:<role>` agents and these
+the `AGENTS.md`/legacy `CLAUDE.md` block), and remind them the plugin itself (the `grove:<role>` agents and these
 skills) unloads via `/plugin`, not file deletion. If nothing was present, say so plainly — **do
 not invent changes**.

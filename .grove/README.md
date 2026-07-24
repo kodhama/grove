@@ -37,8 +37,9 @@ Project > Plugin), silently overriding your live edits — the very
 copy-drift `adr-0026` P1 retired.
 
 **No version stamp here.** Consuming repos record `grove plugin@<version>`
-in their CLAUDE.md managed block (`adr-0026` D4); grove-self loads its
-fleet from this same tree via `--plugin-dir` (above), so there is no
+in their `AGENTS.md` managed block (`adr-0026` D4, with the location
+superseded by `adr-0033`); Claude loads it through `@AGENTS.md`. Grove-self
+loads its fleet from this same tree via `--plugin-dir` (above), so there is no
 published version to pin. The operating model itself (lifecycle enum, versioning
 grammar, edge taxonomy) is not restated here either (`adr-0008`): it is
 canonical in `charters/{lifecycle,versioning,relations}.md` and

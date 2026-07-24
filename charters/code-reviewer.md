@@ -33,7 +33,7 @@ merge, everything below is advisory (`adr-0007`, decision 3).
 Judge against the consuming project's **own declared sources of truth**,
 in this order — never your own taste as a first resort:
 
-1. The project's conventions doc / CLAUDE.md (config token:
+1. The project's conventions doc / AGENTS.md (config token:
    `<CONVENTIONS_PATH>`).
 2. Its lint/formatter configuration and command (config token:
    `<LINT_CMD>`) — run it yourself; do not trust a claimed result.
@@ -164,7 +164,7 @@ evidence at whatever depth you chose. Two hard rules:
 ## Config tokens (adr-0026 D3)
 
 - `<CONVENTIONS_PATH>` — the consuming project's conventions doc /
-  CLAUDE.md (highest-priority standards source).
+  `AGENTS.md` (highest-priority shared standards source).
 - `<LINT_CMD>` — the project's lint/formatter command, if one exists.
 - `<QUALITY_RUBRIC_PATH>` — an optional project quality rubric ("none
   exists yet" is a valid resolution; the fallback above then applies).
