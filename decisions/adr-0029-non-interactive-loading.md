@@ -196,3 +196,10 @@ acquisition, and pre-agent provisioning. D1–D3 stand: Grove still owns
 thin-vendor preservation, its product-specific setup/load/bridge behavior,
 and exact-surface support evidence. A successful Stewards install never
 promotes a Grove support row.
+
+## Forward annotation — ADR-0034 (2026-07-24)
+
+ADR-0034 supersedes ADR-0033's family release-certification adoption while
+retaining this D4 ownership change only for generic marketplace metadata and
+CI marketplace/plugin setup authoring. Grove still owns load behavior and
+exact-surface evidence; installation never proves support.
