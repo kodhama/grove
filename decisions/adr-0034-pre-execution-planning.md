@@ -73,13 +73,17 @@ updated: 2026-07-24
   executor-retry plus reviewer-return loops. Together with D8, this prevents
   adopting an extra premium planning call when medium execution alone already
   performs equivalently.
+- **D10 — Grove owns portable resource intent; host adapters own concrete
+  mapping** *(maintainer, 2026-07-24; chose Option A)*. Canonical dispatch
+  metadata assigns the planner `reasoning-heavy` and the executor
+  `execution-medium`; each host adapter/runtime mapping resolves those classes
+  to an available concrete model. The experiment harness pins and records the
+  exact mappings. A surface that cannot honor or explicitly reject a class
+  cannot silently substitute a model and claim support for the optimized
+  route.
 
 ### Open
 
-- **O4 — model/resource ownership.** Does Grove define portable resource
-  classes such as `reasoning-heavy` and `execution-medium` for adapters to map,
-  or does concrete model selection remain entirely in the experiment harness
-  and consumer/runtime configuration?
 - **O5 — role name.** `implementation-planner` is the working name. The
   decision has not yet made that machine-readable identity normative.
 
@@ -141,9 +145,10 @@ select a model, but neither may restate or fork the role contract.
 
 Current distribution proves cold native roles and structured child results on
 Codex, but the role inventory and generated launchers do not yet carry a
-portable per-role model tier. “Premium planner / medium executor” is therefore
-an experiment-harness condition until O4 is decided and independently proven
-on supported surfaces.
+portable per-role model tier. D10 makes that tier intent part of the follow-up
+contract without pretending it is already supported: the experiment harness
+must pin exact models, and each host adapter must independently prove its
+mapping before the optimized route is supportable there.
 
 ## Candidate role contract
 
@@ -381,6 +386,14 @@ conformance target is added.
   of successful treatment.
 - **Accept any measurable improvement over B.** Not chosen: a one-off token or
   timing fluctuation does not justify adding a premium planning call.
+- **Leave all model selection to consumers and the experiment harness.** Not
+  chosen: Grove would have no portable way to preserve the resource asymmetry
+  whose value the experiment is testing, so host configurations could silently
+  erase the optimization.
+- **Pin exact host-specific model names in the canonical role contract.** Not
+  chosen: concrete names would couple the one authored kernel to provider
+  catalogs and model churn. Exact selections belong in adapter/runtime mapping
+  and reproducible support evidence.
 
 ## Acceptance criteria for this decision
 
@@ -397,4 +410,4 @@ conformance target is added.
 
 ## Self-check
 
-Not yet run. The draft has two Open items and is not converged.
+Not yet run. The draft has one Open item and is not converged.
