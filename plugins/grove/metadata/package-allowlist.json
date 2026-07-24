@@ -1,0 +1,303 @@
+{
+  "generated": "GENERATED — DO NOT EDIT",
+  "source": "tooling/grove/build/config.mjs",
+  "schema_version": 1,
+  "leaves": [
+    {
+      "path": "plugins/grove/.claude-plugin/plugin.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/.codex-plugin/plugin.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/README.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/VERSION",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/code-reviewer.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/conformance-reviewer.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/contract-author.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/corpus-reviewer.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/decision-adversary.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/dispatcher.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/divergent-researcher.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/executor.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/propagation-remediator.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/run-resumer.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/spec-adversary.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/agents/validator.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/skills/refresh/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/skills/remove/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/skills/set-profile/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/skills/setup/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/refresh/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/remove/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-code-reviewer/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-conformance-reviewer/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-contract-author/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-corpus-reviewer/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-decision-adversary/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-dispatcher/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-divergent-researcher/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-executor/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-propagation-remediator/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-run-resumer/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-shaper/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-spec-adversary/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-validator/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/set-profile/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/setup/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/claude-inventory.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/codex-inventory.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/codex-launchers.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/config-tokens.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/hosts.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/legacy-ownership.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/lifecycle-inventory.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/package-allowlist.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/roles.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/stamp-schema.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/surfaces.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/code-reviewer.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/conformance-reviewer.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/contract-author.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/corpus-reviewer.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/decision-adversary.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/dispatcher.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/divergent-researcher.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/executor.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/propagation-remediator.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/run-resumer.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/shaper.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/spec-adversary.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/validator.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/gates/enforcement.toml",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/gates/gates.toml",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/lifecycle.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/relations.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/surfaces/claude-headless-attempt-2026-07-23.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/surfaces/codex-bridge-spike-2026-07-23.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/surfaces/codex-exec-non-ephemeral-0.3.0-2026-07-24.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/surfaces/codex-exec-non-ephemeral-0.3.0-attempt-2026-07-23.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/versioning.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/gates/bin/resolve-profile.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/gates/lib/profile.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/lifecycle/bin/grove-operation.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
+      "kind": "file"
+    }
+  ]
+}

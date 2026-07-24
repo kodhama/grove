@@ -10,7 +10,7 @@
   "repository": "https://github.com/kodhama/grove",
   "license": "MIT",
   "keywords": ["agents", "governance", "workflow"],
-  "skills": "./skills/",
+  "skills": "./adapters/codex/skills/",
   "interface": {
     "displayName": "Grove",
     "shortDescription": "A chartered agent-team operating model",

@@ -60,7 +60,7 @@ scope: strict
 # check machinery lives at its NATIVE paths — the runtime in the plugin,
 # the workflow in .github/workflows/ — not the consumer .grove/ install
 # defaults. Declared so the carrier fail-close watches the real paths.
-check_runtime_dir: plugins/grove/check/
+check_runtime_dir: retired/review-bookkeeping/check/
 check_workflow_path: .github/workflows/grove-review-bookkeeping.yml
 
 # §A.3 step 1 — the directories globbed to build the artifact index

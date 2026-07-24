@@ -81,7 +81,7 @@ Second, the append-only supersession mechanics for decisions live in
    it pass the zero-nouns grep (below)? Flip `status: draft` →
    `status: gated` only once both are true.
 4. Update the role inventory metadata when the role has a host exposure, then
-   run `npm run generate --prefix plugins/grove/build`. Never author either
+   run `npm run generate --prefix tooling/grove/build`. Never author either
    host projection as a second source of role instructions.
 5. Open the PR. It stays open at `gated` until a human reviews and
    merges it — that is the correct resting state, not an unfinished
@@ -97,8 +97,8 @@ pointer chain).
 1. Branch off `main`, edit the charter file directly.
 2. Re-run the self-check: the edited charter still names every required
    section, still cites provenance, still passes the zero-nouns grep.
-3. Run `npm run generate --prefix plugins/grove/build`, then
-   `npm run check --prefix plugins/grove/build`. Host payloads are generated
+3. Run `npm run generate --prefix tooling/grove/build`, then
+   `npm run check --prefix tooling/grove/build`. Host payloads are generated
    from the charter and inventory metadata; do not edit them directly.
 4. Open the PR describing what changed and why (a charter edit is
    still a real change to a self-checked artifact — treat the PR body
@@ -206,7 +206,8 @@ person's name, a Slack channel, an internal URL).
   the maintainer's own intent act (recorded per
   `charters/lifecycle.md`), even more tightly than the general rule
   above (`charters/shaper.md`).
-- **`dispatcher`**'s payload file (`plugins/grove/agents/dispatcher.md`,
+- **`dispatcher`**'s Claude payload file
+  (`plugins/grove/adapters/claude/agents/dispatcher.md`,
   loaded as `grove:dispatcher`) is a scoped one-shot advisor (workflow
   classification, next-dispatch recommendation only) — it is **not** a
   full port of `charters/dispatcher.md`, because that role requires

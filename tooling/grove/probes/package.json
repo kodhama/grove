@@ -1,0 +1,13 @@
+{
+  "name": "grove-host-probes",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "node --check lib/*.mjs && node --check bin/*.mjs",
+    "smoke:codex": "node bin/smoke-codex-projection.mjs",
+    "prepare:codex": "node bin/prepare-codex-support-probe.mjs",
+    "contract:discovery": "node -e \"const c=require('./host-discovery-contract.json'); if(!c.release_blocking||c.claimed_pass||c.cases.length!==4) process.exit(1); console.log('live-host discovery contract valid (evidence still required)')\""
+  }
+}

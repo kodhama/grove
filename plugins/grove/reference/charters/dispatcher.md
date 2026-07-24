@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: 9961fd1792f3b21343aec90ade15335bd4c4f681c83fbf99410bddef0850ceef -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27 -->
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
 
@@ -10,7 +10,7 @@
 
 <a id="scoped-agent-boundary"></a>
 
-> **The `grove:dispatcher` plugin agent (`plugins/grove/agents/dispatcher.md`)
+> **The `grove:dispatcher` plugin agent (`plugins/grove/adapters/claude/agents/dispatcher.md`)
 > is scoped, not a full peer of the
 > other agents.** ADR-0030's team table marks head-gardener
 > "cold-started: the interactive session (v0)." A genuinely
@@ -104,14 +104,13 @@ profile only stops *requiring* one (`adr-0018` D2).
 
 - **Re-invoke `resolve-profile` at EVERY gate/handover**, never once per
   run: read the optional top-level `runtime_dir` key from
-  `.grove/gates.toml` (`adr-0021` D2; **absent ⇒ the installed default
-  `.grove/internal/gates/`**, the path setup installs —
-  `skills/setup/SKILL.md`) and invoke
+  `.grove/gates.toml` (`adr-0021` D2 as superseded by `adr-0035`;
+  **absent ⇒ `runtime/gates/` relative to the active installed Grove
+  package**) and invoke
   `node <runtime_dir>/bin/resolve-profile.mjs`. The key is **declared,
   never searched** — and the two states stay loudly distinguishable: a
-  *declared* `runtime_dir` pointing elsewhere is purposeful (grove-self
-  declares its native `plugins/grove/gates/`); a *missing* default
-  install (no key, no `.grove/internal/gates/`) remains the loud
+  *declared* non-legacy `runtime_dir` pointing elsewhere is purposeful;
+  a missing package default (no key, no installed `runtime/gates/`) remains the loud
   broken-install state (`adr-0018` D8's guardian fallback, surfaced per
   D6), never silently resolved from some other path;
   a *wrong-but-present* `runtime_dir` fails loudly at invocation.

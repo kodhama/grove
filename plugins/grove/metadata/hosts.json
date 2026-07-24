@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "surface_matrix": "metadata/surfaces.json",
+  "version": "VERSION",
+  "config_tokens": "metadata/config-tokens.json",
+  "codex_launchers": "metadata/codex-launchers.json",
+  "role_inventory": "metadata/roles.json",
+  "lifecycle_inventory": "metadata/lifecycle-inventory.json",
+  "stamp_schema": "metadata/stamp-schema.json",
+  "legacy_ownership": "metadata/legacy-ownership.json",
+  "package_allowlist": "metadata/package-allowlist.json",
+  "hosts": {
+    "claude": {
+      "manifest": ".claude-plugin/plugin.json",
+      "instruction_file": "CLAUDE.md",
+      "begin_marker": "<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->",
+      "end_marker": "<!-- grove:end -->",
+      "setup_command": "/grove:setup",
+      "inventory": "metadata/claude-inventory.json"
+    },
+    "codex": {
+      "manifest": ".codex-plugin/plugin.json",
+      "instruction_file": "AGENTS.md",
+      "begin_marker": "<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->",
+      "end_marker": "<!-- grove:end -->",
+      "setup_command": "grove setup",
+      "launcher_root": ".codex/agents",
+      "inventory": "metadata/codex-inventory.json"
+    }
+  }
+}

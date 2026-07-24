@@ -1,0 +1,156 @@
+{
+  "generated": "GENERATED — DO NOT EDIT",
+  "schema_version": 1,
+  "host": "codex",
+  "literal_prefix": "grove:",
+  "components": [
+    {
+      "raw_id": "grove:refresh",
+      "path": "adapters/codex/skills/refresh/SKILL.md",
+      "class": "lifecycle",
+      "exposure": "lifecycle",
+      "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
+      "canonical_digest": "061304fbbfa3483d5f5379551b504a418e8702635b7616b8c43dc64f56ad1c50"
+    },
+    {
+      "raw_id": "grove:remove",
+      "path": "adapters/codex/skills/remove/SKILL.md",
+      "class": "lifecycle",
+      "exposure": "lifecycle",
+      "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
+      "canonical_digest": "061304fbbfa3483d5f5379551b504a418e8702635b7616b8c43dc64f56ad1c50"
+    },
+    {
+      "raw_id": "grove:role-code-reviewer",
+      "path": "adapters/codex/skills/role-code-reviewer/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/code-reviewer.md",
+      "canonical_digest": "a73a41cdebf423f9bba617a0c8066ceacf3dd19d348f70a0f53bc70e13fd235a"
+    },
+    {
+      "raw_id": "grove:role-conformance-reviewer",
+      "path": "adapters/codex/skills/role-conformance-reviewer/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/conformance-reviewer.md",
+      "canonical_digest": "06c2e52f0ea442d6f7c6c3a9004376cb0876260cccc1f4e3f457b078cd78d65b"
+    },
+    {
+      "raw_id": "grove:role-contract-author",
+      "path": "adapters/codex/skills/role-contract-author/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/contract-author.md",
+      "canonical_digest": "2285985e6071db5d881ed6a158e48218040b3bea53bad7de327548c9fa8c8e47"
+    },
+    {
+      "raw_id": "grove:role-corpus-reviewer",
+      "path": "adapters/codex/skills/role-corpus-reviewer/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/corpus-reviewer.md",
+      "canonical_digest": "b84aa2829f05d3b4b6b19af717b5ffafe70589e10205f66c8bcc96cd60ee6ef3"
+    },
+    {
+      "raw_id": "grove:role-decision-adversary",
+      "path": "adapters/codex/skills/role-decision-adversary/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/decision-adversary.md",
+      "canonical_digest": "0ed0d6ddb257e26dc7d54cac0098f1ea30fd6d442d0769e7e1c93056b6c511b9"
+    },
+    {
+      "raw_id": "grove:role-dispatcher",
+      "path": "adapters/codex/skills/role-dispatcher/SKILL.md",
+      "class": "role",
+      "exposure": "driving-session,scoped-advisor",
+      "canonical_source": "charters/dispatcher.md",
+      "canonical_digest": "a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27"
+    },
+    {
+      "raw_id": "grove:role-divergent-researcher",
+      "path": "adapters/codex/skills/role-divergent-researcher/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/divergent-researcher.md",
+      "canonical_digest": "7a67ee0f9ea5f2990b286a5ac341b14fc3818787a8099fd9f98ace443a39d333"
+    },
+    {
+      "raw_id": "grove:role-executor",
+      "path": "adapters/codex/skills/role-executor/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/executor.md",
+      "canonical_digest": "8531d32a9793d32f6517c84d9fdbf620467cdeb2b88f72a28d0e514f5d434f03"
+    },
+    {
+      "raw_id": "grove:role-propagation-remediator",
+      "path": "adapters/codex/skills/role-propagation-remediator/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/propagation-remediator.md",
+      "canonical_digest": "4a723a1e138182d25630fe0c3fb09ed144478edf6399fb38eba46220a5f16527"
+    },
+    {
+      "raw_id": "grove:role-run-resumer",
+      "path": "adapters/codex/skills/role-run-resumer/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/run-resumer.md",
+      "canonical_digest": "f311c8fd9144d6751f94b31d4798344bef2c2e32917bc1158b287a4554c1d687"
+    },
+    {
+      "raw_id": "grove:role-shaper",
+      "path": "adapters/codex/skills/role-shaper/SKILL.md",
+      "class": "role",
+      "exposure": "driving-session",
+      "canonical_source": "charters/shaper.md",
+      "canonical_digest": "20a09193caae4e9be7f86d7b0fe9ca0c4499dd7b968f2500b8d20446534a95a6"
+    },
+    {
+      "raw_id": "grove:role-spec-adversary",
+      "path": "adapters/codex/skills/role-spec-adversary/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/spec-adversary.md",
+      "canonical_digest": "a21ca8ac5e26da567636e3e10e1d191befb14b75ea4995bece30cdbae20a4098"
+    },
+    {
+      "raw_id": "grove:role-validator",
+      "path": "adapters/codex/skills/role-validator/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/validator.md",
+      "canonical_digest": "c58eae46db62e54a66d502b0584a02c44a3d4189f1df90a5e84bf9df8241dc44"
+    },
+    {
+      "raw_id": "grove:set-profile",
+      "path": "adapters/codex/skills/set-profile/SKILL.md",
+      "class": "lifecycle",
+      "exposure": "lifecycle",
+      "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
+      "canonical_digest": "061304fbbfa3483d5f5379551b504a418e8702635b7616b8c43dc64f56ad1c50"
+    },
+    {
+      "raw_id": "grove:setup",
+      "path": "adapters/codex/skills/setup/SKILL.md",
+      "class": "lifecycle",
+      "exposure": "lifecycle",
+      "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
+      "canonical_digest": "061304fbbfa3483d5f5379551b504a418e8702635b7616b8c43dc64f56ad1c50"
+    }
+  ],
+  "driving_loaders": {
+    "dispatcher": {
+      "raw_skill_id": "grove:role-dispatcher",
+      "canonical_source": "charters/dispatcher.md",
+      "canonical_digest": "a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27"
+    },
+    "shaper": {
+      "raw_skill_id": "grove:role-shaper",
+      "canonical_source": "charters/shaper.md",
+      "canonical_digest": "20a09193caae4e9be7f86d7b0fe9ca0c4499dd7b968f2500b8d20446534a95a6"
+    }
+  }
+}

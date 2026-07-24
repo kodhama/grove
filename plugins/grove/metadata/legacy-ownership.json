@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "records": [
+    {
+      "grove_version": "0.3.0",
+      "candidate_path": ".grove/internal/enforcement.toml",
+      "candidate_kind": "regular-file",
+      "sha256": "0130c8ddaec12adadaaccd4f767f1c43a590466ed2e0294070423b5b8f75beaa"
+    },
+    {
+      "grove_version": "0.3.0",
+      "candidate_path": ".grove/internal/gates",
+      "candidate_kind": "tree",
+      "leaves": [
+        {
+          "relative_path": "bin/resolve-profile.mjs",
+          "kind": "regular-file",
+          "sha256": "75cf1cf75303291ecab45d632f23254149a71bf099a6723c4cb488ef3d95c534"
+        },
+        {
+          "relative_path": "lib/profile.mjs",
+          "kind": "regular-file",
+          "sha256": "8166e9c9791b579bdece61ffa8282e1c33d4835999e345bddff0eda38bf27208"
+        },
+        {
+          "relative_path": "package.json",
+          "kind": "regular-file",
+          "sha256": "d7de3ac257fe4148b653c590a6e7eacd98659cb6aefb1feaf08263a1de83278a"
+        }
+      ]
+    }
+  ]
+}

@@ -15,12 +15,9 @@
 
 seeded_from = "steward"
 
-# adr-0021 D2 — where the gates machinery lives
-# (<runtime_dir>/bin/resolve-profile.mjs). grove-self declares its NATIVE
-# payload path (D1: no installed copies inside the repo that authors them —
-# the collapsed case, adr-0017 precedent). Absent, the installed default
-# `.grove/internal/gates/` is assumed. Declared, never searched.
-runtime_dir = "plugins/grove/gates/"
+# `runtime_dir` is intentionally absent: both adapters resolve the default
+# `runtime/gates/` from the active installed Grove package. Any future explicit
+# non-legacy override is exact authority and is never searched or substituted.
 
 [gates]
 intent = "human"   # who ratifies DIRECTION (an intent-locus gate)

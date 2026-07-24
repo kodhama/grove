@@ -10,6 +10,11 @@ updated: 2026-07-19
 
 # ADR-0021: grove-to-grove — grove-self runs its own gate-profile
 
+> **D2's absent `runtime_dir` default is superseded by
+> `adr-0035-plugin-and-consumer-boundary`.** The key remains an explicit,
+> declared-never-searched override; absence now selects the active installed
+> plugin runtime rather than `.grove/internal/gates/`.
+>
 > **`gated` — converged, awaiting review.** grove ships a gate-profile
 > mechanism (`adr-0018`) and a dispatcher that enforces it at run time
 > (`adr-0020`) — but **grove-self does not run it**: the repo carries no

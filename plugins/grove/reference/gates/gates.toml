@@ -20,17 +20,12 @@
 
 seeded_from = "steward"
 
-# Optional (adr-0021 D2): where the gates machinery lives
-# (<runtime_dir>/bin/resolve-profile.mjs). ABSENT ⇒ the installed default
-# `.grove/internal/gates/` — the standard install needs no entry here.
-# Declared, never searched: setting it says "my machinery lives elsewhere on
-# purpose"; a missing default install still fails LOUD (the adr-0018 D8
-# guardian fallback), never silently resolved from some other path.
-# Slash convention: write the value WITH a trailing slash (as the examples
-# do); the dispatcher composes `<runtime_dir>/bin/resolve-profile.mjs`, so a
-# trailing slash merely yields a harmless doubled slash. The value is used
-# verbatim — no trimming or normalization.
-# runtime_dir = ".grove/internal/gates/"
+# Optional (adr-0021 D2, amended by adr-0035): where the gates machinery lives
+# (<runtime_dir>/bin/resolve-profile.mjs). ABSENT ⇒ the active installed
+# Grove package's `runtime/gates/` directory. Declared, never searched: setting
+# it names one explicit alternate runtime on purpose; a missing configured or
+# installed runtime fails loudly rather than falling through to another path.
+# runtime_dir = "vendor/grove-gates/"
 
 [gates]
 intent = "human"   # who ratifies DIRECTION (an intent-locus gate)
