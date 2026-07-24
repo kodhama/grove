@@ -34,11 +34,13 @@ updated: 2026-07-24
 
 ### Open
 
-- **O1 — transient transport.** Should the planner return a bounded advisory
-  packet which the driving-session dispatcher relays verbatim into a fresh
-  executor invocation (recommended), with task/change-request checkpoint prose
-  used only when the existing resume seam fires? Alternatives are a temporary
-  filesystem file or a durable task/change-request comment for every plan.
+- **O1 — transient transport.** Choose between **relay + checkpoint on demand**
+  (the dispatcher passes the packet verbatim to a fresh executor and persists
+  it only when the existing resume seam fires; recommended) and **always
+  durable** (post every packet to a task/change-request before executor
+  dispatch). The comparison below makes the trade-off explicit; the
+  maintainer has expressed no prior durability preference and asked for the
+  recommendation rather than delegating the choice.
 - **O2 — routing obligation.** Is planning required before every executor
   invocation, required only for code-bearing work derived from a spec, or
   selected case-by-case by a complexity judgment?
@@ -146,6 +148,19 @@ verified repository fact.
 
 ## O1 options — how the packet reaches the executor
 
+| Dimension | A — relay + checkpoint on demand | B — always durable task/change-request post |
+|---|---|---|
+| Normal path | Planner output is passed verbatim by the dispatcher into the fresh executor invocation. | Planner output is posted first, then the executor is pointed to the post. |
+| Authority | Advisory working material; the executor reopens the ratified artifact and it wins every conflict. | Still advisory, but permanent placement beside decisions/reviews makes accidental authority inflation more likely. |
+| Recovery | If the existing resume seam fires, checkpoint the packet or its validated remainder; otherwise no persistence. | Available to any resumer without an additional checkpoint act. |
+| Failure cost | A relay lost before executor start requires a replan; after start, normal executor checkpointing applies. | The post survives dispatcher/session death immediately. |
+| Portability | Uses the host-neutral parent → cold child → parent → cold child primitive already required by Grove. | Requires a writable, authenticated task/change-request channel on every supported execution path. |
+| Preconditions | Only a ratified artifact and an agent-launch path. | A task/change-request must already exist before implementation. |
+| Project record | No permanent record for a successful transient optimization. | Every plan becomes permanent project history even though it is neither contract nor review evidence. |
+| Writes/noise | Zero external writes on the ordinary path. | One additional external write per planned executor run, plus update/supersession conventions when a plan goes stale. |
+| Auditability | Final code, tests, review findings, and any exceptional checkpoint remain auditable; the discarded working route does not. | The exact proposed route is auditable even when execution immediately disproves or abandons it. |
+| Main risk | A narrow loss/recompute window between planner completion and executor/checkpoint. | Platform coupling, history noise, stale-plan ambiguity, and readers mistaking advisory prose for a governed artifact. |
+
 ### A. Direct dispatcher relay, checkpoint only when needed — recommended
 
 The planner returns the packet as its bounded final output. The driving-session
@@ -162,28 +177,42 @@ the existing parent → cold child → parent → cold child pattern; keeps the
 planner and executor as genuinely separate model calls.
 
 **Cost:** an interrupted relay must use the existing checkpoint convention or
-rerun planning. The packet is working material, not durable evidence.
+rerun planning. The packet is working material, not durable evidence. This
+accepts a small recomputation risk because no correctness or gate-clearance
+claim rests on the packet.
 
-### B. Temporary filesystem packet
-
-The planner writes an ignored file outside the repo corpus and executor reads
-it by path.
-
-**Benefit:** survives context compaction on one machine.
-
-**Costs:** invents location, ownership, cleanup, lifetime, and remote-host
-semantics; a path is not portable across Codex/Claude surfaces; tempts later
-code to treat an advisory file as authority.
-
-### C. Always post the packet to a task/change-request
+### B. Always post the packet to a task/change-request
 
 The plan is a clearly marked advisory comment, not a repo artifact.
 
-**Benefit:** durable, visible, and naturally available to run-resumer.
+**Benefits:** durable from the instant planning finishes, visible, naturally
+available to run-resumer, and useful if exact plan-versus-execution comparison
+is itself a product requirement.
 
 **Costs:** assumes a task/change-request exists before implementation; adds
-platform-coupled noise and a write for every plan; turns a transient
-optimization into permanent project history.
+platform-coupled noise and a write for every plan; needs a stale/superseded
+comment convention; turns a transient optimization into permanent project
+history.
+
+### Why A is recommended
+
+The plan is deliberately neither a ratified artifact nor review evidence.
+Grove's record-not-memory rule therefore does not need it to prove that a gate
+cleared. Its only durability requirement is operational continuation, and
+Grove already has a checkpoint/resume seam for exactly that need. Option A
+keeps the common path host-neutral and write-free while paying persistence
+only on the exceptional path that consumes it.
+
+Option B becomes preferable if the maintainer wants **plan history itself** to
+be a product capability: humans routinely inspect plans before execution,
+post-hoc plan adherence is evaluated, or planning and execution commonly cross
+asynchronous sessions. None of those requirements is established yet.
+
+A temporary filesystem packet is not a competitive third option: it inherits
+A's lack of durable project visibility while adding path, cleanup, lifetime,
+and cross-host semantics. It remains available to the experiment harness for
+capturing measurements outside the repo, but is not recommended as production
+transport.
 
 ## O2 options — when planning fires
 
