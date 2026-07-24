@@ -53,13 +53,19 @@ updated: 2026-07-24
   treatment; otherwise phase two adds two repetitions of every task/arm cell
   for 27 runs total. Nine runs can reject an evidently poor direction but
   cannot establish adoption by themselves.
+- **D7 — make phase one a conservative, one-way futility screen**
+  *(maintainer delegated this experiment-detail choice, 2026-07-24)*. Stop
+  after nine runs if treatment C loses independent quality on at least two of
+  the three tasks that baseline A passes, or if C reduces neither premium
+  tokens nor weighted cost on any task. Otherwise expand to 27 runs. Passing
+  this screen never authorizes early adoption.
 
 ### Open
 
-- **O3 — experiment thresholds.** What exact phase-one futility rule, final
-  quality floor, and cost improvement are enough to continue and then adopt?
-  The three arms and staged 9 → 27 scale are settled; their decision thresholds
-  are not.
+- **O3 — final adoption threshold.** What quality non-inferiority margin and
+  premium-token/weighted-cost improvement must treatment C show after all 27
+  runs, and how much must it outperform medium executor control B to prove the
+  planner earned its additional cold call? The phase-one rule is settled.
 - **O4 — model/resource ownership.** Does Grove define portable resource
   classes such as `reasoning-heavy` and `execution-medium` for adapters to map,
   or does concrete model selection remain entirely in the experiment harness
@@ -276,6 +282,17 @@ whether to stop; the pilot cannot adopt the role at this sample size. If it
 continues, phase two adds two repetitions of every task/arm cell, producing 27
 runs total. The planner arm always plans within the sample so routing
 discretion cannot bias the result.
+
+Phase one stops for futility when either:
+
+- treatment C fails independent quality on at least two tasks for which
+  baseline A passes; or
+- treatment C reduces neither premium tokens nor weighted cost on any of the
+  three tasks.
+
+Every other phase-one result expands to 27 runs. The screen is deliberately
+one-way: it avoids the full expense of an evidently poor treatment without
+claiming that one run per task/arm cell is enough evidence to adopt it.
 
 Measure:
 
