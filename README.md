@@ -103,9 +103,10 @@ composes only what your repo owns: the gate-profile floor
 (`.grove/config.toml` — your test/typecheck commands, VCS/issue-tracker
 conventions, parked-item store, rubric paths, resolved interactively
 and honestly, with "none exists yet" where a convention genuinely
-doesn't), a short dial-explainer, and the managed `CLAUDE.md` block
-with the `grove plugin@<version>` stamp (`adr-0026` D4 — a ratified
-record with loud skew disclosure, never a lock). See
+doesn't), a short dial-explainer, the managed `AGENTS.md` block with the
+`grove plugin@<version>` stamp, and Claude's `@AGENTS.md` adapter
+(`adr-0033`; `adr-0026` D4 — a ratified record with loud skew disclosure,
+never a lock). See
 [`plugins/grove/README.md`](plugins/grove/README.md) for the full plugin
 contents.
 

@@ -1,6 +1,6 @@
 ---
 name: refresh
-description: Bring an installed grove overlay to the current plugin version — re-copy the grove-managed floor verbatim, regenerate the dial-explainer, and bump the CLAUDE.md version stamp. Never touches a consumer-authoritative file. Use when the user asks to refresh, update, upgrade, or roll out grove in a repo that already has it. First installs are /grove:setup, not this.
+description: Bring an installed grove overlay to the current plugin version — re-copy the grove-managed floor verbatim, regenerate the dial-explainer, and bump the AGENTS.md version stamp while maintaining Claude's adapter. Never rewrites consumer-authored prose. Use when the user asks to refresh, update, upgrade, or roll out grove in a repo that already has it. First installs are /grove:setup, not this.
 ---
 
 # Refresh an installed grove overlay
@@ -13,7 +13,7 @@ repo edit** — what refresh maintains in the repo is only the thin floor:
 
 1. **floor re-copy** — the grove-managed machinery, verbatim;
 2. **dial-explainer regeneration** — `.grove/README.md`;
-3. **stamp bump** — the CLAUDE.md `grove plugin@<version>` record (`adr-0026`
+3. **stamp bump** — the AGENTS.md `grove plugin@<version>` record (`adr-0026`
    D4), which is where a fleet update gets its in-repo review seam (the PR
    that lands the bump links the release changelog).
 
@@ -37,8 +37,9 @@ worktree** — never the shared checkout. The plugin source
 
 ## 1. Read the installed state — and gate on the install's generation
 
-- **Version stamp:** the `grove plugin@<version>` line inside CLAUDE.md's
-  `grove:begin`/`grove:end` block. Record old → new (new = the `version`
+- **Version stamp:** the `grove plugin@<version>` line inside the
+  `grove:begin`/`grove:end` block in `AGENTS.md` or a legacy `CLAUDE.md`.
+  Record old → new (new = the `version`
   field of `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`). **Disclose
   the comparison loudly** (`adr-0026` D4) — including the case where the
   stamp already differs from what a collaborator's install would run. An
@@ -92,12 +93,11 @@ there — `adr-0026` D5 — and are none of grove's business). A refresh that
 values are the **agents'** job to catch at use time (the D3 verified-prior
 posture), never refresh's to rewrite.
 
-**CLAUDE.md — managed block only:** update the block text to setup step 6's
-current form and the `grove plugin@<version>` stamp **between the markers**,
-nothing else. Setup step 6's discipline verbatim: pre-edit copy first; after,
-exactly one `grove:begin` and one `grove:end`, and a diff against the
-pre-edit copy showing changes only between them. A misfire fires `adr-0003`'s
-trigger — report it, never leave a mangled CLAUDE.md.
+**Project entrypoints — deterministic migration:** run setup step 6's bundled
+helper with `compose`, then `check`. It updates only Grove's marked block,
+migrates a legacy `CLAUDE.md` block into canonical `AGENTS.md`, ensures the
+Claude adapter, and preserves unrelated prose. A refusal is a loud stop; never
+hand-edit around it.
 
 ## 3. Verify — every claim empirically, before handing back
 
@@ -106,7 +106,8 @@ trigger — report it, never leave a mangled CLAUDE.md.
 - `node --check` passes on the refreshed runtime's entry points (at minimum
   `.grove/internal/gates/bin/resolve-profile.mjs`).
 - `git status --short` touches **only**: `.grove/internal/`,
-  `.grove/README.md`, and CLAUDE.md. Anything else in the diff is a bug in this
+  `.grove/README.md`, `AGENTS.md`, and `CLAUDE.md`. The helper may touch one or
+  both entrypoints according to `spec-0004`; anything else is a bug in this
   refresh — fix or revert it.
 
 ## 4. Hand back

@@ -9,6 +9,10 @@ updated: 2026-07-10
 
 # ADR-0003: managed block is a conditional W1–W6 routing rule, not an identity claim; the block write is verified; upsert-script trigger armed
 
+> **Superseded in part by `adr-0033`.** The routing rule remains current. Its
+> canonical home is now `AGENTS.md`, and the armed deterministic-upsert trigger
+> has fired as part of the cross-host migration.
+
 ## Context
 
 `/grove:setup` step 6 composed this block into the consuming project's

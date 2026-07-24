@@ -9,6 +9,10 @@ updated: 2026-07-10  # Open Questions: self-furrow question resolved (append-onl
 
 # ADR-0002: agent, dispatcher, run — official vocabulary; druid/archdruid as sanctioned register, never defining
 
+> **Superseded in part by `adr-0033`.** The naming register remains current;
+> its shared instruction-file home is now `AGENTS.md`, loaded by Claude through
+> `CLAUDE.md`.
+
 ## Context
 
 `kodhama-0003-family-naming` explicitly kept grove's internal vocabulary
