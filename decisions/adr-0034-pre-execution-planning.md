@@ -42,9 +42,12 @@ updated: 2026-07-24
 
 ### Open
 
-- **O2 — routing obligation.** Is planning required before every executor
-  invocation, required only for code-bearing work derived from a spec, or
-  selected case-by-case by a complexity judgment?
+- **O2 — routing obligation.** The maintainer is leaning toward the semantic
+  boundary in Option B, with bug behavior made explicit: code-bearing work
+  derived from a spec plans; a spec-gap bug first amends and reconverges its
+  missing contract, then plans; only a reproduced, root-caused, localized
+  implementation slip against an already-adequate spec may route directly to
+  executor. Confirmation remains open.
 - **O3 — experiment and adoption threshold.** Which task sample, repetitions,
   quality floor, and cost improvement are enough to adopt the role? The
   current recommendation is a three-arm cold comparison: current premium
@@ -225,12 +228,25 @@ localized regressions, and trivial mechanical work.
 ### B. Every code-bearing spec → executor handoff — recommended candidate
 
 Code-bearing forward construction from a spec receives a plan. Decision-only
-non-code work continues directly to executor. A localized W3 implementation
-slip may go directly from reproduced failing test to executor; a spec gap
-routes upstream and receives planning after the amended spec converges.
+non-code work continues directly to executor.
+
+For bugs, Grove's existing W3 classification supplies the boundary:
+
+- **implementation slip, adequate spec:** the spec already states the expected
+  behavior. If reproduction and root-cause work localize a bounded fix, the
+  failing regression test may route directly to executor. If the slip spans
+  components or still needs implementation decomposition, it remains
+  code-bearing spec work and receives a plan; no false spec amendment is
+  created merely to invoke the planner;
+- **spec gap:** the expected behavior is real but absent. Amend and reconverge
+  the spec first, then plan against the corrected contract; and
+- **upstream decision wrong:** route to shaping before either planning or
+  execution.
 
 This is a semantic boundary already present in ADR-0005, not a token-count or
-line-count threshold. It is observable and testable.
+line-count threshold. It is observable and testable, preserves the rule that
+implementation-slip regressions need not manufacture a spec change, and still
+gives non-local bugs access to planning.
 
 ### C. Dispatcher judgment based on complexity
 
