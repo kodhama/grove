@@ -35,10 +35,11 @@ updated: 2026-07-24
   *(maintainer, 2026-07-24; chose Option A)*. The planner returns a bounded
   packet to the driving-session dispatcher, which passes it verbatim alongside
   the authoritative artifact pointer into a separately cold executor. The
-  ordinary path performs no external write. If the existing checkpoint/resume
-  seam fires, its task/change-request checkpoint carries the packet or its
-  validated remainder. Loss before executor dispatch costs a replan, never a
-  correctness or gate claim.
+  ordinary path performs no external write. If an identifiable
+  task/change-request already exists and its checkpoint/resume seam fires, that
+  checkpoint carries the packet or its validated remainder. Without such a
+  carrier, loss before executor dispatch costs a replan, never a correctness or
+  gate claim.
 - **D5 — plan code-bearing spec work, with a bounded localized-bug
   exception** *(maintainer, 2026-07-24; chose Option B)*. Every code-bearing
   handoff from a ratified spec routes through the planner. Under W3, a spec gap
@@ -99,13 +100,16 @@ updated: 2026-07-24
   expected count. The first release containing `implementation-planner` must
   prove fourteen. A same-change forward annotation on ADR-0031 carries the
   append-only amendment.
+- **D14 — do not require a task/change-request for relay recovery**
+  *(maintainer, 2026-07-24; chose Option A after adversary F3)*. Existing
+  checkpoint behavior is available only when the dispatched work already has
+  an identifiable task/change-request. The planner route neither creates nor
+  requires one. If no carrier exists and the transient relay is lost, the
+  dispatcher cold-runs the planner again from the unchanged authoritative
+  artifact and repository basis.
 
 ### Open
 
-- **O13 — interruption recovery wording.** Reconcile D4's no-task-required
-  common path with the fact that the existing run-resumer checkpoint carrier
-  requires an identifiable task/change-request; otherwise interruption before
-  executor dispatch can only replan.
 - **O14 — experiment metric semantics.** Define accepted-quality timing,
   bounded retries, weighted-cost arithmetic, loop counting, and
   zero-accepted-completion handling before the thresholds can authorize
@@ -214,10 +218,10 @@ verified repository fact.
 |---|---|---|
 | Normal path | Planner output is passed verbatim by the dispatcher into the fresh executor invocation. | Planner output is posted first, then the executor is pointed to the post. |
 | Authority | Advisory working material; the executor reopens the ratified artifact and it wins every conflict. | Still advisory, but permanent placement beside decisions/reviews makes accidental authority inflation more likely. |
-| Recovery | If the existing resume seam fires, checkpoint the packet or its validated remainder; otherwise no persistence. | Available to any resumer without an additional checkpoint act. |
+| Recovery | If an identifiable task/change-request already exists and its resume seam fires, checkpoint the packet or its validated remainder; without one, rerun planning. | Available to any resumer without an additional checkpoint act. |
 | Failure cost | A relay lost before executor start requires a replan; after start, normal executor checkpointing applies. | The post survives dispatcher/session death immediately. |
 | Portability | Uses the host-neutral parent → cold child → parent → cold child primitive already required by Grove. | Requires a writable, authenticated task/change-request channel on every supported execution path. |
-| Preconditions | Only a ratified artifact and an agent-launch path. | A task/change-request must already exist before implementation. |
+| Preconditions | A ratified artifact and an agent-launch path. A task/change-request is optional; without one there is no resumable carrier. | A task/change-request must already exist before implementation. |
 | Project record | No permanent record for a successful transient optimization. | Every plan becomes permanent project history even though it is neither contract nor review evidence. |
 | Writes/noise | Zero external writes on the ordinary path. | One additional external write per planned executor run, plus update/supersession conventions when a plan goes stale. |
 | Auditability | Final code, tests, review findings, and any exceptional checkpoint remain auditable; the discarded working route does not. | The exact proposed route is auditable even when execution immediately disproves or abandons it. |
@@ -230,9 +234,15 @@ dispatcher passes that output verbatim, alongside the authoritative artifact
 pointer, into a separately cold executor invocation. The executor reopens the
 artifact and verifies the packet's anchors before acting.
 
-If the existing checkpoint/resume seam fires before or during execution, the
-task/change-request checkpoint carries the packet or its remaining validated
-steps. Persistence is paid for only when persistence is actually needed.
+If the work already has an identifiable task/change-request and the existing
+checkpoint/resume seam fires before or during execution, that checkpoint
+carries the packet or its remaining validated steps. The planner route never
+creates a task/change-request merely to gain this carrier.
+
+If no such carrier exists, an interrupted relay is not resumable: the
+dispatcher reruns the planner against the same authoritative artifact and
+repository basis. This is recomputation, not recovery from hidden session
+state.
 
 **Benefits:** smallest new mechanism; no cleanup or repo pollution; works with
 the existing parent → cold child → parent → cold child pattern; keeps the
@@ -260,10 +270,10 @@ history.
 
 The plan is deliberately neither a ratified artifact nor review evidence.
 Grove's record-not-memory rule therefore does not need it to prove that a gate
-cleared. Its only durability requirement is operational continuation, and
-Grove already has a checkpoint/resume seam for exactly that need. Option A
-keeps the common path host-neutral and write-free while paying persistence
-only on the exceptional path that consumes it.
+cleared. Where an identifiable task/change-request already exists, Grove's
+checkpoint/resume seam can carry it; where none exists, D14 deliberately buys
+recomputation rather than a new durable carrier. Option A keeps the common path
+host-neutral and write-free.
 
 Option B would become preferable if the maintainer wanted **plan history itself** to
 be a product capability: humans routinely inspect plans before execution,
@@ -437,6 +447,11 @@ conformance target is added.
   after adversary F2: it repairs this release but requires another standing-ADR
   amendment for every future role addition. Inventory-derived completeness
   keeps the rule stable while exact release evidence still catches omissions.
+- **Require a task/change-request before every planned execution.** Rejected
+  after adversary F3: reliable crash recovery would require eagerly posting
+  the plan, recreating the durable-write path rejected by D4. The chosen route
+  accepts rare replanning without adding a platform/authentication precondition
+  to every successful run.
 
 ## Acceptance criteria for this decision
 
@@ -454,5 +469,5 @@ conformance target is added.
 ## Self-check
 
 The 2026-07-24 self-check is stale because independent review found five
-revision items. Rerun it only after O13–O16 close. The canvas currently has
-thirteen Decided items and four Open items.
+revision items. Rerun it only after O14–O16 close. The canvas currently has
+fourteen Decided items and three Open items.
