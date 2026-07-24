@@ -66,12 +66,16 @@ updated: 2026-07-24
   fewer premium-model tokens, and must reduce weighted cost per accepted
   completion by at least 20%. Whether C has sufficiently outperformed
   medium-only control B remains to be made testable.
+- **D9 — require a material planner advantage over medium-only control**
+  *(maintainer, 2026-07-24; chose Option A)*. Across nine runs per arm,
+  treatment C must earn at least one more accepted-quality result than B or,
+  when their accepted-quality counts tie, use at least 20% fewer
+  executor-retry plus reviewer-return loops. Together with D8, this prevents
+  adopting an extra premium planning call when medium execution alone already
+  performs equivalently.
 
 ### Open
 
-- **O3 — planner-value threshold.** What exact advantage over medium executor
-  control B proves that the planner earned its additional cold call? The
-  phase-one rule and final comparison against premium baseline A are settled.
 - **O4 — model/resource ownership.** Does Grove define portable resource
   classes such as `reasoning-heavy` and `execution-medium` for adapters to map,
   or does concrete model selection remain entirely in the experiment harness
@@ -317,9 +321,10 @@ After all 27 runs, treatment C may be adopted only if, across its nine runs, it:
 - consumes at least 30% fewer premium-model tokens than A; and
 - reduces weighted cost per accepted completion by at least 20% versus A.
 
-It must also outperform control B sufficiently to show that the planner earned
-its extra cold run; that last operational threshold remains open. Fewer total
-raw tokens are desirable but not assumed.
+Against medium-only control B, C must earn at least one additional
+accepted-quality result or, when accepted-quality counts tie, use at least 20%
+fewer executor-retry plus reviewer-return loops. Fewer total raw tokens are
+desirable but not assumed.
 
 ## Consequences and propagation if approved
 
@@ -370,6 +375,12 @@ conformance target is added.
 - **Allow C to trail A by two quality results while saving only 20% of premium
   tokens and 10% of weighted cost.** Not chosen: this package can adopt a
   material quality regression for a modest efficiency gain.
+- **Require C both to gain a quality result over B and to cut its return loops
+  by 20%.** Not chosen: either a material quality gain or a material workflow
+  gain is enough to show planner value; requiring both would discard one kind
+  of successful treatment.
+- **Accept any measurable improvement over B.** Not chosen: a one-off token or
+  timing fluctuation does not justify adding a premium planning call.
 
 ## Acceptance criteria for this decision
 
@@ -386,4 +397,4 @@ conformance target is added.
 
 ## Self-check
 
-Not yet run. The draft has three Open items and is not converged.
+Not yet run. The draft has two Open items and is not converged.
