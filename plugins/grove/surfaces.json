@@ -66,14 +66,14 @@
       "surface_id": "codex-exec-non-ephemeral",
       "host": "codex",
       "bridge_state": "bridge-viable",
-      "release_state": "candidate",
+      "release_state": "supported",
       "load_path": "project .codex/agents/<native_id>.toml -> installed Grove plugin skill/reference",
       "evidence": [
         "reference/surfaces/codex-bridge-spike-2026-07-23.json",
         "reference/surfaces/codex-exec-non-ephemeral-0.3.0-attempt-2026-07-23.json"
       ],
-      "missing_capability": "The all-role probe passed, but Grove 0.2.0 was also enabled; a fresh candidate-only host run is still required.",
-      "disclosure": "Candidate, not release-supported. Package composition and every role exposure were observed on non-ephemeral Codex exec, but the retained host environment was not candidate-only."
+      "support_record": "reference/surfaces/codex-exec-non-ephemeral-0.3.0-2026-07-24.json",
+      "disclosure": "Supported for Grove 0.3.0 on non-ephemeral Codex CLI 0.145.0 exec with gpt-5.6-sol, the OpenAI provider, MultiAgentV2, and setup-generated project launchers."
     },
     {
       "surface_id": "codex-exec-ephemeral",

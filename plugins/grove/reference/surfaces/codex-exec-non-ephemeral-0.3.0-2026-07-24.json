@@ -1,0 +1,868 @@
+{
+  "schema_version": 1,
+  "host": "codex",
+  "surface_id": "codex-exec-non-ephemeral",
+  "grove_version": "0.3.0",
+  "host_version": "codex-cli 0.145.0",
+  "candidate": {
+    "repository_commit": "dad4f96096795458b1c179c044691fa8aaa85fba",
+    "package_tree_sha256": "0392d4e41566d7cc053b4a828e6d4f2768c0db021c99092d2ed961f2c1cace62"
+  },
+  "clean_environment": {
+    "consumer_empty": true,
+    "candidate_only": true,
+    "fresh_session": true,
+    "fresh_sessions": 7,
+    "profile": "steward",
+    "surface_provenance": "user-explicit",
+    "model": "gpt-5.6-sol",
+    "model_provider": "openai",
+    "multi_agent_version": "v2",
+    "project_trust": "explicit isolated consumer",
+    "session": "sequential fresh non-ephemeral codex exec probes",
+    "sandbox": "read-only",
+    "approval_policy": "never",
+    "enabled_grove_plugins": [
+      "grove@grove-probe-0-3-0-dad4f9609679 0.3.0"
+    ]
+  },
+  "install_load_path": "isolated CODEX_HOME -> local marketplace grove-probe-0-3-0-dad4f9609679 -> exact package snapshot -> project launchers",
+  "launcher_form": {
+    "count": 12,
+    "contains_charter_body": false
+  },
+  "role_identities": {
+    "driving_session": [
+      {
+        "canonical_id": "dispatcher",
+        "native_id": null,
+        "exposure": "driving-session",
+        "source": "charters/dispatcher.md",
+        "digest": "9961fd1792f3b21343aec90ade15335bd4c4f681c83fbf99410bddef0850ceef",
+        "invocation": "DRIVING-DISPATCHER-DAD4F9609679"
+      },
+      {
+        "canonical_id": "shaper",
+        "native_id": null,
+        "exposure": "driving-session",
+        "source": "charters/shaper.md",
+        "digest": "20a09193caae4e9be7f86d7b0fe9ca0c4499dd7b968f2500b8d20446534a95a6",
+        "invocation": "DRIVING-SHAPER-DAD4F9609679"
+      }
+    ],
+    "native": [
+      {
+        "canonical_id": "code-reviewer",
+        "native_id": "grove_code_reviewer",
+        "exposure": "cold-native",
+        "source": "charters/code-reviewer.md",
+        "digest": "a73a41cdebf423f9bba617a0c8066ceacf3dd19d348f70a0f53bc70e13fd235a",
+        "invocation": "NATIVE-GROVE-CODE-REVIEWER-DAD4F9609679"
+      },
+      {
+        "canonical_id": "conformance-reviewer",
+        "native_id": "grove_conformance_reviewer",
+        "exposure": "cold-native",
+        "source": "charters/conformance-reviewer.md",
+        "digest": "06c2e52f0ea442d6f7c6c3a9004376cb0876260cccc1f4e3f457b078cd78d65b",
+        "invocation": "NATIVE-GROVE-CONFORMANCE-REVIEWER-DAD4F9609679"
+      },
+      {
+        "canonical_id": "contract-author",
+        "native_id": "grove_contract_author",
+        "exposure": "cold-native",
+        "source": "charters/contract-author.md",
+        "digest": "2285985e6071db5d881ed6a158e48218040b3bea53bad7de327548c9fa8c8e47",
+        "invocation": "NATIVE-GROVE-CONTRACT-AUTHOR-DAD4F9609679"
+      },
+      {
+        "canonical_id": "corpus-reviewer",
+        "native_id": "grove_corpus_reviewer",
+        "exposure": "cold-native",
+        "source": "charters/corpus-reviewer.md",
+        "digest": "b84aa2829f05d3b4b6b19af717b5ffafe70589e10205f66c8bcc96cd60ee6ef3",
+        "invocation": "NATIVE-GROVE-CORPUS-REVIEWER-DAD4F9609679"
+      },
+      {
+        "canonical_id": "decision-adversary",
+        "native_id": "grove_decision_adversary",
+        "exposure": "cold-native",
+        "source": "charters/decision-adversary.md",
+        "digest": "0ed0d6ddb257e26dc7d54cac0098f1ea30fd6d442d0769e7e1c93056b6c511b9",
+        "invocation": "NATIVE-GROVE-DECISION-ADVERSARY-DAD4F9609679"
+      },
+      {
+        "canonical_id": "dispatcher",
+        "native_id": "grove_dispatcher",
+        "exposure": "scoped-advisor",
+        "source": "charters/dispatcher.md",
+        "digest": "9961fd1792f3b21343aec90ade15335bd4c4f681c83fbf99410bddef0850ceef",
+        "invocation": "NATIVE-GROVE-DISPATCHER-DAD4F9609679"
+      },
+      {
+        "canonical_id": "divergent-researcher",
+        "native_id": "grove_divergent_researcher",
+        "exposure": "cold-native",
+        "source": "charters/divergent-researcher.md",
+        "digest": "7a67ee0f9ea5f2990b286a5ac341b14fc3818787a8099fd9f98ace443a39d333",
+        "invocation": "NATIVE-GROVE-DIVERGENT-RESEARCHER-DAD4F9609679"
+      },
+      {
+        "canonical_id": "executor",
+        "native_id": "grove_executor",
+        "exposure": "cold-native",
+        "source": "charters/executor.md",
+        "digest": "8531d32a9793d32f6517c84d9fdbf620467cdeb2b88f72a28d0e514f5d434f03",
+        "invocation": "NATIVE-GROVE-EXECUTOR-DAD4F9609679"
+      },
+      {
+        "canonical_id": "propagation-remediator",
+        "native_id": "grove_propagation_remediator",
+        "exposure": "cold-native",
+        "source": "charters/propagation-remediator.md",
+        "digest": "4a723a1e138182d25630fe0c3fb09ed144478edf6399fb38eba46220a5f16527",
+        "invocation": "NATIVE-GROVE-PROPAGATION-REMEDIATOR-DAD4F9609679"
+      },
+      {
+        "canonical_id": "run-resumer",
+        "native_id": "grove_run_resumer",
+        "exposure": "cold-native",
+        "source": "charters/run-resumer.md",
+        "digest": "f311c8fd9144d6751f94b31d4798344bef2c2e32917bc1158b287a4554c1d687",
+        "invocation": "NATIVE-GROVE-RUN-RESUMER-DAD4F9609679"
+      },
+      {
+        "canonical_id": "spec-adversary",
+        "native_id": "grove_spec_adversary",
+        "exposure": "cold-native",
+        "source": "charters/spec-adversary.md",
+        "digest": "a21ca8ac5e26da567636e3e10e1d191befb14b75ea4995bece30cdbae20a4098",
+        "invocation": "NATIVE-GROVE-SPEC-ADVERSARY-DAD4F9609679"
+      },
+      {
+        "canonical_id": "validator",
+        "native_id": "grove_validator",
+        "exposure": "cold-native",
+        "source": "charters/validator.md",
+        "digest": "c58eae46db62e54a66d502b0584a02c44a3d4189f1df90a5e84bf9df8241dc44",
+        "invocation": "NATIVE-GROVE-VALIDATOR-DAD4F9609679"
+      }
+    ],
+    "unexpected_native_ids": []
+  },
+  "producer_reviewer_separation": {
+    "separate": true,
+    "producer": {
+      "native_id": "grove_executor",
+      "invocation": "SEPARATION-EXECUTOR-DAD4F9609679"
+    },
+    "reviewer": {
+      "native_id": "grove_code_reviewer",
+      "invocation": "SEPARATION-CODE-REVIEWER-DAD4F9609679"
+    }
+  },
+  "driving_session_roles": {
+    "dispatcher_invocation": "DRIVING-DISPATCHER-DAD4F9609679",
+    "shaper_invocation": "DRIVING-SHAPER-DAD4F9609679",
+    "delegated": false,
+    "matched_inventory": true
+  },
+  "spawned_dispatcher": {
+    "native_id": "grove_dispatcher",
+    "exposure": "scoped-advisor",
+    "invocation": "SCOPED-DISPATCHER-DAD4F9609679",
+    "advertised_driving_session": false
+  },
+  "config_and_addendum": {
+    "role": "grove_executor",
+    "config_sentinel": "fixture-support-command-030",
+    "addendum_sentinel": "fixture-executor-addendum-030",
+    "both_observed": true,
+    "invocation": "CONFIG-EXECUTOR-DAD4F9609679"
+  },
+  "outcome": "pass",
+  "observed_at": "2026-07-24",
+  "procedure": [
+    "Prepared an empty consumer and exact immutable candidate snapshot without launching Codex.",
+    "Used a fresh isolated CODEX_HOME and verified exactly one enabled Grove plugin.",
+    "Ran driving roles without delegation and twelve native identities in three sequential batches.",
+    "Ran separate executor/reviewer, scoped-dispatcher, and executor config/addendum probes.",
+    "Validated exact V2 agent_type calls, no-history forks, child agent_role metadata, and invocation challenges.",
+    "Retained Codex JSONL plus normalized persisted-session proof, exact argv, timestamps, exit codes, and structured final output for every phase."
+  ],
+  "probe_evidence": {
+    "phases": [
+      {
+        "id": "01-driving-session",
+        "kind": "driving-session",
+        "argv": [
+          "codex",
+          "-a",
+          "never",
+          "exec",
+          "-C",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/consumer",
+          "-s",
+          "read-only",
+          "--json",
+          "--output-schema",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/schemas/identity-batch.json",
+          "-o",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/results/01-driving-session.json",
+          "-"
+        ],
+        "started_at": "2026-07-24T07:23:15.462Z",
+        "finished_at": "2026-07-24T07:23:38.316Z",
+        "exit_code": 0,
+        "final_output": "results/01-driving-session.json",
+        "raw_jsonl": "logs/01-driving-session.jsonl",
+        "stderr": "logs/01-driving-session.stderr",
+        "verdict": "pass",
+        "raw_event_count": 8,
+        "completed_spawn_count": 0,
+        "root_thread_id": "019f9301-cbc7-7a91-a446-9b1e5f81658f",
+        "model": "gpt-5.6-sol",
+        "model_provider": "openai",
+        "multi_agent_version": "v2",
+        "invocations": [],
+        "agent_metadata": "logs/01-driving-session-agent-metadata.json",
+        "artifact_sha256": {
+          "raw_jsonl": "77731b3cea23f86fafa633b15c8f39a2977be0839950b636d5be3961703d9d0a",
+          "final_output": "8f50a65323d57bc508776194119c636f74ab4baf26d5e807eb9d297279ec3384",
+          "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_metadata": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        }
+      },
+      {
+        "id": "02-native-batch-1",
+        "kind": "native-batch",
+        "argv": [
+          "codex",
+          "-a",
+          "never",
+          "exec",
+          "-C",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/consumer",
+          "-s",
+          "read-only",
+          "--json",
+          "--output-schema",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/schemas/identity-batch.json",
+          "-o",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/results/02-native-batch-1.json",
+          "-"
+        ],
+        "started_at": "2026-07-24T07:23:38.321Z",
+        "finished_at": "2026-07-24T07:25:28.394Z",
+        "exit_code": 0,
+        "final_output": "results/02-native-batch-1.json",
+        "raw_jsonl": "logs/02-native-batch-1.jsonl",
+        "stderr": "logs/02-native-batch-1.stderr",
+        "verdict": "pass",
+        "raw_event_count": 12,
+        "completed_spawn_count": 4,
+        "root_thread_id": "019f9302-2215-7ed0-bc76-c55a8bf9dea0",
+        "model": "gpt-5.6-sol",
+        "model_provider": "openai",
+        "multi_agent_version": "v2",
+        "invocations": [
+          {
+            "native_id": "grove_code_reviewer",
+            "invocation": "NATIVE-GROVE-CODE-REVIEWER-DAD4F9609679",
+            "thread_id": "019f9302-4416-7610-afae-f4daa2ed2d45",
+            "task_name": "probe_code_reviewer",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_code_reviewer",
+            "observed_agent_path": "/root/probe_code_reviewer",
+            "observed_parent_thread_id": "019f9302-2215-7ed0-bc76-c55a8bf9dea0",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "code-reviewer",
+              "native_id": "grove_code_reviewer",
+              "exposure": "cold-native",
+              "source": "charters/code-reviewer.md",
+              "digest": "a73a41cdebf423f9bba617a0c8066ceacf3dd19d348f70a0f53bc70e13fd235a",
+              "invocation": "NATIVE-GROVE-CODE-REVIEWER-DAD4F9609679"
+            },
+            "session_meta_sha256": "3fb5a724cbfe614b460a9efa3d78f06fb2846ccb05dd407d896ae8f22b8e454a",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-23-47-019f9302-4416-7610-afae-f4daa2ed2d45.jsonl"
+          },
+          {
+            "native_id": "grove_conformance_reviewer",
+            "invocation": "NATIVE-GROVE-CONFORMANCE-REVIEWER-DAD4F9609679",
+            "thread_id": "019f9302-99e6-7ad1-8b09-cdb184755f07",
+            "task_name": "probe_conformance_reviewer",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_conformance_reviewer",
+            "observed_agent_path": "/root/probe_conformance_reviewer",
+            "observed_parent_thread_id": "019f9302-2215-7ed0-bc76-c55a8bf9dea0",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "conformance-reviewer",
+              "native_id": "grove_conformance_reviewer",
+              "exposure": "cold-native",
+              "source": "charters/conformance-reviewer.md",
+              "digest": "06c2e52f0ea442d6f7c6c3a9004376cb0876260cccc1f4e3f457b078cd78d65b",
+              "invocation": "NATIVE-GROVE-CONFORMANCE-REVIEWER-DAD4F9609679"
+            },
+            "session_meta_sha256": "f1a0520c1489b167cef1e633c96cb4fe105a292a14ae1ac9303579ce849bb178",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-24-09-019f9302-99e6-7ad1-8b09-cdb184755f07.jsonl"
+          },
+          {
+            "native_id": "grove_contract_author",
+            "invocation": "NATIVE-GROVE-CONTRACT-AUTHOR-DAD4F9609679",
+            "thread_id": "019f9303-0341-7320-b26a-18851e215249",
+            "task_name": "probe_contract_author",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_contract_author",
+            "observed_agent_path": "/root/probe_contract_author",
+            "observed_parent_thread_id": "019f9302-2215-7ed0-bc76-c55a8bf9dea0",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "contract-author",
+              "native_id": "grove_contract_author",
+              "exposure": "cold-native",
+              "source": "charters/contract-author.md",
+              "digest": "2285985e6071db5d881ed6a158e48218040b3bea53bad7de327548c9fa8c8e47",
+              "invocation": "NATIVE-GROVE-CONTRACT-AUTHOR-DAD4F9609679"
+            },
+            "session_meta_sha256": "19972bee2f74c0b44809e7ba03d05d17cc521256f30d624ace9311a148434866",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-24-36-019f9303-0341-7320-b26a-18851e215249.jsonl"
+          },
+          {
+            "native_id": "grove_corpus_reviewer",
+            "invocation": "NATIVE-GROVE-CORPUS-REVIEWER-DAD4F9609679",
+            "thread_id": "019f9303-68de-7573-baee-87944c987345",
+            "task_name": "probe_corpus_reviewer",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_corpus_reviewer",
+            "observed_agent_path": "/root/probe_corpus_reviewer",
+            "observed_parent_thread_id": "019f9302-2215-7ed0-bc76-c55a8bf9dea0",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "corpus-reviewer",
+              "native_id": "grove_corpus_reviewer",
+              "exposure": "cold-native",
+              "source": "charters/corpus-reviewer.md",
+              "digest": "b84aa2829f05d3b4b6b19af717b5ffafe70589e10205f66c8bcc96cd60ee6ef3",
+              "invocation": "NATIVE-GROVE-CORPUS-REVIEWER-DAD4F9609679"
+            },
+            "session_meta_sha256": "ffe887508e04d51e9e1a5b52f77aad0d4c705993ab80b153b4207e21975303b8",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-25-02-019f9303-68de-7573-baee-87944c987345.jsonl"
+          }
+        ],
+        "agent_metadata": "logs/02-native-batch-1-agent-metadata.json",
+        "artifact_sha256": {
+          "raw_jsonl": "4e9422f6c1fa0b15f7c4c84cc56ecb9b47a39cad598760f444c6664109ba0cc0",
+          "final_output": "64eef796c8741a9af90fe1df73c86be83b377f818b9f660fa607926fdf109801",
+          "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_metadata": "828c90c933ff483d2317997b9dfba5f089a8f66f88975d3f9d0b1c104ad89900"
+        }
+      },
+      {
+        "id": "03-native-batch-2",
+        "kind": "native-batch",
+        "argv": [
+          "codex",
+          "-a",
+          "never",
+          "exec",
+          "-C",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/consumer",
+          "-s",
+          "read-only",
+          "--json",
+          "--output-schema",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/schemas/identity-batch.json",
+          "-o",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/results/03-native-batch-2.json",
+          "-"
+        ],
+        "started_at": "2026-07-24T07:25:28.406Z",
+        "finished_at": "2026-07-24T07:27:11.416Z",
+        "exit_code": 0,
+        "final_output": "results/03-native-batch-2.json",
+        "raw_jsonl": "logs/03-native-batch-2.jsonl",
+        "stderr": "logs/03-native-batch-2.stderr",
+        "verdict": "pass",
+        "raw_event_count": 12,
+        "completed_spawn_count": 4,
+        "root_thread_id": "019f9303-d01c-7ef0-93ec-1e326d44c2fe",
+        "model": "gpt-5.6-sol",
+        "model_provider": "openai",
+        "multi_agent_version": "v2",
+        "invocations": [
+          {
+            "native_id": "grove_decision_adversary",
+            "invocation": "NATIVE-GROVE-DECISION-ADVERSARY-DAD4F9609679",
+            "thread_id": "019f9303-eb8d-7961-bdbf-f71f589d071d",
+            "task_name": "probe_decision_adversary",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_decision_adversary",
+            "observed_agent_path": "/root/probe_decision_adversary",
+            "observed_parent_thread_id": "019f9303-d01c-7ef0-93ec-1e326d44c2fe",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "decision-adversary",
+              "native_id": "grove_decision_adversary",
+              "exposure": "cold-native",
+              "source": "charters/decision-adversary.md",
+              "digest": "0ed0d6ddb257e26dc7d54cac0098f1ea30fd6d442d0769e7e1c93056b6c511b9",
+              "invocation": "NATIVE-GROVE-DECISION-ADVERSARY-DAD4F9609679"
+            },
+            "session_meta_sha256": "1f1a21466af064c073e579343ded55db57eb8457e88cb087b617e738116295f2",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-25-35-019f9303-eb8d-7961-bdbf-f71f589d071d.jsonl"
+          },
+          {
+            "native_id": "grove_dispatcher",
+            "invocation": "NATIVE-GROVE-DISPATCHER-DAD4F9609679",
+            "thread_id": "019f9304-4411-7cc0-a1cd-0fdafcf19f31",
+            "task_name": "probe_dispatcher",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_dispatcher",
+            "observed_agent_path": "/root/probe_dispatcher",
+            "observed_parent_thread_id": "019f9303-d01c-7ef0-93ec-1e326d44c2fe",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "dispatcher",
+              "native_id": "grove_dispatcher",
+              "exposure": "scoped-advisor",
+              "source": "charters/dispatcher.md",
+              "digest": "9961fd1792f3b21343aec90ade15335bd4c4f681c83fbf99410bddef0850ceef",
+              "invocation": "NATIVE-GROVE-DISPATCHER-DAD4F9609679"
+            },
+            "session_meta_sha256": "e06a40622433eaae5c0fcb7debd465b4fea78e1238d778993088b5875f2ad739",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-25-58-019f9304-4411-7cc0-a1cd-0fdafcf19f31.jsonl"
+          },
+          {
+            "native_id": "grove_divergent_researcher",
+            "invocation": "NATIVE-GROVE-DIVERGENT-RESEARCHER-DAD4F9609679",
+            "thread_id": "019f9304-9dc1-7141-aa71-3f3daef87871",
+            "task_name": "probe_divergent_researcher",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_divergent_researcher",
+            "observed_agent_path": "/root/probe_divergent_researcher",
+            "observed_parent_thread_id": "019f9303-d01c-7ef0-93ec-1e326d44c2fe",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "divergent-researcher",
+              "native_id": "grove_divergent_researcher",
+              "exposure": "cold-native",
+              "source": "charters/divergent-researcher.md",
+              "digest": "7a67ee0f9ea5f2990b286a5ac341b14fc3818787a8099fd9f98ace443a39d333",
+              "invocation": "NATIVE-GROVE-DIVERGENT-RESEARCHER-DAD4F9609679"
+            },
+            "session_meta_sha256": "6048362e52313cc77816987c3b8775b1521dcf09f822b6745facec05448f4f45",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-26-21-019f9304-9dc1-7141-aa71-3f3daef87871.jsonl"
+          },
+          {
+            "native_id": "grove_executor",
+            "invocation": "NATIVE-GROVE-EXECUTOR-DAD4F9609679",
+            "thread_id": "019f9304-f055-7560-a0cf-fc71310e4533",
+            "task_name": "probe_executor",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_executor",
+            "observed_agent_path": "/root/probe_executor",
+            "observed_parent_thread_id": "019f9303-d01c-7ef0-93ec-1e326d44c2fe",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "executor",
+              "native_id": "grove_executor",
+              "exposure": "cold-native",
+              "source": "charters/executor.md",
+              "digest": "8531d32a9793d32f6517c84d9fdbf620467cdeb2b88f72a28d0e514f5d434f03",
+              "invocation": "NATIVE-GROVE-EXECUTOR-DAD4F9609679"
+            },
+            "session_meta_sha256": "7bca55dfd47bd3015a237e67bd115af1a1cc9901ea41ea4658630d80c571b013",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-26-42-019f9304-f055-7560-a0cf-fc71310e4533.jsonl"
+          }
+        ],
+        "agent_metadata": "logs/03-native-batch-2-agent-metadata.json",
+        "artifact_sha256": {
+          "raw_jsonl": "37aaf8d293ca1425a4b16478d37b6c31e171b65f4b2bde0a661c051e897c6351",
+          "final_output": "a5fee555996dc9eca924ad521b167854b63bf1e8a31a67904e812f844c319cfd",
+          "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_metadata": "f3c72fae5e84e72dc00ec7624cd5afc39a5016ae35e54d62f35a728966d35ccd"
+        }
+      },
+      {
+        "id": "04-native-batch-3",
+        "kind": "native-batch",
+        "argv": [
+          "codex",
+          "-a",
+          "never",
+          "exec",
+          "-C",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/consumer",
+          "-s",
+          "read-only",
+          "--json",
+          "--output-schema",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/schemas/identity-batch.json",
+          "-o",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/results/04-native-batch-3.json",
+          "-"
+        ],
+        "started_at": "2026-07-24T07:27:11.427Z",
+        "finished_at": "2026-07-24T07:29:00.094Z",
+        "exit_code": 0,
+        "final_output": "results/04-native-batch-3.json",
+        "raw_jsonl": "logs/04-native-batch-3.jsonl",
+        "stderr": "logs/04-native-batch-3.stderr",
+        "verdict": "pass",
+        "raw_event_count": 12,
+        "completed_spawn_count": 4,
+        "root_thread_id": "019f9305-6277-7001-bbad-3c9b8d180764",
+        "model": "gpt-5.6-sol",
+        "model_provider": "openai",
+        "multi_agent_version": "v2",
+        "invocations": [
+          {
+            "native_id": "grove_propagation_remediator",
+            "invocation": "NATIVE-GROVE-PROPAGATION-REMEDIATOR-DAD4F9609679",
+            "thread_id": "019f9305-7ddf-7511-a250-8784199bb082",
+            "task_name": "probe_propagation_remediator",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_propagation_remediator",
+            "observed_agent_path": "/root/probe_propagation_remediator",
+            "observed_parent_thread_id": "019f9305-6277-7001-bbad-3c9b8d180764",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "propagation-remediator",
+              "native_id": "grove_propagation_remediator",
+              "exposure": "cold-native",
+              "source": "charters/propagation-remediator.md",
+              "digest": "4a723a1e138182d25630fe0c3fb09ed144478edf6399fb38eba46220a5f16527",
+              "invocation": "NATIVE-GROVE-PROPAGATION-REMEDIATOR-DAD4F9609679"
+            },
+            "session_meta_sha256": "1b5d9653d06b9cdf23341cfbfec798a033195b342146dba455f7bc4a3326268f",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-27-18-019f9305-7ddf-7511-a250-8784199bb082.jsonl"
+          },
+          {
+            "native_id": "grove_run_resumer",
+            "invocation": "NATIVE-GROVE-RUN-RESUMER-DAD4F9609679",
+            "thread_id": "019f9305-d8c3-7bd3-926a-46972fc9c56b",
+            "task_name": "probe_run_resumer",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_run_resumer",
+            "observed_agent_path": "/root/probe_run_resumer",
+            "observed_parent_thread_id": "019f9305-6277-7001-bbad-3c9b8d180764",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "run-resumer",
+              "native_id": "grove_run_resumer",
+              "exposure": "cold-native",
+              "source": "charters/run-resumer.md",
+              "digest": "f311c8fd9144d6751f94b31d4798344bef2c2e32917bc1158b287a4554c1d687",
+              "invocation": "NATIVE-GROVE-RUN-RESUMER-DAD4F9609679"
+            },
+            "session_meta_sha256": "081ce24bb9a4eda781c0a7a5a4344f014246b3993ad2603ee11643ec6bf6b5a4",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-27-41-019f9305-d8c3-7bd3-926a-46972fc9c56b.jsonl"
+          },
+          {
+            "native_id": "grove_spec_adversary",
+            "invocation": "NATIVE-GROVE-SPEC-ADVERSARY-DAD4F9609679",
+            "thread_id": "019f9306-4025-7473-9554-3df68fd64242",
+            "task_name": "probe_spec_adversary",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_spec_adversary",
+            "observed_agent_path": "/root/probe_spec_adversary",
+            "observed_parent_thread_id": "019f9305-6277-7001-bbad-3c9b8d180764",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "spec-adversary",
+              "native_id": "grove_spec_adversary",
+              "exposure": "cold-native",
+              "source": "charters/spec-adversary.md",
+              "digest": "a21ca8ac5e26da567636e3e10e1d191befb14b75ea4995bece30cdbae20a4098",
+              "invocation": "NATIVE-GROVE-SPEC-ADVERSARY-DAD4F9609679"
+            },
+            "session_meta_sha256": "bf255ddb50a344fbd5e506c039f069073e721ba7b575d722d6d7940cca038d49",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-28-08-019f9306-4025-7473-9554-3df68fd64242.jsonl"
+          },
+          {
+            "native_id": "grove_validator",
+            "invocation": "NATIVE-GROVE-VALIDATOR-DAD4F9609679",
+            "thread_id": "019f9306-a52f-7bc1-bc73-45d6235a5ee3",
+            "task_name": "probe_validator",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_validator",
+            "observed_agent_path": "/root/probe_validator",
+            "observed_parent_thread_id": "019f9305-6277-7001-bbad-3c9b8d180764",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "canonical_id": "validator",
+              "native_id": "grove_validator",
+              "exposure": "cold-native",
+              "source": "charters/validator.md",
+              "digest": "c58eae46db62e54a66d502b0584a02c44a3d4189f1df90a5e84bf9df8241dc44",
+              "invocation": "NATIVE-GROVE-VALIDATOR-DAD4F9609679"
+            },
+            "session_meta_sha256": "84bf5e3a817ea2aae79d2f927a3b4c671cc944555e9ec3218094478df8a7ca70",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-28-34-019f9306-a52f-7bc1-bc73-45d6235a5ee3.jsonl"
+          }
+        ],
+        "agent_metadata": "logs/04-native-batch-3-agent-metadata.json",
+        "artifact_sha256": {
+          "raw_jsonl": "5bef3e39fe9fe9080ead8f752571798bc4fc5193485eb3503e24ae4e9ac9e1a0",
+          "final_output": "dfc62ebb69f87eac457a18aa5f92469caac01e41ce249ab5cb8859b991a47b40",
+          "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_metadata": "331bd0892090a8760499d343f86e9211a86f21d80b60dab8685b1ea7a9b10100"
+        }
+      },
+      {
+        "id": "05-producer-reviewer-separation",
+        "kind": "separation",
+        "argv": [
+          "codex",
+          "-a",
+          "never",
+          "exec",
+          "-C",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/consumer",
+          "-s",
+          "read-only",
+          "--json",
+          "--output-schema",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/schemas/separation.json",
+          "-o",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/results/05-producer-reviewer-separation.json",
+          "-"
+        ],
+        "started_at": "2026-07-24T07:29:00.113Z",
+        "finished_at": "2026-07-24T07:29:58.018Z",
+        "exit_code": 0,
+        "final_output": "results/05-producer-reviewer-separation.json",
+        "raw_jsonl": "logs/05-producer-reviewer-separation.jsonl",
+        "stderr": "logs/05-producer-reviewer-separation.stderr",
+        "verdict": "pass",
+        "raw_event_count": 8,
+        "completed_spawn_count": 2,
+        "root_thread_id": "019f9307-0b10-75a1-8422-6ba2b7547359",
+        "model": "gpt-5.6-sol",
+        "model_provider": "openai",
+        "multi_agent_version": "v2",
+        "invocations": [
+          {
+            "native_id": "grove_executor",
+            "invocation": "SEPARATION-EXECUTOR-DAD4F9609679",
+            "thread_id": "019f9307-2aed-7b53-bbb2-c21d1dfe8d1a",
+            "task_name": "probe_executor",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_executor",
+            "observed_agent_path": "/root/probe_executor",
+            "observed_parent_thread_id": "019f9307-0b10-75a1-8422-6ba2b7547359",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "native_id": "grove_executor",
+              "invocation": "SEPARATION-EXECUTOR-DAD4F9609679"
+            },
+            "session_meta_sha256": "a218a44f2c872c642a3453467f26808c4ddf1e9b5b0d08e713f5ad014fdd452e",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-29-08-019f9307-2aed-7b53-bbb2-c21d1dfe8d1a.jsonl"
+          },
+          {
+            "native_id": "grove_code_reviewer",
+            "invocation": "SEPARATION-CODE-REVIEWER-DAD4F9609679",
+            "thread_id": "019f9307-870f-7810-9ad3-30d61e02db42",
+            "task_name": "probe_reviewer",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_code_reviewer",
+            "observed_agent_path": "/root/probe_reviewer",
+            "observed_parent_thread_id": "019f9307-0b10-75a1-8422-6ba2b7547359",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "native_id": "grove_code_reviewer",
+              "invocation": "SEPARATION-CODE-REVIEWER-DAD4F9609679"
+            },
+            "session_meta_sha256": "a536acab960eeadb8fc65d8159822102977c4e32aa399d1b0f79bcab1caa7538",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-29-31-019f9307-870f-7810-9ad3-30d61e02db42.jsonl"
+          }
+        ],
+        "agent_metadata": "logs/05-producer-reviewer-separation-agent-metadata.json",
+        "artifact_sha256": {
+          "raw_jsonl": "9097ec486b17a0cd8060900b291f8849df05a2526a32dd192d36976eb0b4bda6",
+          "final_output": "0e498cc768fdac2371f72226bd7b07ac50d1372c82ba700c92c8b5299477cf0a",
+          "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_metadata": "9d1df1d70d6982d857d7af135417bc29dbd50015c47869992d76ef9978403d45"
+        }
+      },
+      {
+        "id": "06-scoped-dispatcher",
+        "kind": "scoped-dispatcher",
+        "argv": [
+          "codex",
+          "-a",
+          "never",
+          "exec",
+          "-C",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/consumer",
+          "-s",
+          "read-only",
+          "--json",
+          "--output-schema",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/schemas/scoped-dispatcher.json",
+          "-o",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/results/06-scoped-dispatcher.json",
+          "-"
+        ],
+        "started_at": "2026-07-24T07:29:58.036Z",
+        "finished_at": "2026-07-24T07:30:37.077Z",
+        "exit_code": 0,
+        "final_output": "results/06-scoped-dispatcher.json",
+        "raw_jsonl": "logs/06-scoped-dispatcher.jsonl",
+        "stderr": "logs/06-scoped-dispatcher.stderr",
+        "verdict": "pass",
+        "raw_event_count": 6,
+        "completed_spawn_count": 1,
+        "root_thread_id": "019f9307-ed54-7733-9235-689c1c7e8022",
+        "model": "gpt-5.6-sol",
+        "model_provider": "openai",
+        "multi_agent_version": "v2",
+        "invocations": [
+          {
+            "native_id": "grove_dispatcher",
+            "invocation": "SCOPED-DISPATCHER-DAD4F9609679",
+            "thread_id": "019f9308-0e69-7ee1-89fa-486bb5439a7d",
+            "task_name": "dispatcher_probe",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_dispatcher",
+            "observed_agent_path": "/root/dispatcher_probe",
+            "observed_parent_thread_id": "019f9307-ed54-7733-9235-689c1c7e8022",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "native_id": "grove_dispatcher",
+              "exposure": "scoped-advisor",
+              "advertised_driving_session": false,
+              "invocation": "SCOPED-DISPATCHER-DAD4F9609679"
+            },
+            "session_meta_sha256": "fee521ed5da770b35d066000eb664aae41f00c92213da47519ab4ce73516920d",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-30-06-019f9308-0e69-7ee1-89fa-486bb5439a7d.jsonl"
+          }
+        ],
+        "agent_metadata": "logs/06-scoped-dispatcher-agent-metadata.json",
+        "artifact_sha256": {
+          "raw_jsonl": "01311cbaa45cb214b1cc3fa4268c97ef585c8c59622473f041091ac74a18977b",
+          "final_output": "bfbb1dc8e7ea19698fcd37e04af5e9befb367420f3311fa92eef84fb5da81126",
+          "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_metadata": "07caf3a3145fc35b4a3a81cf1f74f222e2277c57140764aaa5f74935de2f153d"
+        }
+      },
+      {
+        "id": "07-config-addendum",
+        "kind": "config-addendum",
+        "argv": [
+          "codex",
+          "-a",
+          "never",
+          "exec",
+          "-C",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/consumer",
+          "-s",
+          "read-only",
+          "--json",
+          "--output-schema",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/schemas/config-addendum.json",
+          "-o",
+          "/private/var/folders/3m/l3p8zyrj3g75h4vt5_x5x9gm0000gn/T/grove-codex-support-43wKLa/results/07-config-addendum.json",
+          "-"
+        ],
+        "started_at": "2026-07-24T07:30:37.096Z",
+        "finished_at": "2026-07-24T07:31:29.077Z",
+        "exit_code": 0,
+        "final_output": "results/07-config-addendum.json",
+        "raw_jsonl": "logs/07-config-addendum.jsonl",
+        "stderr": "logs/07-config-addendum.stderr",
+        "verdict": "pass",
+        "raw_event_count": 7,
+        "completed_spawn_count": 1,
+        "root_thread_id": "019f9308-85e5-7282-ac31-c00d4db6a560",
+        "model": "gpt-5.6-sol",
+        "model_provider": "openai",
+        "multi_agent_version": "v2",
+        "invocations": [
+          {
+            "native_id": "grove_executor",
+            "invocation": "CONFIG-EXECUTOR-DAD4F9609679",
+            "thread_id": "019f9308-ad84-7b80-88b1-b8e7463eb8e1",
+            "task_name": "executor_probe",
+            "fork_turns": "none",
+            "observed_agent_role": "grove_executor",
+            "observed_agent_path": "/root/executor_probe",
+            "observed_parent_thread_id": "019f9308-85e5-7282-ac31-c00d4db6a560",
+            "observed_cli_version": "0.145.0",
+            "observed_model": "gpt-5.6-sol",
+            "observed_model_provider": "openai",
+            "observed_multi_agent_version": "v2",
+            "observed_child_result": {
+              "role": "grove_executor",
+              "config_sentinel": "fixture-support-command-030",
+              "addendum_sentinel": "fixture-executor-addendum-030",
+              "both_observed": true,
+              "invocation": "CONFIG-EXECUTOR-DAD4F9609679"
+            },
+            "session_meta_sha256": "d7ee154f1daa778686f7d5134b36c290d48553516cde96acebf53274af2e6374",
+            "session_metadata": "codex-home/sessions/2026/07/24/rollout-2026-07-24T08-30-47-019f9308-ad84-7b80-88b1-b8e7463eb8e1.jsonl"
+          }
+        ],
+        "agent_metadata": "logs/07-config-addendum-agent-metadata.json",
+        "artifact_sha256": {
+          "raw_jsonl": "979338065b13703db14472bf398a04accbaa10b81e214172736775c6d33a5937",
+          "final_output": "26c474bece2b2b8224f599ee3aaba50d526116289bb79d1399bdea05625f53b8",
+          "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "agent_metadata": "766d90b767776ca35c2458058972da9ea9ef49c34e2d7fd5269cd9d605a2b146"
+        }
+      }
+    ],
+    "plugin_list": "logs/plugin-list.json",
+    "plugin_list_sha256": "ea88e10f27bd2938335f344e21da54d59d331a788822cf292c6a5d6719b064f5",
+    "codex_version": "logs/codex-version.txt",
+    "codex_version_sha256": "f9eb0c462cdded1fb971b33c647ff1b8b491dfe962a1506026e07a06f634f651",
+    "promotion_requires_raw_evidence_review": true
+  }
+}
