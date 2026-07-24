@@ -10,6 +10,11 @@ updated: 2026-07-18
 
 # ADR-0018: the gate-profile mechanism + the trigger-vs-intent-gate split (in-domain)
 
+> **D5's consumer-installed runtime location is partially superseded by
+> `adr-0035-plugin-and-consumer-boundary`.** Placement by authority still
+> governs consumer-owned files, but Grove runtime now stays in the plugin and
+> standard installs no longer create `.grove/internal/`.
+>
 > **D5's layout table amended by `adr-0026-thin-vendor-boundary`
 > (2026-07-21; append-only pointer, adr-0026 Propagation 3).** D5 placed
 > the grove-authoritative subtree — the companions

@@ -9,6 +9,13 @@ updated: 2026-07-24
 
 # ADR-0034: narrow Stewards integration to marketplace metadata and CI provisioning
 
+> **The physical location of Grove's release validator and probes, plus the
+> release workflow's command wiring, is partially superseded by
+> `adr-0035-plugin-and-consumer-boundary`.** Grove retains their product
+> authority and behavior. Validator/probe sources move outside the installable
+> plugin; the workflow remains under `.github/workflows/` and invokes those
+> relocated tools against the exact package snapshot.
+>
 ## Decision state
 
 ### Decided

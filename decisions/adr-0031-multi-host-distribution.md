@@ -9,6 +9,12 @@ updated: 2026-07-23
 
 # ADR-0031: one grove fleet, distributed through Claude and Codex
 
+> **Adapter placement and the consumer/runtime boundary are refined by
+> `adr-0035-plugin-and-consumer-boundary`.** The one-kernel/two-adapter model
+> stands; host adapters now occupy disjoint manifest-declared paths, and shared
+> executable runtime remains in the installed plugin rather than
+> `.grove/internal/`.
+>
 > **Approved direction; implementation remains gated by its contract and ship review.** The maintainer asked for Grove to work on
 > Claude and Codex and to have a distribution channel for each, without
 > repeating instruction files or agent charters. This canvas records the

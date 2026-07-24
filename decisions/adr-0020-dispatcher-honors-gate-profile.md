@@ -10,6 +10,11 @@ updated: 2026-07-19
 
 # ADR-0020: the run-sequencer honors the gate-profile at run time
 
+> **The concrete resolver location is superseded by
+> `adr-0035-plugin-and-consumer-boundary`.** Per-handover deterministic
+> resolution, guardian fallback, and the dispatcher-as-single-reader contract
+> stand; the active host adapter now invokes the plugin-resident resolver.
+>
 > **`gated` — converged, awaiting review.** This decision activates
 > `adr-0018` at run time: `adr-0018` built the gate-profile machinery
 > (`gates.toml`, the floor validator, the `guardian` fallback,

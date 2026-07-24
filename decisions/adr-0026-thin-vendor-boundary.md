@@ -10,6 +10,11 @@ updated: 2026-07-23
 
 # ADR-0026: the thin-vendor boundary — plugin-carried fleet, repo-owned floor (grove#112)
 
+> **The repo-installed gate-runtime exception is superseded by
+> `adr-0035-plugin-and-consumer-boundary`.** The fleet, companions, gate
+> runtime, and fixed enforcement data are plugin-carried; consumers keep their
+> configuration, addenda, corpus, and dial explainer.
+>
 > **`gated` — converged, awaiting the adversary verdict + the intent gate.**
 > grove#112 asked where grove's
 > vendoring boundary should sit, after the 2026-07-21 fleet rollout priced the
