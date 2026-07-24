@@ -1,7 +1,7 @@
 ---
 id: adr-0034-pre-execution-planning
 type: adr
-status: draft
+status: gated  # shaper self-check rerun 2026-07-24 after adversary F1-F5 revisions; awaiting fresh independent verdict record and applicable intent act
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0031-multi-host-distribution, adr-0033-adopt-family-plugin-contracts]
 owner: agent
 updated: 2026-07-24
@@ -9,12 +9,13 @@ updated: 2026-07-24
 
 # ADR-0034: pre-execution planning as an advisory cold role
 
-> **Draft shaping canvas — nothing here authorizes implementation.** The
+> **Gated decision canvas — nothing here authorizes implementation.** The
 > maintainer wants to test whether a stronger planning pass can make a
 > lower-cost executor effective without weakening Grove's artifact authority,
-> strict TDD, independent review, or dual-host delivery. Independent
-> adversarial review returned `NEEDS-REVISION`; this canvas now tracks those
-> revisions before a fresh self-check and re-review.
+> strict TDD, independent review, or dual-host delivery. The first independent
+> adversarial preview returned `NEEDS-REVISION`; F1–F5 are now folded and the
+> self-check has been rerun. A fresh verdict must still be posted on an
+> authenticated change-request before any intent-gate act.
 
 ## Decision state
 
@@ -126,12 +127,16 @@ updated: 2026-07-24
   host override wins over its default. Missing classes, unknown selectors, and
   cross-host fallback fail before dispatch. Experiment and support evidence
   record the effective class-to-model map.
+- **D17 — complete local gating and scoped adversarial preview before posting**
+  *(maintainer, 2026-07-24; chose Option A)*. The shaper reruns the complete
+  self-check and moves this decision to `gated`, then dispatches a scoped
+  re-review of F1–F5 in the isolated clone. That session report is diagnostic
+  only: once authentication is available, a fresh independent verdict must be
+  posted on the change-request before ratification.
 
 ### Open
 
-- **O16 — lifecycle and review record.** After revisions, rerun the self-check,
-  move `draft` to `gated`, and obtain a fresh decision-adversary verdict on an
-  authenticated change-request; the session-only preview cannot clear a gate.
+- None.
 
 ### Parked
 
@@ -528,7 +533,31 @@ conformance target is added.
 
 ## Self-check
 
-The 2026-07-24 self-check is stale because independent review found five
-revision items. Rerun it after the substantive O12–O15 revisions now recorded,
-then close O16 through lifecycle transition and re-review. The canvas currently
-has sixteen Decided items and one Open item.
+Passed by the shaper on 2026-07-24 after folding adversary F1–F5:
+
+- **Authority and lifecycle:** D1–D2 keep the packet advisory and outside the
+  artifact graph; the decision adds neither a gate nor a plan artifact.
+- **Transport and recovery:** D4/D14 make the relay write-free, require an
+  existing task/change-request for checkpoint recovery, and otherwise replan
+  without hiding session state.
+- **Routing coherence:** D5/D12 express the planning obligation through local
+  planner/executor declarations, preserving ADR-0012's decentralized-routing
+  rule and explicit W3 bug split.
+- **Standing-decision maintenance:** D13 replaces ADR-0031's hardcoded role
+  count with inventory-derived completeness plus an exact per-release count;
+  ADR-0031 carries the same-change append-only forward annotation.
+- **Experiment soundness:** D6–D9 and D15 separate planner value from executor
+  downgrade, bound the sample and remediation budget, define acceptance and
+  cost arithmetic, prevent selective task exclusion, and make every adoption
+  threshold executable.
+- **Host/resource ownership:** D10/D16 preserve one host-neutral role intent,
+  assign versioned defaults to the host inventory, preserve ADR-0026's
+  consumer-authoritative override, and fail before dispatch on unresolved
+  mappings.
+- **Settled ground and propagation:** all five `depends_on` targets exist and
+  are `approved`; the follow-up contract names every affected canonical,
+  generated, consumer, experiment, support-evidence, and release surface.
+
+The canvas has seventeen Decided items, zero Open items, and is `gated`.
+Independent re-review is still owed; the session preview cannot substitute for
+the required change-request verdict record.
