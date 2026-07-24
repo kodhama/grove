@@ -1,7 +1,7 @@
 ---
 id: adr-0034-narrow-stewards-marketplace-provisioning
 type: adr
-status: gated
+status: approved
 depends_on: [adr-0029-non-interactive-loading, adr-0031-multi-host-distribution, adr-0033-adopt-family-plugin-contracts]
 owner: agent
 updated: 2026-07-24
@@ -110,4 +110,17 @@ changed by this reset.
 - **History:** supersedes ADR-0033 instead of deleting it.
 - **Independence:** Grove's existing product release/support machinery remains
   authoritative and unchanged.
-- **Result:** gated for independent soundness and conformance review.
+- **Result:** the independent decision adversary returned `SOUND`; the
+  maintainer's explicit reset direction promotes this ADR to `approved`.
+
+## Lifecycle record
+
+The maintainer explicitly directed the family reset on 2026-07-24. The
+independent decision adversary returned `SOUND` after one bounded acceptance-
+criteria wording fix. Those acts promote this ADR from `gated` to `approved`.
+
+No conformance upstream exists for this decision-layer artifact: its
+`depends_on` decisions provide settled ground but are not an `implements`
+contract. The conformance reviewer therefore correctly could not issue a
+fidelity `PASS`; that is not a substitute for or contradiction of the
+decision's human intent gate.
