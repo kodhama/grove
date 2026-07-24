@@ -1,8 +1,8 @@
 ---
 id: adr-0034-pre-execution-planning
 type: adr
-status: gated  # shaper self-check rerun 2026-07-24 after adversary F1-F5 revisions; awaiting fresh independent verdict record and applicable intent act
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0031-multi-host-distribution, adr-0033-adopt-family-plugin-contracts]
+status: gated  # revised after scoped NEEDS-REVISION preview; planner-failure scoring remains open before fresh self-check
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0033-adopt-family-plugin-contracts]
 owner: agent
 updated: 2026-07-24
 ---
@@ -12,10 +12,10 @@ updated: 2026-07-24
 > **Gated decision canvas — nothing here authorizes implementation.** The
 > maintainer wants to test whether a stronger planning pass can make a
 > lower-cost executor effective without weakening Grove's artifact authority,
-> strict TDD, independent review, or dual-host delivery. The first independent
-> adversarial preview returned `NEEDS-REVISION`; F1–F5 are now folded and the
-> self-check has been rerun. A fresh verdict must still be posted on an
-> authenticated change-request before any intent-gate act.
+> strict TDD, independent review, or dual-host delivery. The scoped adversarial
+> preview confirmed the original routing, fleet, recovery, and resource
+> revisions, then found one experiment gap and two graph/propagation omissions.
+> The omissions are folded; planner-failure scoring remains open.
 
 ## Decision state
 
@@ -133,10 +133,22 @@ updated: 2026-07-24
   re-review of F1–F5 in the isolated clone. That session report is diagnostic
   only: once authentication is available, a fresh independent verdict must be
   posted on the change-request before ratification.
+- **D18 — make configuration coupling and the operative dual-host spec
+  explicit** *(shaper correction after scoped adversary F6/F7, 2026-07-24)*.
+  ADR-0026 is a `depends_on` upstream because D16 relies on its
+  consumer-authoritative configuration boundary. Before implementation,
+  `specs/0004-dual-host-distribution.md` must be revised in place,
+  version-bumped, and re-gated to replace every thirteen-role invariant and
+  scenario with inventory-derived completeness plus the exact fourteen-role
+  expectation for the first planner release.
 
 ### Open
 
-- None.
+- **O17 — planner-failure scoring.** Define whether an unusable or failed
+  planner call retries within the existing two-remediation budget, immediately
+  fails treatment C, or receives its own separate retry allowance. The choice
+  must also say whether planner retries count in D9's comparison with
+  medium-only control B.
 
 ### Parked
 
@@ -436,6 +448,10 @@ contract would cover:
 - the three-arm experiment harness and retained out-of-tree evidence;
 - role-inventory resource intent, host-default maps, consumer override schema,
   and fail-loud resolution;
+- an explicit revise-in-place, version-bump, and re-gate of
+  `specs/0004-dual-host-distribution.md`, replacing every thirteen-role
+  contract point with inventory-derived completeness and the first
+  fourteen-role expectation;
 - generated role inventory/counts, discovery, and dual-host parity tests; and
 - release-candidate requalification and a separately judged version bump.
 
@@ -533,31 +549,17 @@ conformance target is added.
 
 ## Self-check
 
-Passed by the shaper on 2026-07-24 after folding adversary F1–F5:
+The self-check recorded at commit `354a9b8` is stale. Scoped independent
+preview confirmed original F1–F3 and F5 closed and F2 narrowly closed, then
+returned `NEEDS-REVISION` for:
 
-- **Authority and lifecycle:** D1–D2 keep the packet advisory and outside the
-  artifact graph; the decision adds neither a gate nor a plan artifact.
-- **Transport and recovery:** D4/D14 make the relay write-free, require an
-  existing task/change-request for checkpoint recovery, and otherwise replan
-  without hiding session state.
-- **Routing coherence:** D5/D12 express the planning obligation through local
-  planner/executor declarations, preserving ADR-0012's decentralized-routing
-  rule and explicit W3 bug split.
-- **Standing-decision maintenance:** D13 replaces ADR-0031's hardcoded role
-  count with inventory-derived completeness plus an exact per-release count;
-  ADR-0031 carries the same-change append-only forward annotation.
-- **Experiment soundness:** D6–D9 and D15 separate planner value from executor
-  downgrade, bound the sample and remediation budget, define acceptance and
-  cost arithmetic, prevent selective task exclusion, and make every adoption
-  threshold executable.
-- **Host/resource ownership:** D10/D16 preserve one host-neutral role intent,
-  assign versioned defaults to the host inventory, preserve ADR-0026's
-  consumer-authoritative override, and fail before dispatch on unresolved
-  mappings.
-- **Settled ground and propagation:** all five `depends_on` targets exist and
-  are `approved`; the follow-up contract names every affected canonical,
-  generated, consumer, experiment, support-evidence, and release surface.
+- missing planner-failure scoring in the experimental treatment (O17);
+- the operative dual-host spec's remaining thirteen-role contract (folded in
+  D18); and
+- the missing ADR-0026 coupling edge (folded in D18).
 
-The canvas has seventeen Decided items, zero Open items, and is `gated`.
-Independent re-review is still owed; the session preview cannot substitute for
-the required change-request verdict record.
+The canvas has eighteen Decided items and one Open item. It remains `gated`
+with the failed re-review disclosed, but is not ready for the intent gate.
+Resolve O17, rerun the complete self-check, and obtain another fresh scoped
+review; the session preview still cannot substitute for a posted
+change-request verdict.
