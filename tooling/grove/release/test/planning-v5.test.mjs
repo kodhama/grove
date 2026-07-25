@@ -405,6 +405,36 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
     workScope: scope,
   }).route, "spec-reconvergence");
 
+  const contradictory = structuredClone(base);
+  contradictory.predicates.decision_only_non_code =
+    predicate(true, "incorrectly claims prose-only work");
+  assert.throws(
+    () => classifyRoute(contradictory, {
+      activation: "experiment-arm-c",
+      artifact: ARTIFACT,
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }),
+    /contradict|mutually exclusive|code_bearing.*decision_only/i,
+  );
+
+  const nonCodeLocalized = structuredClone(base);
+  nonCodeLocalized.predicates.code_bearing =
+    predicate(false, "incorrectly claims no executable behavior");
+  nonCodeLocalized.predicates.localized =
+    predicate(true, "incorrectly claims an implementation slip");
+  nonCodeLocalized.predicates.reproduced = predicate(true, "reproduction");
+  nonCodeLocalized.predicates.root_caused = predicate(true, "root cause");
+  assert.throws(
+    () => classifyRoute(nonCodeLocalized, {
+      activation: "experiment-arm-c",
+      artifact: ARTIFACT,
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }),
+    /contradict|localized.*code|implementation slip/i,
+  );
+
   const incomplete = structuredClone(base);
   delete incomplete.predicates.ambiguous;
   assert.throws(
@@ -463,6 +493,7 @@ const HOSTS = {
   resource_defaults_version: 1,
   resource_defaults: {
     codex: {
+      surfaces: ["codex-exec-non-ephemeral"],
       classes: {
         "execution-medium": "medium-1",
         "reasoning-heavy": "premium-1",
@@ -480,18 +511,22 @@ const HOSTS = {
     codex: {
       selection_source_identity: "support-record@v4",
       selector: "premium-1",
+      surface_id: "codex-exec-non-ephemeral",
     },
   },
 };
 
 test("INV42/INV43/INV51/INV57/S41/S50/S53/S58 — resource binding is context-bound and probe-backed", async () => {
   const probes = [];
-  const capabilityProbe = async ({ selectors }) => {
+  const capabilityProbe = async ({ host, selectors, surface }) => {
     probes.push(selectors);
     return {
       evidence: { models: ["premium-1", "medium-1", "medium-override"] },
+      host,
       permitted: selectors,
+      requested_selectors: selectors,
       source_identity: "catalog@2026-07-25",
+      surface,
     };
   };
 
@@ -505,6 +540,18 @@ test("INV42/INV43/INV51/INV57/S41/S50/S53/S58 — resource binding is context-bo
   });
   assert.equal(ordinary.executor, "premium-1");
   assert.equal(probes.length, 0, "inactive ordinary production adds no class lookup dependency");
+
+  await assert.rejects(
+    resolveResourceBinding({
+      capabilityProbe,
+      context: "inactive-ordinary-production",
+      host: "codex",
+      hostsMetadata: HOSTS,
+      overrides: {},
+      surface: "codex-sdk",
+    }),
+    /surface|pre-adoption/i,
+  );
 
   const armA = await resolveResourceBinding({
     armAPremiumSelector: "premium-1",
@@ -529,6 +576,36 @@ test("INV42/INV43/INV51/INV57/S41/S50/S53/S58 — resource binding is context-bo
     "execution-medium": "medium-override",
     "reasoning-heavy": "premium-1",
   });
+
+  await assert.rejects(
+    resolveResourceBinding({
+      capabilityProbe,
+      context: "experiment-arm-c",
+      host: "codex",
+      hostsMetadata: HOSTS,
+      overrides: {},
+      surface: "codex-sdk",
+    }),
+    /surface|undeclared/i,
+  );
+
+  await assert.rejects(
+    resolveResourceBinding({
+      capabilityProbe: async ({ host, selectors }) => ({
+        host,
+        permitted: selectors,
+        requested_selectors: selectors,
+        source_identity: "catalog@2026-07-25",
+        surface: "codex-sdk",
+      }),
+      context: "experiment-arm-b",
+      host: "codex",
+      hostsMetadata: HOSTS,
+      overrides: {},
+      surface: "codex-exec-non-ephemeral",
+    }),
+    /surface|capability/i,
+  );
 
   await assert.rejects(
     resolveResourceBinding({
@@ -606,6 +683,70 @@ test("INV46/S45/S54 — token normalization forms disjoint priced buckets", () =
     ),
     /source partition|field.*input.*duplicate|double/i,
   );
+
+  assert.throws(
+    () => normalizeBillableCall(
+      {
+        cached_input: 0,
+        input: 10,
+        other_billed: 5,
+        output: 0,
+        reasoning: 0,
+        total: 15,
+      },
+      {
+        buckets: [
+          { bucket: "input_uncached", field: "input", subtract: ["cached_input"] },
+          { bucket: "input_cached", field: "cached_input", subtract: [] },
+          { bucket: "output_nonreasoning", field: "output", subtract: ["reasoning"] },
+          { bucket: "output_reasoning", field: "reasoning", subtract: [] },
+        ],
+        informational_fields: ["total"],
+      },
+      {
+        input_cached: 1,
+        input_uncached: 1,
+        output_nonreasoning: 1,
+        output_reasoning: 1,
+      },
+    ),
+    /other_billed|unclassified provider field/i,
+  );
+
+  assert.throws(
+    () => normalizeBillableCall(
+      { input: 100 },
+      { buckets: [], informational_fields: ["input"] },
+      {},
+    ),
+    /bucket.*non-empty|empty.*bucket|partition/i,
+  );
+
+  assert.throws(
+    () => normalizeBillableCall(
+      { input: 100 },
+      {
+        buckets: [{ bucket: "input", field: "input", subtract: ["input"] }],
+        informational_fields: [],
+      },
+      { input: 1 },
+    ),
+    /self|subtract.*source|partition/i,
+  );
+
+  assert.throws(
+    () => normalizeBillableCall(
+      { cached_input: 20, input: 100 },
+      {
+        buckets: [
+          { bucket: "input_uncached", field: "input", subtract: ["cached_input"] },
+        ],
+        informational_fields: [],
+      },
+      { input_uncached: 1 },
+    ),
+    /cached_input|leaf|partition|unclassified/i,
+  );
 });
 
 function rawModelCall({ modelId, role, tokens = 0, attempt = 1 }) {
@@ -656,6 +797,13 @@ function rawResult({
       tokens: cost,
     }));
   }
+  for (let index = 0; index < remediation; index += 1) {
+    calls.push(rawModelCall({
+      attempt: calls.length + 1,
+      modelId: arm === "A" ? "premium-1" : "medium-1",
+      role: "executor-remediation",
+    }));
+  }
   calls.push(
     rawModelCall({
       attempt: calls.length + 1,
@@ -668,13 +816,6 @@ function rawResult({
       role: "code-reviewer",
     }),
   );
-  for (let index = 0; index < remediation; index += 1) {
-    calls.push(rawModelCall({
-      attempt: calls.length + 1,
-      modelId: arm === "A" ? "premium-1" : "medium-1",
-      role: "executor-remediation",
-    }));
-  }
   return {
     ambiguities_caught_before_implementation: [],
     arm,
@@ -711,6 +852,7 @@ function analysisResult(options) {
     premium_tokens: options.premium ?? 10,
     remediation_dispatches: Object.values(run.remediation_dispatches_by_type)
       .reduce((total, count) => total + count, 0),
+    total_elapsed_ms: 1,
     total_tokens: options.cost ?? 10,
     total_weighted_cost: options.cost ?? 10,
   };
@@ -884,6 +1026,8 @@ test("INV44/INV45/INV49/INV51/S47/S55 — harness writes only caller-supplied ou
     assert.ok(Array.isArray(outcome.results[0].model_calls[0].billable_buckets));
     assert.ok(Array.isArray(outcome.results[0].code_review_findings));
     assert.ok(Array.isArray(outcome.results[0].conformance_findings));
+    assert.ok(outcome.adoption.arms.A.total_tokens > 0);
+    assert.ok(outcome.adoption.arms.A.elapsed_ms > 0);
     assert.deepEqual(
       JSON.parse(await readFile(path.join(evidenceRoot, "results.json"), "utf8")),
       outcome,
@@ -921,6 +1065,73 @@ test("INV44/INV45/S43 — harness binds every runner result to its requested tas
     );
   } finally {
     await rm(evidenceRoot, { recursive: true, force: true });
+  }
+});
+
+test("INV44/INV45/S44 — model calls follow the exact arm sequence and remediation cardinality", async () => {
+  const cases = [
+    {
+      name: "reordered treatment base",
+      mutate: (run) => {
+        if (run.arm === "C") {
+          [run.model_calls[0], run.model_calls[1]] =
+            [run.model_calls[1], run.model_calls[0]];
+        }
+      },
+    },
+    {
+      name: "duplicate executor base call",
+      mutate: (run) => {
+        const executor = run.model_calls.find((call) => call.role === "executor");
+        run.model_calls.splice(
+          run.model_calls.indexOf(executor) + 1,
+          0,
+          structuredClone(executor),
+        );
+      },
+    },
+    {
+      name: "over-budget remediation evidence",
+      remediation: 2,
+      mutate: (run) => {
+        const firstReview = run.model_calls.findIndex(
+          (call) => call.role === "conformance-reviewer",
+        );
+        run.model_calls.splice(firstReview, 0, rawModelCall({
+          modelId: run.arm === "A" ? "premium-1" : "medium-1",
+          role: "executor-remediation",
+        }));
+      },
+    },
+  ];
+  for (const item of cases) {
+    const evidenceRoot = await mkdtemp(path.join(tmpdir(), "grove-planning-sequence-"));
+    try {
+      await assert.rejects(
+        runPlanningExperiment({
+          evidenceRoot,
+          preregistration: experimentPreregistration(),
+          repoRoot: REPO_ROOT,
+          runCell: async ({ arm, repetition, task }) => {
+            const run = rawResult({
+              arm,
+              remediation: item.remediation ?? 0,
+              repetition,
+              task: task.task_id,
+            });
+            item.mutate(run);
+            run.model_calls.forEach((call, index) => {
+              call.attempt = index + 1;
+            });
+            return run;
+          },
+        }),
+        /sequence|cardinality|duplicate|remediation|budget/i,
+        item.name,
+      );
+    } finally {
+      await rm(evidenceRoot, { recursive: true, force: true });
+    }
   }
 });
 
@@ -984,6 +1195,8 @@ test("INV49/S47/S55 — a repetition-two upstream finding replaces every complet
       9,
     );
     assert.equal(outcome.invalidation_overhead.length, 6);
+    assert.equal(outcome.invalidation_overhead_summary.run_count, 6);
+    assert.ok(outcome.invalidation_overhead_summary.total_tokens > 0);
     assert.equal(
       outcome.invalidation_overhead.every(
         (run) => run.upstream_status === "invalidated-upstream",

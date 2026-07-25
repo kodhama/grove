@@ -1041,6 +1041,25 @@ export function classifyRoute(
     route,
   });
   const pValue = predicateValues;
+  if (
+    (pValue.code_bearing && pValue.decision_only_non_code)
+    || (pValue.decision_only_non_code
+      && (pValue.adequate_spec
+        || pValue.reproduced
+        || pValue.root_caused
+        || pValue.localized))
+    || (pValue.localized
+      && (!pValue.code_bearing
+        || !pValue.adequate_spec
+        || !pValue.reproduced
+        || !pValue.root_caused))
+    || (pValue.root_caused && !pValue.reproduced)
+    || (pValue.adequate_spec
+      && (pValue.wrong_decision || pValue.spec_gap || pValue.ambiguous))
+    || (pValue.wrong_decision && pValue.spec_gap)
+  ) {
+    throw new Error("route predicates contain contradictory or mutually exclusive state");
+  }
   if (pValue.wrong_decision) return selected(1, "shaping");
   if (pValue.spec_gap) return selected(2, "spec-reconvergence");
   if (pValue.ambiguous || (!pValue.adequate_spec && !pValue.decision_only_non_code)) {
@@ -1096,6 +1115,9 @@ async function probeSelectors({ capabilityProbe, defaults, host, selectors, surf
   if (
     !plainObject(result)
     || result.source_identity !== defaults.selector_capability_source.identity
+    || result.host !== host
+    || result.surface !== surface
+    || !equalJson(result.requested_selectors, selectors)
     || !Array.isArray(result.permitted)
     || selectors.some((selector) => !result.permitted.includes(selector))
   ) {
@@ -1118,6 +1140,11 @@ export async function resolveResourceBinding({
   if (!baseline || typeof baseline.selector !== "string") {
     throw new Error(`missing pre-adoption direct executor for ${host}`);
   }
+  if (baseline.surface_id !== surface) {
+    throw new Error(
+      `requested surface ${surface} does not match pre-adoption surface ${String(baseline.surface_id)}`,
+    );
+  }
   if (context === "inactive-ordinary-production") {
     return {
       binding_context: context,
@@ -1127,6 +1154,13 @@ export async function resolveResourceBinding({
     };
   }
   const defaults = hostsMetadata.resource_defaults?.[host];
+  if (
+    !defaults
+    || !Array.isArray(defaults.surfaces)
+    || !defaults.surfaces.includes(surface)
+  ) {
+    throw new Error(`resource binding surface ${surface} is undeclared for host ${host}`);
+  }
   if (context === "experiment-arm-a") {
     if (armAPremiumSelector !== baseline.selector) {
       throw new Error("arm A selector must equal the pre-adoption baseline");
@@ -1182,16 +1216,33 @@ export function normalizeBillableCall(raw, normalization, rates) {
   if (!plainObject(raw) || !plainObject(normalization) || !Array.isArray(normalization.buckets)) {
     throw new Error("token normalization input is invalid");
   }
+  if (normalization.buckets.length === 0) {
+    throw new Error("token normalization requires a non-empty bucket partition");
+  }
   const billable = [];
   const bucketNames = new Set();
   const sourceFields = new Set();
+  const partitionFields = new Set();
+  if (
+    !Array.isArray(normalization.informational_fields)
+    || normalization.informational_fields.some((field) => typeof field !== "string")
+    || new Set(normalization.informational_fields).size
+      !== normalization.informational_fields.length
+  ) {
+    throw new Error("token normalization informational fields are invalid or duplicated");
+  }
   for (const rule of normalization.buckets) {
+    if (plainObject(rule) && rule.subtract?.includes(rule.field)) {
+      throw new Error(`token bucket ${String(rule.bucket)} cannot subtract its own source field`);
+    }
     if (
       !plainObject(rule)
       || typeof rule.bucket !== "string"
+      || rule.bucket.length === 0
       || typeof rule.field !== "string"
+      || rule.field.length === 0
       || !Array.isArray(rule.subtract)
-      || rule.subtract.some((field) => typeof field !== "string")
+      || rule.subtract.some((field) => typeof field !== "string" || field.length === 0)
       || new Set(rule.subtract).size !== rule.subtract.length
       || bucketNames.has(rule.bucket)
     ) {
@@ -1202,12 +1253,14 @@ export function normalizeBillableCall(raw, normalization, rates) {
       throw new Error(`token source partition field ${rule.field} is duplicated`);
     }
     sourceFields.add(rule.field);
+    partitionFields.add(rule.field);
     const source = raw[rule.field];
     if (!Number.isSafeInteger(source) || source < 0) {
       throw new Error(`token field ${rule.field} is missing or invalid`);
     }
     let count = source;
     for (const field of rule.subtract) {
+      partitionFields.add(field);
       if (!Number.isSafeInteger(raw[field]) || raw[field] < 0) {
         throw new Error(`token subtraction field ${field} is missing or invalid`);
       }
@@ -1219,6 +1272,34 @@ export function normalizeBillableCall(raw, normalization, rates) {
       throw new Error(`missing priced bucket ${rule.bucket}`);
     }
     billable.push({ bucket: rule.bucket, count, rate });
+  }
+  const informational = new Set(normalization.informational_fields);
+  const missingLeafFields = [...partitionFields].filter(
+    (field) => !sourceFields.has(field),
+  );
+  if (missingLeafFields.length > 0) {
+    throw new Error(
+      `token partition lacks leaf buckets for ${missingLeafFields.sort(compareUtf8).join(", ")}`,
+    );
+  }
+  if ([...informational].some((field) => partitionFields.has(field))) {
+    throw new Error("token normalization informational fields cannot overlap billable fields");
+  }
+  for (const field of informational) {
+    if (!Number.isSafeInteger(raw[field]) || raw[field] < 0) {
+      throw new Error(`informational token field ${field} is missing or invalid`);
+    }
+  }
+  const declaredFields = new Set([...partitionFields, ...informational]);
+  const unknownFields = Object.keys(raw).filter((field) => !declaredFields.has(field));
+  if (unknownFields.length > 0) {
+    throw new Error(`unclassified provider field ${unknownFields.sort(compareUtf8).join(", ")}`);
+  }
+  if (
+    canonicalJson([...Object.keys(rates)].sort(compareUtf8))
+    !== canonicalJson([...bucketNames].sort(compareUtf8))
+  ) {
+    throw new Error("priced token buckets must exactly match normalized leaf buckets");
   }
   const totalTokens = billable.reduce((total, item) => total + item.count, 0);
   return {
@@ -1286,9 +1367,17 @@ function armSummary(runs, arm) {
       0,
     ),
     cost_per_acceptance: accepted === 0 ? "positive-infinity" : totalCost / accepted,
+    elapsed_ms: selected.reduce(
+      (total, run) => total + run.total_elapsed_ms,
+      0,
+    ),
     premium_tokens: selected.reduce((total, run) => total + run.premium_tokens, 0),
     remediation: selected.reduce(
       (total, run) => total + run.remediation_dispatches,
+      0,
+    ),
+    total_tokens: selected.reduce(
+      (total, run) => total + run.total_tokens,
       0,
     ),
     total_weighted_cost: totalCost,
@@ -1627,6 +1716,11 @@ function validateRunResult(
     if (observedAttempts.has(call.attempt)) {
       throw new Error(`model call attempt ${call.attempt} is duplicated`);
     }
+    if (call.attempt !== observedAttempts.size + 1) {
+      throw new Error(
+        `model call attempt ${call.attempt} for ${call.role} is not contiguous at sequence ${observedAttempts.size + 1}`,
+      );
+    }
     observedAttempts.add(call.attempt);
     observedRoles.push(call.role);
     const price = preregistration.price_snapshot.models[call.model_id];
@@ -1651,19 +1745,29 @@ function validateRunResult(
       weighted_cost: normalized.weighted_cost,
     };
   });
-  if (
-    !observedRoles.includes("executor")
-    || !observedRoles.includes("conformance-reviewer")
-    || !observedRoles.includes("code-reviewer")
-    || (arm === "C" ? !observedRoles.includes("planner") : observedRoles.includes("planner"))
-    || observedRoles.filter((role) => role === "planner-remediation").length
-      !== byType["planner retry"]
-    || observedRoles.filter((role) => role === "executor-remediation").length
-      !== byType["executor retry"]
-    || observedRoles.filter((role) => role === "reviewer-return-executor").length
-      !== byType["reviewer-return loop"]
-  ) {
-    throw new Error("model calls do not cover the arm sequence and classified remediations");
+  const expectedRoles = [];
+  if (arm === "C") {
+    expectedRoles.push("planner");
+    expectedRoles.push(
+      ...Array(byType["planner retry"]).fill("planner-remediation"),
+    );
+  }
+  expectedRoles.push("executor");
+  expectedRoles.push(
+    ...Array(byType["executor retry"]).fill("executor-remediation"),
+  );
+  expectedRoles.push("conformance-reviewer", "code-reviewer");
+  for (let index = 0; index < byType["reviewer-return loop"]; index += 1) {
+    expectedRoles.push(
+      "reviewer-return-executor",
+      "conformance-reviewer",
+      "code-reviewer",
+    );
+  }
+  if (!equalJson(observedRoles, expectedRoles)) {
+    throw new Error(
+      `model call sequence/cardinality differs from arm ${arm} and classified remediations`,
+    );
   }
   run.measurement_valid = true;
   run.premium_tokens = premiumTokens;
@@ -1814,6 +1918,25 @@ export async function runPlanningExperiment({
     adoption,
     futility,
     invalidation_overhead: invalidationOverhead,
+    invalidation_overhead_summary: {
+      elapsed_ms: invalidationOverhead.reduce(
+        (total, run) => total + run.total_elapsed_ms,
+        0,
+      ),
+      remediation_dispatches: invalidationOverhead.reduce(
+        (total, run) => total + run.remediation_dispatches,
+        0,
+      ),
+      run_count: invalidationOverhead.length,
+      total_tokens: invalidationOverhead.reduce(
+        (total, run) => total + run.total_tokens,
+        0,
+      ),
+      total_weighted_cost: invalidationOverhead.reduce(
+        (total, run) => total + run.total_weighted_cost,
+        0,
+      ),
+    },
     production_activation_changed: false,
     results,
   };
