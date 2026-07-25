@@ -1,7 +1,7 @@
-// Upstream: spec-0004-dual-host-distribution@v5 INV20, INV23, INV26–INV27, INV32, INV37;
+// Upstream: spec-0004-dual-host-distribution@v6 INV20, INV23, INV26–INV27, INV32, INV37;
 // S18, S22–S23, S30, S35.
 // Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary;
-// adr-0036-pre-execution-planning.
+// adr-0037-pre-execution-planning; adr-0036-remove-retired-review-bookkeeping.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';

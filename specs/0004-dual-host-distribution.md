@@ -1,12 +1,12 @@
 ---
 id: spec-0004-dual-host-distribution
 type: spec
-status: gated  # v5 self-checked 2026-07-25; independent spec-adversary and conformance reviews are owed before downstream use under the steward agent-owned spec gate
+status: gated  # v6 adds the independently reviewed planner amendment after v5 removed retired bookkeeping
 implements: adr-0031-multi-host-distribution
-depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0036-pre-execution-planning]
+depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0037-pre-execution-planning, adr-0036-remove-retired-review-bookkeeping]
 owner: agent
 updated: 2026-07-25
-version: 5
+version: 6
 ---
 
 # spec-0004 — dual-host distribution
@@ -86,27 +86,45 @@ decision reserves for a later intent gate.
 > preserves the existing dual-host and release semantics, and requires exact
 > package, discovery, installed-cache, and migration evidence.
 
-> **Amendment (2026-07-25, `adr-0036-pre-execution-planning` +
+> **Amendment (2026-07-25, `adr-0036-remove-retired-review-bookkeeping`).**
+> **WHAT:** The retired review-bookkeeping implementation, its templates, and
+> its direct policy carriers are removed rather than preserved outside the
+> package. CI and shared validation commands cover only the five live tooling
+> suites.
+> **WHY:** The maintainer explicitly chose permanent removal after confirming
+> the dormant machinery was no longer wanted.
+> **SCOPE:** Behavioral version `v5`; the package boundary, host adapters,
+> lifecycle behavior, surface evidence, and release authority remain unchanged.
+> **POINTER:** Current requirements live in “Deliverables and ownership,”
+> “Installable package and host-discovery contract,” “Shared setup, refresh,
+> set-profile, and remove contract,” “Release and publication contract,” and
+> acceptance criteria `INV24` / `S30`.
+> **VALUE:** The repository no longer retains runnable machinery that no
+> current workflow, package, or consumer can use.
+> **CONFIDENCE:** `verified` after the removal-specific CI, package, and probe
+> checks pass against the exact committed candidate.
+
+> **Amendment (2026-07-25, `adr-0037-pre-execution-planning` +
 > independent spec-adversary review).**
 > **WHAT:** The canonical fleet, generated adapters, routing, bounded
 > human-readable plan, artifact-authoritative execution, and transient handoff
 > now include one cold, read-only `implementation-planner`.
-> **WHY:** Approved ADR-0036 separates implementation reconnaissance and
+> **WHY:** Approved ADR-0037 separates implementation reconnaissance and
 > decomposition from the separately cold executor without creating a second
 > implementation authority or persisted plan.
-> **SCOPE:** Behavioral version `v5`; v4's distribution, lifecycle, package,
-> migration, surface-support, marketplace, and release contracts remain
-> unchanged. No experiment harness, model or resource tier, token/cost metric,
-> adoption mechanism, canonical plan serialization or parser, request-byte
-> work-scope collector or locator grammar, evidence or checkpoint schema, or
-> release activation is introduced.
+> **SCOPE:** Behavioral version `v6`; v5's distribution, lifecycle, package,
+> migration, surface-support, marketplace, release, and retired-bookkeeping
+> removal contracts remain unchanged. No experiment harness, model or resource
+> tier, token/cost metric, adoption mechanism, canonical plan serialization or
+> parser, request-byte work-scope collector or locator grammar, evidence or
+> checkpoint schema, or release activation is introduced.
 > **POINTER:** Current requirements live in “Pre-execution planning contract,”
 > the fourteen-role inventory clauses, and acceptance criteria
 > `INV37`–`INV41` / `S35`–`S39`.
 > **VALUE:** A maintainer can send ratified code-bearing work through a bounded
 > implementation plan while the governing artifact remains authoritative and
 > an interrupted relay is safely recomputed.
-> **CONFIDENCE:** `verified` — approved ADR-0036 contains no open decision,
+> **CONFIDENCE:** `verified` — approved ADR-0037 contains no open decision,
 > explicitly separates the planner role from the parked experiment, and the
 > observable content, routing-safety, authority, and relay bounds preserve its
 > choices without prescribing a plan format or gate.
@@ -153,7 +171,6 @@ decision reserves for a later intent gate.
 | Package declarations | `plugins/grove/README.md`, both manifest directories, `VERSION`, `adapters/`, `runtime/`, `reference/`, and `metadata/` | These are the only permitted package-root entries; an exact recursive leaf allowlist is declared once and validated before any package or release claim. |
 | Surface matrix and spike evidence | Declared machine-readable sources under `plugins/grove/metadata/` or `plugins/grove/reference/` | The matrix is the sole source for support claims and links immutable evidence records such as `reference/surfaces/codex-bridge-spike-2026-07-23.json`. |
 | Maintainer machinery | `tooling/grove/build/`, `tooling/grove/release/`, `tooling/grove/tests/`, and `tooling/grove/probes/` | Retained source-repository inputs outside the installable package; tests import package modules and release/probe commands operate on an exact ephemeral package snapshot. |
-| Dormant review bookkeeping | `retired/review-bookkeeping/` | Preserved, dormant, and outside the installable package; no lifecycle or release path installs it. |
 | Claude marketplace entry | Existing Claude marketplace | Resolves the released Grove Claude package. |
 | Codex marketplace entry | A Git-backed repo catalog at `.agents/plugins/marketplace.json` | Resolves the released Grove Codex package. |
 
@@ -215,8 +232,8 @@ the target is also allowlisted.
 
 No package path may be named root `skills/`, root `agents/`, root `commands/`,
 or root `SKILL.md`. No leaf under `plugins/grove/` may be build, release, test,
-probe, fixture, coverage, temporary, cache, or dormant review-bookkeeping
-implementation. Generated files required by a Git-subdirectory marketplace
+probe, fixture, coverage, temporary, or cache machinery. Generated files
+required by a Git-subdirectory marketplace
 remain committed; generation check mode proves them current.
 
 Maintainer commands shall assemble an ephemeral package snapshot from the
@@ -494,7 +511,7 @@ for that host and changes no repository path. Setup and refresh may emit Codex
 launchers only when the selected row is classified `supported` and declares
 the bridge load path. Selecting
 `codex-exec-ephemeral`, `codex-desktop-local`, `codex-cloud-web`,
-`codex-ide`, or `codex-sdk` at v5 therefore produces the row's unsupported
+`codex-ide`, or `codex-sdk` at v6 therefore produces the row's unsupported
 disclosure and the per-operation valid-unsupported behavior. A future runtime
 detector or newly supported row changes the matrix/adapter metadata and its
 tests, not this precedence rule.
@@ -740,7 +757,7 @@ Setup shall:
 - leave another host's existing managed block and launchers unchanged;
 - remain git-neutral and make no recommendation about how the consumer lands
   the resulting files;
-- keep the retired review-bookkeeping CI uninstalled; and
+- install no check-only CI runtime, template, or consumer surface; and
 - report every path written, skipped, or refused.
 
 Running setup twice for one host shall be idempotent. Running it once from each
@@ -903,8 +920,7 @@ shall, before creating a tag:
    tag.
 
 The workflow is deterministic and idempotent. It does not choose the semantic
-version level, publish a GitHub Release, merge a change, or revive the retired
-review-bookkeeping gate. Relocating its validator source outside
+version level, publish a GitHub Release, or merge a change. Relocating its validator source outside
 `plugins/grove/` does not change those semantics. The maintainer's merge of the
 version-bump change is the human release act.
 
@@ -929,7 +945,7 @@ version-bump change is the human release act.
 
 The matrix shall contain at least these rows:
 
-| Surface id | Bridge state at v5 | Release state at v5 |
+| Surface id | Bridge state at v6 | Release state at v6 |
 |---|---|---|
 | `claude-interactive` | Host-native agents; not a Codex bridge row. | Evidence required. |
 | `claude-cloud` | Host-native agents; not a Codex bridge row. | Evidence required. |
@@ -1000,12 +1016,9 @@ derived from, or mechanically validated against, this matrix.
   existing canonical `charters/` corpus.
 - Reintroducing the retired review-bookkeeping CI or installing its dormant
   runtime through either host plugin.
-- Deleting or judging the necessity of retained build, release, test, probe,
-  or dormant review-bookkeeping machinery; that is reserved for the later
-  repository audit.
 - Changing Grove's gate semantics, consumer-authoritative `.grove/` dials, or
   the existing thirteen roles' semantics beyond the dispatcher/executor
-  planning handoff stated above; v5 adds the planner's canonical charter and
+  planning handoff stated above; v6 adds the planner's canonical charter and
   preserves their other method and authority.
 - Changing any surface support classification, marketplace authority, release
   version, or release tag merely because package paths move.
@@ -1112,9 +1125,9 @@ derived from, or mechanically validated against, this matrix.
   kind-mismatched path, while preserving and comparing the literal target of
   every declared internal symlink.
 - **INV24 — source-side machinery:** Build, release, test, and probe
-  implementation shall reside under `tooling/grove/`, dormant review
-  bookkeeping shall reside under `retired/review-bookkeeping/`, and neither
-  shall appear in the installable package snapshot.
+  implementation shall reside under `tooling/grove/`; no review-bookkeeping
+  runtime or template shall remain in the repository, and source-side tooling
+  shall not appear in the installable package snapshot.
 - **INV25 — no default discovery roots:** The package root shall contain no
   `skills/`, `agents/`, `commands/`, or `SKILL.md`, and neither manifest shall
   expose `runtime/`, `reference/`, `metadata/`, or the opposite-host adapter as
@@ -1338,7 +1351,7 @@ makes no Wisp change.
 #### S17 — Codex surface input fails closed
 
 **Given** a Codex lifecycle invocation with no surface id, an unknown id, a
-Claude id, contradictory provenance, or a v5 unsupported Codex id,
+Claude id, contradictory provenance, or a v6 unsupported Codex id,
 **When** setup or refresh validates its surface invocation record,
 **Then** invalid input reports the valid Codex ids and reason and makes no
 repository mutation, while a valid-unsupported id reports its missing
@@ -1479,12 +1492,12 @@ non-empty parent.
 
 #### S30 — source-side tooling exercises the exact snapshot
 
-**Given** build, release, test, and probe sources under `tooling/grove/`, dormant
-review bookkeeping under `retired/review-bookkeeping/`, and a valid package
+**Given** build, release, test, and probe sources under `tooling/grove/`, no
+review-bookkeeping runtime or template in the repository, and a valid package
 allowlist,
 **When** release validation assembles and tests the ephemeral package snapshot,
 **Then** the snapshot's path set and bytes equal the validated package, contains
-none of that source-side or dormant machinery, preserves all v3 surface and
+none of that source-side tooling, preserves all v3 surface and
 release classifications, and no version or tag changes merely because the
 paths moved.
 
@@ -1617,10 +1630,11 @@ against the contract-author charter:
 - **Settled input:** PASS — `adr-0031-multi-host-distribution` and
   `adr-0032-status-emission-belongs-to-wisp` remain approved, and
   `adr-0035-plugin-and-consumer-boundary` and
-  `adr-0036-pre-execution-planning` are approved change inputs; ADR-0031
-  remains the original `implements:` upstream and all four appear in
+  `adr-0037-pre-execution-planning` and
+  `adr-0036-remove-retired-review-bookkeeping` are approved change inputs;
+  ADR-0031 remains the original `implements:` upstream and all five appear in
   `depends_on`.
-- **Required shape:** PASS — shared frontmatter, behavioral `version: 5`, the
+- **Required shape:** PASS — shared frontmatter, behavioral `version: 6`, the
   seven-field section-level amendment note, explicit non-goals, acceptance
   criteria, open questions, and this rubric check are present.
 - **Both test grammars:** PASS — behavioral examples use Given/When/Then and
@@ -1636,11 +1650,11 @@ against the contract-author charter:
   role/gate changes are excluded; the planner amendment adds no experiment,
   model/resource policy, token/cost/metric/adoption machinery, canonical plan
   parser, request-byte locator machinery, evidence/checkpoint schema, or
-  release activation; retained tooling is relocated rather than judged or
-  deleted, the planner charter joins rather than duplicates the canonical
-  corpus, existing-role semantics change only at the specified
-  dispatcher/executor handoff, and ADR-0032's removed status surface is not
-  reintroduced.
+  release activation; the planner charter joins rather than duplicates the
+  canonical corpus, existing-role semantics change only at the specified
+  dispatcher/executor handoff, the retired bookkeeping implementation is
+  removed only under its ADR-0036, and ADR-0032's removed status surface is
+  not reintroduced.
 - **Testability:** PASS — generation drift, explicit surface selection,
   exposure-specific discovery, immutable tag identity, stamp-skew disclosure,
   bridge evidence, exact package contents, positive and negative host
@@ -1656,7 +1670,8 @@ against the contract-author charter:
   missing or truncated relay add explicit manual checks without weakening any
   v4 criterion or requiring canonical serialization or a plan gate.
 - **Lifecycle:** PASS — these significant revise-in-place amendments have
-  durable approved decision input through `adr-0036` and bump `v4 → v5`; the
+  durable approved decision inputs through ADR-0036 and ADR-0037 and bump
+  `v5 → v6`; the
   spec remains self-checked at `gated`, with independent intrinsic-quality and
   fidelity reviews owed before implementation proceeds under the steward
   profile's agent-owned spec gate.

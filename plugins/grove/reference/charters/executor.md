@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 6bcee50cca1ef8d311514a04d2e6067fca64096ef96f175ff016120befd1a776 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: a821eb14323bebcd5059f21be2755fe26330476698aaf0e80b034b9f973cf6af -->
 
 # executor — stage 4: test-first implementation from artifacts only
 

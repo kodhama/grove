@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: 493cc8699cbffde61a1d8d47c961e0134ffa46d066a08019a72334fbf65a2a01 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: 63ee00e483ed1bc5fd127d3cd1ff4cd1424f0f8bab13491e539752e613c4d678 -->
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
 
@@ -73,8 +73,8 @@ the dispatcher sequences by:
   advisory, untargeted, never self-exempting: they inform *which*
   reviewer you dispatch, never *whether* work gets eyes. The human at
   merge is the gate (`ship = human`); no mechanical check recomputes
-  review completeness today (adr-0027 D1 — retired-for-now, revival via
-  its D4).
+  review completeness today (ADR-0036 removed the retired implementation;
+  any future mechanism needs a new decision).
 - **Failed reviews route by what they indict:** a `FAIL`/`BLOCK`/
   `NEEDS-REVISION` routes to the subject's own producing layer; a
   conformance `UPSTREAM-INDICTED` routes to the *upstream's* layer — a

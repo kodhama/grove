@@ -1,14 +1,14 @@
 ---
-id: adr-0036-pre-execution-planning
+id: adr-0037-pre-execution-planning
 type: adr
 status: approved  # maintainer approved the planning-agent implementation, then explicitly separated the experiment into issue #143; ship remains human
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0020-dispatcher-honors-gate-profile, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary]
-changes: [spec-0004-dual-host-distribution@v5]
+changes: [spec-0004-dual-host-distribution@v6]
 owner: agent
 updated: 2026-07-25
 ---
 
-# ADR-0036: add advisory pre-execution planning
+# ADR-0037: add advisory pre-execution planning
 
 ## Decision state
 

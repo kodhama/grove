@@ -1,13 +1,17 @@
 ---
 id: adr-0035-plugin-and-consumer-boundary
 type: adr
-status: approved  # maintainer intent: “let's do this change first” after selecting the no-internal, host-isolated target; decision-adversary NEEDS-REVISION twice, both graph/wording findings folded, then SOUND on scoped re-review; ship remains human
+status: superseded in part  # ADR-0036 removes the retained review-bookkeeping code; the plugin/consumer boundary otherwise stands
 depends_on: [adr-0018-gate-profile-and-trigger-split, adr-0020-dispatcher-honors-gate-profile, adr-0021-gate-profile-self-adoption, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0031-multi-host-distribution, adr-0034-narrow-stewards-marketplace-provisioning]
 owner: agent
-updated: 2026-07-24
+updated: 2026-07-25
 ---
 
 # ADR-0035: make the plugin the runtime boundary and `.grove/` the consumer contract
+
+> **Partial supersession (2026-07-25):** ADR-0036 removes the preserved
+> review-bookkeeping implementation. The package and consumer boundary remains
+> in force.
 
 ## Decision state
 

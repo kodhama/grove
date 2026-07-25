@@ -10,8 +10,8 @@
 # honest value, not a gap. This file is agent-read config (judgment on
 # read); it is never a deterministic machinery read (adr-0026 D3 boundary).
 
-TEST_CMD = "npm test --prefix tooling/grove/build && npm test --prefix tooling/grove/tests/lifecycle && npm test --prefix tooling/grove/release && npm test --prefix tooling/grove/tests/gates && npm test --prefix tooling/grove/probes && npm test --prefix retired/review-bookkeeping/check"
-TYPECHECK_CMD = "npm run typecheck --prefix tooling/grove/build && npm run typecheck --prefix tooling/grove/tests/lifecycle && npm run typecheck --prefix tooling/grove/release && npm run typecheck --prefix tooling/grove/tests/gates && npm run typecheck --prefix tooling/grove/probes && npm run typecheck --prefix retired/review-bookkeeping/check"
+TEST_CMD = "npm test --prefix tooling/grove/build && npm test --prefix tooling/grove/tests/lifecycle && npm test --prefix tooling/grove/release && npm test --prefix tooling/grove/tests/gates && npm test --prefix tooling/grove/probes"
+TYPECHECK_CMD = "npm run typecheck --prefix tooling/grove/build && npm run typecheck --prefix tooling/grove/tests/lifecycle && npm run typecheck --prefix tooling/grove/release && npm run typecheck --prefix tooling/grove/tests/gates && npm run typecheck --prefix tooling/grove/probes"
 LINT_CMD = "none — no linter or formatter configured"
 TEST_DEPS_LEDGER = "per-package nearest-ancestor test-deps.md with a fenced grove-test-deps block (adr-0006; e.g. tooling/grove/tests/gates/test-deps.md)"
 PR_CONTRACT_SECTIONS = "none committed — no PR template or CI-enforced PR-body contract exists; check by hand until one does"

@@ -1,5 +1,5 @@
-// Upstream: spec-0004-dual-host-distribution@v5 INV28–INV31, INV33–INV36; S24–S29, S31–S34.
-// Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary.
+// Upstream: spec-0004-dual-host-distribution@v6 INV28–INV31, INV33–INV36; S24–S29, S31–S34.
+// Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary; adr-0036-remove-retired-review-bookkeeping.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
