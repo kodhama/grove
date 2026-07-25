@@ -45,6 +45,22 @@ const DISCOVERY_CASES = Object.freeze([
   ['codex', 'shallow'],
   ['codex', 'deep-with-spaces'],
 ]);
+const FIRST_PLANNER_RELEASE_ORACLE = Object.freeze([
+  'code-reviewer',
+  'conformance-reviewer',
+  'contract-author',
+  'corpus-reviewer',
+  'decision-adversary',
+  'dispatcher',
+  'divergent-researcher',
+  'executor',
+  'implementation-planner',
+  'propagation-remediator',
+  'run-resumer',
+  'shaper',
+  'spec-adversary',
+  'validator',
+]);
 
 export function validateVersionText(text) {
   const normalized = text.endsWith('\n') ? text.slice(0, -1) : text;
@@ -246,6 +262,115 @@ export function validateHostDeclarations(config) {
   if (config?.surface_matrix !== 'metadata/surfaces.json') errors.push('metadata/hosts.json must declare metadata/surfaces.json as the surface authority');
   if (config?.config_tokens !== 'metadata/config-tokens.json') {
     errors.push('metadata/hosts.json must declare metadata/config-tokens.json as the config-token authority');
+  }
+  return errors;
+}
+
+export function validatePlanningReleaseMetadata(
+  { hosts, roles, surfaces },
+  { release = false } = {},
+) {
+  const errors = [];
+  const ids = Array.isArray(roles?.roles)
+    ? roles.roles.map((role) => role.id)
+    : [];
+  const expected = [...FIRST_PLANNER_RELEASE_ORACLE].sort();
+  if (
+    roles?.release_expectation?.first_planner_release_oracle
+      === 'spec-0004-dual-host-distribution@v5'
+    && (
+      roles.release_expectation.expected_role_count !== 14
+      || ids.length !== 14
+      || new Set(ids).size !== 14
+      || JSON.stringify([...ids].sort()) !== JSON.stringify(expected)
+    )
+  ) {
+    errors.push('first planner release must prove the independent fourteen-role oracle bijection');
+  }
+  const planner = roles?.roles?.find((role) => role.id === 'implementation-planner');
+  const executor = roles?.roles?.find((role) => role.id === 'executor');
+  if (
+    planner?.resource_class !== 'reasoning-heavy'
+    || planner?.local_routing?.activation !== 'inactive-experiment-only'
+    || planner?.local_routing?.adoption_decision !== null
+    || planner?.local_routing?.trigger !== 'ratified-code-bearing-spec'
+  ) {
+    errors.push('implementation-planner metadata must keep reasoning-heavy, ratified-code-bearing, inactive-experiment-only routing');
+  }
+  if (
+    executor?.resource_class !== 'execution-medium'
+    || !Array.isArray(executor?.local_routing?.packet_required_when)
+    || !executor.local_routing.packet_required_when.includes('experiment-arm-c')
+    || !executor.local_routing.packet_required_when.includes('active-adoption')
+    || !Array.isArray(executor?.local_routing?.packet_prohibited_when)
+    || !executor.local_routing.packet_prohibited_when.includes('inactive-ordinary-production')
+  ) {
+    errors.push('executor metadata must keep execution-medium intent conditional on experiment/adoption routes');
+  }
+
+  const activation = hosts?.planning_activation;
+  if (
+    activation?.state === 'inactive-experiment-only'
+    && activation?.adoption_decision === null
+    && activation?.evidence_identity === null
+  ) {
+    // The first planner-bearing candidate deliberately ships inactive.
+  } else if (
+    activation?.state === 'active'
+    && plainObject(activation.adoption_decision)
+    && activation.adoption_decision.status === 'approved'
+    && nonEmpty(activation.adoption_decision.id)
+    && nonEmpty(activation.evidence_identity)
+    && activation.evidence_identity === activation.adoption_decision.evidence_identity
+    && nonEmpty(activation.adoption_decision.release_candidate)
+  ) {
+    // A later candidate may activate only through an approved, evidence-bound decision.
+  } else {
+    errors.push('planning activation must remain inactive-experiment-only or cite an approved adoption decision bound to evidence');
+  }
+
+  if (!Number.isInteger(hosts?.resource_defaults_version) || hosts.resource_defaults_version < 1) {
+    errors.push('metadata/hosts.json resource_defaults_version must be a positive integer');
+  }
+  if (!plainObject(hosts?.resource_defaults) || !plainObject(hosts?.pre_adoption_direct_executor)) {
+    errors.push('metadata/hosts.json must declare resource defaults and pre-adoption direct selectors');
+    return errors;
+  }
+  const supportedHosts = new Set(
+    (surfaces?.rows ?? [])
+      .filter((row) => row.release_state === 'supported')
+      .map((row) => row.host),
+  );
+  for (const host of supportedHosts) {
+    const defaults = hosts.resource_defaults[host];
+    const baseline = hosts.pre_adoption_direct_executor[host];
+    if (
+      !plainObject(defaults)
+      || !plainObject(defaults.classes)
+      || !nonEmpty(defaults.classes['reasoning-heavy'])
+      || !nonEmpty(defaults.classes['execution-medium'])
+      || !plainObject(defaults.selector_capability_source)
+      || !nonEmpty(defaults.selector_capability_source.identity)
+      || !plainObject(defaults.selector_capability_probe)
+      || !nonEmpty(defaults.selector_capability_probe.operation)
+      || !nonEmpty(defaults.selector_capability_probe.response_field)
+    ) {
+      errors.push(`${host} supported surfaces require complete class defaults and an authoritative selector capability source/probe`);
+    }
+    if (
+      !plainObject(baseline)
+      || !nonEmpty(baseline.selector)
+      || !nonEmpty(baseline.selection_source_identity)
+    ) {
+      errors.push(`${host} supported surfaces require a fixture-proven pre-adoption direct executor selector`);
+    }
+  }
+  if (
+    release
+    && activation?.state === 'inactive-experiment-only'
+    && planner?.local_routing?.activation !== 'inactive-experiment-only'
+  ) {
+    errors.push('release candidate does not preserve inactive ordinary production routing');
   }
   return errors;
 }
@@ -673,25 +798,21 @@ function validateCodexProbeEvidence(record, row, errors) {
     invocation: childResult?.invocation,
     child_result: childResult,
   });
+  const nativeBatches = Array.from(
+    { length: Math.ceil(native.length / 4) },
+    (_, index) => native.slice(index * 4, index * 4 + 4),
+  );
+  const phaseNumber = (number) => String(number).padStart(2, '0');
+  const tailStart = nativeBatches.length + 2;
   const phasePlan = [
     { id: '01-driving-session', kind: 'driving-session', invocations: [] },
-    {
-      id: '02-native-batch-1',
+    ...nativeBatches.map((batch, index) => ({
+      id: `${phaseNumber(index + 2)}-native-batch-${index + 1}`,
       kind: 'native-batch',
-      invocations: native.slice(0, 4).map((item) => expectedInvocation(item)),
-    },
+      invocations: batch.map((item) => expectedInvocation(item)),
+    })),
     {
-      id: '03-native-batch-2',
-      kind: 'native-batch',
-      invocations: native.slice(4, 8).map((item) => expectedInvocation(item)),
-    },
-    {
-      id: '04-native-batch-3',
-      kind: 'native-batch',
-      invocations: native.slice(8, 12).map((item) => expectedInvocation(item)),
-    },
-    {
-      id: '05-producer-reviewer-separation',
+      id: `${phaseNumber(tailStart)}-producer-reviewer-separation`,
       kind: 'separation',
       invocations: [
         expectedInvocation(record?.producer_reviewer_separation?.producer),
@@ -699,12 +820,12 @@ function validateCodexProbeEvidence(record, row, errors) {
       ],
     },
     {
-      id: '06-scoped-dispatcher',
+      id: `${phaseNumber(tailStart + 1)}-scoped-dispatcher`,
       kind: 'scoped-dispatcher',
       invocations: [expectedInvocation(record?.spawned_dispatcher)],
     },
     {
-      id: '07-config-addendum',
+      id: `${phaseNumber(tailStart + 2)}-config-addendum`,
       kind: 'config-addendum',
       invocations: [expectedInvocation(
         record?.config_and_addendum,
@@ -1262,6 +1383,12 @@ export async function validateReleaseTree(root, {
         roleInventory,
         lifecycleInventory,
       }));
+    }
+    if (roleInventory && hostDeclarations && surfaces) {
+      errors.push(...validatePlanningReleaseMetadata(
+        { hosts: hostDeclarations, roles: roleInventory, surfaces },
+        { release },
+      ));
     }
   }
 

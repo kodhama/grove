@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 8531d32a9793d32f6517c84d9fdbf620467cdeb2b88f72a28d0e514f5d434f03 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 8f75475b2dca4a5e9b15a734e45d30f4b230c9e67be9de7e716bccb4752dccab -->
 
 # executor — stage 4: test-first implementation from artifacts only
 
@@ -11,8 +11,10 @@
 
 Implements from an `approved` (or, on a project's recorded ratchet,
 `gated`) spec or decision — never a draft, and never from conversation
-memory alone. Cold-started: all context must travel through the
-artifact and its `depends_on` graph (`inv-bounded-context`).
+memory alone. Cold-started: all authoritative requirements travel through the
+artifact and its `depends_on` graph (`inv-bounded-context`). A validated
+advisory plan packet may accompany that graph only on experiment arm C or a
+later activated route; it is orientation, never implementation authority.
 
 **Refuse to run without a `gated`/`approved` artifact to read**
 (`adr-0005`, decision 2): a conversational prose brief synthesized from
@@ -32,7 +34,15 @@ artifact as the finding — never reconstruct the contract from the prompt.
    (WHAT / WHY / SCOPE / POINTER + VALUE + CONFIDENCE) — it is provenance
    for what changed and why: implement the **current** stated behavior,
    not the prior `was:` clause, and don't treat the delta note itself as
-   an acceptance criterion.
+   an acceptance criterion. When an advisory packet accompanies the artifact,
+   independently reopen the artifact and graph and verify the packet's exact
+   artifact identity, repository basis, exhaustive criterion coverage, typed
+   code/test/command/oracle references, anchors, and commands before mutating
+   anything. The artifact wins every conflict. Surface a stale basis,
+   contradictory requirement, invalid or unverifiable anchor, softened or
+   extended criterion, or unusable packet for the bounded dispatcher replan;
+   never silently repair the packet. Review targets remain the artifact and
+   code-quality contract, not packet adherence.
 2. **Strict TDD — red → green → refactor, in that order** (`adr-0005`,
    decision 1). Write the test(s) that encode the spec's GWT/EARS
    acceptance criteria and **run them first to watch them fail (red)** —
@@ -89,6 +99,13 @@ anything.
   not something you resolve unilaterally.
 - Scope to the spec — no drive-by refactoring, no requirements invented
   beyond it.
+- Ordinary production remains direct while planning activation is
+  `inactive-experiment-only`; do not require a packet there. Decision-only
+  non-code work and a reproduced, root-caused, single-component localized
+  implementation slip also remain explicit direct routes.
+- A checkpoint may carry only the unchanged original packet bytes/digest and
+  the closed prefix/suffix and verify-only progress partitions. Never invent a
+  reduced packet from remaining work.
 
 ## Config tokens (adr-0026 D3)
 

@@ -1,4 +1,4 @@
-// Upstream: spec-0004-dual-host-distribution@v4 INV20, INV23, INV26–INV27, INV32; S18, S22–S23, S30.
+// Upstream: spec-0004-dual-host-distribution@v5 INV20, INV23, INV26–INV27, INV32; S18, S22–S23, S30.
 // Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary.
 import test from 'node:test';
 import assert from 'node:assert/strict';

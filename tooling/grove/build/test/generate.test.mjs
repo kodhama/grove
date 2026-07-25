@@ -1,5 +1,6 @@
-// Upstream: spec-0004-dual-host-distribution@v4 INV1, INV2, INV5-INV7,
-// INV17, INV20, INV23-INV28, INV33; S1, S2, S15, S18, S21-S24, S31.
+// Upstream: spec-0004-dual-host-distribution@v5 INV1, INV2, INV5-INV7,
+// INV17, INV20, INV23-INV28, INV33, INV37, INV42, INV50-INV51, INV57;
+// S1, S2, S15, S18, S21-S24, S31, S35, S50, S58.
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, writeFile, cp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -66,8 +67,8 @@ test("inventory is metadata-only, complete, and models the driving/scoped bounda
     await readFile(path.join(REPO_ROOT, INVENTORY_PATH), "utf8"),
   );
 
-  assert.equal(inventory.roles.length, 13);
-  assert.equal(new Set(inventory.roles.map((role) => role.id)).size, 13);
+  assert.equal(inventory.roles.length, 14);
+  assert.equal(new Set(inventory.roles.map((role) => role.id)).size, 14);
   assert.equal(
     Object.keys(inventory).some((key) =>
       ["instructions", "method", "workflow", "boundaries"].includes(key),
@@ -101,6 +102,33 @@ test("inventory is metadata-only, complete, and models the driving/scoped bounda
   );
   assert.match(dispatcherEnvelope, /scoped-agent-boundary/);
   assert.doesNotMatch(dispatcherEnvelope, /sequence every other agent/);
+
+  const planner = inventory.roles.find(
+    (role) => role.id === "implementation-planner",
+  );
+  assert.deepEqual(planner.exposures, [
+    {
+      class: "cold-native",
+      native_id: "grove_implementation_planner",
+    },
+  ]);
+  assert.equal(planner.resource_class, "reasoning-heavy");
+  assert.deepEqual(planner.local_routing, {
+    activation: "inactive-experiment-only",
+    adoption_decision: null,
+    trigger: "ratified-code-bearing-spec",
+  });
+
+  const executor = inventory.roles.find((role) => role.id === "executor");
+  assert.equal(executor.resource_class, "execution-medium");
+  assert.deepEqual(executor.local_routing, {
+    packet_required_when: ["experiment-arm-c", "active-adoption"],
+    packet_prohibited_when: [
+      "inactive-ordinary-production",
+      "localized-implementation-slip",
+      "decision-only-non-code",
+    ],
+  });
 });
 
 test("all projections are marked, source-addressed, and native ids are unique underscore forms", async () => {
@@ -114,7 +142,7 @@ test("all projections are marked, source-addressed, and native ids are unique un
       .map((exposure) => exposure.native_id),
   );
 
-  assert.equal(native.length, 12);
+  assert.equal(native.length, 13);
   assert.equal(new Set(native).size, native.length);
   for (const id of native) {
     assert.match(id, /^[a-z0-9_]+$/);
@@ -138,7 +166,7 @@ test("all projections are marked, source-addressed, and native ids are unique un
     [...outputs].filter(([name]) =>
       name.startsWith("plugins/grove/reference/charters/"),
     ).length,
-    13,
+    14,
   );
   assert.deepEqual(
     COMPANION_PROJECTIONS.map(({ output }) => output),
@@ -152,13 +180,13 @@ test("all projections are marked, source-addressed, and native ids are unique un
     [...outputs].filter(([name]) =>
       name.startsWith("plugins/grove/adapters/codex/skills/role-"),
     ).length,
-    13,
+    14,
   );
   assert.equal(
     [...outputs].filter(([name]) =>
       name.startsWith("plugins/grove/adapters/claude/agents/"),
     ).length,
-    12,
+    13,
   );
 
   for (const [name, content] of outputs) {

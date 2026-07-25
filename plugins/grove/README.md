@@ -60,7 +60,9 @@ non-interactive preflight verifies the exact package digest, launcher bytes,
 composition seam, and every source-side harness module hash without launching
 Codex. The normal runner then authenticates only the isolated home,
 verifies it has exactly one enabled Grove candidate, and executes sequential
-non-ephemeral phases: both driving roles, three native batches of four, a
+non-ephemeral phases: both driving roles, inventory-derived native batches of
+at most four roles each (thirteen native roles across four batches in this
+package), a
 separate executor/reviewer check, the scoped dispatcher, and the executor
 config/addendum sentinels. The probe-local config caps subagent concurrency at
 one, pins `gpt-5.6-sol` with MultiAgentV2, and explicitly trusts only the
@@ -156,6 +158,23 @@ is supported for release.
 
 The retained Codex spike record proves only the result it names. Release
 support is earned per exact matrix row; evidence never flows between rows.
+
+## Planning activation and resource bindings
+
+The implementation-planner ships as an **inactive, experiment-only** role.
+Ordinary production dispatch continues directly to the executor through the
+pre-adoption selector recorded in `metadata/hosts.json`; package installation
+does not activate planning and does not imply that the planning study ran.
+Activation requires a separate adoption decision bound to retained external
+evidence.
+
+Planner/executor resource classes are likewise not guessed. Host defaults may
+be published only with a named selector-capability source and a matching probe
+contract for the exact host surface. A consumer override has the closed shape
+`[resources.<host>]`, with only `reasoning-heavy` and `execution-medium` keys.
+Unknown hosts or classes fail closed. Overrides affect experiment or
+post-adoption contexts only; they do not change the inactive ordinary-production
+executor route.
 
 ## Package boundaries
 

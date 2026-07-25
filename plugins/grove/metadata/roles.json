@@ -1,5 +1,9 @@
 {
   "schema": 1,
+  "release_expectation": {
+    "expected_role_count": 14,
+    "first_planner_release_oracle": "spec-0004-dual-host-distribution@v5"
+  },
   "roles": [
     {
       "id": "code-reviewer",
@@ -151,10 +155,47 @@
           "native_id": "grove_executor"
         }
       ],
+      "resource_class": "execution-medium",
+      "local_routing": {
+        "packet_required_when": [
+          "experiment-arm-c",
+          "active-adoption"
+        ],
+        "packet_prohibited_when": [
+          "inactive-ordinary-production",
+          "localized-implementation-slip",
+          "decision-only-non-code"
+        ]
+      },
       "outputs": {
         "reference": "plugins/grove/reference/charters/executor.md",
         "claude_agent": "plugins/grove/adapters/claude/agents/executor.md",
         "codex_skill": "plugins/grove/adapters/codex/skills/role-executor/SKILL.md"
+      }
+    },
+    {
+      "id": "implementation-planner",
+      "source": "charters/implementation-planner.md",
+      "description": "Read-only pre-execution reconnaissance and strict-TDD decomposition for one ratified code-bearing spec; returns advisory canonical JSON and never implements.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob", "Bash"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_implementation_planner"
+        }
+      ],
+      "resource_class": "reasoning-heavy",
+      "local_routing": {
+        "activation": "inactive-experiment-only",
+        "adoption_decision": null,
+        "trigger": "ratified-code-bearing-spec"
+      },
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/implementation-planner.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/implementation-planner.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-implementation-planner/SKILL.md"
       }
     },
     {

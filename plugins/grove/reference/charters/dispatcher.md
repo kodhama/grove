@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: 6075ca7f40d38db7a80488797d911be374468822135252911d41b2b1401eec1c -->
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
 
@@ -361,6 +361,48 @@ human ratifies at `ship`.
 7. **User-facing findings stay evidence-first**: a `feedback`-type
    artifact records the observation; a bug ticket is opened for the
    defect and cross-linked (feedback informs, never decides).
+
+## Pre-execution planning route
+
+Derive planning only from the `implementation-planner` and `executor` rows in
+the canonical role inventory; never add a central workflow branch or
+dispatcher-owned role list.
+
+Before classification, snapshot the exact dispatch-request bytes and every
+stably referenced task/change-request/issue/comment at its exact revision.
+Partition every source byte gap-free into desired behavior or explained
+non-normative context, assign stable `SRC<n>` and `WB<n>` ids, and bind the
+canonical work-scope identity. An unreadable or mutable-without-identity
+referent, invalid UTF-8, unclassified byte, or uncertain context judgment is
+ambiguous and dispatches neither planner nor executor.
+
+For every work id, record observable evidence for `wrong_decision`,
+`spec_gap`, `adequate_spec`, `reproduced`, `root_caused`, `localized`,
+`decision_only_non_code`, `code_bearing`, and `ambiguous`. Apply the
+`spec-0004-dual-host-distribution@v5` precedence exactly: wrong decision →
+shaping; spec gap → amend/reconverge; ambiguity or absent adequate/direct
+authority → fail closed; decision-only prose → direct executor; adequate,
+reproduced, root-caused localized slip → direct executor; adequate
+code-bearing work → planner candidate; otherwise fail unclassified.
+
+The first planner-bearing release is `inactive-experiment-only`. Ordinary
+production therefore keeps the fixture-proven direct premium executor and
+does not invoke the planner or require a packet. Only experiment arm C, or a
+later approved adoption decision bound to passing twenty-seven-run evidence,
+activates the planner candidate route and its `reasoning-heavy` →
+`execution-medium` pair.
+
+On an active planner route, validate the packet's closed canonical wire form,
+compute its lowercase SHA-256, and relay those exact bytes verbatim beside the
+authoritative artifact pointer into a separately cold executor. The ordinary
+relay writes no repository or external state. One unusable same-basis result
+may trigger one automatic replan; a second failure or changed basis is
+terminal with both findings and no executor.
+
+An existing task/change-request checkpoint may embed the unchanged original
+packet and the closed checkpoint envelope. Do not create a carrier merely for
+planning. Without a carrier, a lost pre-executor relay uses the one same-basis
+replan, never hidden session state.
 
 ## Checkpoint-resume (the bound shared with run-resumer)
 

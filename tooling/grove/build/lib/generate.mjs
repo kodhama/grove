@@ -8,7 +8,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import {
-  CANONICAL_ROLE_IDS,
+  FIRST_PLANNER_RELEASE_ROLE_IDS,
   CLAUDE_INVENTORY_PATH,
   CODEX_INVENTORY_PATH,
   COMPANION_PROJECTIONS,
@@ -38,6 +38,8 @@ const ROLE_FIELDS = new Set([
   "tool_policy",
   "exposures",
   "outputs",
+  "resource_class",
+  "local_routing",
 ]);
 const EXPOSURE_FIELDS = new Set([
   "class",
@@ -118,10 +120,25 @@ function validateInventoryShape(inventory) {
   if (duplicate) throw new Error(`duplicate role id: ${duplicate}`);
 
   const actualIds = [...ids].sort();
-  const expectedIds = [...CANONICAL_ROLE_IDS].sort();
-  if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds)) {
+  if (
+    !inventory.release_expectation
+    || inventory.release_expectation.expected_role_count !== inventory.roles.length
+  ) {
+    throw new Error("role inventory release expectation must declare its exact role count");
+  }
+  if (
+    inventory.release_expectation.first_planner_release_oracle
+    === "spec-0004-dual-host-distribution@v5"
+  ) {
+    const expectedIds = [...FIRST_PLANNER_RELEASE_ROLE_IDS].sort();
+    if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds)) {
+      throw new Error(
+        `first planner release role inventory must contain exactly: ${expectedIds.join(", ")}`,
+      );
+    }
+  } else if (new Set(actualIds).size !== inventory.roles.length) {
     throw new Error(
-      `role inventory must contain exactly: ${expectedIds.join(", ")}`,
+      "role inventory release expectation does not match its unique role rows",
     );
   }
 
@@ -211,6 +228,43 @@ function validateInventoryShape(inventory) {
     ) {
       throw new Error(`${role.id} must expose exactly one cold-native role`);
     }
+    if (role.id === "implementation-planner") {
+      if (
+        role.resource_class !== "reasoning-heavy"
+        || JSON.stringify(role.local_routing) !== JSON.stringify({
+          activation: "inactive-experiment-only",
+          adoption_decision: null,
+          trigger: "ratified-code-bearing-spec",
+        })
+      ) {
+        throw new Error(
+          "implementation-planner requires reasoning-heavy intent and the inactive experiment-only local trigger",
+        );
+      }
+    } else if (role.id === "executor") {
+      if (
+        role.resource_class !== "execution-medium"
+        || JSON.stringify(role.local_routing) !== JSON.stringify({
+          packet_required_when: ["experiment-arm-c", "active-adoption"],
+          packet_prohibited_when: [
+            "inactive-ordinary-production",
+            "localized-implementation-slip",
+            "decision-only-non-code",
+          ],
+        })
+      ) {
+        throw new Error(
+          "executor requires execution-medium intent and activation-conditional packet routes",
+        );
+      }
+    } else if (
+      role.resource_class !== undefined
+      || role.local_routing !== undefined
+    ) {
+      throw new Error(
+        `role ${role.id} cannot declare planner/executor routing metadata`,
+      );
+    }
 
     if (!role.outputs || typeof role.outputs !== "object") {
       throw new Error(`role ${role.id} requires declared outputs`);
@@ -234,8 +288,11 @@ function validateInventoryShape(inventory) {
     }
   }
 
-  if (nativeIds.size !== 12) {
-    throw new Error(`expected 12 native exposures, found ${nativeIds.size}`);
+  const expectedNativeCount = inventory.roles.length - 1;
+  if (nativeIds.size !== expectedNativeCount) {
+    throw new Error(
+      `expected ${expectedNativeCount} native exposures, found ${nativeIds.size}`,
+    );
   }
 }
 
