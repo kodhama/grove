@@ -583,9 +583,9 @@ Passed by the shaper on 2026-07-25 after folding both adversarial previews:
   D16's consumer-authority coupling.
 - **Experiment soundness:** D6–D9, D15, and D19 separate planner value from
   model downgrade; bound every arm to its declared base sequence plus two
-  remediation dispatches; classify each retry exactly once; define acceptance, upstream
-  invalidation, and zero-acceptance cost; and make every adoption threshold
-  executable.
+  remediation dispatches; classify each retry exactly once; define acceptance,
+  upstream invalidation, and zero-acceptance cost; and make every adoption
+  threshold executable.
 - **Host/resource ownership:** D10/D16 assign portable intent, host defaults,
   consumer overrides, precedence, failure behavior, and effective-map
   evidence to exact carriers.
