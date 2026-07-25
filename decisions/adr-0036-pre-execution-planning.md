@@ -1,7 +1,7 @@
 ---
 id: adr-0036-pre-execution-planning
 type: adr
-status: gated  # shaper self-check rerun 2026-07-25; latest session-only preview SOUND, fresh posted verdict required before ratification
+status: gated  # shaper self-check rerun 2026-07-25 after rebased review findings; fresh posted verdict required before ratification
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary]
 owner: agent
 updated: 2026-07-25
@@ -13,10 +13,9 @@ updated: 2026-07-25
 > maintainer wants to test whether a stronger planning pass can make a
 > lower-cost executor effective without weakening Grove's artifact authority,
 > strict TDD, independent review, or dual-host delivery. The scoped adversarial
-> preview confirmed the original routing, fleet, recovery, and resource
-> revisions, then found one experiment gap and two graph/propagation omissions.
-> Those are folded; the latest narrow preview found only D9's zero-denominator
-> remediation edge, now resolved by D20.
+> previews confirmed the routing, fleet, recovery, and resource revisions, then
+> exposed experiment and graph/propagation edges. Those are folded, including
+> zero-denominator rules for remediation and cost-per-acceptance comparisons.
 
 ## Decision state
 
@@ -142,11 +141,11 @@ updated: 2026-07-25
   ADR-0026 is a `depends_on` upstream because D16 relies on its
   consumer-authoritative configuration boundary; ADR-0035 is one because it
   fixes `plugins/grove/metadata/` as the package metadata boundary. Before
-  implementation,
-  `specs/0004-dual-host-distribution.md` must be revised in place,
-  version-bumped, and re-gated to replace every thirteen-role invariant and
-  scenario with inventory-derived completeness plus the exact fourteen-role
-  expectation for the first planner release.
+  implementation, `specs/0004-dual-host-distribution.md` must be revised in
+  place, version-bumped, and re-gated to replace every thirteen-role invariant
+  and scenario with inventory-derived completeness plus the exact
+  fourteen-role expectation for the first planner release. The revised spec
+  must add `adr-0036-pre-execution-planning` to its `depends_on` graph.
 - **D19 — planner retries share the two-dispatch remediation budget**
   *(maintainer, 2026-07-25; chose Option A after scoped adversary F4)*. A failed
   or unusable planner output may be cold-retried, but each retry consumes one
@@ -163,6 +162,14 @@ updated: 2026-07-25
   `0.20`. This branch is false whenever B's remediation count is zero,
   including zero/zero. In that case treatment C can satisfy D9 only through
   its separate accepted-quality advantage; a quality tie does not adopt.
+- **D21 — totalize baseline cost comparison at zero acceptance**
+  *(shaper correction after rebased adversary F1, 2026-07-25)*. Let `A_cost`
+  and `C_cost` be weighted cost per accepted completion after D15 assigns
+  positive infinity to an arm with zero acceptances. D8's cost condition is
+  true exactly when either `A_cost` is finite and positive with
+  `C_cost <= 0.80 * A_cost`, or `A_cost` is positive infinity while `C_cost`
+  is finite. It is false when `C_cost` is positive infinity, both are
+  infinite, or `A_cost` is zero.
 
 ### Open
 
@@ -452,7 +459,8 @@ After all 27 runs, treatment C may be adopted only if, across its nine runs, it:
 - finishes at most one accepted-quality result behind baseline A;
 - introduces no additional blocking independent-review finding;
 - consumes at least 30% fewer premium-model tokens than A; and
-- reduces weighted cost per accepted completion by at least 20% versus A.
+- reduces weighted cost per accepted completion by at least 20% versus A,
+  using D21's totalized finite/zero/infinite comparison.
 
 Against medium-only control B, C must earn at least one additional
 accepted-quality result or, when accepted-quality counts tie, use at least 20%
@@ -479,7 +487,8 @@ contract would cover:
 - an explicit revise-in-place, version-bump, and re-gate of
   `specs/0004-dual-host-distribution.md`, replacing every thirteen-role
   contract point with inventory-derived completeness and the first
-  fourteen-role expectation;
+  fourteen-role expectation, and adding
+  `adr-0036-pre-execution-planning` to the revised spec's `depends_on` graph;
 - generated role inventory/counts, discovery, and dual-host parity tests; and
 - release-candidate requalification and a separately judged version bump.
 
@@ -604,11 +613,12 @@ Passed by the shaper on 2026-07-25 after folding all preview findings:
   all six `depends_on` targets exist and are `approved`, including ADR-0026 for
   D16's consumer-authority coupling and ADR-0035 for the package metadata
   boundary.
-- **Experiment soundness:** D6–D9, D15, D19, and D20 separate planner value
+- **Experiment soundness:** D6–D9, D15, and D19–D21 separate planner value
   from model downgrade; bound every arm to its declared base sequence plus two
   remediation dispatches; classify each retry exactly once; define terminal
   planner failure, acceptance, upstream invalidation, zero-acceptance cost, and
-  zero-remediation comparison; and make every threshold executable.
+  zero-remediation comparison; totalize finite, zero, and infinite cost
+  comparisons; and make every threshold executable.
 - **Host/resource ownership:** D10/D16 assign portable intent, host defaults,
   consumer overrides, precedence, failure behavior, and effective-map
   evidence to exact carriers.
@@ -617,7 +627,6 @@ Passed by the shaper on 2026-07-25 after folding all preview findings:
   evidence, the revise/version/re-gate of `spec-0004`, generated parity,
   support requalification, and release judgment.
 
-The canvas has twenty Decided items, zero Open items, and remains `gated`.
-The latest narrow session-only preview returned `SOUND`; it remains diagnostic
-until a fresh independent verdict is posted on the authenticated
-change-request.
+The canvas has twenty-one Decided items, zero Open items, and remains `gated`.
+A fresh independent verdict must be posted on the authenticated change-request
+before ratification.
