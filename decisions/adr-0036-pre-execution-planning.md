@@ -3,6 +3,7 @@ id: adr-0036-pre-execution-planning
 type: adr
 status: approved  # maintainer intent act ("Approved.", 2026-07-25), recorded in-PR by the shaper after independent SOUND at 8adb960; ship remains human
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0020-dispatcher-honors-gate-profile, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary]
+changes: [spec-0004-dual-host-distribution@v5]
 owner: agent
 updated: 2026-07-25
 ---
