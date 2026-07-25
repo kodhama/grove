@@ -1,7 +1,7 @@
 ---
 id: spec-0004-dual-host-distribution
 type: spec
-status: gated  # v5 independent findings folded and self-checked 2026-07-25; fresh spec-adversary and conformance re-review are owed before implementation
+status: gated  # v5 conformance PASS covered 239874d; residual intrinsic findings folded and self-checked 2026-07-25; fresh spec-adversary and scoped conformance re-reviews are owed on the changed final SHA before implementation
 implements: adr-0031-multi-host-distribution
 depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0036-pre-execution-planning]
 owner: agent
@@ -91,11 +91,12 @@ reserves for a later intent gate.
 
 > **Amendment (2026-07-25, `adr-0036-pre-execution-planning`).**
 > **WHAT:** Inventory completeness, the canonical role/generation contract,
-> deterministic route classification and activation, executor authority,
-> advisory packet wire/coverage rules, bounded relay/recovery, portable
-> resource resolution, experimental accounting, release requalification,
-> acceptance criteria, open questions, and the rubric check now include the
-> `implementation-planner` increment and the independent-review refinements.
+> deterministic work-scope collection, route classification and activation,
+> executor authority, advisory packet wire/coverage and typed-reference rules,
+> bounded relay/recovery, context-bound resource resolution, experimental
+> accounting, release requalification, acceptance criteria, open questions,
+> and the rubric check now include the `implementation-planner` increment and
+> the independent-review refinements.
 > **WHY:** ADR-0036 approved an advisory cold planning handoff before
 > code-bearing spec execution, required an inventory-derived fleet contract
 > with fourteen roles in its first release, and preregistered the experiment
@@ -107,7 +108,7 @@ reserves for a later intent gate.
 > **POINTER:** Current requirements live in “Pre-execution planning contract,”
 > “Portable resource-resolution contract,” “Planning experiment and
 > evidence,” the inventory-derived generation/support/release clauses, and
-> acceptance criteria `INV37`–`INV54` / `S35`–`S55`.
+> acceptance criteria `INV37`–`INV57` / `S35`–`S58`.
 > **VALUE:** As a maintainer, I can test whether an explicit implementation
 > plan lets a medium executor retain accepted quality without making that plan
 > authoritative or weakening Grove’s dual-host guarantees.
@@ -115,6 +116,7 @@ reserves for a later intent gate.
 > routing exceptions, packet fields, resource ownership, experiment arms,
 > metrics, truth tables, thresholds, and first-release count; the exact
 > oracle, wire schema, classification evidence, retry bound, probe contract,
+> work-scope and cross-reference namespaces, context-bound resource bindings,
 > and accounting normalization are the narrow deterministic contract
 > resolutions needed to make those approved choices executable after
 > independent review, without changing product intent.
@@ -130,8 +132,9 @@ reserves for a later intent gate.
 | **role inventory** | Every canonical role id declared by `plugins/grove/metadata/roles.json`, its Codex-native underscore id where applicable, permitted exposure, local dispatch declarations, portable resource class where applicable, and canonical source/output paths. It contains metadata, never charter instructions. The first release containing `implementation-planner` must be bijective with this spec's independent fourteen-id oracle. |
 | **ratified spec** | An `approved` spec, or a `gated` spec whose active agent-owned gate has a posted independent convergence record ratifying that exact version for downstream use. |
 | **advisory plan packet** | The bounded, non-authoritative output of a cold `implementation-planner`; it is relayed beside the ratified artifact pointer, never added to the artifact graph or used as review evidence. |
-| **resource class** | A host-neutral role intent declared in `metadata/roles.json`; a host resolves it to one exact concrete model selector through versioned defaults and optional consumer override. |
+| **resource class** | A host-neutral role intent declared in `metadata/roles.json`; in an applicable binding context, a host resolves it to one exact concrete model selector through versioned defaults and optional consumer override. |
 | **effective resource map** | The exact resource-class-to-model-selector mapping after applying one host's defaults and any exact consumer override; it is recorded in support and experiment evidence. |
+| **resource binding context** | The dispatch context that selects either the preserved pre-adoption direct selector, arm A's exact premium pin, or the class map for experiment B/C and activated production. |
 | **bridge-viable** | A thin project TOML launcher successfully resolved and loaded its plugin-carried skill/reference on the exact Codex mode tested. This proves the loading primitive only; it is not a release-support claim. |
 | **surface matrix** | One machine-readable record of host surfaces, support state, explicit load path, test evidence, and supported role identities. |
 | **supported** | The recorded load path passed on a fresh instance of that exact surface for the release under test. |
@@ -151,7 +154,7 @@ reserves for a later intent gate.
 | Deliverable | Authority | Required property |
 |---|---|---|
 | Role and companion charters | `charters/` | The only authored normative role/method prose. |
-| Role inventory, lifecycle inventory, surface matrix, host metadata, stamp schema, and legacy ownership inventory | `plugins/grove/metadata/` | Metadata only; role completeness derives from every unique canonical row in `metadata/roles.json`, whose first `implementation-planner` release is checked bijectively against this spec's fourteen-id oracle; `metadata/hosts.json` carries versioned per-host resource defaults; host inventories declare exact positive discovery and driving-session loaders; the versioned legacy inventory declares exact historical managed bytes without carrying old executable code. |
+| Role inventory, lifecycle inventory, surface matrix, host metadata, stamp schema, and legacy ownership inventory | `plugins/grove/metadata/` | Metadata only; role completeness derives from every unique canonical row in `metadata/roles.json`, whose first `implementation-planner` release is checked bijectively against this spec's fourteen-id oracle; `metadata/hosts.json` carries versioned per-host resource defaults and the fixture-proven pre-adoption direct selector; host inventories declare exact positive discovery and driving-session loaders; the versioned legacy inventory declares exact historical managed bytes without carrying old executable code. |
 | Implementation-planner charter | `charters/implementation-planner.md` | The only authored normative planning-role contract: cold-started, read-only, advisory, locally triggered, and bounded to ratified code-bearing spec work. |
 | Claude adapter | `plugins/grove/adapters/claude/` | Generated native-agent envelopes plus only the four lifecycle skill entrypoints; its manifest exposes only this adapter. |
 | Codex adapter | `plugins/grove/adapters/codex/` | Generated lifecycle and role skills, no custom-agent definitions; its manifest exposes only this adapter. |
@@ -483,9 +486,11 @@ That object shall have `packet_schema: 1`,
 | `repository_basis` | Exact revision plus an explicit clean-tree statement or the disclosed paths/diff identity on which reconnaissance relied. |
 | `authority` | The literal semantic marker `advisory — artifact wins`. |
 | `criterion_test_map` | Exactly one entry for every EARS invariant and GWT scenario id in the artifact, with a disposition defined below; artifact criteria may not be omitted or excluded. |
-| `anchors` | Relevant code and test anchors, each classified `verified` or `inferred` with its file/symbol locator and supporting observation or inference. |
+| `code_anchors` | Relevant code anchors in the `CA<n>` namespace, each classified `verified` or `inferred` with its file/symbol locator and supporting observation or inference. |
+| `test_anchors` | Intended or existing test anchors in the `TA<n>` namespace, each bound to artifact criteria and one verification command. |
 | `slices` | An ordered sequence of uniquely identified entries whose criterion references and phase preserve red → green → refactor order. |
-| `verification` | Exact test, typecheck, lint, and other declared verification commands, including an explicit `none` for a command class not configured. |
+| `verification` | Exact commands in the `CMD<n>` namespace for test, typecheck, lint, and other declared verification, including an explicit `none` for a command class not configured. |
+| `verification_oracles` | Verify-only oracles in the `OR<n>` namespace, each bound to artifact criteria and one or more verification commands. |
 | `risks_and_gaps` | Risks, blockers, non-criterion scope exclusions, and unresolved ambiguities, each with whether it blocks execution. |
 
 The nested shape is closed:
@@ -501,48 +506,75 @@ The nested shape is closed:
   the SHA-256 of that manifest's canonical JSON bytes.
 - every `criterion_test_map` entry has `criterion_id` and `disposition`, plus
   only its disposition-specific keys: `failing_test_ids` and `slice_ids` for
-  `implement`; `oracle_id` and `basis_observation` for `verify-only`; or
-  `gap_id` for `blocked`.
-- every `anchors` entry has exactly `anchor_id`, `kind` (`code` or `test`),
-  `path`, `symbol`, `fact_class` (`verified` or `inferred`), and `evidence`.
+  `implement`; `oracle_id` for `verify-only`; or `gap_id` for `blocked`.
+- every `code_anchors` entry has exactly `code_anchor_id`, `path`, `symbol`,
+  `fact_class` (`verified` or `inferred`), and `evidence`.
+- every `test_anchors` entry has exactly `test_anchor_id`, `criterion_ids`,
+  `path`, `symbol`, `fact_class` (`verified` or `inferred`), `evidence`, and
+  `command_id`.
 - every `slices` entry has exactly `slice_id`, `criterion_ids`, `phase`
-  (`red`, `green`, or `refactor`), and `target_anchor_ids`.
+  (`red`, `green`, or `refactor`), `code_anchor_ids`, and `test_anchor_ids`.
 - every `verification` entry has exactly `command_id`, `class` (`test`,
   `typecheck`, `lint`, or `other`), and `command`; an unavailable class uses
   the literal prefix `none — ` followed by its configured reason.
+- every `verification_oracles` entry has exactly `oracle_id`,
+  `criterion_ids`, `command_ids`, `expected_result`, and
+  `basis_observation`.
 - `risks_and_gaps` has exactly the array keys `risks`, `blockers`,
   `scope_exclusions`, and `ambiguities`; every entry has exactly `id`, `text`,
   and Boolean `blocking`.
 
-All ids and cross-references are case-sensitive strings. Set-like arrays
-(`criterion_test_map`, `anchors`, and `verification`) shall sort by their id;
-`slices` shall retain execution order; `assumptions` and each risks/gaps array
-shall sort by id or, for assumption strings, by ascending UTF-8 byte value.
+All ids and cross-references are case-sensitive strings. Namespace ids shall
+match `CA[1-9][0-9]*`, `TA[1-9][0-9]*`, `CMD[1-9][0-9]*`,
+`OR[1-9][0-9]*`, or `SL[1-9][0-9]*` for code anchors, test anchors,
+commands, oracles, and slices respectively, and shall be unique within their
+collection. Set-like arrays (`criterion_test_map`, `code_anchors`,
+`test_anchors`, `verification`, and `verification_oracles`) shall sort by
+their typed id; `slices` shall retain execution order; `assumptions` and each
+risks/gaps array shall sort by id or, for assumption strings, by ascending
+UTF-8 byte value.
 
 Each `criterion_test_map` entry shall use exactly one disposition:
 
 - `implement`: names at least one intended failing-test id and one or more
   slice ids, including a red slice before its green slice; or
 - `verify-only`: allowed only when no implementation change is proposed for
-  that criterion and names an exact existing oracle/command plus the basis
-  observation that justifies verification without a new failing test; or
+  that criterion and names one exact verification oracle that supplies its
+  command links, expected result, and basis observation; or
 - `blocked`: names the load-bearing gap and appears only when packet
   `outcome` is `blocked`.
 
 For an `executable` packet, every artifact criterion shall appear exactly once
 as `implement` or `verify-only`, at least one entry shall be `implement`, every
-slice criterion reference shall resolve to an `implement` entry, every named
-test/slice/anchor/command id shall resolve exactly once, and no blocking gap
-may exist. A `verify-only` entry shall not name a slice or failing test. A
-`blocked` packet shall still enumerate every artifact criterion exactly once,
-contain at least one `blocked` entry, contain no slices or executable test
-target, and identify the upstream or repository-basis failure.
+slice criterion reference shall resolve to an `implement` entry, and no
+blocking gap may exist. For every `implement` entry, each
+`failing_test_ids` value shall resolve exactly once in `test_anchors`, that
+test anchor shall include the same criterion id, and its `command_id` shall
+resolve exactly once to a non-`none` `verification` entry of class `test`.
+Each referenced slice shall include the same criterion id; its typed code/test
+anchor ids shall resolve only in their corresponding collections; and its red
+slice shall reference at least one of the criterion's failing test anchors.
+
+For every `verify-only` entry, `oracle_id` shall resolve exactly once in
+`verification_oracles`, that oracle shall include the same criterion id, and
+its nonempty `command_ids` shall each resolve exactly once to a non-`none`
+entry in `verification`.
+Every test anchor, oracle, slice, and code anchor shall be reached by at least
+one criterion/slice reference; every criterion id carried by a test anchor,
+oracle, or slice shall point back to a compatible criterion-map entry. A
+`verify-only` entry shall not name a slice or failing test.
+
+A `blocked` packet shall still enumerate every artifact criterion exactly
+once, contain at least one `blocked` entry, contain no slices, code/test
+anchors, verification oracles, or executable test target, and identify the
+upstream or repository-basis failure.
 
 `risks_and_gaps.scope_exclusions` may name repository work outside the
 artifact only; naming an artifact criterion is invalid. A criterion id
 appearing twice, an unreferenced slice, a disposition inconsistent with its
-fields or packet outcome, an inference labeled verified, or any failed
-cross-field reference shall make the packet unusable.
+fields or packet outcome, an id in the wrong namespace, an inference labeled
+verified, an orphan namespace entry, or any failed/cross-criterion reference
+shall make the packet unusable.
 
 The packet is transient working material. It shall not gain artifact
 frontmatter, enter `depends_on` or `implements`, become a committed repo file,
@@ -554,22 +586,60 @@ The generic dispatcher shall derive planning behavior from the
 `implementation-planner` and `executor` rows in `metadata/roles.json`; no
 central pipeline branch or dispatcher-owned role list shall encode it.
 
+Before classification, a work-scope collector shall snapshot this closed
+source set:
+
+1. the exact dispatch-request bytes; and
+2. every task, change-request, issue body, or comment referenced by a stable
+   locator in those bytes, at its exact revision/edit identity.
+
+The collector shall not silently add conversation memory or omit a referenced
+source. It shall assign sources stable ids `SRC1`, `SRC2`, …: `SRC1` is the
+dispatch request and the rest sort by canonical locator then revision. Each
+source record has exactly `source_id`, `locator`, `revision`, `byte_length`,
+`sha256`, and standard padded `bytes_base64`; decoding shall reproduce the
+hashed bytes. A missing, mutable-without-identity, unreadable, or invalid-UTF-8
+referent makes collection ambiguous.
+
+For every source, `source_coverage` shall partition byte offsets
+`[0, byte_length)` into ordered, non-overlapping, gap-free intervals. Each
+interval has exactly `source_id`, `start_byte`, `end_byte`, `disposition`
+(`desired-behavior` or `context`), and `reason`. Every desired-behavior
+interval points to exactly one stable work item `WB1`, `WB2`, …, assigned by
+source order then start byte. Interval boundaries shall fall on UTF-8 scalar
+boundaries. A work item has exactly `work_id`, `source_id`,
+`start_byte`, `end_byte`, `text_sha256`, and `statement`. Context may cover
+formatting or explanatory text only and shall state why it imposes no outcome
+or constraint; uncertainty about that judgment makes the collection
+ambiguous. Each work item corresponds to exactly one desired-behavior
+interval; distinct behaviors shall be split into distinct intervals and
+non-adjacent or cross-source text shall remain separate.
+
+`work_scope_identity` is the lowercase SHA-256 of the canonical JSON bytes of
+the ordered source records, coverage intervals, and work items, using the
+packet serialization rules below. The collector shall record a source-level
+coverage summary proving every byte is classified and every
+`desired-behavior` interval resolves to exactly one work id. This transient
+collection is the route-classification oracle; it is not an implementation
+authority, repo artifact, or gate record.
+
 Before selecting a route, the dispatcher shall produce one transient
 `route_classification` record with `classification_schema: 1`, artifact and
-repository-basis identities, the requested deliverable/path classes, and the
-evidence fields below. The record is routing evidence only: it is neither a
-repo artifact nor a gate record.
+repository-basis identities, `work_scope_identity`, the complete ordered work
+items, requested deliverable/path classes, and the evidence fields below. The
+record is routing evidence only: it is neither a repo artifact nor a gate
+record.
 
 | Predicate | It is true exactly when the record contains |
 |---|---|
-| `wrong_decision` | One desired behavior plus an exact approved-decision id/clause that contradicts it; disagreement with implementation or a planner inference is insufficient. |
-| `spec_gap` | One desired behavior not entailed by any acceptance criterion in the ratified spec, with the exhaustive criterion search recorded, and no `wrong_decision` evidence. |
-| `adequate_spec` | Every desired behavior maps to one or more exact ratified-spec criterion ids, with no uncovered behavior, contradiction, or unresolved mapping. |
+| `wrong_decision` | One or more exact work ids plus an exact approved-decision id/clause that contradicts each; disagreement with implementation or a planner inference is insufficient. |
+| `spec_gap` | At least one exact work id not entailed by any acceptance criterion in the ratified spec, with the exhaustive criterion search recorded, and no `wrong_decision` evidence for that work id. |
+| `adequate_spec` | Every work id in the complete work-scope oracle maps to one or more exact ratified-spec criterion ids, with no uncovered behavior, contradiction, context-classification ambiguity, or unresolved mapping. |
 | `reproduced` | A deterministic command or bounded manual procedure, its exact failing observation, and the repository basis on which it repeated. |
 | `root_caused` | A causal trace from the reproduced observation to exact implementation file/symbol anchors, with contrary contract-gap evidence ruled out. |
 | `localized` | The root-cause trace and proposed regression-test target remain within one declared component/package boundary and require no public interface, schema, cross-component, dispatch, or artifact-contract change. |
-| `decision_only_non_code` | The eligible authoritative input is a decision and every requested deliverable is non-executable prose/metadata with no source, test, build, runtime, or package-behavior change. |
-| `code_bearing` | The requested outcome creates or changes source, tests, build/runtime behavior, package behavior, or other executable behavior governed by a spec. |
+| `decision_only_non_code` | The eligible authoritative input is a decision and every work id requests only non-executable prose/metadata with no source, test, build, runtime, or package-behavior change. |
+| `code_bearing` | At least one work id requests creation or change of source, tests, build/runtime behavior, package behavior, or other executable behavior governed by a spec. |
 | `ambiguous` | Required evidence is absent, mutually inconsistent, stale against the basis, or makes more than one same-precedence terminal class true. |
 
 Classification shall apply this precedence and stop at the first satisfied
@@ -587,9 +657,12 @@ row:
 
 The record shall retain the truth value and supporting evidence or explicit
 missing-evidence reason for every predicate, the selected precedence row, and
-the route result. A changed artifact or repository basis invalidates the
-record. The classifier shall not use token count, line count, task size, model
-tier, or ad-hoc complexity.
+the route result. It shall carry exactly one mapping result for every work id:
+mapped artifact criterion ids, `wrong_decision`, `spec_gap`, or `ambiguous`.
+No work id may be omitted, duplicated, or classified only as context after
+collection. A changed source, work-scope identity, artifact, or repository
+basis invalidates the record. The classifier shall not use token count, line
+count, task size, model tier, or ad-hoc complexity.
 
 A `gated` spec without the active agent-owned gate's posted independent
 convergence record is not ratified: classification shall fail before planner
@@ -610,12 +683,12 @@ executor declaration's packet requirement shall therefore be conditional on
 either `experiment-arm-c` or an active adoption reference; they remain local
 role declarations rather than a dispatcher-owned branch.
 
-Before activation, the new `reasoning-heavy` / `execution-medium` resource
-pair is available to experiment arms B/C but shall not downgrade the ordinary
-direct executor: ordinary dispatch retains the current premium/no-planner
-baseline-A selection. After activation, the optimized planner route resolves
-the declared class pair. This availability rule does not change the canonical
-class values stored on the role rows.
+Before activation, `execution-medium` is available to experiment arm B and the
+`reasoning-heavy` / `execution-medium` pair to arm C, but neither shall
+downgrade the ordinary direct executor: ordinary dispatch retains the
+fixture-proven premium/no-planner baseline-A selection. After activation, the
+optimized planner route resolves the declared class pair. This availability
+rule does not change the canonical class values stored on the role rows.
 
 Production activation requires both a completed valid twenty-seven-run result
 that passes the A and B conditions and a later approved decision recording the
@@ -636,8 +709,9 @@ other external write and shall not require or create a task/change-request.
 
 The executor shall independently reopen the ratified artifact and declared
 dependency graph, verify the packet's artifact identity, repository basis,
-criterion coverage, anchors, and commands, and then apply strict red → green →
-refactor from the artifact. The artifact wins every conflict. A stale
+criterion coverage, typed code/test anchors, verification oracles, and
+commands, and then apply strict red → green → refactor from the artifact. The
+artifact wins every conflict. A stale
 repository basis, contradictory packet requirement, invalid or unverifiable
 anchor, softened/extended criterion, or unusable packet shall be surfaced
 before executor mutation and may trigger at most one automatic replan when the
@@ -698,8 +772,10 @@ does not enlarge this ordinary-path cap.
 
 Portable resource intent shall live only on role rows in
 `plugins/grove/metadata/roles.json`: `implementation-planner` is
-`reasoning-heavy`, and `executor` is `execution-medium`. Canonical charters and
-generated role projections shall not pin provider-specific model names.
+`reasoning-heavy`, and `executor` is `execution-medium`. The executor class is
+route-bound intent for the optimized planner route and experiment arms B/C;
+it is not a claim that every executor invocation is medium. Canonical charters
+and generated role projections shall not pin provider-specific model names.
 
 `plugins/grove/metadata/hosts.json` shall carry a schema version and a
 versioned default mapping for every supported host from each referenced
@@ -712,6 +788,23 @@ exists and the surface may invoke it. `hosts.json`, consumer configuration,
 documentation, and prior evidence declare intent but are not themselves
 capability sources.
 
+For each supported host/surface, `hosts.json` shall also record
+`pre_adoption_direct_executor` with the exact selector and selection-source
+identity observed before the planner change. Release validation shall compare
+that record with a clean pre-change fixture and its capability probe; mismatch
+fails the candidate rather than redefining the baseline. This record preserves
+inactive production behavior and is not a third portable resource class.
+
+Resource binding is exhaustive:
+
+| Context | Executor binding | Planner binding |
+|---|---|---|
+| Ordinary production while activation is inactive | Exact `pre_adoption_direct_executor`; the new class map and consumer resource overrides do not apply. | None. |
+| Experiment arm A | Exact preregistered premium selector, which shall equal the recorded pre-adoption selector and pass its source/probe at run time; it is not resolved through `execution-medium`. | None. |
+| Experiment arm B | Effective active-host `execution-medium` class mapping. | None. |
+| Experiment arm C | Effective active-host `execution-medium` class mapping. | Effective active-host `reasoning-heavy` class mapping. |
+| Ordinary production after approved activation | Effective active-host `execution-medium` class mapping. | Effective active-host `reasoning-heavy` class mapping. |
+
 A consumer may replace a default only through an exact key in its
 consumer-authoritative
 `.grove/config.toml` table:
@@ -722,7 +815,11 @@ reasoning-heavy = "<host model selector>"
 execution-medium = "<host model selector>"
 ```
 
-For one dispatch, resolution shall:
+These overrides participate only in the class-bound rows of the context table;
+they shall not alter `pre_adoption_direct_executor` or arm A's exact pin.
+
+For an experiment B/C or activated-production class-bound dispatch, resolution
+shall:
 
 1. select only the active host's default map;
 2. replace a class only when `[resources.<active-host>]` supplies that exact
@@ -736,15 +833,26 @@ For one dispatch, resolution shall:
 5. reject missing required classes, unknown host or class keys, unknown or
    unsupported selectors, ambiguous duplicates, and any attempt to fall back
    to another host; and
-6. return and record the complete effective class-to-model map, source
+6. return and record the complete effective class-to-model map, context,
+   source
    identity/version, probe identity, response-field evidence, and probe time
-   before the
-   first role dispatch.
+   before the first role dispatch.
+
+For experiment arm A, the harness shall bypass class resolution, pin the exact
+premium selector in preregistration, and execute the same authoritative
+capability-source/probe validation directly against that selector. It shall
+fail the matched block if the selector differs from
+`pre_adoption_direct_executor`, is not preregistered as premium, or cannot be
+validated. Inactive ordinary production shall continue its recorded direct
+selection and shall not consult `execution-medium`; the candidate's release
+evidence, not a new runtime routing dependency, proves that selection was
+preserved.
 
 A surface that cannot honor a class shall explicitly reject the optimized
 route before dispatch. It shall not silently substitute a model or claim
 planner-route support. Support evidence and every experimental run shall
-record the effective map, defaults version, overrides used, and exact concrete
+record the binding context, the pre-adoption/arm-A exact selector or effective
+class map as applicable, defaults version, overrides used, and exact concrete
 model ids plus the capability-source/probe evidence. The Grove-managed
 `.grove/README.md` shall document the valid
 host/class keys, precedence, and failure behavior, but setup and refresh shall
@@ -762,8 +870,10 @@ retained preregistration shall record:
 - one replacement task per stratum for an independently established invalid
   upstream;
 - all required test/typecheck commands and review procedures;
-- the effective host/resource maps and exact planner, executor, and reviewer
-  model ids;
+- the recorded pre-adoption direct-executor selector and fixture proof; arm
+  A's exact equal premium selector; B/C's effective host/resource maps; every
+  binding's capability-source/probe result; and exact planner, executor, and
+  reviewer model ids;
 - a dated provider-price snapshot and normalization table that maps each
   provider-reported input, output, cached, reasoning, and other billed token
   field to one disjoint billable leaf bucket and one rate for each model;
@@ -777,9 +887,9 @@ with identical ratified input and repository/working-tree basis:
 
 | Arm | Base sequence |
 |---|---|
-| A — current baseline | Premium executor; no planner. |
-| B — downgrade control | Medium executor; no planner. |
-| C — planner treatment | Premium planner followed by a separately cold medium executor. |
+| A — current baseline | Exact preregistered, capability-validated premium selector equal to `pre_adoption_direct_executor`; no planner and no executor-class lookup. |
+| B — downgrade control | Executor resolved through active-host `execution-medium`; no planner. |
+| C — planner treatment | Planner resolved through `reasoning-heavy`, followed by a separately cold executor resolved through `execution-medium`. |
 
 Phase one shall complete each of the nine cells in a three-valid-task ×
 three-arm matched block once, for exactly nine valid cold analysis runs. Raw
@@ -976,10 +1086,11 @@ passes the full support record:
   exact expected count, and each identity's expected execution class; the
   first support record containing `implementation-planner` shall prove
   bijection to the fourteen-id oracle;
-- the host-defaults version, any consumer overrides, the complete effective
-  resource map, and exact concrete model ids for `reasoning-heavy` and
-  `execution-medium`, or explicit evidence that the optimized route is
-  rejected before dispatch;
+- the exact fixture-proven `pre_adoption_direct_executor`, arm-A premium
+  selector equality where the surface is experiment-capable, host-defaults
+  version, any consumer overrides, B/C effective resource maps, exact concrete
+  model ids, and every capability-source/probe result, or explicit evidence
+  that the optimized route is rejected before dispatch;
 - observed discoverability for every identity;
 - proof that a cold producer and an independent read-only reviewer can be
   invoked separately;
@@ -1371,9 +1482,11 @@ shall, before creating a tag:
    candidate's declared expected count, and prove exact bijection to the
    fourteen-id oracle for the first candidate containing
    `implementation-planner`;
-8. resolve every required resource class for each claimed-supported surface
-   through its authoritative capability source/probe and retain that surface's
-   effective class-to-model map;
+8. fixture-prove each claimed-supported surface's pre-adoption direct selector,
+   capability-validate the exact arm-A premium pin on each
+   experiment-capable surface, resolve B/C's required resource classes through
+   their authoritative source/probes, and retain all context bindings and
+   effective maps;
 9. verify the first planner-bearing candidate marks ordinary production
    planning `inactive-experiment-only`, unless a later approved adoption
    decision bound to completed valid evidence explicitly activates it;
@@ -1475,6 +1588,9 @@ derived from, or mechanically validated against, this matrix.
 - A missing, malformed, blocked, stale, contradictory, extending, softening,
   or unverifiable advisory packet is a planned-route failure; it shall not be
   silently repaired or treated as artifact authority.
+- A missing work-scope source/range/work id, or a packet test/oracle reference
+  that is absent, duplicated, orphaned, wrong-namespace, or
+  cross-criterion, is a pre-relay failure.
 - An ambiguous, stale, incomplete, or unclassified route record is a
   pre-dispatch failure; its precedence/evidence defect shall be reported and
   no planner or executor shall run.
@@ -1487,6 +1603,10 @@ derived from, or mechanically validated against, this matrix.
   fallback, unavailable authoritative capability source, or failed selector
   probe is a pre-dispatch failure; no concrete model shall be silently
   substituted.
+- A pre-adoption fixture mismatch or arm-A selector that is unpinned,
+  non-premium, unequal to the recorded baseline, or capability-unverified
+  invalidates release/experiment evidence; it shall not be resolved through
+  `execution-medium` or change inactive production selection.
 - In-tree experiment evidence is invalid; a nine-run result cannot authorize
   adoption; invalidated task attempts remain audit overhead but not valid
   analysis cells; an unresolved billable-token overlap invalidates the
@@ -1691,19 +1811,20 @@ derived from, or mechanically validated against, this matrix.
   the relay shall accept only the closed canonical UTF-8 JSON schema with no
   duplicate/unknown/trailing bytes, exact artifact and repository identities,
   exhaustive one-entry-per-artifact-criterion coverage, disposition-consistent
-  cross-references, fact-classified anchors, ordered slices, verification
-  commands, and risks/gaps.
+  typed code/test/command/oracle cross-references, fact-classified anchors,
+  ordered slices, verification commands, and risks/gaps.
 - **INV39 — local deterministic routing:** The generic dispatcher shall derive
   planning from the planner and executor rows' local declarations and shall
-  emit the closed route-classification evidence record, evaluate every
-  observable predicate in declared precedence, fail closed on ambiguity or
-  missing evidence, and select only the corresponding direct, planning,
+  snapshot and completely cover the closed work-scope source set, emit every
+  stable work id in the route-classification record, evaluate observable
+  predicates in declared precedence, fail closed on ambiguity or missing
+  coverage, and select only the corresponding direct, planning,
   reconvergence, or shaping route.
 - **INV40 — artifact authority:** When an executor receives an advisory
   packet, it shall reopen and implement the ratified artifact, verify packet
-  identity and anchors, let the artifact win every conflict, and surface
-  stale, contradictory, extending, softening, or unverifiable packet content
-  for replan rather than silently following it.
+  identity and typed code/test/oracle references, let the artifact win every
+  conflict, and surface stale, contradictory, extending, softening, or
+  unverifiable packet content for replan rather than silently following it.
 - **INV41 — direct relay and bounded recovery:** The dispatcher shall relay a
   valid packet's exact bytes and digest beside the artifact pointer into a
   separately cold executor without an ordinary-path external write; it shall
@@ -1713,14 +1834,16 @@ derived from, or mechanically validated against, this matrix.
   declare planner `reasoning-heavy` and executor `execution-medium` intent;
   versioned defaults shall live in `metadata/hosts.json`; and an exact
   `[resources.<active-host>]` consumer key shall override only the same
-  host/class default, while lifecycle operations shall document but never
-  create or change consumer overrides.
+  host/class default in class-bound contexts, never pre-adoption or arm A,
+  while lifecycle operations shall document but never create or change
+  consumer overrides.
 - **INV43 — fail-loud resource resolution:** Before role dispatch, resolution
-  shall execute the exact `hosts.json` capability probe against its named
-  versioned host-runtime/provider catalog and reject unavailable validation,
-  missing classes, unknown host/class/selectors, unsupported selectors,
-  ambiguity, or cross-host fallback; declaration files and prior evidence
-  shall not substitute for a current authoritative probe.
+  shall follow the binding-context table, execute every applicable exact
+  `hosts.json` capability probe against its named versioned
+  host-runtime/provider catalog, and reject unavailable validation, missing
+  classes, unknown host/class/selectors, unsupported selectors, ambiguity, or
+  cross-host fallback; declaration files and prior evidence shall not
+  substitute for a current authoritative probe.
 - **INV44 — exact experiment shape:** The harness shall run preregistered
   small/medium/large tasks across A premium-executor, B medium-executor, and C
   premium-planner → medium-executor from fresh isolated identical-basis
@@ -1766,7 +1889,8 @@ derived from, or mechanically validated against, this matrix.
   C may invoke the installed local declarations until a later approved
   adoption decision binds a passing valid twenty-seven-run evidence identity
   to the exact candidate, and ordinary direct execution shall retain the
-  premium/no-planner baseline rather than applying `execution-medium`.
+  fixture-proven pre-adoption premium/no-planner selector rather than applying
+  `execution-medium`.
 - **INV52 — criterion non-exclusion:** An executable packet shall map every
   artifact EARS/GWT id exactly once to `implement` or justified
   `verify-only`; a blocked packet shall enumerate all ids and use `blocked` for
@@ -1780,6 +1904,25 @@ derived from, or mechanically validated against, this matrix.
   initial call plus one same-basis automatic replan; when neither yields a
   usable packet, the dispatcher shall surface both findings and dispatch no
   executor, independently of the experiment-only remediation budget.
+- **INV55 — complete requested-work oracle:** Route classification shall
+  snapshot the dispatch request and every stable referenced source, partition
+  every source byte without gaps/overlap, assign every desired-behavior
+  interval one stable work id, and require each work id to map to artifact
+  criteria or produce `wrong_decision`, `spec_gap`, or `ambiguous`; an omitted
+  source, byte range, or work id shall preclude `adequate_spec`.
+- **INV56 — typed packet namespaces:** Every `failing_test_ids` value shall
+  resolve exactly once to a criterion-consistent `TA<n>` entry whose `CMD<n>`
+  is a real test command, every verify-only `oracle_id` shall resolve exactly
+  once to a criterion-consistent `OR<n>` whose nonempty command list resolves
+  to real verification commands, and every
+  slice/code/test reference shall resolve in its declared namespace with no
+  orphan or cross-criterion entry.
+- **INV57 — context-bound executor resources:** While production activation is
+  inactive, ordinary execution shall retain the fixture-proven pre-adoption
+  selector; arm A shall pin that exact capability-validated premium selector
+  without class lookup; and only experiment B/C or activated production shall
+  apply `execution-medium`, with `reasoning-heavy` additionally applying to C
+  or activated planner calls.
 
 ### GWT scenarios
 
@@ -2176,8 +2319,8 @@ adherence.
 **When** the driving-session dispatcher hands off to executor,
 **Then** the executor receives the exact canonical UTF-8 JSON byte sequence and
 its matching SHA-256 verbatim beside the authoritative pointer, independently
-reopens and verifies the artifact and anchors, and no repo, tracker, task, or
-change-request write occurs.
+reopens and verifies the artifact plus typed code/test/oracle references, and
+no repo, tracker, task, or change-request write occurs.
 
 #### S40 — relay interruption checkpoints or replans
 
@@ -2194,7 +2337,7 @@ create a carrier or recover hidden session state.
 
 **Given** versioned active-host defaults and an exact
 `[resources.<active-host>]` override for `reasoning-heavy`,
-**When** a planner/executor route resolves resources,
+**When** experiment C or activated production resolves class-bound resources,
 **Then** only that class is replaced, `execution-medium` retains the same
 host's default, the exact declared authoritative capability probe proves both
 selectors, and the complete map/source/probe evidence is recorded; **but
@@ -2277,10 +2420,11 @@ installation, and a separately judged version bump.
 already satisfied on the repository basis,
 **When** an executable packet is validated,
 **Then** every id appears exactly once, changed behavior uses `implement` with
-resolved failing-test/slice references, the already-satisfied criterion uses
-`verify-only` with an exact oracle and basis observation, and any omission,
-criterion-naming scope exclusion, duplicate id, unresolved cross-reference, or
-`verify-only` slice makes the packet unusable.
+resolved typed test-anchor/slice references, the already-satisfied criterion
+uses `verify-only` with an exact command-linked oracle and basis observation,
+and any omission, criterion-naming scope exclusion, duplicate id, wrong
+namespace, cross-criterion reference, or `verify-only` slice makes the packet
+unusable.
 
 #### S49 — ambiguous route evidence fails before dispatch
 
@@ -2297,10 +2441,10 @@ evidence, and dispatches neither planner nor executor.
 declarations but has no later approved adoption decision,
 **When** an ordinary dispatcher receives ratified code-bearing spec work,
 **Then** production planning remains `inactive-experiment-only` and the
-ordinary premium/no-planner pre-adoption route remains in force; **but when**
-experiment arm C invokes the declarations, **then** planning and the
-reasoning-heavy/execution-medium pair are available only inside that measured
-run and do not activate production.
+ordinary fixture-proven pre-adoption premium/no-planner selector remains in
+force without `execution-medium`; **but when** experiment arm C invokes the
+declarations, **then** planning and the reasoning-heavy/execution-medium pair
+are available only inside that measured run and do not activate production.
 
 #### S51 — ordinary replanning terminates after one retry
 
@@ -2351,6 +2495,45 @@ the audit-overhead ledger, excludes every invalidated cell symmetrically from
 valid metrics and adoption arithmetic, completes every arm/repetition for the
 replacement, and evaluates or recomputes futility only after a complete valid
 matched block yields exactly nine or twenty-seven valid analysis runs.
+
+#### S56 — requested behavior cannot disappear before classification
+
+**Given** a dispatch request with two desired behaviors and one stably
+referenced issue containing a third,
+**When** the work-scope collector snapshots the closed sources,
+**Then** their byte coverage is gap-free/non-overlapping, all three desired
+intervals receive stable ordered work ids and source provenance, and
+`adequate_spec` is true only if every work id maps to artifact criteria; **but
+given** the issue is unreadable, a byte range is omitted, or one desired span
+is labeled context without a non-normative reason, **when** classification
+runs, **then** it records `ambiguous` or `spec_gap` and dispatches neither a
+planner nor executor under `adequate_spec`.
+
+#### S57 — packet references resolve through typed closed collections
+
+**Given** an implement criterion naming `TA1` and a verify-only criterion
+naming `OR1`,
+**When** packet validation runs,
+**Then** `TA1` resolves exactly once to a test anchor carrying that criterion
+and a real class-test `CMD<n>`, `OR1` resolves exactly once to an oracle
+carrying the verify-only criterion and nonempty real command ids, and every
+slice/code/test back-reference is criterion-consistent; **but given** a missing
+collection entry, duplicate typed id, wrong namespace, orphan entry,
+non-test failing command, or cross-criterion link, **when** validation runs,
+**then** the packet is unusable before relay.
+
+#### S58 — resource binding depends on activation and experiment arm
+
+**Given** inactive production and a fixture-proven pre-adoption premium
+executor selector,
+**When** ordinary work and experiment arms A, B, and C resolve models,
+**Then** ordinary work retains that direct selector, A pins the exact equal
+premium selector and capability-validates it without class lookup, B resolves
+only `execution-medium`, and C resolves `reasoning-heavy` plus
+`execution-medium`; **but given** A differs from the baseline, is not premium,
+or lacks capability proof, **when** the harness validates preregistration,
+**then** the matched experiment fails without changing inactive production or
+using the executor class as an A fallback.
 
 ## Open questions
 
@@ -2406,14 +2589,18 @@ against the contract-author charter:
   channel installs, and per-surface support each have observable pass/fail
   behavior; planner routing, packet validation, relay/replan, resource
   resolution, independent fourteen-id bijection, route predicate precedence,
-  experiment-only activation, closed packet/checkpoint wire schemas,
-  criterion non-exclusion, bounded terminal replanning, authoritative selector
-  probes, disjoint token arithmetic, symmetric invalid-task replacement, the
-  9 → 27 harness, control comparisons, out-of-tree evidence, and release
+  closed source/byte coverage for every desired behavior, experiment-only
+  activation, closed packet/checkpoint wire schemas and typed test/oracle
+  namespaces, criterion non-exclusion, bounded terminal replanning,
+  authoritative selector probes, context-bound baseline/A/B/C resource
+  bindings, disjoint token arithmetic, symmetric invalid-task replacement,
+  the 9 → 27 harness, control comparisons, out-of-tree evidence, and release
   requalification are likewise executable.
 - **Lifecycle:** PASS — these significant revise-in-place amendments have
   durable approved decision input and bump `v4 → v5`; these review-driven
   corrections converge that same unratified v5 rather than creating a second
-  behavioral release. The spec remains self-checked at `gated`, with fresh
-  independent intrinsic-quality and fidelity reviews owed before
-  implementation proceeds under the project gate profile.
+  behavioral release. The conformance review at `239874d` returned `PASS`, but
+  it does not cover this changed exact artifact. The spec remains self-checked
+  at `gated`, with fresh independent intrinsic-quality and scoped conformance
+  re-reviews owed on the final SHA before implementation proceeds under the
+  project gate profile.
