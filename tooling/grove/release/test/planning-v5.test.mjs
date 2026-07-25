@@ -267,6 +267,64 @@ test("INV38/INV52/INV56/S48/S57 — packet wire is canonical, closed, exhaustive
   );
 });
 
+test("INV38/S38 — packet phases and blocking gaps preserve executable/blocked truth", () => {
+  const phaseInversion = executablePacket();
+  [phaseInversion.slices[1], phaseInversion.slices[2]] =
+    [phaseInversion.slices[2], phaseInversion.slices[1]];
+  phaseInversion.criterion_test_map[0].slice_ids = ["SL1", "SL3", "SL2"];
+  assert.throws(
+    () => validatePlanPacket(Buffer.from(canonicalJson(phaseInversion)), {
+      artifact: ARTIFACT,
+      criteria: ["INV38", "S48"],
+      repositoryBasis: BASIS,
+    }),
+    /phase|red.*green|refactor.*green|order/i,
+  );
+
+  for (const collection of ["risks", "scope_exclusions"]) {
+    const executableBlocker = executablePacket();
+    executableBlocker.risks_and_gaps[collection] = [{
+      blocking: true,
+      id: "GAP1",
+      text: "load-bearing unresolved evidence",
+    }];
+    assert.throws(
+      () => validatePlanPacket(Buffer.from(canonicalJson(executableBlocker)), {
+        artifact: ARTIFACT,
+        criteria: ["INV38", "S48"],
+        repositoryBasis: BASIS,
+      }),
+      /blocking.*gap|executable.*blocking/i,
+      collection,
+    );
+  }
+
+  const resolvedBlocked = executablePacket();
+  resolvedBlocked.outcome = "blocked";
+  resolvedBlocked.code_anchors = [];
+  resolvedBlocked.criterion_test_map = [
+    { criterion_id: "INV38", disposition: "blocked", gap_id: "GAP1" },
+    { criterion_id: "S48", disposition: "blocked", gap_id: "GAP1" },
+  ];
+  resolvedBlocked.risks_and_gaps.ambiguities = [{
+    blocking: true,
+    id: "GAP1",
+    text: "repository basis is stale and cannot be reproduced",
+  }];
+  resolvedBlocked.slices = [];
+  resolvedBlocked.test_anchors = [];
+  resolvedBlocked.verification = [];
+  resolvedBlocked.verification_oracles = [];
+  assert.equal(
+    validatePlanPacket(Buffer.from(canonicalJson(resolvedBlocked)), {
+      artifact: ARTIFACT,
+      criteria: ["INV38", "S48"],
+      repositoryBasis: BASIS,
+    }).packet.outcome,
+    "blocked",
+  );
+});
+
 test("INV53/S52 — checkpoint embeds the unchanged packet and exact progress partitions", () => {
   const packetBytes = Buffer.from(canonicalJson(executablePacket()));
   const packetResult = validatePlanPacket(packetBytes, {
@@ -334,16 +392,35 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
         statement: issue,
       },
     ],
-    sources: [
-      { bytes: request, locator: "dispatch-request", revision: "request-1" },
+    dispatchRequest: {
+      bytes: request,
+      locator: "dispatch-request",
+      references: [{ locator: "issue://7", revision: "edit-4" }],
+      revision: "request-1",
+    },
+    referencedSources: [
       { bytes: issue, locator: "issue://7", revision: "edit-4" },
     ],
   });
   assert.equal(scope.work_items.length, 2);
   assert.match(scope.work_scope_identity, /^[0-9a-f]{64}$/);
 
-  const predicate = (value, detail) => ({
-    evidence: value ? [detail] : [],
+  const predicate = (field, value, detail, subjectIds = ["WB1"]) => ({
+    evidence: value ? [{
+      evidence_type: {
+        adequate_spec: "criterion-mapping",
+        ambiguous: "evidence-defect",
+        code_bearing: "requested-path-class",
+        decision_only_non_code: "requested-path-class",
+        localized: "component-boundary",
+        reproduced: "reproduction",
+        root_caused: "causal-trace",
+        spec_gap: "exhaustive-criterion-search",
+        wrong_decision: "decision-contradiction",
+      }[field],
+      subject_ids: subjectIds,
+      summary: detail,
+    }] : [],
     missing_evidence_reason: value ? null : detail,
     value,
   });
@@ -356,15 +433,15 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
       work_id: item.work_id,
     })),
     predicates: {
-      adequate_spec: predicate(true, "all work ids map to INV55"),
-      ambiguous: predicate(false, "all required evidence is present"),
-      code_bearing: predicate(true, "source and test changes requested"),
-      decision_only_non_code: predicate(false, "request changes executable behavior"),
-      localized: predicate(false, "forward construction is not a localized slip"),
-      reproduced: predicate(false, "forward construction has no prior failure"),
-      root_caused: predicate(false, "forward construction has no prior failure"),
-      spec_gap: predicate(false, "exhaustive criterion search maps all work"),
-      wrong_decision: predicate(false, "no approved decision contradicts the work"),
+      adequate_spec: predicate("adequate_spec", true, "all work ids map to INV55", ["WB1", "WB2"]),
+      ambiguous: predicate("ambiguous", false, "all required evidence is present"),
+      code_bearing: predicate("code_bearing", true, "source and test changes requested", ["WB1", "WB2"]),
+      decision_only_non_code: predicate("decision_only_non_code", false, "request changes executable behavior"),
+      localized: predicate("localized", false, "forward construction is not a localized slip"),
+      reproduced: predicate("reproduced", false, "forward construction has no prior failure"),
+      root_caused: predicate("root_caused", false, "forward construction has no prior failure"),
+      spec_gap: predicate("spec_gap", false, "exhaustive criterion search maps all work"),
+      wrong_decision: predicate("wrong_decision", false, "no approved decision contradicts the work"),
     },
     repository_basis: BASIS,
     requested_path_classes: ["source", "test"],
@@ -375,6 +452,7 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
     classifyRoute(base, {
       activation: "inactive-ordinary-production",
       artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
       repositoryBasis: BASIS,
       workScope: scope,
     }).route,
@@ -384,6 +462,7 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
     classifyRoute(base, {
       activation: "experiment-arm-c",
       artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
       repositoryBasis: BASIS,
       workScope: scope,
     }).route,
@@ -391,27 +470,53 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
   );
 
   const gap = structuredClone(base);
-  gap.predicates.spec_gap = predicate(true, "WB1 is absent from the ratified criteria");
-  gap.predicates.adequate_spec = predicate(false, "WB1 is uncovered");
+  gap.predicates.spec_gap = predicate("spec_gap", true, "WB1 is absent from the ratified criteria");
+  gap.predicates.adequate_spec = predicate("adequate_spec", false, "WB1 is uncovered");
   gap.mappings[0] = {
-    exhaustive_criterion_search: ["INV55"],
+    exhaustive_criterion_search: ["INV55", "S56"],
     result: "spec_gap",
     work_id: "WB1",
   };
   assert.equal(classifyRoute(gap, {
     activation: "experiment-arm-c",
     artifact: ARTIFACT,
+    criteria: ["INV55", "S56"],
     repositoryBasis: BASIS,
     workScope: scope,
   }).route, "spec-reconvergence");
 
+  const mixedUpstreamDefects = structuredClone(gap);
+  mixedUpstreamDefects.predicates.wrong_decision =
+    predicate("wrong_decision", true, "WB1 contradicts adr-0036 D5");
+  mixedUpstreamDefects.predicates.spec_gap =
+    predicate("spec_gap", true, "WB2 is absent from all artifact criteria", ["WB2"]);
+  mixedUpstreamDefects.mappings[0] = {
+    clause: "D5",
+    decision_id: "adr-0036-pre-execution-planning",
+    result: "wrong_decision",
+    work_id: "WB1",
+  };
+  mixedUpstreamDefects.mappings[1] = {
+    exhaustive_criterion_search: ["INV55", "S56"],
+    result: "spec_gap",
+    work_id: "WB2",
+  };
+  assert.equal(classifyRoute(mixedUpstreamDefects, {
+    activation: "experiment-arm-c",
+    artifact: ARTIFACT,
+    criteria: ["INV55", "S56"],
+    repositoryBasis: BASIS,
+    workScope: scope,
+  }).route, "shaping");
+
   const contradictory = structuredClone(base);
   contradictory.predicates.decision_only_non_code =
-    predicate(true, "incorrectly claims prose-only work");
+    predicate("decision_only_non_code", true, "incorrectly claims prose-only work");
   assert.throws(
     () => classifyRoute(contradictory, {
       activation: "experiment-arm-c",
       artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
       repositoryBasis: BASIS,
       workScope: scope,
     }),
@@ -420,15 +525,18 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
 
   const nonCodeLocalized = structuredClone(base);
   nonCodeLocalized.predicates.code_bearing =
-    predicate(false, "incorrectly claims no executable behavior");
+    predicate("code_bearing", false, "incorrectly claims no executable behavior");
   nonCodeLocalized.predicates.localized =
-    predicate(true, "incorrectly claims an implementation slip");
-  nonCodeLocalized.predicates.reproduced = predicate(true, "reproduction");
-  nonCodeLocalized.predicates.root_caused = predicate(true, "root cause");
+    predicate("localized", true, "incorrectly claims an implementation slip");
+  nonCodeLocalized.predicates.reproduced =
+    predicate("reproduced", true, "reproduction");
+  nonCodeLocalized.predicates.root_caused =
+    predicate("root_caused", true, "root cause");
   assert.throws(
     () => classifyRoute(nonCodeLocalized, {
       activation: "experiment-arm-c",
       artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
       repositoryBasis: BASIS,
       workScope: scope,
     }),
@@ -441,6 +549,7 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
     () => classifyRoute(incomplete, {
       activation: "experiment-arm-c",
       artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
       repositoryBasis: BASIS,
       workScope: scope,
     }),
@@ -450,6 +559,7 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
     () => classifyRoute(base, {
       activation: "surprise-activation",
       artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
       repositoryBasis: BASIS,
       workScope: scope,
     }),
@@ -459,7 +569,13 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
   assert.throws(
     () => buildWorkScope({
       coverage: [{ ...scope.source_coverage[0], end_byte: 3, statement: "fix" }],
-      sources: [{ bytes: request, locator: "dispatch-request", revision: "request-1" }],
+      dispatchRequest: {
+        bytes: request,
+        locator: "dispatch-request",
+        references: [],
+        revision: "request-1",
+      },
+      referencedSources: [],
     }),
     /gap|coverage/i,
   );
@@ -483,9 +599,64 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
           start_byte: 1,
         },
       ],
-      sources: [{ bytes: "é", locator: "dispatch-request", revision: "request-utf8" }],
+      dispatchRequest: {
+        bytes: "é",
+        locator: "dispatch-request",
+        references: [],
+        revision: "request-utf8",
+      },
+      referencedSources: [],
     }),
     /UTF-8 scalar boundary/i,
+  );
+
+  assert.throws(
+    () => buildWorkScope({
+      coverage: [
+        {
+          disposition: "desired-behavior",
+          end_byte: Buffer.byteLength(request),
+          reason: "requested outcome",
+          source_id: "SRC1",
+          start_byte: 0,
+          statement: request,
+        },
+      ],
+      dispatchRequest: {
+        bytes: request,
+        locator: "dispatch-request",
+        references: [{ locator: "issue://7", revision: "edit-4" }],
+        revision: "request-1",
+      },
+      referencedSources: [],
+    }),
+    /referenced.*source|request.*locator|issue:\/\/7|closed.*source/i,
+  );
+
+  const foreignCriterion = structuredClone(base);
+  foreignCriterion.mappings[0].criterion_ids = ["INV-NOT-IN-ARTIFACT"];
+  assert.throws(
+    () => classifyRoute(foreignCriterion, {
+      activation: "experiment-arm-c",
+      artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }),
+    /artifact.*criterion|criterion.*set|INV-NOT-IN-ARTIFACT/i,
+  );
+
+  const untypedEvidence = structuredClone(base);
+  untypedEvidence.predicates.code_bearing.evidence = ["arbitrary string"];
+  assert.throws(
+    () => classifyRoute(untypedEvidence, {
+      activation: "experiment-arm-c",
+      artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }),
+    /predicate.*evidence.*typed|structured.*evidence|evidence.*object/i,
   );
 });
 
@@ -499,11 +670,14 @@ const HOSTS = {
         "reasoning-heavy": "premium-1",
       },
       selector_capability_probe: {
+        identity: "catalog-list-probe",
         operation: "catalog.list",
         response_field: "models",
+        version: "1",
       },
       selector_capability_source: {
         identity: "catalog@2026-07-25",
+        version: "2026-07-25",
       },
     },
   },
@@ -521,11 +695,16 @@ test("INV42/INV43/INV51/INV57/S41/S50/S53/S58 — resource binding is context-bo
   const capabilityProbe = async ({ host, selectors, surface }) => {
     probes.push(selectors);
     return {
-      evidence: { models: ["premium-1", "medium-1", "medium-override"] },
       host,
+      observed_at: "2026-07-25T12:00:00Z",
       permitted: selectors,
+      probe_identity: "catalog-list-probe",
+      probe_version: "1",
       requested_selectors: selectors,
+      response_field: "models",
+      response_field_payload: ["premium-1", "medium-1", "medium-override"],
       source_identity: "catalog@2026-07-25",
+      source_version: "2026-07-25",
       surface,
     };
   };
@@ -593,9 +772,15 @@ test("INV42/INV43/INV51/INV57/S41/S50/S53/S58 — resource binding is context-bo
     resolveResourceBinding({
       capabilityProbe: async ({ host, selectors }) => ({
         host,
+        observed_at: "2026-07-25T12:00:00Z",
         permitted: selectors,
+        probe_identity: "catalog-list-probe",
+        probe_version: "1",
         requested_selectors: selectors,
+        response_field: "models",
+        response_field_payload: selectors,
         source_identity: "catalog@2026-07-25",
+        source_version: "2026-07-25",
         surface: "codex-sdk",
       }),
       context: "experiment-arm-b",
@@ -617,6 +802,24 @@ test("INV42/INV43/INV51/INV57/S41/S50/S53/S58 — resource binding is context-bo
       surface: "codex-exec-non-ephemeral",
     }),
     /capability|permitted/i,
+  );
+
+  await assert.rejects(
+    resolveResourceBinding({
+      capabilityProbe: async ({ host, selectors, surface }) => ({
+        host,
+        permitted: selectors,
+        requested_selectors: selectors,
+        source_identity: "catalog@2026-07-25",
+        surface,
+      }),
+      context: "experiment-arm-b",
+      host: "codex",
+      hostsMetadata: HOSTS,
+      overrides: {},
+      surface: "codex-exec-non-ephemeral",
+    }),
+    /response.field|payload|probe.*identity|source.*version|observed.*time/i,
   );
 });
 
@@ -747,6 +950,37 @@ test("INV46/S45/S54 — token normalization forms disjoint priced buckets", () =
     ),
     /cached_input|leaf|partition|unclassified/i,
   );
+
+  assert.throws(
+    () => normalizeBillableCall(
+      { input: 100, output: 100 },
+      {
+        buckets: [
+          { bucket: "input", field: "input", subtract: ["output"] },
+          { bucket: "output", field: "output", subtract: ["input"] },
+        ],
+        informational_fields: [],
+      },
+      { input: 1, output: 1 },
+    ),
+    /cycle|acyclic|forest|partition/i,
+  );
+
+  assert.throws(
+    () => normalizeBillableCall(
+      { cached_input: 10, input: 100, other_input: 50 },
+      {
+        buckets: [
+          { bucket: "cached_input", field: "cached_input", subtract: [] },
+          { bucket: "input", field: "input", subtract: ["cached_input"] },
+          { bucket: "other_input", field: "other_input", subtract: ["cached_input"] },
+        ],
+        informational_fields: [],
+      },
+      { cached_input: 1, input: 1, other_input: 1 },
+    ),
+    /shared|parent|forest|partition/i,
+  );
 });
 
 function rawModelCall({ modelId, role, tokens = 0, attempt = 1 }) {
@@ -774,9 +1008,17 @@ function rawResult({
   premium = 10,
   cost = 10,
   remediation = 0,
+  reviewerLoops = 0,
   upstreamStatus = "valid",
   independentUpstreamFinding = null,
 }) {
+  const preregistration = experimentPreregistration();
+  const taskRecord = [
+    ...Object.values(preregistration.tasks),
+    ...Object.values(preregistration.replacement_tasks),
+  ].find((item) => item.task_id === task);
+  assert.ok(taskRecord, `test fixture task ${task} must be preregistered`);
+  const resourceBinding = preregistration.bindings[`arm_${arm.toLowerCase()}`];
   const calls = [];
   if (arm === "C") {
     calls.push(rawModelCall({
@@ -816,14 +1058,70 @@ function rawResult({
       role: "code-reviewer",
     }),
   );
+  for (let index = 0; index < reviewerLoops; index += 1) {
+    calls.push(
+      rawModelCall({
+        attempt: calls.length + 1,
+        modelId: arm === "A" ? "premium-1" : "medium-1",
+        role: "reviewer-return-executor",
+      }),
+      rawModelCall({
+        attempt: calls.length + 2,
+        modelId: "premium-1",
+        role: "conformance-reviewer",
+      }),
+      rawModelCall({
+        attempt: calls.length + 3,
+        modelId: "premium-1",
+        role: "code-reviewer",
+      }),
+    );
+  }
+  const reviewHistory = [];
+  for (let round = 1; round <= reviewerLoops + 1; round += 1) {
+    const terminal = round === reviewerLoops + 1;
+    reviewHistory.push(
+      {
+        blocking: !terminal || accepted !== 1,
+        reviewer: "conformance-reviewer",
+        round,
+        verdict: !terminal || accepted !== 1 ? "FAIL" : "PASS",
+      },
+      {
+        blocking: !terminal || blocking === 1 || accepted !== 1,
+        reviewer: "code-reviewer",
+        round,
+        verdict: !terminal || blocking === 1 || accepted !== 1 ? "FAIL" : "PASS",
+      },
+    );
+  }
   return {
     ambiguities_caught_before_implementation: [],
     arm,
-    code_review_blocking_observed: blocking === 1,
-    code_review_findings: blocking === 1 ? ["blocking code-review finding"] : [],
+    code_review_blocking_observed: blocking === 1 || reviewerLoops > 0,
+    code_review_findings:
+      blocking === 1 || reviewerLoops > 0 ? ["blocking code-review finding"] : [],
+    command_outcomes: {
+      tests: preregistration.commands.tests.map((command) => ({
+        command,
+        passed: accepted === 1,
+      })),
+      typechecks: preregistration.commands.typechecks.map((command) => ({
+        command,
+        passed: accepted === 1,
+      })),
+    },
     conformance_findings: accepted === 1 ? [] : ["conformance did not pass"],
     conformance_verdict: accepted === 1 ? "PASS" : "FAIL",
     executor_deviations: [],
+    fixture_proof: {
+      fixture_id: `${task}-${arm}-${repetition}`,
+      fresh: true,
+      isolated: true,
+      repository_basis: taskRecord.repository_basis,
+      spec_id: taskRecord.spec_id,
+      task_id: task,
+    },
     independent_upstream_finding: independentUpstreamFinding,
     invalid_packet_anchors: [],
     model_calls: calls,
@@ -831,10 +1129,13 @@ function rawResult({
     remediation_dispatches_by_type: {
       "executor retry": remediation,
       "planner retry": 0,
-      "reviewer-return loop": 0,
+      "reviewer-return loop": reviewerLoops,
     },
     required_tests_pass: accepted === 1,
     required_typechecks_pass: accepted === 1,
+    repository_basis: taskRecord.repository_basis,
+    resource_binding_proof: resourceBinding,
+    review_history: reviewHistory,
     task,
     terminal_code_review_blocking: accepted !== 1,
     unused_plan_steps: [],
@@ -859,6 +1160,20 @@ function analysisResult(options) {
 }
 
 function experimentPreregistration() {
+  const task = (revision, specId, taskId) => ({
+    code_bearing: true,
+    repository_basis: {
+      assumptions: [],
+      revision,
+      worktree_identity: "clean",
+      worktree_kind: "clean",
+      worktree_manifest: [],
+    },
+    revision,
+    spec_id: specId,
+    status: "ratified",
+    task_id: taskId,
+  });
   const normalization = {
     buckets: [
       { bucket: "input_uncached", field: "input", subtract: ["cached_input"] },
@@ -882,34 +1197,66 @@ function experimentPreregistration() {
     },
     bindings: {
       arm_a: {
+        capability_observed_at: "2026-07-25T12:00:00Z",
         capability_probe_identity: "catalog-probe@1",
+        capability_response_identity: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        capability_source_identity: "catalog@2026-07-25",
         executor_model_id: "premium-1",
+        host: "codex",
         premium_selector: "premium-1",
         pre_adoption_selector: "premium-1",
         reviewer_model_id: "premium-1",
+        surface: "codex-exec-non-ephemeral",
       },
       arm_b: {
+        capability_observed_at: "2026-07-25T12:00:00Z",
         capability_probe_identity: "catalog-probe@1",
+        capability_response_identity: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        capability_source_identity: "catalog@2026-07-25",
         effective_resource_map: { "execution-medium": "medium-1" },
         executor_model_id: "medium-1",
+        host: "codex",
         reviewer_model_id: "premium-1",
+        surface: "codex-exec-non-ephemeral",
       },
       arm_c: {
+        capability_observed_at: "2026-07-25T12:00:00Z",
         capability_probe_identity: "catalog-probe@1",
+        capability_response_identity: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        capability_source_identity: "catalog@2026-07-25",
         effective_resource_map: {
           "execution-medium": "medium-1",
           "reasoning-heavy": "premium-1",
         },
         executor_model_id: "medium-1",
+        host: "codex",
         planner_model_id: "premium-1",
         reviewer_model_id: "premium-1",
+        surface: "codex-exec-non-ephemeral",
       },
     },
     commands: {
       tests: ["npm test --prefix tooling/grove/release"],
       typechecks: ["npm run typecheck --prefix tooling/grove/release"],
     },
-    metrics: ["accepted_quality", "premium_tokens", "total_weighted_cost"],
+    metrics: [
+      "accepted_quality",
+      "ambiguities_caught_before_implementation",
+      "blocking_finding_run",
+      "code_review_findings",
+      "conformance_findings",
+      "cost_per_acceptance",
+      "elapsed_ms",
+      "executor_deviations",
+      "invalid_packet_anchors",
+      "premium_tokens",
+      "remediation_dispatches_by_type",
+      "required_tests_pass",
+      "required_typechecks_pass",
+      "total_tokens",
+      "total_weighted_cost",
+      "unused_plan_steps",
+    ],
     price_snapshot: {
       dated_identity: "provider-price@2026-07-25",
       models: {
@@ -929,22 +1276,22 @@ function experimentPreregistration() {
     randomized_order: ["small:A", "small:B", "small:C", "medium:A", "medium:B", "medium:C", "large:A", "large:B", "large:C"],
     remediation_bound: 2,
     replacement_tasks: {
-      large: { code_bearing: true, revision: "rev-l2", spec_id: "spec-l2", status: "ratified", task_id: "large-replacement" },
-      medium: { code_bearing: true, revision: "rev-m2", spec_id: "spec-m2", status: "ratified", task_id: "medium-replacement" },
-      small: { code_bearing: true, revision: "rev-s2", spec_id: "spec-s2", status: "ratified", task_id: "small-replacement" },
+      large: task("rev-l2", "spec-l2", "large-replacement"),
+      medium: task("rev-m2", "spec-m2", "medium-replacement"),
+      small: task("rev-s2", "spec-s2", "small-replacement"),
     },
     review_procedures: {
-      code_review: "independent code reviewer; terminal blocking finding fails",
-      conformance: "independent conformance reviewer; PASS required",
+      code_review: "spec-0004@v5#independent-code-review",
+      conformance: "spec-0004@v5#independent-conformance-review",
     },
     rules: {
       acceptance: "spec-0004@v5#accepted-quality",
       futility: "spec-0004@v5#futility",
     },
     tasks: {
-      large: { code_bearing: true, revision: "rev-l1", spec_id: "spec-l1", status: "ratified", task_id: "large" },
-      medium: { code_bearing: true, revision: "rev-m1", spec_id: "spec-m1", status: "ratified", task_id: "medium" },
-      small: { code_bearing: true, revision: "rev-s1", spec_id: "spec-s1", status: "ratified", task_id: "small" },
+      large: task("rev-l1", "spec-l1", "large"),
+      medium: task("rev-m1", "spec-m1", "medium"),
+      small: task("rev-s1", "spec-s1", "small"),
     },
   };
 }
@@ -1047,6 +1394,60 @@ test("INV44/INV45/INV49/INV51/S47/S55 — harness writes only caller-supplied ou
   }
 });
 
+test("INV44 — preregistration identities, metrics, and run provenance are exact", async () => {
+  const preregistration = experimentPreregistration();
+  for (const mutate of [
+    (value) => {
+      value.review_procedures.code_review = "";
+    },
+    (value) => {
+      value.rules.acceptance = "";
+    },
+    (value) => {
+      value.adoption_truth_tables.baseline_a = "";
+    },
+    (value) => {
+      value.metrics = ["accepted_quality"];
+    },
+    (value) => {
+      value.bindings.arm_a.capability_probe_identity = "";
+    },
+    (value) => {
+      value.price_snapshot.dated_identity = "";
+    },
+  ]) {
+    const malformed = structuredClone(preregistration);
+    mutate(malformed);
+    assert.throws(
+      () => validateExperimentPreregistration(malformed),
+      /identity|metrics|rules|truth|review|capability|price/i,
+    );
+  }
+
+  const evidenceRoot = await mkdtemp(path.join(tmpdir(), "grove-planning-provenance-"));
+  try {
+    await assert.rejects(
+      runPlanningExperiment({
+        evidenceRoot,
+        preregistration,
+        repoRoot: REPO_ROOT,
+        runCell: async ({ arm, repetition, task }) => {
+          const run = rawResult({
+            arm,
+            repetition,
+            task: task.task_id,
+          });
+          delete run.fixture_proof;
+          return run;
+        },
+      }),
+      /repository.*revision|worktree.*basis|fixture|resource.*proof|command.*outcome/i,
+    );
+  } finally {
+    await rm(evidenceRoot, { recursive: true, force: true });
+  }
+});
+
 test("INV44/INV45/S43 — harness binds every runner result to its requested task/arm/repetition cell", async () => {
   const evidenceRoot = await mkdtemp(path.join(tmpdir(), "grove-planning-identity-"));
   try {
@@ -1132,6 +1533,52 @@ test("INV44/INV45/S44 — model calls follow the exact arm sequence and remediat
     } finally {
       await rm(evidenceRoot, { recursive: true, force: true });
     }
+  }
+});
+
+test("INV45/S44 — accepted review history clears every blocker through a classified loop", async () => {
+  const evidenceRoot = await mkdtemp(path.join(tmpdir(), "grove-planning-review-history-"));
+  const validEvidenceRoot = await mkdtemp(
+    path.join(tmpdir(), "grove-planning-valid-review-history-"),
+  );
+  try {
+    await assert.rejects(
+      runPlanningExperiment({
+        evidenceRoot,
+        preregistration: experimentPreregistration(),
+        repoRoot: REPO_ROOT,
+        runCell: async ({ arm, repetition, task }) => rawResult({
+          accepted: 1,
+          arm,
+          blocking: 1,
+          repetition,
+          task: task.task_id,
+        }),
+      }),
+      /blocker|blocking.*review|reviewer-return|review.*history/i,
+    );
+    const outcome = await runPlanningExperiment({
+      evidenceRoot: validEvidenceRoot,
+      preregistration: experimentPreregistration(),
+      repoRoot: REPO_ROOT,
+      runCell: async ({ arm, repetition, task }) => rawResult({
+        accepted: 1,
+        arm,
+        repetition,
+        reviewerLoops: 1,
+        task: task.task_id,
+      }),
+    });
+    assert.equal(
+      outcome.results.every(
+        (run) => run.accepted_quality === 1
+          && run.remediation_dispatches_by_type["reviewer-return loop"] === 1,
+      ),
+      true,
+    );
+  } finally {
+    await rm(evidenceRoot, { recursive: true, force: true });
+    await rm(validEvidenceRoot, { recursive: true, force: true });
   }
 });
 

@@ -47,6 +47,35 @@ const ROUTE_PREDICATE_FIELDS = [
   "spec_gap",
   "wrong_decision",
 ];
+const ROUTE_EVIDENCE_TYPES = {
+  adequate_spec: "criterion-mapping",
+  ambiguous: "evidence-defect",
+  code_bearing: "requested-path-class",
+  decision_only_non_code: "requested-path-class",
+  localized: "component-boundary",
+  reproduced: "reproduction",
+  root_caused: "causal-trace",
+  spec_gap: "exhaustive-criterion-search",
+  wrong_decision: "decision-contradiction",
+};
+const EXPERIMENT_METRICS = [
+  "accepted_quality",
+  "ambiguities_caught_before_implementation",
+  "blocking_finding_run",
+  "code_review_findings",
+  "conformance_findings",
+  "cost_per_acceptance",
+  "elapsed_ms",
+  "executor_deviations",
+  "invalid_packet_anchors",
+  "premium_tokens",
+  "remediation_dispatches_by_type",
+  "required_tests_pass",
+  "required_typechecks_pass",
+  "total_tokens",
+  "total_weighted_cost",
+  "unused_plan_steps",
+];
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -553,10 +582,25 @@ export function validatePlanPacket(input, {
         reachedSlices.add(id);
         return slice;
       });
-      const red = referencedSlices.findIndex((slice) => slice.phase === "red");
-      const green = referencedSlices.findIndex((slice) => slice.phase === "green");
-      if (red === -1 || green === -1 || red >= green) {
-        throw new Error(`${criterion} must place red before green`);
+      const packetOrder = packet.slices
+        .filter((slice) => slice.criterion_ids.includes(criterion))
+        .map((slice) => slice.slice_id);
+      if (!equalJson(entry.slice_ids, packetOrder)) {
+        throw new Error(`${criterion} slices must preserve the packet's semantic phase order`);
+      }
+      const phases = referencedSlices.map((slice) => slice.phase);
+      const firstGreen = phases.indexOf("green");
+      const firstRefactor = phases.indexOf("refactor");
+      if (
+        phases[0] !== "red"
+        || firstGreen === -1
+        || phases.slice(0, firstGreen).some((phase) => phase !== "red")
+        || phases.slice(firstGreen, firstRefactor === -1 ? phases.length : firstRefactor)
+          .some((phase) => phase !== "green")
+        || (firstRefactor !== -1
+          && phases.slice(firstRefactor).some((phase) => phase !== "refactor"))
+      ) {
+        throw new Error(`${criterion} phases must preserve red → green → refactor order`);
       }
       for (const testId of entry.failing_test_ids) {
         const anchor = tests.get(testId);
@@ -567,7 +611,7 @@ export function validatePlanPacket(input, {
         if (command.class !== "test" || command.command.startsWith("none — ")) {
           throw new Error(`${criterion} failing test ${testId} lacks a real test command`);
         }
-        if (!referencedSlices[red].test_anchor_ids.includes(testId)) {
+        if (!referencedSlices[0].test_anchor_ids.includes(testId)) {
           throw new Error(`${criterion} red slice does not reference ${testId}`);
         }
       }
@@ -638,7 +682,7 @@ export function validatePlanPacket(input, {
       throw new Error("executable packet cannot contain blocked criteria");
     }
     if (
-      [...packet.risks_and_gaps.blockers, ...packet.risks_and_gaps.ambiguities]
+      Object.values(packet.risks_and_gaps).flat()
         .some((entry) => entry.blocking)
     ) {
       throw new Error("executable packet cannot contain a blocking gap");
@@ -770,15 +814,65 @@ export function validateCheckpoint(input, { packetBytes, checkpointBasis }) {
   return checkpoint;
 }
 
-export function buildWorkScope({ sources, coverage }) {
-  if (!Array.isArray(sources) || sources.length === 0) throw new Error("work scope requires sources");
+export function buildWorkScope(input) {
+  exactKeys(
+    input,
+    ["coverage", "dispatchRequest", "referencedSources"],
+    "work scope input",
+  );
+  const { coverage, dispatchRequest, referencedSources } = input;
+  exactKeys(
+    dispatchRequest,
+    ["bytes", "locator", "references", "revision"],
+    "dispatch request",
+  );
+  if (!Array.isArray(referencedSources)) {
+    throw new Error("work scope referencedSources must be an array");
+  }
+  const sources = [dispatchRequest, ...referencedSources];
   if (!Array.isArray(coverage)) throw new Error("work scope coverage must be an array");
+  const requestReferences = dispatchRequest.references;
+  if (!Array.isArray(requestReferences)) {
+    throw new Error("dispatch request references must be an array");
+  }
+  for (const reference of requestReferences) {
+    exactKeys(reference, ["locator", "revision"], "dispatch request reference");
+    nonEmptyString(reference.locator, "dispatch request reference.locator");
+    nonEmptyString(reference.revision, "dispatch request reference.revision");
+  }
+  const orderedReferences = [...requestReferences].sort((left, right) =>
+    compareUtf8(left.locator, right.locator)
+      || compareUtf8(left.revision, right.revision));
+  if (
+    !equalJson(requestReferences, orderedReferences)
+    || new Set(requestReferences.map(
+      ({ locator, revision }) => `${locator}\0${revision}`,
+    )).size !== requestReferences.length
+  ) {
+    throw new Error("dispatch request references must be unique and sorted");
+  }
   const orderedInputs = [
-    sources[0],
-    ...sources.slice(1).sort((left, right) =>
+    dispatchRequest,
+    ...[...referencedSources].sort((left, right) =>
       compareUtf8(left.locator, right.locator)
       || compareUtf8(left.revision, right.revision)),
   ];
+  for (const source of orderedInputs) {
+    exactKeys(
+      source,
+      source === dispatchRequest
+        ? ["bytes", "locator", "references", "revision"]
+        : ["bytes", "locator", "revision"],
+      "work scope source",
+    );
+  }
+  const suppliedReferences = orderedInputs.slice(1).map(({ locator, revision }) => ({
+    locator,
+    revision,
+  }));
+  if (!equalJson(suppliedReferences, requestReferences)) {
+    throw new Error("work scope sources must exactly match every dispatch-request referenced locator/revision");
+  }
   const sourceRecords = orderedInputs.map((source, index) => {
     nonEmptyString(source.locator, "source.locator");
     nonEmptyString(source.revision, "source.revision");
@@ -900,6 +994,7 @@ export function classifyRoute(
   {
     activation,
     artifact,
+    criteria,
     repositoryBasis,
     workScope,
   },
@@ -939,6 +1034,13 @@ export function classifyRoute(
   ) {
     throw new Error("route work-scope identity or ordered work items are stale");
   }
+  stringArray(criteria, "artifact criteria", { nonempty: true });
+  const artifactCriteria = new Set(criteria);
+  if (
+    artifactCriteria.size !== criteria.length
+  ) {
+    throw new Error("artifact criteria must be unique");
+  }
   stringArray(record.requested_path_classes, "requested_path_classes", { nonempty: true });
   if (
     canonicalJson(record.requested_path_classes)
@@ -958,6 +1060,7 @@ export function classifyRoute(
   const p = record.predicates;
   exactKeys(p, ROUTE_PREDICATE_FIELDS, "route predicates");
   const predicateValues = {};
+  const predicateEvidence = {};
   for (const field of ROUTE_PREDICATE_FIELDS) {
     exactKeys(
       p[field],
@@ -967,15 +1070,31 @@ export function classifyRoute(
     if (
       typeof p[field].value !== "boolean"
       || !Array.isArray(p[field].evidence)
-      || p[field].evidence.some((item) => typeof item !== "string" || item.length === 0)
+      || p[field].evidence.some((item) => {
+        try {
+          exactKeys(
+            item,
+            ["evidence_type", "subject_ids", "summary"],
+            `route predicate ${field} evidence`,
+          );
+          if (item.evidence_type !== ROUTE_EVIDENCE_TYPES[field]) return true;
+          stringArray(item.subject_ids, `${field} evidence.subject_ids`, { nonempty: true });
+          nonEmptyString(item.summary, `${field} evidence.summary`);
+          return !item.subject_ids.some((id) => workIds.includes(id));
+        } catch {
+          return true;
+        }
+      })
       || (p[field].value
         ? p[field].evidence.length === 0 || p[field].missing_evidence_reason !== null
-        : typeof p[field].missing_evidence_reason !== "string"
+        : p[field].evidence.length !== 0
+          || typeof p[field].missing_evidence_reason !== "string"
           || p[field].missing_evidence_reason.length === 0)
     ) {
-      throw new Error(`route predicate ${field} lacks closed evidence or missing-evidence reason`);
+      throw new Error(`route predicate ${field} lacks closed structured typed evidence or missing-evidence reason`);
     }
     predicateValues[field] = p[field].value;
+    predicateEvidence[field] = p[field].evidence;
   }
   if (!ROUTE_ACTIVATIONS.has(activation)) {
     throw new Error(`route activation is invalid: ${String(activation)}`);
@@ -985,6 +1104,12 @@ export function classifyRoute(
     if (mapping.result === "criteria") {
       exactKeys(mapping, ["criterion_ids", "result", "work_id"], "route mapping");
       stringArray(mapping.criterion_ids, "route mapping criterion_ids", { nonempty: true });
+      if (
+        new Set(mapping.criterion_ids).size !== mapping.criterion_ids.length
+        || mapping.criterion_ids.some((criterion) => !artifactCriteria.has(criterion))
+      ) {
+        throw new Error(`route mapping ${mapping.work_id} names a criterion outside the artifact criterion set`);
+      }
     } else if (mapping.result === "wrong_decision") {
       exactKeys(mapping, ["clause", "decision_id", "result", "work_id"], "route mapping");
       nonEmptyString(mapping.decision_id, "route mapping decision_id");
@@ -1000,6 +1125,17 @@ export function classifyRoute(
         "route mapping exhaustive_criterion_search",
         { nonempty: true },
       );
+      if (
+        new Set(mapping.exhaustive_criterion_search).size
+          !== mapping.exhaustive_criterion_search.length
+        ||
+        !equalJson(
+          [...new Set(mapping.exhaustive_criterion_search)].sort(compareUtf8),
+          [...artifactCriteria].sort(compareUtf8),
+        )
+      ) {
+        throw new Error(`${mapping.work_id} spec-gap search must cover the complete artifact criterion set`);
+      }
     } else if (mapping.result === "ambiguous") {
       exactKeys(mapping, ["reason", "result", "work_id"], "route mapping");
       nonEmptyString(mapping.reason, "route mapping reason");
@@ -1031,6 +1167,23 @@ export function classifyRoute(
   ) {
     throw new Error("ambiguous lacks a matching work-id mapping");
   }
+  for (const [field, mappingResult] of [
+    ["wrong_decision", "wrong_decision"],
+    ["spec_gap", "spec_gap"],
+    ["ambiguous", "ambiguous"],
+  ]) {
+    if (predicateValues[field]) {
+      const mappedWorkIds = record.mappings
+        .filter((mapping) => mapping.result === mappingResult)
+        .map((mapping) => mapping.work_id);
+      const evidencedWorkIds = new Set(
+        predicateEvidence[field].flatMap((evidence) => evidence.subject_ids),
+      );
+      if (mappedWorkIds.some((workId) => !evidencedWorkIds.has(workId))) {
+        throw new Error(`${field} evidence must bind every mapped work id`);
+      }
+    }
+  }
   const selected = (precedence, route) => ({
     classification: {
       ...record,
@@ -1056,7 +1209,6 @@ export function classifyRoute(
     || (pValue.root_caused && !pValue.reproduced)
     || (pValue.adequate_spec
       && (pValue.wrong_decision || pValue.spec_gap || pValue.ambiguous))
-    || (pValue.wrong_decision && pValue.spec_gap)
   ) {
     throw new Error("route predicates contain contradictory or mutually exclusive state");
   }
@@ -1112,12 +1264,37 @@ async function probeSelectors({ capabilityProbe, defaults, host, selectors, surf
     source: defaults.selector_capability_source,
     surface,
   });
+  exactKeys(
+    result,
+    [
+      "host",
+      "observed_at",
+      "permitted",
+      "probe_identity",
+      "probe_version",
+      "requested_selectors",
+      "response_field",
+      "response_field_payload",
+      "source_identity",
+      "source_version",
+      "surface",
+    ],
+    "resource capability probe result",
+  );
   if (
     !plainObject(result)
     || result.source_identity !== defaults.selector_capability_source.identity
+    || result.source_version !== defaults.selector_capability_source.version
+    || result.probe_identity !== defaults.selector_capability_probe.identity
+    || result.probe_version !== defaults.selector_capability_probe.version
+    || result.response_field !== defaults.selector_capability_probe.response_field
     || result.host !== host
     || result.surface !== surface
     || !equalJson(result.requested_selectors, selectors)
+    || !Array.isArray(result.response_field_payload)
+    || selectors.some((selector) => !result.response_field_payload.includes(selector))
+    || typeof result.observed_at !== "string"
+    || Number.isNaN(Date.parse(result.observed_at))
     || !Array.isArray(result.permitted)
     || selectors.some((selector) => !result.permitted.includes(selector))
   ) {
@@ -1223,6 +1400,8 @@ export function normalizeBillableCall(raw, normalization, rates) {
   const bucketNames = new Set();
   const sourceFields = new Set();
   const partitionFields = new Set();
+  const parents = new Map();
+  const children = new Map();
   if (
     !Array.isArray(normalization.informational_fields)
     || normalization.informational_fields.some((field) => typeof field !== "string")
@@ -1254,6 +1433,15 @@ export function normalizeBillableCall(raw, normalization, rates) {
     }
     sourceFields.add(rule.field);
     partitionFields.add(rule.field);
+    children.set(rule.field, rule.subtract);
+    for (const field of rule.subtract) {
+      if (parents.has(field)) {
+        throw new Error(
+          `token partition field ${field} has shared parents ${parents.get(field)} and ${rule.field}`,
+        );
+      }
+      parents.set(field, rule.field);
+    }
     const source = raw[rule.field];
     if (!Number.isSafeInteger(source) || source < 0) {
       throw new Error(`token field ${rule.field} is missing or invalid`);
@@ -1282,6 +1470,17 @@ export function normalizeBillableCall(raw, normalization, rates) {
       `token partition lacks leaf buckets for ${missingLeafFields.sort(compareUtf8).join(", ")}`,
     );
   }
+  const visitState = new Map();
+  const visit = (field) => {
+    if (visitState.get(field) === "visiting") {
+      throw new Error(`token partition contains a cycle at ${field}; expected an acyclic forest`);
+    }
+    if (visitState.get(field) === "visited") return;
+    visitState.set(field, "visiting");
+    for (const child of children.get(field) ?? []) visit(child);
+    visitState.set(field, "visited");
+  };
+  for (const field of sourceFields) visit(field);
   if ([...informational].some((field) => partitionFields.has(field))) {
     throw new Error("token normalization informational fields cannot overlap billable fields");
   }
@@ -1443,6 +1642,24 @@ export function validateExperimentPreregistration(preregistration) {
   if (!plainObject(preregistration)) {
     throw new Error("experiment preregistration must be an object");
   }
+  exactKeys(
+    preregistration,
+    [
+      "activation",
+      "adoption_truth_tables",
+      "bindings",
+      "commands",
+      "metrics",
+      "price_snapshot",
+      "randomized_order",
+      "remediation_bound",
+      "replacement_tasks",
+      "review_procedures",
+      "rules",
+      "tasks",
+    ],
+    "experiment preregistration",
+  );
   if (preregistration.activation !== "inactive-experiment-only") {
     throw new Error("experiment preregistration must preserve inactive production");
   }
@@ -1454,7 +1671,14 @@ export function validateExperimentPreregistration(preregistration) {
     for (const [stratum, task] of Object.entries(tasks)) {
       exactKeys(
         task,
-        ["code_bearing", "revision", "spec_id", "status", "task_id"],
+        [
+          "code_bearing",
+          "repository_basis",
+          "revision",
+          "spec_id",
+          "status",
+          "task_id",
+        ],
         `${label}.${stratum}`,
       );
       for (const field of ["revision", "spec_id", "task_id"]) {
@@ -1462,6 +1686,10 @@ export function validateExperimentPreregistration(preregistration) {
       }
       if (task.status !== "ratified" || task.code_bearing !== true) {
         throw new Error(`${label}.${stratum} must be a ratified code-bearing specification`);
+      }
+      validateBasis(task.repository_basis, `${label}.${stratum}.repository_basis`);
+      if (task.repository_basis.revision !== task.revision) {
+        throw new Error(`${label}.${stratum} revision must equal its repository basis`);
       }
     }
   };
@@ -1490,6 +1718,7 @@ export function validateExperimentPreregistration(preregistration) {
   }
   if (
     !plainObject(preregistration.commands)
+    || !equalJson(Object.keys(preregistration.commands).sort(compareUtf8), ["tests", "typechecks"])
     || !Array.isArray(preregistration.commands.tests)
     || preregistration.commands.tests.length === 0
     || !Array.isArray(preregistration.commands.typechecks)
@@ -1504,27 +1733,48 @@ export function validateExperimentPreregistration(preregistration) {
     nonEmptyString(command, "preregistered command");
   }
   if (
-    !plainObject(preregistration.review_procedures)
-    || typeof preregistration.review_procedures.conformance !== "string"
-    || typeof preregistration.review_procedures.code_review !== "string"
+    new Set(preregistration.commands.tests).size !== preregistration.commands.tests.length
+    || new Set(preregistration.commands.typechecks).size
+      !== preregistration.commands.typechecks.length
   ) {
-    throw new Error("preregistration must retain conformance and code-review procedures");
+    throw new Error("preregistered commands must be unique within each command class");
+  }
+  if (
+    !plainObject(preregistration.review_procedures)
+    || !equalJson(
+      Object.keys(preregistration.review_procedures).sort(compareUtf8),
+      ["code_review", "conformance"],
+    )
+    || Object.values(preregistration.review_procedures)
+      .some((identity) => typeof identity !== "string" || identity.length === 0)
+  ) {
+    throw new Error("preregistration must retain exact nonempty conformance and code-review procedure identities");
   }
   if (
     !plainObject(preregistration.rules)
-    || typeof preregistration.rules.acceptance !== "string"
-    || typeof preregistration.rules.futility !== "string"
+    || !equalJson(Object.keys(preregistration.rules).sort(compareUtf8), ["acceptance", "futility"])
+    || Object.values(preregistration.rules)
+      .some((identity) => typeof identity !== "string" || identity.length === 0)
     || !plainObject(preregistration.adoption_truth_tables)
-    || typeof preregistration.adoption_truth_tables.baseline_a !== "string"
-    || typeof preregistration.adoption_truth_tables.medium_b !== "string"
+    || !equalJson(
+      Object.keys(preregistration.adoption_truth_tables).sort(compareUtf8),
+      ["baseline_a", "medium_b"],
+    )
+    || Object.values(preregistration.adoption_truth_tables)
+      .some((identity) => typeof identity !== "string" || identity.length === 0)
     || !Array.isArray(preregistration.metrics)
-    || preregistration.metrics.length === 0
+    || preregistration.metrics.length !== EXPERIMENT_METRICS.length
+    || !equalJson(
+      [...new Set(preregistration.metrics)].sort(compareUtf8),
+      [...EXPERIMENT_METRICS].sort(compareUtf8),
+    )
   ) {
-    throw new Error("preregistration must retain rules, metrics, and adoption truth tables");
+    throw new Error("preregistration must retain exact rule/truth-table identities and the full fixed metrics");
   }
   const bindings = preregistration.bindings;
   if (
     !plainObject(bindings)
+    || !equalJson(Object.keys(bindings).sort(compareUtf8), ["arm_a", "arm_b", "arm_c"])
     || !plainObject(bindings.arm_a)
     || !plainObject(bindings.arm_b)
     || !plainObject(bindings.arm_c)
@@ -1532,21 +1782,87 @@ export function validateExperimentPreregistration(preregistration) {
     throw new Error("preregistration must retain all three resource bindings");
   }
   const armA = bindings.arm_a;
+  const validateCapabilityBinding = (binding, label) => {
+    for (const field of [
+      "capability_probe_identity",
+      "capability_source_identity",
+      "host",
+      "surface",
+    ]) {
+      nonEmptyString(binding[field], `${label}.${field}`);
+    }
+    if (!/^[0-9a-f]{64}$/.test(binding.capability_response_identity)) {
+      throw new Error(`${label}.capability_response_identity must be lowercase SHA-256`);
+    }
+    if (
+      typeof binding.capability_observed_at !== "string"
+      || Number.isNaN(Date.parse(binding.capability_observed_at))
+    ) {
+      throw new Error(`${label}.capability_observed_at must be a valid observed time`);
+    }
+  };
+  exactKeys(
+    armA,
+    [
+      "capability_observed_at",
+      "capability_probe_identity",
+      "capability_response_identity",
+      "capability_source_identity",
+      "executor_model_id",
+      "host",
+      "premium_selector",
+      "pre_adoption_selector",
+      "reviewer_model_id",
+      "surface",
+    ],
+    "bindings.arm_a",
+  );
+  exactKeys(
+    bindings.arm_b,
+    [
+      "capability_observed_at",
+      "capability_probe_identity",
+      "capability_response_identity",
+      "capability_source_identity",
+      "effective_resource_map",
+      "executor_model_id",
+      "host",
+      "reviewer_model_id",
+      "surface",
+    ],
+    "bindings.arm_b",
+  );
+  exactKeys(
+    bindings.arm_c,
+    [
+      "capability_observed_at",
+      "capability_probe_identity",
+      "capability_response_identity",
+      "capability_source_identity",
+      "effective_resource_map",
+      "executor_model_id",
+      "host",
+      "planner_model_id",
+      "reviewer_model_id",
+      "surface",
+    ],
+    "bindings.arm_c",
+  );
+  validateCapabilityBinding(armA, "bindings.arm_a");
+  validateCapabilityBinding(bindings.arm_b, "bindings.arm_b");
+  validateCapabilityBinding(bindings.arm_c, "bindings.arm_c");
   if (
-    typeof armA.capability_probe_identity !== "string"
-    || typeof armA.executor_model_id !== "string"
+    typeof armA.executor_model_id !== "string"
     || armA.premium_selector !== armA.pre_adoption_selector
     || armA.executor_model_id !== armA.premium_selector
   ) {
     throw new Error("arm A premium selector must equal the capability-proven pre-adoption selector");
   }
   if (
-    typeof bindings.arm_b.capability_probe_identity !== "string"
-    || typeof bindings.arm_b.executor_model_id !== "string"
+    typeof bindings.arm_b.executor_model_id !== "string"
     || typeof bindings.arm_b.reviewer_model_id !== "string"
     || bindings.arm_b.effective_resource_map?.["execution-medium"]
       !== bindings.arm_b.executor_model_id
-    || typeof bindings.arm_c.capability_probe_identity !== "string"
     || typeof bindings.arm_c.executor_model_id !== "string"
     || typeof bindings.arm_c.planner_model_id !== "string"
     || typeof bindings.arm_c.reviewer_model_id !== "string"
@@ -1562,9 +1878,13 @@ export function validateExperimentPreregistration(preregistration) {
   }
 
   const snapshot = preregistration.price_snapshot;
+  if (plainObject(snapshot)) {
+    exactKeys(snapshot, ["dated_identity", "models", "observed_at"], "price_snapshot");
+  }
   if (
     !plainObject(snapshot)
     || typeof snapshot.dated_identity !== "string"
+    || snapshot.dated_identity.length === 0
     || !/^\d{4}-\d{2}-\d{2}$/.test(snapshot.observed_at ?? "")
     || !plainObject(snapshot.models)
   ) {
@@ -1589,6 +1909,12 @@ export function validateExperimentPreregistration(preregistration) {
     ) {
       throw new Error(`price snapshot lacks complete normalization/rates for ${modelId}`);
     }
+    exactKeys(model, ["normalization", "rates", "tier"], `price snapshot model ${modelId}`);
+    exactKeys(
+      model.normalization,
+      ["buckets", "informational_fields"],
+      `price snapshot model ${modelId} normalization`,
+    );
     const raw = {};
     for (const rule of model.normalization.buckets ?? []) {
       raw[rule.field] = 0;
@@ -1620,11 +1946,90 @@ function validateRunResult(
   if (!plainObject(run) || !["A", "B", "C"].includes(run.arm)) {
     throw new Error("experiment run result is invalid");
   }
+  exactKeys(
+    run,
+    [
+      "ambiguities_caught_before_implementation",
+      "arm",
+      "code_review_blocking_observed",
+      "code_review_findings",
+      "command_outcomes",
+      "conformance_findings",
+      "conformance_verdict",
+      "executor_deviations",
+      "fixture_proof",
+      "independent_upstream_finding",
+      "invalid_packet_anchors",
+      "model_calls",
+      "remediation_dispatches_by_type",
+      "repetition",
+      "repository_basis",
+      "required_tests_pass",
+      "required_typechecks_pass",
+      "resource_binding_proof",
+      "review_history",
+      "task",
+      "terminal_code_review_blocking",
+      "unused_plan_steps",
+      "upstream_status",
+    ],
+    "experiment run",
+  );
   if (run.arm !== arm || run.repetition !== repetition || run.task !== task.task_id) {
     throw new Error(
       `runner result identity does not match requested task/arm/repetition cell ${task.task_id}/${arm}/${repetition}`,
     );
   }
+  validateBasis(run.repository_basis, "experiment run repository_basis");
+  if (!equalJson(run.repository_basis, task.repository_basis)) {
+    throw new Error("experiment run repository revision/worktree basis differs from its preregistered task");
+  }
+  exactKeys(
+    run.fixture_proof,
+    [
+      "fixture_id",
+      "fresh",
+      "isolated",
+      "repository_basis",
+      "spec_id",
+      "task_id",
+    ],
+    "experiment run fixture_proof",
+  );
+  nonEmptyString(run.fixture_proof.fixture_id, "experiment run fixture_proof.fixture_id");
+  if (
+    run.fixture_proof.fresh !== true
+    || run.fixture_proof.isolated !== true
+    || run.fixture_proof.spec_id !== task.spec_id
+    || run.fixture_proof.task_id !== task.task_id
+    || !equalJson(run.fixture_proof.repository_basis, task.repository_basis)
+  ) {
+    throw new Error("experiment run lacks fresh isolated identical-basis fixture proof");
+  }
+  const binding = preregistration.bindings[`arm_${arm.toLowerCase()}`];
+  if (!equalJson(run.resource_binding_proof, binding)) {
+    throw new Error("experiment run resource proof differs from its preregistered arm binding");
+  }
+  exactKeys(run.command_outcomes, ["tests", "typechecks"], "experiment run command_outcomes");
+  const validateCommandOutcomes = (kind, summary) => {
+    const expected = preregistration.commands[kind];
+    const outcomes = run.command_outcomes[kind];
+    if (!Array.isArray(outcomes) || outcomes.length !== expected.length) {
+      throw new Error(`experiment run ${kind} command outcomes are incomplete`);
+    }
+    for (let index = 0; index < outcomes.length; index += 1) {
+      exactKeys(outcomes[index], ["command", "passed"], `${kind} command outcome`);
+      if (
+        outcomes[index].command !== expected[index]
+        || typeof outcomes[index].passed !== "boolean"
+      ) {
+        throw new Error(`experiment run ${kind} command outcome differs from preregistration`);
+      }
+    }
+    if (outcomes.every((outcome) => outcome.passed) !== summary) {
+      throw new Error(`experiment run ${kind} aggregate contradicts command outcomes`);
+    }
+  };
   if (
     typeof run.required_tests_pass !== "boolean"
     || typeof run.required_typechecks_pass !== "boolean"
@@ -1634,6 +2039,8 @@ function validateRunResult(
   ) {
     throw new Error("experiment run lacks required test/typecheck/review outcomes");
   }
+  validateCommandOutcomes("tests", run.required_tests_pass);
+  validateCommandOutcomes("typechecks", run.required_typechecks_pass);
   for (const field of [
     "ambiguities_caught_before_implementation",
     "code_review_findings",
@@ -1675,7 +2082,6 @@ function validateRunResult(
   if (!Array.isArray(run.model_calls) || run.model_calls.length === 0) {
     throw new Error("experiment run must retain every raw model call");
   }
-  const binding = preregistration.bindings[`arm_${arm.toLowerCase()}`];
   const expectedModelForRole = (role) => {
     if (role === "planner" || role === "planner-remediation") {
       return binding.planner_model_id;
@@ -1769,6 +2175,51 @@ function validateRunResult(
       `model call sequence/cardinality differs from arm ${arm} and classified remediations`,
     );
   }
+  if (!Array.isArray(run.review_history)) {
+    throw new Error("experiment run review history must be an array");
+  }
+  const expectedReviewRounds = byType["reviewer-return loop"] + 1;
+  if (run.review_history.length !== expectedReviewRounds * 2) {
+    throw new Error("experiment run review history does not match classified reviewer-return loops");
+  }
+  let blockingCodeReviewObserved = false;
+  for (let round = 1; round <= expectedReviewRounds; round += 1) {
+    const conformance = run.review_history[(round - 1) * 2];
+    const codeReview = run.review_history[(round - 1) * 2 + 1];
+    for (const [entry, reviewer] of [
+      [conformance, "conformance-reviewer"],
+      [codeReview, "code-reviewer"],
+    ]) {
+      exactKeys(entry, ["blocking", "reviewer", "round", "verdict"], "review history entry");
+      if (
+        entry.reviewer !== reviewer
+        || entry.round !== round
+        || typeof entry.blocking !== "boolean"
+        || !["PASS", "FAIL", "UPSTREAM-INDICTED"].includes(entry.verdict)
+        || entry.blocking === (entry.verdict === "PASS")
+      ) {
+        throw new Error(`experiment run review history is invalid at round ${round}`);
+      }
+    }
+    if (codeReview.blocking) blockingCodeReviewObserved = true;
+    const terminal = round === expectedReviewRounds;
+    if (!terminal && !conformance.blocking && !codeReview.blocking) {
+      throw new Error("reviewer-return loop lacks a preceding classified blocking review");
+    }
+    if (
+      terminal
+      && (
+        conformance.verdict !== run.conformance_verdict
+        || codeReview.blocking !== run.terminal_code_review_blocking
+        || (run.accepted_quality === 1 && codeReview.verdict !== "PASS")
+      )
+    ) {
+      throw new Error("terminal review history contradicts the run's terminal review outcome");
+    }
+  }
+  if (blockingCodeReviewObserved !== run.code_review_blocking_observed) {
+    throw new Error("review history contradicts observed blocking code-review incidence");
+  }
   run.measurement_valid = true;
   run.premium_tokens = premiumTokens;
   run.total_elapsed_ms = totalElapsed;
@@ -1839,6 +2290,15 @@ export async function runPlanningExperiment({
   const results = [];
   const invalidationOverhead = [];
   const effectiveTasks = structuredClone(preregistration.tasks);
+  const observedFixtureIds = new Set();
+  const validateFreshRun = (run, identity) => {
+    validateRunResult(run, identity);
+    const fixtureId = run.fixture_proof.fixture_id;
+    if (observedFixtureIds.has(fixtureId)) {
+      throw new Error(`experiment run reuses non-fresh fixture identity ${fixtureId}`);
+    }
+    observedFixtureIds.add(fixtureId);
+  };
   const runOrder = async (repetition, taskMap = effectiveTasks) => {
     for (const cell of preregistration.randomized_order) {
       const [stratum, arm] = cell.split(":");
@@ -1846,7 +2306,7 @@ export async function runPlanningExperiment({
         throw new Error(`invalid randomized experiment cell ${cell}`);
       }
       const run = await runCell({ arm, repetition, stratum, task: taskMap[stratum] });
-      validateRunResult(run, {
+      validateFreshRun(run, {
         arm,
         preregistration,
         repetition,
@@ -1885,7 +2345,7 @@ export async function runPlanningExperiment({
             stratum,
             task: replacement,
           });
-          validateRunResult(run, {
+          validateFreshRun(run, {
             arm,
             preregistration,
             repetition,

@@ -26,14 +26,17 @@
       },
       "selector_capability_source": {
         "identity": "codex-cli-0.145.0-app-server-protocol-v2-model-list",
-        "kind": "host-runtime-model-catalog"
+        "kind": "host-runtime-model-catalog",
+        "version": "codex-cli-0.145.0"
       },
       "selector_capability_probe": {
+        "identity": "codex-app-server-model-list-probe",
         "operation": "model/list",
         "request": {
           "includeHidden": true
         },
-        "response_field": "data[].model"
+        "response_field": "data[].model",
+        "version": "2"
       }
     }
   },

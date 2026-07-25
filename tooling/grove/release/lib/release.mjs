@@ -324,12 +324,21 @@ export function validatePlanningReleaseMetadata(
     errors.push('metadata/hosts.json must declare resource defaults and pre-adoption direct selectors');
     return errors;
   }
-  const experimentHosts = new Set(
-    Object.keys(hosts.pre_adoption_direct_executor),
-  );
+  const defaultHosts = Object.keys(hosts.resource_defaults);
+  const baselineHosts = Object.keys(hosts.pre_adoption_direct_executor);
+  const experimentHosts = new Set([...defaultHosts, ...baselineHosts]);
+  if (
+    JSON.stringify(defaultHosts.sort()) !== JSON.stringify(baselineHosts.sort())
+  ) {
+    errors.push('resource-default and pre-adoption host sets must match exactly');
+  }
+  const surfaceRows = Array.isArray(surfaces?.rows) ? surfaces.rows : [];
   for (const host of experimentHosts) {
     const defaults = hosts.resource_defaults[host];
     const baseline = hosts.pre_adoption_direct_executor[host];
+    const declaredSurfaces = Array.isArray(defaults?.surfaces)
+      ? defaults.surfaces
+      : [];
     if (
       !plainObject(defaults)
       || !plainObject(defaults.classes)
@@ -337,13 +346,29 @@ export function validatePlanningReleaseMetadata(
       || !nonEmpty(defaults.classes['execution-medium'])
       || !plainObject(defaults.selector_capability_source)
       || !nonEmpty(defaults.selector_capability_source.identity)
+      || !nonEmpty(defaults.selector_capability_source.version)
       || !plainObject(defaults.selector_capability_probe)
+      || !nonEmpty(defaults.selector_capability_probe.identity)
       || !nonEmpty(defaults.selector_capability_probe.operation)
       || !nonEmpty(defaults.selector_capability_probe.response_field)
+      || !nonEmpty(defaults.selector_capability_probe.version)
       || !Array.isArray(defaults.surfaces)
       || !defaults.surfaces.includes(baseline?.surface_id)
     ) {
       errors.push(`${host} experiment support requires complete class defaults, exact surfaces, and an authoritative selector capability source/probe`);
+    }
+    for (const surfaceId of new Set([
+      ...declaredSurfaces,
+      baseline?.surface_id,
+    ].filter(nonEmpty))) {
+      const matchingRows = surfaceRows.filter(
+        (row) => row?.surface_id === surfaceId && row?.host === host,
+      );
+      if (matchingRows.length !== 1) {
+        errors.push(
+          `${host} experiment surface ${surfaceId} must resolve to exactly one same-host surface matrix row`,
+        );
+      }
     }
     if (
       !plainObject(baseline)

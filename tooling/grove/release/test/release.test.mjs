@@ -187,6 +187,18 @@ test('INV37/INV42/INV50/INV51/S35/S50 — first planner release is oracle-comple
     ).join('\n'),
     /resource|class|experiment/i,
   );
+
+  const fabricatedSurface = structuredClone(hosts);
+  fabricatedSurface.resource_defaults.codex.surfaces = ['fabricated-codex-surface'];
+  fabricatedSurface.pre_adoption_direct_executor.codex.surface_id =
+    'fabricated-codex-surface';
+  assert.match(
+    validatePlanningReleaseMetadata(
+      { hosts: fabricatedSurface, roles, surfaces },
+      { release: false },
+    ).join('\n'),
+    /surface.*row|matrix|fabricated|host.*surface/i,
+  );
 });
 
 test('INV6/S3 — bridge viability remains a candidate until full support evidence exists', () => {
