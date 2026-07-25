@@ -1,7 +1,8 @@
 // Upstream: spec-0004-dual-host-distribution@v5 INV38–INV57;
 // S36–S58. Decisions: adr-0036-pre-execution-planning.
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -175,6 +176,95 @@ test("INV38/INV52/INV56/S48/S57 — packet wire is canonical, closed, exhaustive
     }),
     /orphan.*CA2/i,
   );
+
+  const unresolvedGap = executablePacket();
+  unresolvedGap.outcome = "blocked";
+  unresolvedGap.code_anchors = [];
+  unresolvedGap.criterion_test_map = [
+    { criterion_id: "INV38", disposition: "blocked", gap_id: "GHOST" },
+    { criterion_id: "S48", disposition: "blocked", gap_id: "GHOST" },
+  ];
+  unresolvedGap.slices = [];
+  unresolvedGap.test_anchors = [];
+  unresolvedGap.verification = [];
+  unresolvedGap.verification_oracles = [];
+  assert.throws(
+    () => validatePlanPacket(Buffer.from(canonicalJson(unresolvedGap)), {
+      artifact: ARTIFACT,
+      criteria: ["INV38", "S48"],
+      repositoryBasis: BASIS,
+    }),
+    /gap.*GHOST.*unresolved|unresolved.*GHOST/i,
+  );
+
+  const dirtyPacket = executablePacket();
+  const invalidManifest = [{
+    content_identity: "not-a-digest",
+    kind: "bogus",
+    mode: null,
+    path: "",
+    state: "bogus",
+  }];
+  dirtyPacket.repository_basis = {
+    assumptions: ["z-last", "a-first"],
+    revision: BASIS.revision,
+    worktree_identity: createHash("sha256")
+      .update(canonicalJson(invalidManifest))
+      .digest("hex"),
+    worktree_kind: "disclosed-dirty",
+    worktree_manifest: invalidManifest,
+  };
+  assert.throws(
+    () => validatePlanPacket(Buffer.from(canonicalJson(dirtyPacket)), {
+      artifact: ARTIFACT,
+      criteria: ["INV38", "S48"],
+      repositoryBasis: dirtyPacket.repository_basis,
+    }),
+    /assumptions.*sort|manifest|kind|state|mode|content_identity|path/i,
+  );
+
+  const crossCriterion = executablePacket();
+  crossCriterion.criterion_test_map[1] = {
+    criterion_id: "S48",
+    disposition: "implement",
+    failing_test_ids: ["TA2"],
+    slice_ids: ["SL4", "SL5"],
+  };
+  crossCriterion.test_anchors.push({
+    command_id: "CMD1",
+    criterion_ids: ["S48"],
+    evidence: "second criterion target",
+    fact_class: "inferred",
+    path: "tooling/grove/release/test/planning-v5.test.mjs",
+    symbol: "second criterion",
+    test_anchor_id: "TA2",
+  });
+  crossCriterion.slices[0].test_anchor_ids.push("TA2");
+  crossCriterion.slices.push(
+    {
+      code_anchor_ids: [],
+      criterion_ids: ["S48"],
+      phase: "red",
+      slice_id: "SL4",
+      test_anchor_ids: ["TA2"],
+    },
+    {
+      code_anchor_ids: ["CA1"],
+      criterion_ids: ["S48"],
+      phase: "green",
+      slice_id: "SL5",
+      test_anchor_ids: ["TA2"],
+    },
+  );
+  crossCriterion.verification_oracles = [];
+  assert.throws(
+    () => validatePlanPacket(Buffer.from(canonicalJson(crossCriterion)), {
+      artifact: ARTIFACT,
+      criteria: ["INV38", "S48"],
+      repositoryBasis: BASIS,
+    }),
+    /SL1.*TA2.*criterion|cross-criterion/i,
+  );
 });
 
 test("INV53/S52 — checkpoint embeds the unchanged packet and exact progress partitions", () => {
@@ -252,37 +342,89 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
   assert.equal(scope.work_items.length, 2);
   assert.match(scope.work_scope_identity, /^[0-9a-f]{64}$/);
 
+  const predicate = (value, detail) => ({
+    evidence: value ? [detail] : [],
+    missing_evidence_reason: value ? null : detail,
+    value,
+  });
   const base = {
+    artifact: ARTIFACT,
+    classification_schema: 1,
     mappings: scope.work_items.map((item) => ({
       criterion_ids: ["INV55"],
+      result: "criteria",
       work_id: item.work_id,
     })),
     predicates: {
-      adequate_spec: true,
-      ambiguous: false,
-      code_bearing: true,
-      decision_only_non_code: false,
-      localized: false,
-      reproduced: false,
-      root_caused: false,
-      spec_gap: false,
-      wrong_decision: false,
+      adequate_spec: predicate(true, "all work ids map to INV55"),
+      ambiguous: predicate(false, "all required evidence is present"),
+      code_bearing: predicate(true, "source and test changes requested"),
+      decision_only_non_code: predicate(false, "request changes executable behavior"),
+      localized: predicate(false, "forward construction is not a localized slip"),
+      reproduced: predicate(false, "forward construction has no prior failure"),
+      root_caused: predicate(false, "forward construction has no prior failure"),
+      spec_gap: predicate(false, "exhaustive criterion search maps all work"),
+      wrong_decision: predicate(false, "no approved decision contradicts the work"),
     },
-    work_scope: scope,
+    repository_basis: BASIS,
+    requested_path_classes: ["source", "test"],
+    work_items: scope.work_items,
+    work_scope_identity: scope.work_scope_identity,
   };
   assert.equal(
-    classifyRoute(base, { activation: "inactive-ordinary-production" }).route,
+    classifyRoute(base, {
+      activation: "inactive-ordinary-production",
+      artifact: ARTIFACT,
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }).route,
     "direct-executor-pre-adoption",
   );
   assert.equal(
-    classifyRoute(base, { activation: "experiment-arm-c" }).route,
+    classifyRoute(base, {
+      activation: "experiment-arm-c",
+      artifact: ARTIFACT,
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }).route,
     "implementation-planner",
   );
 
   const gap = structuredClone(base);
-  gap.predicates.spec_gap = true;
-  gap.mappings[0] = { result: "spec_gap", work_id: "WB1" };
-  assert.equal(classifyRoute(gap, { activation: "experiment-arm-c" }).route, "spec-reconvergence");
+  gap.predicates.spec_gap = predicate(true, "WB1 is absent from the ratified criteria");
+  gap.predicates.adequate_spec = predicate(false, "WB1 is uncovered");
+  gap.mappings[0] = {
+    exhaustive_criterion_search: ["INV55"],
+    result: "spec_gap",
+    work_id: "WB1",
+  };
+  assert.equal(classifyRoute(gap, {
+    activation: "experiment-arm-c",
+    artifact: ARTIFACT,
+    repositoryBasis: BASIS,
+    workScope: scope,
+  }).route, "spec-reconvergence");
+
+  const incomplete = structuredClone(base);
+  delete incomplete.predicates.ambiguous;
+  assert.throws(
+    () => classifyRoute(incomplete, {
+      activation: "experiment-arm-c",
+      artifact: ARTIFACT,
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }),
+    /predicate.*exact|missing.*ambiguous/i,
+  );
+  assert.throws(
+    () => classifyRoute(base, {
+      activation: "surprise-activation",
+      artifact: ARTIFACT,
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }),
+    /activation/i,
+  );
 
   assert.throws(
     () => buildWorkScope({
@@ -290,6 +432,30 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
       sources: [{ bytes: request, locator: "dispatch-request", revision: "request-1" }],
     }),
     /gap|coverage/i,
+  );
+
+  assert.throws(
+    () => buildWorkScope({
+      coverage: [
+        {
+          disposition: "desired-behavior",
+          end_byte: 1,
+          reason: "first byte",
+          source_id: "SRC1",
+          start_byte: 0,
+          statement: "fragment",
+        },
+        {
+          disposition: "context",
+          end_byte: 2,
+          reason: "second byte",
+          source_id: "SRC1",
+          start_byte: 1,
+        },
+      ],
+      sources: [{ bytes: "é", locator: "dispatch-request", revision: "request-utf8" }],
+    }),
+    /UTF-8 scalar boundary/i,
   );
 });
 
@@ -425,9 +591,40 @@ test("INV46/S45/S54 — token normalization forms disjoint priced buckets", () =
     ),
     /negative|partition/i,
   );
+
+  assert.throws(
+    () => normalizeBillableCall(
+      { input: 100 },
+      {
+        buckets: [
+          { bucket: "input_primary", field: "input", subtract: [] },
+          { bucket: "input_again", field: "input", subtract: [] },
+        ],
+        informational_fields: [],
+      },
+      { input_again: 1, input_primary: 1 },
+    ),
+    /source partition|field.*input.*duplicate|double/i,
+  );
 });
 
-function result({
+function rawModelCall({ modelId, role, tokens = 0, attempt = 1 }) {
+  return {
+    attempt,
+    elapsed_ms: 1,
+    model_id: modelId,
+    raw_provider_fields: {
+      cached_input: 0,
+      input: tokens,
+      output: 0,
+      reasoning: 0,
+      total: tokens,
+    },
+    role,
+  };
+}
+
+function rawResult({
   arm,
   task,
   repetition = 1,
@@ -436,13 +633,59 @@ function result({
   premium = 10,
   cost = 10,
   remediation = 0,
+  upstreamStatus = "valid",
+  independentUpstreamFinding = null,
 }) {
+  const calls = [];
+  if (arm === "C") {
+    calls.push(rawModelCall({
+      modelId: "premium-1",
+      role: "planner",
+      tokens: premium,
+    }));
+    calls.push(rawModelCall({
+      attempt: 2,
+      modelId: "medium-1",
+      role: "executor",
+      tokens: cost - premium,
+    }));
+  } else {
+    calls.push(rawModelCall({
+      modelId: arm === "A" ? "premium-1" : "medium-1",
+      role: "executor",
+      tokens: cost,
+    }));
+  }
+  calls.push(
+    rawModelCall({
+      attempt: calls.length + 1,
+      modelId: "premium-1",
+      role: "conformance-reviewer",
+    }),
+    rawModelCall({
+      attempt: calls.length + 2,
+      modelId: "premium-1",
+      role: "code-reviewer",
+    }),
+  );
+  for (let index = 0; index < remediation; index += 1) {
+    calls.push(rawModelCall({
+      attempt: calls.length + 1,
+      modelId: arm === "A" ? "premium-1" : "medium-1",
+      role: "executor-remediation",
+    }));
+  }
   return {
+    ambiguities_caught_before_implementation: [],
     arm,
     code_review_blocking_observed: blocking === 1,
+    code_review_findings: blocking === 1 ? ["blocking code-review finding"] : [],
+    conformance_findings: accepted === 1 ? [] : ["conformance did not pass"],
     conformance_verdict: accepted === 1 ? "PASS" : "FAIL",
-    measurement_valid: true,
-    premium_tokens: premium,
+    executor_deviations: [],
+    independent_upstream_finding: independentUpstreamFinding,
+    invalid_packet_anchors: [],
+    model_calls: calls,
     repetition,
     remediation_dispatches_by_type: {
       "executor retry": remediation,
@@ -453,16 +696,122 @@ function result({
     required_typechecks_pass: accepted === 1,
     task,
     terminal_code_review_blocking: accepted !== 1,
-    total_weighted_cost: cost,
-    upstream_status: "valid",
+    unused_plan_steps: [],
+    upstream_status: upstreamStatus,
+  };
+}
+
+function analysisResult(options) {
+  const run = rawResult(options);
+  return {
+    ...run,
+    accepted_quality: run.required_tests_pass ? 1 : 0,
+    blocking_finding_run: run.code_review_blocking_observed ? 1 : 0,
+    measurement_valid: true,
+    premium_tokens: options.premium ?? 10,
+    remediation_dispatches: Object.values(run.remediation_dispatches_by_type)
+      .reduce((total, count) => total + count, 0),
+    total_tokens: options.cost ?? 10,
+    total_weighted_cost: options.cost ?? 10,
+  };
+}
+
+function experimentPreregistration() {
+  const normalization = {
+    buckets: [
+      { bucket: "input_uncached", field: "input", subtract: ["cached_input"] },
+      { bucket: "input_cached", field: "cached_input", subtract: [] },
+      { bucket: "output_nonreasoning", field: "output", subtract: ["reasoning"] },
+      { bucket: "output_reasoning", field: "reasoning", subtract: [] },
+    ],
+    informational_fields: ["total"],
+  };
+  const rates = {
+    input_cached: 1,
+    input_uncached: 1,
+    output_nonreasoning: 1,
+    output_reasoning: 1,
+  };
+  return {
+    activation: "inactive-experiment-only",
+    adoption_truth_tables: {
+      baseline_a: "spec-0004@v5#baseline-a-floor",
+      medium_b: "spec-0004@v5#medium-b-advantage",
+    },
+    bindings: {
+      arm_a: {
+        capability_probe_identity: "catalog-probe@1",
+        executor_model_id: "premium-1",
+        premium_selector: "premium-1",
+        pre_adoption_selector: "premium-1",
+        reviewer_model_id: "premium-1",
+      },
+      arm_b: {
+        capability_probe_identity: "catalog-probe@1",
+        effective_resource_map: { "execution-medium": "medium-1" },
+        executor_model_id: "medium-1",
+        reviewer_model_id: "premium-1",
+      },
+      arm_c: {
+        capability_probe_identity: "catalog-probe@1",
+        effective_resource_map: {
+          "execution-medium": "medium-1",
+          "reasoning-heavy": "premium-1",
+        },
+        executor_model_id: "medium-1",
+        planner_model_id: "premium-1",
+        reviewer_model_id: "premium-1",
+      },
+    },
+    commands: {
+      tests: ["npm test --prefix tooling/grove/release"],
+      typechecks: ["npm run typecheck --prefix tooling/grove/release"],
+    },
+    metrics: ["accepted_quality", "premium_tokens", "total_weighted_cost"],
+    price_snapshot: {
+      dated_identity: "provider-price@2026-07-25",
+      models: {
+        "medium-1": {
+          normalization,
+          rates,
+          tier: "medium",
+        },
+        "premium-1": {
+          normalization,
+          rates,
+          tier: "premium",
+        },
+      },
+      observed_at: "2026-07-25",
+    },
+    randomized_order: ["small:A", "small:B", "small:C", "medium:A", "medium:B", "medium:C", "large:A", "large:B", "large:C"],
+    remediation_bound: 2,
+    replacement_tasks: {
+      large: { code_bearing: true, revision: "rev-l2", spec_id: "spec-l2", status: "ratified", task_id: "large-replacement" },
+      medium: { code_bearing: true, revision: "rev-m2", spec_id: "spec-m2", status: "ratified", task_id: "medium-replacement" },
+      small: { code_bearing: true, revision: "rev-s2", spec_id: "spec-s2", status: "ratified", task_id: "small-replacement" },
+    },
+    review_procedures: {
+      code_review: "independent code reviewer; terminal blocking finding fails",
+      conformance: "independent conformance reviewer; PASS required",
+    },
+    rules: {
+      acceptance: "spec-0004@v5#accepted-quality",
+      futility: "spec-0004@v5#futility",
+    },
+    tasks: {
+      large: { code_bearing: true, revision: "rev-l1", spec_id: "spec-l1", status: "ratified", task_id: "large" },
+      medium: { code_bearing: true, revision: "rev-m1", spec_id: "spec-m1", status: "ratified", task_id: "medium" },
+      small: { code_bearing: true, revision: "rev-s1", spec_id: "spec-s1", status: "ratified", task_id: "small" },
+    },
   };
 }
 
 test("INV44/INV47/INV48/S42/S43/S45/S46 — experiment truth tables are totalized", () => {
   const phaseOne = ["small", "medium", "large"].flatMap((task) => [
-    result({ arm: "A", task, accepted: 1, premium: 100, cost: 100 }),
-    result({ arm: "B", task, accepted: 1, premium: 0, cost: 60, remediation: 2 }),
-    result({ arm: "C", task, accepted: 1, premium: 60, cost: 70, remediation: 1 }),
+    analysisResult({ arm: "A", task, accepted: 1, premium: 100, cost: 100 }),
+    analysisResult({ arm: "B", task, accepted: 1, premium: 0, cost: 60, remediation: 2 }),
+    analysisResult({ arm: "C", task, accepted: 1, premium: 60, cost: 70, remediation: 1 }),
   ]);
   assert.deepEqual(evaluateFutility(phaseOne), {
     complete: true,
@@ -471,14 +820,7 @@ test("INV44/INV47/INV48/S42/S43/S45/S46 — experiment truth tables are totalize
   });
 
   const full = [1, 2, 3].flatMap((repetition) =>
-    phaseOne.map((run) => ({
-      ...run,
-      accepted_quality: run.required_tests_pass ? 1 : 0,
-      blocking_finding_run: run.code_review_blocking_observed ? 1 : 0,
-      remediation_dispatches: Object.values(run.remediation_dispatches_by_type)
-        .reduce((total, count) => total + count, 0),
-      repetition,
-    })),
+    phaseOne.map((run) => ({ ...run, repetition })),
   );
   const adoption = evaluateAdoption(full);
   assert.equal(adoption.valid_run_count, 27);
@@ -494,69 +836,19 @@ test("INV44/INV47/INV48/S42/S43/S45/S46 — experiment truth tables are totalize
     evaluateAdoption(noAcceptances).arms.A.cost_per_acceptance,
     "positive-infinity",
   );
+
+  const duplicateGrid = full.map((run) => ({
+    ...run,
+    repetition: 1,
+    task: "small",
+  }));
+  assert.equal(evaluateAdoption(duplicateGrid).adoption_eligible, false);
 });
 
 test("INV44/INV45/INV49/INV51/S47/S55 — harness writes only caller-supplied out-of-tree evidence and never activates", async () => {
   const evidenceRoot = await mkdtemp(path.join(tmpdir(), "grove-planning-evidence-"));
   try {
-    const preregistration = {
-      activation: "inactive-experiment-only",
-      adoption_truth_tables: {
-        baseline_a: "spec-0004@v5#baseline-a-floor",
-        medium_b: "spec-0004@v5#medium-b-advantage",
-      },
-      bindings: {
-        arm_a: {
-          capability_probe_identity: "catalog-probe@1",
-          executor_model_id: "premium-1",
-          premium_selector: "premium-1",
-          pre_adoption_selector: "premium-1",
-        },
-        arm_b: {
-          capability_probe_identity: "catalog-probe@1",
-          effective_resource_map: { "execution-medium": "medium-1" },
-          executor_model_id: "medium-1",
-        },
-        arm_c: {
-          capability_probe_identity: "catalog-probe@1",
-          effective_resource_map: {
-            "execution-medium": "medium-1",
-            "reasoning-heavy": "premium-1",
-          },
-          executor_model_id: "medium-1",
-          planner_model_id: "premium-1",
-        },
-      },
-      commands: {
-        tests: ["npm test --prefix tooling/grove/release"],
-        typechecks: ["npm run typecheck --prefix tooling/grove/release"],
-      },
-      metrics: ["accepted_quality", "premium_tokens", "total_weighted_cost"],
-      price_snapshot: {
-        dated_identity: "provider-price@2026-07-25",
-        normalization_identity: "provider-token-partition@1",
-      },
-      randomized_order: ["small:A", "small:B", "small:C", "medium:A", "medium:B", "medium:C", "large:A", "large:B", "large:C"],
-      remediation_bound: 2,
-      replacement_tasks: {
-        large: { code_bearing: true, revision: "rev-l2", spec_id: "spec-l2", status: "ratified", task_id: "large-replacement" },
-        medium: { code_bearing: true, revision: "rev-m2", spec_id: "spec-m2", status: "ratified", task_id: "medium-replacement" },
-        small: { code_bearing: true, revision: "rev-s2", spec_id: "spec-s2", status: "ratified", task_id: "small-replacement" },
-      },
-      review_procedures: {
-        code_review: "independent code reviewer; terminal blocking finding fails",
-        conformance: "independent conformance reviewer; PASS required",
-      },
-      rules: {
-        acceptance: "spec-0004@v5#accepted-quality",
-        futility: "spec-0004@v5#futility",
-      },
-      tasks: {
-        large: { code_bearing: true, revision: "rev-l1", spec_id: "spec-l1", status: "ratified", task_id: "large" },
-        medium: { code_bearing: true, revision: "rev-m1", spec_id: "spec-m1", status: "ratified", task_id: "medium" },
-        small: { code_bearing: true, revision: "rev-s1", spec_id: "spec-s1", status: "ratified", task_id: "small" },
-      },
-    };
+    const preregistration = experimentPreregistration();
     assert.equal(validateExperimentPreregistration(preregistration), preregistration);
     assert.throws(
       () => validateExperimentPreregistration({
@@ -569,7 +861,7 @@ test("INV44/INV45/INV49/INV51/S47/S55 — harness writes only caller-supplied ou
       /arm A|pre-adoption/i,
     );
     const runCell = async ({ arm, repetition, task }) =>
-      result({
+      rawResult({
         arm,
         cost: arm === "A" ? 100 : arm === "B" ? 60 : 70,
         premium: arm === "A" ? 100 : arm === "C" ? 60 : 0,
@@ -585,6 +877,13 @@ test("INV44/INV45/INV49/INV51/S47/S55 — harness writes only caller-supplied ou
     });
     assert.equal(outcome.results.length, 27);
     assert.equal(outcome.production_activation_changed, false);
+    assert.equal(outcome.results[0].total_tokens, 100);
+    assert.equal(outcome.results[0].total_weighted_cost, 100);
+    assert.equal(outcome.results[0].premium_tokens, 100);
+    assert.equal(outcome.results[0].model_calls[0].price_identity, "provider-price@2026-07-25");
+    assert.ok(Array.isArray(outcome.results[0].model_calls[0].billable_buckets));
+    assert.ok(Array.isArray(outcome.results[0].code_review_findings));
+    assert.ok(Array.isArray(outcome.results[0].conformance_findings));
     assert.deepEqual(
       JSON.parse(await readFile(path.join(evidenceRoot, "results.json"), "utf8")),
       outcome,
@@ -598,6 +897,98 @@ test("INV44/INV45/INV49/INV51/S47/S55 — harness writes only caller-supplied ou
         runCell,
       }),
       /outside.*repository/i,
+    );
+  } finally {
+    await rm(evidenceRoot, { recursive: true, force: true });
+  }
+});
+
+test("INV44/INV45/S43 — harness binds every runner result to its requested task/arm/repetition cell", async () => {
+  const evidenceRoot = await mkdtemp(path.join(tmpdir(), "grove-planning-identity-"));
+  try {
+    await assert.rejects(
+      runPlanningExperiment({
+        evidenceRoot,
+        preregistration: experimentPreregistration(),
+        repoRoot: REPO_ROOT,
+        runCell: async ({ repetition, task }) => rawResult({
+          arm: "B",
+          repetition,
+          task: task.task_id,
+        }),
+      }),
+      /runner.*identity|requested.*cell|task.*arm.*repetition/i,
+    );
+  } finally {
+    await rm(evidenceRoot, { recursive: true, force: true });
+  }
+});
+
+test("INV49/S55 — evidence containment follows filesystem identity before writing", async () => {
+  const fixtureRoot = await mkdtemp(path.join(tmpdir(), "grove-planning-containment-"));
+  const fakeRepo = path.join(fixtureRoot, "repo");
+  const outsideAlias = path.join(fixtureRoot, "outside-alias");
+  await mkdir(fakeRepo);
+  await symlink(fakeRepo, outsideAlias);
+  try {
+    await assert.rejects(
+      runPlanningExperiment({
+        evidenceRoot: outsideAlias,
+        preregistration: experimentPreregistration(),
+        repoRoot: fakeRepo,
+        runCell: async ({ arm, repetition, task }) => rawResult({
+          arm,
+          repetition,
+          task: task.task_id,
+        }),
+      }),
+      /outside.*repository|filesystem identity|symlink/i,
+    );
+    await assert.rejects(
+      readFile(path.join(fakeRepo, "preregistration.json"), "utf8"),
+      /ENOENT/,
+    );
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test("INV49/S47/S55 — a repetition-two upstream finding replaces every completed matched cell symmetrically", async () => {
+  const evidenceRoot = await mkdtemp(path.join(tmpdir(), "grove-planning-replacement-"));
+  try {
+    const outcome = await runPlanningExperiment({
+      evidenceRoot,
+      preregistration: experimentPreregistration(),
+      repoRoot: REPO_ROOT,
+      runCell: async ({ arm, repetition, task }) => rawResult({
+        arm,
+        cost: arm === "A" ? 100 : arm === "B" ? 60 : 70,
+        independentUpstreamFinding:
+          task.task_id === "medium" && repetition === 2 && arm === "B"
+            ? "independent conformance review invalidated spec-m1"
+            : null,
+        premium: arm === "A" ? 100 : arm === "C" ? 60 : 0,
+        remediation: arm === "B" ? 2 : arm === "C" ? 1 : 0,
+        repetition,
+        task: task.task_id,
+        upstreamStatus:
+          task.task_id === "medium" && repetition === 2 && arm === "B"
+            ? "invalidated-upstream"
+            : "valid",
+      }),
+    });
+    assert.equal(outcome.results.length, 27);
+    assert.equal(outcome.results.some((run) => run.task === "medium"), false);
+    assert.equal(
+      outcome.results.filter((run) => run.task === "medium-replacement").length,
+      9,
+    );
+    assert.equal(outcome.invalidation_overhead.length, 6);
+    assert.equal(
+      outcome.invalidation_overhead.every(
+        (run) => run.upstream_status === "invalidated-upstream",
+      ),
+      true,
     );
   } finally {
     await rm(evidenceRoot, { recursive: true, force: true });

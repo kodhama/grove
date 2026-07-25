@@ -450,6 +450,22 @@ test("invalid inventory fails closed on instruction fields, ids, sources, and ou
         pattern: /duplicate role id/i,
       },
       {
+        name: "corrupt first-planner-release oracle marker",
+        mutate: (value) => {
+          value.release_expectation.first_planner_release_oracle = "corrupt-marker";
+        },
+        pattern: /first planner release|oracle/i,
+      },
+      {
+        name: "coordinated marker/count/role corruption",
+        mutate: (value) => {
+          value.release_expectation.first_planner_release_oracle = "corrupt-marker";
+          value.roles = value.roles.filter((role) => role.id !== "code-reviewer");
+          value.release_expectation.expected_role_count = value.roles.length;
+        },
+        pattern: /first planner release|fourteen|oracle/i,
+      },
+      {
         name: "hyphenated native id",
         mutate: (value) => {
           value.roles.find((role) => role.id === "executor").exposures[0].native_id =

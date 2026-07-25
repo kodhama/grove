@@ -15,7 +15,28 @@
     "evidence_identity": null
   },
   "resource_defaults_version": 1,
-  "resource_defaults": {},
+  "resource_defaults": {
+    "codex": {
+      "surfaces": [
+        "codex-exec-non-ephemeral"
+      ],
+      "classes": {
+        "execution-medium": "gpt-5.6-terra",
+        "reasoning-heavy": "gpt-5.6-sol"
+      },
+      "selector_capability_source": {
+        "identity": "codex-cli-0.145.0-app-server-protocol-v2-model-list",
+        "kind": "host-runtime-model-catalog"
+      },
+      "selector_capability_probe": {
+        "operation": "model/list",
+        "request": {
+          "includeHidden": true
+        },
+        "response_field": "data[].model"
+      }
+    }
+  },
   "pre_adoption_direct_executor": {
     "codex": {
       "surface_id": "codex-exec-non-ephemeral",

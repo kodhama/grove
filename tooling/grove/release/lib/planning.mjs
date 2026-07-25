@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { TextDecoder } from "node:util";
 
@@ -31,6 +31,22 @@ const CONTEXT_CLASSES = {
   "experiment-arm-b": ["execution-medium"],
   "experiment-arm-c": ["reasoning-heavy", "execution-medium"],
 };
+const ROUTE_ACTIVATIONS = new Set([
+  "active-adoption",
+  "experiment-arm-c",
+  "inactive-ordinary-production",
+]);
+const ROUTE_PREDICATE_FIELDS = [
+  "adequate_spec",
+  "ambiguous",
+  "code_bearing",
+  "decision_only_non_code",
+  "localized",
+  "reproduced",
+  "root_caused",
+  "spec_gap",
+  "wrong_decision",
+];
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -299,6 +315,15 @@ function validateBasis(value, label = "repository_basis") {
     throw new Error(`${label}.worktree_kind is invalid`);
   }
   stringArray(value.assumptions, `${label}.assumptions`);
+  for (const assumption of value.assumptions) {
+    nonEmptyString(assumption, `${label}.assumptions entry`);
+  }
+  if (
+    canonicalJson(value.assumptions)
+    !== canonicalJson([...new Set(value.assumptions)].sort(compareUtf8))
+  ) {
+    throw new Error(`${label}.assumptions must be unique and sorted by UTF-8 bytes`);
+  }
   if (!Array.isArray(value.worktree_manifest)) {
     throw new Error(`${label}.worktree_manifest must be an array`);
   }
@@ -316,6 +341,40 @@ function validateBasis(value, label = "repository_basis") {
         ["content_identity", "kind", "mode", "path", "state"],
         `${label}.worktree_manifest entry`,
       );
+      nonEmptyString(entry.path, `${label}.worktree_manifest.path`);
+      if (
+        path.isAbsolute(entry.path)
+        || path.normalize(entry.path) !== entry.path
+        || entry.path.split(path.sep).includes("..")
+      ) {
+        throw new Error(`${label}.worktree_manifest.path must be normalized and repository-relative`);
+      }
+      if (!["added", "modified", "deleted"].includes(entry.state)) {
+        throw new Error(`${label}.worktree_manifest.state is invalid`);
+      }
+      if (!["regular", "symlink", "deleted"].includes(entry.kind)) {
+        throw new Error(`${label}.worktree_manifest.kind is invalid`);
+      }
+      if (
+        entry.state === "deleted"
+          ? entry.kind !== "deleted"
+            || entry.mode !== "deleted"
+            || entry.content_identity !== "deleted"
+          : entry.kind === "deleted"
+            || !["100644", "100755", "120000"].includes(entry.mode)
+            || (entry.kind === "symlink") !== (entry.mode === "120000")
+            || !/^[0-9a-f]{64}$/.test(entry.content_identity)
+      ) {
+        throw new Error(`${label}.worktree_manifest kind/state/mode/content_identity is inconsistent`);
+      }
+    }
+    if (
+      canonicalJson(value.worktree_manifest.map((entry) => entry.path))
+      !== canonicalJson(
+        [...new Set(value.worktree_manifest.map((entry) => entry.path))].sort(compareUtf8),
+      )
+    ) {
+      throw new Error(`${label}.worktree_manifest entries must have unique sorted paths`);
     }
     const identity = sha256(Buffer.from(canonicalJson(value.worktree_manifest)));
     if (identity !== value.worktree_identity) {
@@ -330,6 +389,7 @@ function validateRiskCollection(risks, criterionSet) {
     ["ambiguities", "blockers", "risks", "scope_exclusions"],
     "risks_and_gaps",
   );
+  const gaps = new Map();
   for (const [name, entries] of Object.entries(risks)) {
     if (!Array.isArray(entries)) throw new Error(`risks_and_gaps.${name} must be an array`);
     const ids = [];
@@ -344,12 +404,17 @@ function validateRiskCollection(risks, criterionSet) {
       ) {
         throw new Error(`scope exclusion names artifact criterion ${entry.text}`);
       }
+      if (gaps.has(entry.id)) {
+        throw new Error(`risks_and_gaps duplicates gap id ${entry.id}`);
+      }
+      gaps.set(entry.id, { ...entry, collection: name });
       ids.push(entry.id);
     }
     if (JSON.stringify(ids) !== JSON.stringify([...ids].sort(compareUtf8))) {
       throw new Error(`risks_and_gaps.${name} must sort by id`);
     }
   }
+  return gaps;
 }
 
 export function validatePlanPacket(input, {
@@ -464,6 +529,7 @@ export function validatePlanPacket(input, {
     oracles.set(oracle.oracle_id, oracle);
   }
 
+  const gaps = validateRiskCollection(packet.risks_and_gaps, criterionSet);
   const reachedCodes = new Set();
   const reachedTests = new Set();
   const reachedSlices = new Set();
@@ -515,6 +581,14 @@ export function validatePlanPacket(input, {
     } else if (entry.disposition === "blocked") {
       exactKeys(entry, ["criterion_id", "disposition", "gap_id"], `criterion ${criterion}`);
       if (packet.outcome !== "blocked") throw new Error(`${criterion} blocked disposition requires blocked outcome`);
+      const gap = gaps.get(entry.gap_id);
+      if (
+        !gap
+        || gap.blocking !== true
+        || !["blockers", "ambiguities"].includes(gap.collection)
+      ) {
+        throw new Error(`${criterion} gap ${entry.gap_id} is unresolved in risks_and_gaps`);
+      }
     } else {
       throw new Error(`${criterion} disposition is invalid`);
     }
@@ -527,6 +601,13 @@ export function validatePlanPacket(input, {
     }
     for (const testId of slice.test_anchor_ids) {
       if (!testIds.has(testId)) throw new Error(`${slice.slice_id} test anchor ${testId} is unresolved`);
+      const anchor = tests.get(testId);
+      if (
+        anchor.criterion_ids.some((criterion) => !slice.criterion_ids.includes(criterion))
+        || !slice.criterion_ids.some((criterion) => anchor.criterion_ids.includes(criterion))
+      ) {
+        throw new Error(`${slice.slice_id} test anchor ${testId} is cross-criterion`);
+      }
       reachedTests.add(testId);
     }
   }
@@ -551,7 +632,6 @@ export function validatePlanPacket(input, {
     }
   }
 
-  validateRiskCollection(packet.risks_and_gaps, criterionSet);
   if (packet.outcome === "executable") {
     if (implementCount === 0) throw new Error("executable packet requires at least one implement criterion");
     if (packet.criterion_test_map.some((entry) => entry.disposition === "blocked")) {
@@ -719,7 +799,16 @@ export function buildWorkScope({ sources, coverage }) {
   });
   const sourceCoverage = [];
   const workItems = [];
+  const coverageSummary = [];
   for (const source of sourceRecords) {
+    const sourceBytes = Buffer.from(source.bytes_base64, "base64");
+    const sourceText = UTF8.decode(sourceBytes);
+    const scalarBoundaries = new Set([0]);
+    let scalarOffset = 0;
+    for (const scalar of sourceText) {
+      scalarOffset += Buffer.byteLength(scalar);
+      scalarBoundaries.add(scalarOffset);
+    }
     const intervals = coverage
       .filter((item) => item.source_id === source.source_id)
       .sort((left, right) => left.start_byte - right.start_byte);
@@ -732,6 +821,12 @@ export function buildWorkScope({ sources, coverage }) {
         || interval.end_byte > source.byte_length
       ) {
         throw new Error(`source ${source.source_id} coverage has a gap, overlap, or invalid range`);
+      }
+      if (
+        !scalarBoundaries.has(interval.start_byte)
+        || !scalarBoundaries.has(interval.end_byte)
+      ) {
+        throw new Error(`source ${source.source_id} coverage boundary is not a UTF-8 scalar boundary`);
       }
       if (!["desired-behavior", "context"].includes(interval.disposition)) {
         throw new Error(`source ${source.source_id} coverage disposition is invalid`);
@@ -747,8 +842,11 @@ export function buildWorkScope({ sources, coverage }) {
       sourceCoverage.push(record);
       if (interval.disposition === "desired-behavior") {
         nonEmptyString(interval.statement, "desired behavior statement");
-        const bytes = Buffer.from(source.bytes_base64, "base64")
-          .subarray(interval.start_byte, interval.end_byte);
+        const bytes = sourceBytes.subarray(interval.start_byte, interval.end_byte);
+        const statement = UTF8.decode(bytes);
+        if (statement !== interval.statement) {
+          throw new Error(`source ${source.source_id} desired behavior statement does not match its bytes`);
+        }
         workItems.push({
           end_byte: interval.end_byte,
           source_id: source.source_id,
@@ -763,6 +861,22 @@ export function buildWorkScope({ sources, coverage }) {
     if (cursor !== source.byte_length) {
       throw new Error(`source ${source.source_id} coverage is not gap-free`);
     }
+    const sourceIntervals = sourceCoverage.filter(
+      (interval) => interval.source_id === source.source_id,
+    );
+    coverageSummary.push({
+      classified_bytes: cursor,
+      context_intervals: sourceIntervals.filter(
+        (interval) => interval.disposition === "context",
+      ).length,
+      desired_behavior_intervals: sourceIntervals.filter(
+        (interval) => interval.disposition === "desired-behavior",
+      ).length,
+      source_id: source.source_id,
+      work_ids: workItems
+        .filter((item) => item.source_id === source.source_id)
+        .map((item) => item.work_id),
+    });
   }
   if (coverage.length !== sourceCoverage.length) {
     throw new Error("coverage names an unknown or duplicate source interval");
@@ -773,6 +887,7 @@ export function buildWorkScope({ sources, coverage }) {
     work_items: workItems,
   }));
   return {
+    coverage_summary: coverageSummary,
     source_coverage: sourceCoverage,
     sources: sourceRecords,
     work_items: workItems,
@@ -780,11 +895,58 @@ export function buildWorkScope({ sources, coverage }) {
   };
 }
 
-export function classifyRoute(record, { activation }) {
+export function classifyRoute(
+  record,
+  {
+    activation,
+    artifact,
+    repositoryBasis,
+    workScope,
+  },
+) {
   if (!plainObject(record) || !plainObject(record.predicates)) {
     throw new Error("route classification record is invalid");
   }
-  const workIds = record.work_scope?.work_items?.map((item) => item.work_id) ?? [];
+  exactKeys(
+    record,
+    [
+      "artifact",
+      "classification_schema",
+      "mappings",
+      "predicates",
+      "repository_basis",
+      "requested_path_classes",
+      "work_items",
+      "work_scope_identity",
+    ],
+    "route classification",
+  );
+  if (record.classification_schema !== 1) {
+    throw new Error("route classification_schema must equal 1");
+  }
+  validateArtifact(record.artifact, "route artifact");
+  validateBasis(record.repository_basis, "route repository_basis");
+  if (!equalJson(record.artifact, artifact)) {
+    throw new Error("route artifact identity is stale or mismatched");
+  }
+  if (!equalJson(record.repository_basis, repositoryBasis)) {
+    throw new Error("route repository basis is stale or mismatched");
+  }
+  if (
+    !plainObject(workScope)
+    || record.work_scope_identity !== workScope.work_scope_identity
+    || !equalJson(record.work_items, workScope.work_items)
+  ) {
+    throw new Error("route work-scope identity or ordered work items are stale");
+  }
+  stringArray(record.requested_path_classes, "requested_path_classes", { nonempty: true });
+  if (
+    canonicalJson(record.requested_path_classes)
+    !== canonicalJson([...new Set(record.requested_path_classes)].sort(compareUtf8))
+  ) {
+    throw new Error("requested_path_classes must be unique and sorted");
+  }
+  const workIds = record.work_items.map((item) => item.work_id);
   if (
     !Array.isArray(record.mappings)
     || record.mappings.length !== workIds.length
@@ -794,22 +956,112 @@ export function classifyRoute(record, { activation }) {
     throw new Error("route classification must map every work id exactly once");
   }
   const p = record.predicates;
-  if (p.wrong_decision) return { precedence: 1, route: "shaping" };
-  if (p.spec_gap) return { precedence: 2, route: "spec-reconvergence" };
-  if (p.ambiguous || (!p.adequate_spec && !p.decision_only_non_code)) {
-    return { precedence: 3, route: "fail-closed-ambiguous" };
-  }
-  if (p.decision_only_non_code) return { precedence: 4, route: "direct-executor-decision" };
-  if (p.adequate_spec && p.reproduced && p.root_caused && p.localized) {
-    return { precedence: 5, route: "direct-executor-localized-slip" };
-  }
-  if (p.adequate_spec && p.code_bearing) {
-    if (activation === "experiment-arm-c" || activation === "active-adoption") {
-      return { precedence: 6, route: "implementation-planner" };
+  exactKeys(p, ROUTE_PREDICATE_FIELDS, "route predicates");
+  const predicateValues = {};
+  for (const field of ROUTE_PREDICATE_FIELDS) {
+    exactKeys(
+      p[field],
+      ["evidence", "missing_evidence_reason", "value"],
+      `route predicate ${field}`,
+    );
+    if (
+      typeof p[field].value !== "boolean"
+      || !Array.isArray(p[field].evidence)
+      || p[field].evidence.some((item) => typeof item !== "string" || item.length === 0)
+      || (p[field].value
+        ? p[field].evidence.length === 0 || p[field].missing_evidence_reason !== null
+        : typeof p[field].missing_evidence_reason !== "string"
+          || p[field].missing_evidence_reason.length === 0)
+    ) {
+      throw new Error(`route predicate ${field} lacks closed evidence or missing-evidence reason`);
     }
-    return { precedence: 6, route: "direct-executor-pre-adoption" };
+    predicateValues[field] = p[field].value;
   }
-  return { precedence: 7, route: "fail-closed-unclassified" };
+  if (!ROUTE_ACTIVATIONS.has(activation)) {
+    throw new Error(`route activation is invalid: ${String(activation)}`);
+  }
+  for (const mapping of record.mappings) {
+    nonEmptyString(mapping.work_id, "route mapping work_id");
+    if (mapping.result === "criteria") {
+      exactKeys(mapping, ["criterion_ids", "result", "work_id"], "route mapping");
+      stringArray(mapping.criterion_ids, "route mapping criterion_ids", { nonempty: true });
+    } else if (mapping.result === "wrong_decision") {
+      exactKeys(mapping, ["clause", "decision_id", "result", "work_id"], "route mapping");
+      nonEmptyString(mapping.decision_id, "route mapping decision_id");
+      nonEmptyString(mapping.clause, "route mapping clause");
+    } else if (mapping.result === "spec_gap") {
+      exactKeys(
+        mapping,
+        ["exhaustive_criterion_search", "result", "work_id"],
+        "route mapping",
+      );
+      stringArray(
+        mapping.exhaustive_criterion_search,
+        "route mapping exhaustive_criterion_search",
+        { nonempty: true },
+      );
+    } else if (mapping.result === "ambiguous") {
+      exactKeys(mapping, ["reason", "result", "work_id"], "route mapping");
+      nonEmptyString(mapping.reason, "route mapping reason");
+    } else {
+      throw new Error(`route mapping result is invalid for ${mapping.work_id}`);
+    }
+  }
+  if (
+    predicateValues.adequate_spec
+    && record.mappings.some((mapping) => mapping.result !== "criteria")
+  ) {
+    throw new Error("adequate_spec requires criterion mappings for every work id");
+  }
+  if (
+    predicateValues.wrong_decision
+    && !record.mappings.some((mapping) => mapping.result === "wrong_decision")
+  ) {
+    throw new Error("wrong_decision lacks a matching work-id mapping");
+  }
+  if (
+    predicateValues.spec_gap
+    && !record.mappings.some((mapping) => mapping.result === "spec_gap")
+  ) {
+    throw new Error("spec_gap lacks a matching work-id mapping");
+  }
+  if (
+    predicateValues.ambiguous
+    && !record.mappings.some((mapping) => mapping.result === "ambiguous")
+  ) {
+    throw new Error("ambiguous lacks a matching work-id mapping");
+  }
+  const selected = (precedence, route) => ({
+    classification: {
+      ...record,
+      route_result: route,
+      selected_precedence: precedence,
+    },
+    precedence,
+    route,
+  });
+  const pValue = predicateValues;
+  if (pValue.wrong_decision) return selected(1, "shaping");
+  if (pValue.spec_gap) return selected(2, "spec-reconvergence");
+  if (pValue.ambiguous || (!pValue.adequate_spec && !pValue.decision_only_non_code)) {
+    return selected(3, "fail-closed-ambiguous");
+  }
+  if (pValue.decision_only_non_code) return selected(4, "direct-executor-decision");
+  if (
+    pValue.adequate_spec
+    && pValue.reproduced
+    && pValue.root_caused
+    && pValue.localized
+  ) {
+    return selected(5, "direct-executor-localized-slip");
+  }
+  if (pValue.adequate_spec && pValue.code_bearing) {
+    if (activation === "experiment-arm-c" || activation === "active-adoption") {
+      return selected(6, "implementation-planner");
+    }
+    return selected(6, "direct-executor-pre-adoption");
+  }
+  return selected(7, "fail-closed-unclassified");
 }
 
 function validateOverrides(overrides, hostsMetadata) {
@@ -932,6 +1184,7 @@ export function normalizeBillableCall(raw, normalization, rates) {
   }
   const billable = [];
   const bucketNames = new Set();
+  const sourceFields = new Set();
   for (const rule of normalization.buckets) {
     if (
       !plainObject(rule)
@@ -939,11 +1192,16 @@ export function normalizeBillableCall(raw, normalization, rates) {
       || typeof rule.field !== "string"
       || !Array.isArray(rule.subtract)
       || rule.subtract.some((field) => typeof field !== "string")
+      || new Set(rule.subtract).size !== rule.subtract.length
       || bucketNames.has(rule.bucket)
     ) {
       throw new Error("token normalization bucket rule is invalid or duplicated");
     }
     bucketNames.add(rule.bucket);
+    if (sourceFields.has(rule.field)) {
+      throw new Error(`token source partition field ${rule.field} is duplicated`);
+    }
+    sourceFields.add(rule.field);
     const source = raw[rule.field];
     if (!Number.isSafeInteger(source) || source < 0) {
       throw new Error(`token field ${rule.field} is missing or invalid`);
@@ -1039,10 +1297,23 @@ function armSummary(runs, arm) {
 
 export function evaluateAdoption(runs) {
   const valid = validAnalysisRuns(runs);
+  const tasks = [...new Set(valid.map((run) => run.task))].sort(compareUtf8);
+  const grid = new Set(
+    valid.map((run) => `${run.task}\0${run.arm}\0${run.repetition}`),
+  );
+  const exactGrid = (
+    valid.length === 27
+    && tasks.length === 3
+    && grid.size === 27
+    && tasks.every((task) =>
+      ["A", "B", "C"].every((arm) =>
+        [1, 2, 3].every((repetition) =>
+          grid.has(`${task}\0${arm}\0${repetition}`))))
+  );
   const countByArm = Object.fromEntries(
     ["A", "B", "C"].map((arm) => [arm, valid.filter((run) => run.arm === arm).length]),
   );
-  const complete = valid.length === 27 && Object.values(countByArm).every((count) => count === 9);
+  const complete = exactGrid && Object.values(countByArm).every((count) => count === 9);
   const arms = Object.fromEntries(["A", "B", "C"].map((arm) => [arm, armSummary(valid, arm)]));
   const aCost = arms.A.cost_per_acceptance;
   const cCost = arms.C.cost_per_acceptance;
@@ -1073,6 +1344,7 @@ export function evaluateAdoption(runs) {
     adoption_eligible: baselineA && mediumB,
     arms,
     baseline_a_floor: baselineA,
+    complete_grid: complete,
     medium_b_advantage: mediumB,
     valid_run_count: valid.length,
   };
@@ -1161,14 +1433,6 @@ export function validateExperimentPreregistration(preregistration) {
   ) {
     throw new Error("preregistration must retain rules, metrics, and adoption truth tables");
   }
-  if (
-    !plainObject(preregistration.price_snapshot)
-    || typeof preregistration.price_snapshot.dated_identity !== "string"
-    || typeof preregistration.price_snapshot.normalization_identity !== "string"
-  ) {
-    throw new Error("preregistration must retain a dated price and normalization identity");
-  }
-
   const bindings = preregistration.bindings;
   if (
     !plainObject(bindings)
@@ -1190,11 +1454,13 @@ export function validateExperimentPreregistration(preregistration) {
   if (
     typeof bindings.arm_b.capability_probe_identity !== "string"
     || typeof bindings.arm_b.executor_model_id !== "string"
+    || typeof bindings.arm_b.reviewer_model_id !== "string"
     || bindings.arm_b.effective_resource_map?.["execution-medium"]
       !== bindings.arm_b.executor_model_id
     || typeof bindings.arm_c.capability_probe_identity !== "string"
     || typeof bindings.arm_c.executor_model_id !== "string"
     || typeof bindings.arm_c.planner_model_id !== "string"
+    || typeof bindings.arm_c.reviewer_model_id !== "string"
     || bindings.arm_c.effective_resource_map?.["execution-medium"]
       !== bindings.arm_c.executor_model_id
     || bindings.arm_c.effective_resource_map?.["reasoning-heavy"]
@@ -1202,12 +1468,73 @@ export function validateExperimentPreregistration(preregistration) {
   ) {
     throw new Error("arm B/C model ids must equal their capability-proven effective resource maps");
   }
+  if (typeof armA.reviewer_model_id !== "string") {
+    throw new Error("arm A must retain its exact reviewer model id");
+  }
+
+  const snapshot = preregistration.price_snapshot;
+  if (
+    !plainObject(snapshot)
+    || typeof snapshot.dated_identity !== "string"
+    || !/^\d{4}-\d{2}-\d{2}$/.test(snapshot.observed_at ?? "")
+    || !plainObject(snapshot.models)
+  ) {
+    throw new Error("preregistration must retain a dated price snapshot and model tables");
+  }
+  const requiredModelIds = new Set([
+    armA.executor_model_id,
+    armA.reviewer_model_id,
+    bindings.arm_b.executor_model_id,
+    bindings.arm_b.reviewer_model_id,
+    bindings.arm_c.executor_model_id,
+    bindings.arm_c.planner_model_id,
+    bindings.arm_c.reviewer_model_id,
+  ]);
+  for (const modelId of requiredModelIds) {
+    const model = snapshot.models[modelId];
+    if (
+      !plainObject(model)
+      || !["premium", "medium"].includes(model.tier)
+      || !plainObject(model.normalization)
+      || !plainObject(model.rates)
+    ) {
+      throw new Error(`price snapshot lacks complete normalization/rates for ${modelId}`);
+    }
+    const raw = {};
+    for (const rule of model.normalization.buckets ?? []) {
+      raw[rule.field] = 0;
+      for (const field of rule.subtract ?? []) raw[field] = 0;
+    }
+    for (const field of model.normalization.informational_fields ?? []) raw[field] = 0;
+    normalizeBillableCall(raw, model.normalization, model.rates);
+  }
+  if (
+    snapshot.models[armA.executor_model_id].tier !== "premium"
+    || snapshot.models[bindings.arm_c.planner_model_id].tier !== "premium"
+    || snapshot.models[bindings.arm_b.executor_model_id].tier !== "medium"
+    || snapshot.models[bindings.arm_c.executor_model_id].tier !== "medium"
+  ) {
+    throw new Error("preregistered premium/medium bindings contradict the price snapshot tiers");
+  }
   return preregistration;
 }
 
-function validateRunResult(run) {
+function validateRunResult(
+  run,
+  {
+    arm,
+    preregistration,
+    repetition,
+    task,
+  },
+) {
   if (!plainObject(run) || !["A", "B", "C"].includes(run.arm)) {
     throw new Error("experiment run result is invalid");
+  }
+  if (run.arm !== arm || run.repetition !== repetition || run.task !== task.task_id) {
+    throw new Error(
+      `runner result identity does not match requested task/arm/repetition cell ${task.task_id}/${arm}/${repetition}`,
+    );
   }
   if (
     typeof run.required_tests_pass !== "boolean"
@@ -1217,6 +1544,16 @@ function validateRunResult(run) {
     || typeof run.code_review_blocking_observed !== "boolean"
   ) {
     throw new Error("experiment run lacks required test/typecheck/review outcomes");
+  }
+  for (const field of [
+    "ambiguities_caught_before_implementation",
+    "code_review_findings",
+    "conformance_findings",
+    "executor_deviations",
+    "invalid_packet_anchors",
+    "unused_plan_steps",
+  ]) {
+    stringArray(run[field], `experiment run ${field}`);
   }
   const byType = run.remediation_dispatches_by_type;
   const remediationTypes = ["executor retry", "planner retry", "reviewer-return loop"];
@@ -1246,6 +1583,93 @@ function validateRunResult(run) {
     && !run.terminal_code_review_blocking
   ) ? 1 : 0;
   run.blocking_finding_run = run.code_review_blocking_observed ? 1 : 0;
+  if (!Array.isArray(run.model_calls) || run.model_calls.length === 0) {
+    throw new Error("experiment run must retain every raw model call");
+  }
+  const binding = preregistration.bindings[`arm_${arm.toLowerCase()}`];
+  const expectedModelForRole = (role) => {
+    if (role === "planner" || role === "planner-remediation") {
+      return binding.planner_model_id;
+    }
+    if (role === "conformance-reviewer" || role === "code-reviewer") {
+      return binding.reviewer_model_id;
+    }
+    if (
+      ["executor", "executor-remediation", "reviewer-return-executor"].includes(role)
+    ) {
+      return binding.executor_model_id;
+    }
+    return null;
+  };
+  let premiumTokens = 0;
+  let totalTokens = 0;
+  let totalWeightedCost = 0;
+  let totalElapsed = 0;
+  const observedRoles = [];
+  const observedAttempts = new Set();
+  run.model_calls = run.model_calls.map((call) => {
+    exactKeys(
+      call,
+      ["attempt", "elapsed_ms", "model_id", "raw_provider_fields", "role"],
+      "raw model call",
+    );
+    const expectedModel = expectedModelForRole(call.role);
+    if (
+      !expectedModel
+      || call.model_id !== expectedModel
+      || !Number.isSafeInteger(call.attempt)
+      || call.attempt < 1
+      || !Number.isSafeInteger(call.elapsed_ms)
+      || call.elapsed_ms < 0
+    ) {
+      throw new Error(`model call role/model/attempt/time is invalid for ${call.role}`);
+    }
+    if (observedAttempts.has(call.attempt)) {
+      throw new Error(`model call attempt ${call.attempt} is duplicated`);
+    }
+    observedAttempts.add(call.attempt);
+    observedRoles.push(call.role);
+    const price = preregistration.price_snapshot.models[call.model_id];
+    const normalized = normalizeBillableCall(
+      call.raw_provider_fields,
+      price.normalization,
+      price.rates,
+    );
+    totalTokens += normalized.total_tokens;
+    totalWeightedCost += normalized.weighted_cost;
+    totalElapsed += call.elapsed_ms;
+    if (price.tier === "premium") premiumTokens += normalized.total_tokens;
+    return {
+      ...call,
+      arm,
+      billable_buckets: normalized.billable_buckets,
+      informational: normalized.informational,
+      price_identity: preregistration.price_snapshot.dated_identity,
+      repetition,
+      task: task.task_id,
+      total_tokens: normalized.total_tokens,
+      weighted_cost: normalized.weighted_cost,
+    };
+  });
+  if (
+    !observedRoles.includes("executor")
+    || !observedRoles.includes("conformance-reviewer")
+    || !observedRoles.includes("code-reviewer")
+    || (arm === "C" ? !observedRoles.includes("planner") : observedRoles.includes("planner"))
+    || observedRoles.filter((role) => role === "planner-remediation").length
+      !== byType["planner retry"]
+    || observedRoles.filter((role) => role === "executor-remediation").length
+      !== byType["executor retry"]
+    || observedRoles.filter((role) => role === "reviewer-return-executor").length
+      !== byType["reviewer-return loop"]
+  ) {
+    throw new Error("model calls do not cover the arm sequence and classified remediations");
+  }
+  run.measurement_valid = true;
+  run.premium_tokens = premiumTokens;
+  run.total_elapsed_ms = totalElapsed;
+  run.total_tokens = totalTokens;
+  run.total_weighted_cost = totalWeightedCost;
   if (
     run.upstream_status === "invalidated-upstream"
     && (typeof run.independent_upstream_finding !== "string"
@@ -1253,6 +1677,45 @@ function validateRunResult(run) {
   ) {
     throw new Error("upstream invalidation requires an independent finding");
   }
+  if (run.upstream_status === "valid" && run.independent_upstream_finding !== null) {
+    throw new Error("valid upstream run cannot carry an invalidation finding");
+  }
+}
+
+function isWithin(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+async function projectResolvedPath(target) {
+  let cursor = path.resolve(target);
+  const missing = [];
+  while (true) {
+    try {
+      const resolved = await realpath(cursor);
+      return path.resolve(resolved, ...missing.reverse());
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+      const parent = path.dirname(cursor);
+      if (parent === cursor) throw error;
+      missing.push(path.basename(cursor));
+      cursor = parent;
+    }
+  }
+}
+
+async function prepareEvidenceRoot(evidenceRoot, repoRoot) {
+  const repositoryIdentity = await realpath(repoRoot);
+  const projectedIdentity = await projectResolvedPath(evidenceRoot);
+  if (isWithin(repositoryIdentity, projectedIdentity)) {
+    throw new Error("planning evidence root filesystem identity must be outside the source repository");
+  }
+  await mkdir(evidenceRoot, { recursive: true });
+  const evidenceIdentity = await realpath(evidenceRoot);
+  if (isWithin(repositoryIdentity, evidenceIdentity)) {
+    throw new Error("planning evidence root filesystem identity must be outside the source repository");
+  }
+  return evidenceIdentity;
 }
 
 export async function runPlanningExperiment({
@@ -1261,15 +1724,12 @@ export async function runPlanningExperiment({
   repoRoot,
   runCell,
 }) {
-  const relative = path.relative(path.resolve(repoRoot), path.resolve(evidenceRoot));
-  if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) {
-    throw new Error("planning evidence root must be outside the source repository");
-  }
   validateExperimentPreregistration(preregistration);
-  await mkdir(evidenceRoot, { recursive: true });
+  const evidenceIdentity = await prepareEvidenceRoot(evidenceRoot, repoRoot);
   await writeFile(
-    path.join(evidenceRoot, "preregistration.json"),
+    path.join(evidenceIdentity, "preregistration.json"),
     `${JSON.stringify(preregistration, null, 2)}\n`,
+    { flag: "wx" },
   );
 
   const results = [];
@@ -1282,40 +1742,74 @@ export async function runPlanningExperiment({
         throw new Error(`invalid randomized experiment cell ${cell}`);
       }
       const run = await runCell({ arm, repetition, stratum, task: taskMap[stratum] });
-      validateRunResult(run);
+      validateRunResult(run, {
+        arm,
+        preregistration,
+        repetition,
+        task: taskMap[stratum],
+      });
       results.push(run);
     }
   };
-  await runOrder(1);
-
-  for (const [stratum, task] of Object.entries(effectiveTasks)) {
-    const taskRuns = results.filter((run) => run.task === task.task_id);
-    if (taskRuns.some((run) => run.upstream_status === "invalidated-upstream")) {
+  const processInvalidations = async (throughRepetition) => {
+    for (const [stratum, task] of Object.entries(effectiveTasks)) {
+      const taskRuns = results.filter((run) => run.task === task.task_id);
+      const invalid = taskRuns.find(
+        (run) => run.upstream_status === "invalidated-upstream",
+      );
+      if (!invalid) continue;
+      if (task.task_id === preregistration.replacement_tasks[stratum].task_id) {
+        throw new Error(`same-stratum replacement ${task.task_id} was independently invalidated`);
+      }
+      for (const run of taskRuns) {
+        run.upstream_status = "invalidated-upstream";
+        run.independent_upstream_finding = invalid.independent_upstream_finding;
+      }
       invalidationOverhead.push(...taskRuns);
       for (let index = results.length - 1; index >= 0; index -= 1) {
         if (results[index].task === task.task_id) results.splice(index, 1);
       }
       effectiveTasks[stratum] = preregistration.replacement_tasks[stratum];
-      for (const arm of ["A", "B", "C"]) {
-        const run = await runCell({
-          arm,
-          repetition: 1,
-          stratum,
-          task: effectiveTasks[stratum],
-        });
-        validateRunResult(run);
-        results.push(run);
+      for (let repetition = 1; repetition <= throughRepetition; repetition += 1) {
+        for (const cell of preregistration.randomized_order) {
+          const [cellStratum, arm] = cell.split(":");
+          if (cellStratum !== stratum) continue;
+          const replacement = effectiveTasks[stratum];
+          const run = await runCell({
+            arm,
+            repetition,
+            stratum,
+            task: replacement,
+          });
+          validateRunResult(run, {
+            arm,
+            preregistration,
+            repetition,
+            task: replacement,
+          });
+          if (run.upstream_status === "invalidated-upstream") {
+            throw new Error(`same-stratum replacement ${replacement.task_id} is invalid`);
+          }
+          results.push(run);
+        }
       }
     }
-  }
+  };
 
-  const futility = evaluateFutility(results);
+  await runOrder(1);
+  await processInvalidations(1);
+  let futility = evaluateFutility(results.filter((run) => run.repetition === 1));
   if (!futility.complete) throw new Error("phase one did not produce a complete valid matched block");
   if (!futility.futile) {
     await runOrder(2);
+    await processInvalidations(2);
+    futility = evaluateFutility(results.filter((run) => run.repetition === 1));
     await runOrder(3);
+    await processInvalidations(3);
+    futility = evaluateFutility(results.filter((run) => run.repetition === 1));
   }
   const adoption = evaluateAdoption(results);
+  if (futility.futile) adoption.adoption_eligible = false;
   const outcome = {
     adoption,
     futility,
@@ -1324,8 +1818,9 @@ export async function runPlanningExperiment({
     results,
   };
   await writeFile(
-    path.join(evidenceRoot, "results.json"),
+    path.join(evidenceIdentity, "results.json"),
     `${JSON.stringify(outcome, null, 2)}\n`,
+    { flag: "wx" },
   );
   return outcome;
 }

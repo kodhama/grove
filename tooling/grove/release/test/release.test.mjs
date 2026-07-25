@@ -108,6 +108,14 @@ test('INV37/INV42/INV50/INV51/S35/S50 — first planner release is oracle-comple
     validatePlanningReleaseMetadata({ hosts, roles, surfaces }, { release: false }),
     [],
   );
+  assert.deepEqual(hosts.resource_defaults.codex.classes, {
+    'execution-medium': 'gpt-5.6-terra',
+    'reasoning-heavy': 'gpt-5.6-sol',
+  });
+  assert.equal(
+    hosts.resource_defaults.codex.selector_capability_probe.operation,
+    'model/list',
+  );
 
   const activated = structuredClone(hosts);
   activated.planning_activation = {
@@ -123,11 +131,61 @@ test('INV37/INV42/INV50/INV51/S35/S50 — first planner release is oracle-comple
     /inactive-experiment-only|approved adoption/i,
   );
 
+  const forgedActivation = structuredClone(hosts);
+  forgedActivation.planning_activation = {
+    adoption_decision: {
+      evidence_identity: 'forged-evidence',
+      id: 'adr-forged',
+      release_candidate: 'forged-release',
+      status: 'approved',
+    },
+    evidence_identity: 'forged-evidence',
+    state: 'active',
+  };
+  assert.match(
+    validatePlanningReleaseMetadata(
+      { hosts: forgedActivation, roles, surfaces },
+      { release: false },
+    ).join('\n'),
+    /resolved|external|evidence|inactive-experiment-only/i,
+  );
+
   const missing = structuredClone(roles);
   missing.roles = missing.roles.filter((role) => role.id !== 'implementation-planner');
   assert.match(
     validatePlanningReleaseMetadata({ hosts, roles: missing, surfaces }, { release: false }).join('\n'),
     /fourteen|oracle|implementation-planner/i,
+  );
+
+  for (const mutate of [
+    (value) => {
+      value.release_expectation.first_planner_release_oracle = 'corrupt-marker';
+    },
+    (value) => {
+      value.release_expectation.first_planner_release_oracle = 'corrupt-marker';
+      value.roles = value.roles.filter((role) => role.id !== 'code-reviewer');
+      value.release_expectation.expected_role_count = value.roles.length;
+    },
+  ]) {
+    const corrupt = structuredClone(roles);
+    mutate(corrupt);
+    assert.match(
+      validatePlanningReleaseMetadata(
+        { hosts, roles: corrupt, surfaces },
+        { release: false },
+      ).join('\n'),
+      /fourteen|oracle/i,
+    );
+  }
+
+  const missingExperimentBindings = structuredClone(hosts);
+  missingExperimentBindings.resource_defaults = {};
+  assert.match(
+    validatePlanningReleaseMetadata(
+      { hosts: missingExperimentBindings, roles, surfaces },
+      { release: false },
+    ).join('\n'),
+    /resource|class|experiment/i,
   );
 });
 

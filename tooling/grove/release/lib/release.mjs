@@ -277,13 +277,11 @@ export function validatePlanningReleaseMetadata(
   const expected = [...FIRST_PLANNER_RELEASE_ORACLE].sort();
   if (
     roles?.release_expectation?.first_planner_release_oracle
-      === 'spec-0004-dual-host-distribution@v5'
-    && (
-      roles.release_expectation.expected_role_count !== 14
-      || ids.length !== 14
-      || new Set(ids).size !== 14
-      || JSON.stringify([...ids].sort()) !== JSON.stringify(expected)
-    )
+      !== 'spec-0004-dual-host-distribution@v5'
+    || roles?.release_expectation?.expected_role_count !== 14
+    || ids.length !== 14
+    || new Set(ids).size !== 14
+    || JSON.stringify([...ids].sort()) !== JSON.stringify(expected)
   ) {
     errors.push('first planner release must prove the independent fourteen-role oracle bijection');
   }
@@ -315,18 +313,8 @@ export function validatePlanningReleaseMetadata(
     && activation?.evidence_identity === null
   ) {
     // The first planner-bearing candidate deliberately ships inactive.
-  } else if (
-    activation?.state === 'active'
-    && plainObject(activation.adoption_decision)
-    && activation.adoption_decision.status === 'approved'
-    && nonEmpty(activation.adoption_decision.id)
-    && nonEmpty(activation.evidence_identity)
-    && activation.evidence_identity === activation.adoption_decision.evidence_identity
-    && nonEmpty(activation.adoption_decision.release_candidate)
-  ) {
-    // A later candidate may activate only through an approved, evidence-bound decision.
   } else {
-    errors.push('planning activation must remain inactive-experiment-only or cite an approved adoption decision bound to evidence');
+    errors.push('first planner release activation must remain inactive-experiment-only; later activation requires externally resolved approved-ADR and exact-release 27-run evidence proof');
   }
 
   if (!Number.isInteger(hosts?.resource_defaults_version) || hosts.resource_defaults_version < 1) {
@@ -336,12 +324,10 @@ export function validatePlanningReleaseMetadata(
     errors.push('metadata/hosts.json must declare resource defaults and pre-adoption direct selectors');
     return errors;
   }
-  const supportedHosts = new Set(
-    (surfaces?.rows ?? [])
-      .filter((row) => row.release_state === 'supported')
-      .map((row) => row.host),
+  const experimentHosts = new Set(
+    Object.keys(hosts.pre_adoption_direct_executor),
   );
-  for (const host of supportedHosts) {
+  for (const host of experimentHosts) {
     const defaults = hosts.resource_defaults[host];
     const baseline = hosts.pre_adoption_direct_executor[host];
     if (
@@ -354,15 +340,17 @@ export function validatePlanningReleaseMetadata(
       || !plainObject(defaults.selector_capability_probe)
       || !nonEmpty(defaults.selector_capability_probe.operation)
       || !nonEmpty(defaults.selector_capability_probe.response_field)
+      || !Array.isArray(defaults.surfaces)
+      || !defaults.surfaces.includes(baseline?.surface_id)
     ) {
-      errors.push(`${host} supported surfaces require complete class defaults and an authoritative selector capability source/probe`);
+      errors.push(`${host} experiment support requires complete class defaults, exact surfaces, and an authoritative selector capability source/probe`);
     }
     if (
       !plainObject(baseline)
       || !nonEmpty(baseline.selector)
       || !nonEmpty(baseline.selection_source_identity)
     ) {
-      errors.push(`${host} supported surfaces require a fixture-proven pre-adoption direct executor selector`);
+      errors.push(`${host} experiment support requires a fixture-proven pre-adoption direct executor selector`);
     }
   }
   if (

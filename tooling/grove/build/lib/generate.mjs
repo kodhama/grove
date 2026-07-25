@@ -120,25 +120,16 @@ function validateInventoryShape(inventory) {
   if (duplicate) throw new Error(`duplicate role id: ${duplicate}`);
 
   const actualIds = [...ids].sort();
+  const expectedIds = [...FIRST_PLANNER_RELEASE_ROLE_IDS].sort();
   if (
-    !inventory.release_expectation
-    || inventory.release_expectation.expected_role_count !== inventory.roles.length
+    inventory.release_expectation?.first_planner_release_oracle
+      !== "spec-0004-dual-host-distribution@v5"
+    || inventory.release_expectation?.expected_role_count !== expectedIds.length
+    || inventory.roles.length !== expectedIds.length
+    || JSON.stringify(actualIds) !== JSON.stringify(expectedIds)
   ) {
-    throw new Error("role inventory release expectation must declare its exact role count");
-  }
-  if (
-    inventory.release_expectation.first_planner_release_oracle
-    === "spec-0004-dual-host-distribution@v5"
-  ) {
-    const expectedIds = [...FIRST_PLANNER_RELEASE_ROLE_IDS].sort();
-    if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds)) {
-      throw new Error(
-        `first planner release role inventory must contain exactly: ${expectedIds.join(", ")}`,
-      );
-    }
-  } else if (new Set(actualIds).size !== inventory.roles.length) {
     throw new Error(
-      "role inventory release expectation does not match its unique role rows",
+      `first planner release oracle must contain exactly ${expectedIds.length} roles: ${expectedIds.join(", ")}`,
     );
   }
 

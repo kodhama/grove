@@ -176,6 +176,15 @@ Unknown hosts or classes fail closed. Overrides affect experiment or
 post-adoption contexts only; they do not change the inactive ordinary-production
 executor route.
 
+The declared experiment-capable host is currently `codex` on
+`codex-exec-non-ephemeral`: `reasoning-heavy` resolves to `gpt-5.6-sol` and
+`execution-medium` to `gpt-5.6-terra`. Before either class is dispatched, the
+runtime must execute Codex app-server protocol v2 `model/list` (the
+`codex-cli 0.145.0` catalog contract) and find the exact selector in
+`data[].model`. The declaration does not promote that candidate surface to
+release support, and a failed or unavailable probe rejects the experimental
+cell rather than substituting a model.
+
 ## Package boundaries
 
 - `adapters/` contains generated host projections and thin host-specific
