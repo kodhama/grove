@@ -1,7 +1,7 @@
 ---
 id: adr-0036-pre-execution-planning
 type: adr
-status: gated  # shaper self-check rerun 2026-07-25 after rebased review findings; fresh posted verdict required before ratification
+status: approved  # maintainer intent act ("Approved.", 2026-07-25), recorded in-PR by the shaper after independent SOUND at 8adb960; ship remains human
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0020-dispatcher-honors-gate-profile, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary]
 owner: agent
 updated: 2026-07-25
@@ -9,8 +9,8 @@ updated: 2026-07-25
 
 # ADR-0036: pre-execution planning as an advisory cold role
 
-> **Gated decision canvas — nothing here authorizes implementation.** The
-> maintainer wants to test whether a stronger planning pass can make a
+> **Approved decision — this authorizes a follow-up spec, not implementation.**
+> The maintainer wants to test whether a stronger planning pass can make a
 > lower-cost executor effective without weakening Grove's artifact authority,
 > strict TDD, independent review, or dual-host delivery. The scoped adversarial
 > previews confirmed the routing, fleet, recovery, and resource revisions, then
@@ -641,6 +641,7 @@ Passed by the shaper on 2026-07-25 after folding all preview findings:
   evidence, the revise/version/re-gate of `spec-0004`, generated parity,
   support requalification, and release judgment.
 
-The canvas has twenty-one Decided items, zero Open items, and remains `gated`.
-A fresh independent verdict must be posted on the authenticated change-request
-before ratification.
+The canvas has twenty-one Decided items, zero Open items, and is `approved`.
+The maintainer's explicit “Approved.” on 2026-07-25 records the human intent
+act after the independent `SOUND` verdict posted on PR #140. The separate
+`ship` gate remains human-owned.
