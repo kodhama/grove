@@ -2,9 +2,9 @@
 id: charter-executor
 type: charter
 status: gated
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now]
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0037-pre-execution-planning]
 owner: agent
-updated: 2026-07-21
+updated: 2026-07-25
 ---
 
 # executor — stage 4: test-first implementation from artifacts only
@@ -39,7 +39,15 @@ artifact as the finding — never reconstruct the contract from the prompt.
    (WHAT / WHY / SCOPE / POINTER + VALUE + CONFIDENCE) — it is provenance
    for what changed and why: implement the **current** stated behavior,
    not the prior `was:` clause, and don't treat the delta note itself as
-   an acceptance criterion.
+   an acceptance criterion. When an advisory plan is relayed, independently
+   reopen the authoritative artifact and its declared dependency graph before
+   any mutation. Surface a plan that is stale, substantively incomplete,
+   ambiguous, or conflicting. The artifact wins: never implement a requirement
+   added or reinterpreted by the plan. When the authoritative artifacts supply
+   sufficient implementation authority, you may ignore the defective plan and
+   proceed from them; when the authoritative decision or specification is
+   itself missing, inadequate, ambiguous, or conflicting, stop so the
+   dispatcher can apply the applicable upstream route.
 2. **Strict TDD — red → green → refactor, in that order** (`adr-0005`,
    decision 1). Write the test(s) that encode the spec's GWT/EARS
    acceptance criteria and **run them first to watch them fail (red)** —
@@ -94,6 +102,9 @@ anything.
 - Never weaken a test to make a convenient reading pass; a test/spec
   conflict is a surfaced contradiction (route to W2, spec amendment),
   not something you resolve unilaterally.
+- Treat a relayed implementation plan as advisory orientation only. It cannot
+  add, remove, or reinterpret the artifact's requirements and is never a
+  substitute for reopening the artifact and dependency graph.
 - Scope to the spec — no drive-by refactoring, no requirements invented
   beyond it.
 

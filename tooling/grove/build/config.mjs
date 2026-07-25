@@ -56,6 +56,7 @@ export const CANONICAL_ROLE_IDS = Object.freeze([
   "dispatcher",
   "divergent-researcher",
   "executor",
+  "implementation-planner",
   "propagation-remediator",
   "run-resumer",
   "shaper",

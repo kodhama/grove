@@ -1,5 +1,7 @@
-// Upstream: spec-0004-dual-host-distribution@v5 INV20, INV23, INV26–INV27, INV32; S18, S22–S23, S30.
-// Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary; adr-0036-remove-retired-review-bookkeeping.
+// Upstream: spec-0004-dual-host-distribution@v6 INV20, INV23, INV26–INV27, INV32, INV37;
+// S18, S22–S23, S30, S35.
+// Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary;
+// adr-0037-pre-execution-planning; adr-0036-remove-retired-review-bookkeeping.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
@@ -37,6 +39,12 @@ test('prepared probe keeps the exact candidate snapshot immutable and executes a
   assert.equal(prepared.manifest.composition_fixture.release_state_override, 'supported');
   assert.equal(prepared.manifest.composition_fixture.surface_id, 'codex-exec-non-ephemeral');
   assert.match(prepared.manifest.composition_fixture.disclosure, /composition-only|plan generation/i);
+  assert.equal(prepared.manifest.expected.native.length, 13);
+  const nativeBatches = prepared.manifest.phases.filter(
+    (phase) => phase.kind === 'native-batch',
+  );
+  assert.deepEqual(nativeBatches.map((phase) => phase.expected_count), [4, 4, 4, 1]);
+  assert.equal(nativeBatches.every((phase) => phase.expected_count <= 4), true);
 
   assert.ok(prepared.manifest.harness.files.length >= 2);
   for (const file of prepared.manifest.harness.files) {

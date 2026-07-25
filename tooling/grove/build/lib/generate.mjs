@@ -234,8 +234,8 @@ function validateInventoryShape(inventory) {
     }
   }
 
-  if (nativeIds.size !== 12) {
-    throw new Error(`expected 12 native exposures, found ${nativeIds.size}`);
+  if (nativeIds.size !== 13) {
+    throw new Error(`expected 13 native exposures, found ${nativeIds.size}`);
   }
 }
 

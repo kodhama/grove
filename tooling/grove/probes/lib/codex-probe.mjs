@@ -606,7 +606,10 @@ ${JSON.stringify({
 }
 
 function makePhases({ driving, native, commit }) {
-  const nativeBatches = [native.slice(0, 4), native.slice(4, 8), native.slice(8, 12)];
+  const nativeBatches = Array.from(
+    { length: Math.ceil(native.length / 4) },
+    (_, index) => native.slice(index * 4, index * 4 + 4),
+  );
   const producer = {
     native_id: 'grove_executor',
     invocation: invocationToken('SEPARATION', 'executor', commit),
@@ -628,6 +631,8 @@ function makePhases({ driving, native, commit }) {
     both_observed: true,
     invocation: invocationToken('CONFIG', 'executor', commit),
   };
+  const phaseNumber = (number) => String(number).padStart(2, '0');
+  const tailStart = nativeBatches.length + 2;
   return [
     {
       id: '01-driving-session',
@@ -639,38 +644,38 @@ function makePhases({ driving, native, commit }) {
       promptText: drivingPrompt(driving),
     },
     ...nativeBatches.map((batch, index) => ({
-      id: `0${index + 2}-native-batch-${index + 1}`,
+      id: `${phaseNumber(index + 2)}-native-batch-${index + 1}`,
       kind: 'native-batch',
       expected_count: batch.length,
       schema: 'schemas/identity-batch.json',
-      prompt: `prompts/0${index + 2}-native-batch-${index + 1}.md`,
+      prompt: `prompts/${phaseNumber(index + 2)}-native-batch-${index + 1}.md`,
       expected: batch,
       promptText: nativePrompt(batch),
     })),
     {
-      id: '05-producer-reviewer-separation',
+      id: `${phaseNumber(tailStart)}-producer-reviewer-separation`,
       kind: 'separation',
       expected_count: 2,
       schema: 'schemas/separation.json',
-      prompt: 'prompts/05-producer-reviewer-separation.md',
+      prompt: `prompts/${phaseNumber(tailStart)}-producer-reviewer-separation.md`,
       expected: { separate: true, producer, reviewer },
       promptText: separationPrompt({ producer, reviewer }),
     },
     {
-      id: '06-scoped-dispatcher',
+      id: `${phaseNumber(tailStart + 1)}-scoped-dispatcher`,
       kind: 'scoped-dispatcher',
       expected_count: 1,
       schema: 'schemas/scoped-dispatcher.json',
-      prompt: 'prompts/06-scoped-dispatcher.md',
+      prompt: `prompts/${phaseNumber(tailStart + 1)}-scoped-dispatcher.md`,
       expected: scoped,
       promptText: scopedPrompt(scoped),
     },
     {
-      id: '07-config-addendum',
+      id: `${phaseNumber(tailStart + 2)}-config-addendum`,
       kind: 'config-addendum',
       expected_count: 1,
       schema: 'schemas/config-addendum.json',
-      prompt: 'prompts/07-config-addendum.md',
+      prompt: `prompts/${phaseNumber(tailStart + 2)}-config-addendum.md`,
       expected: config,
       promptText: configPrompt(config),
     },

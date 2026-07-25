@@ -1,5 +1,6 @@
-// Upstream: spec-0004-dual-host-distribution@v5.
-// INV6/11/12/15/17/21/23-29/33 and S3/S10/S11/S15/S19/S24-S26/S31.
+// Upstream: spec-0004-dual-host-distribution@v6.
+// INV6/11/12/15/17/20/21/23-29/33/37 and
+// S3/S10/S11/S15/S18/S19/S24-S26/S31/S35.
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
@@ -104,7 +105,7 @@ test('INV6/S3 — bridge viability remains a candidate until full support eviden
       release_state: 'candidate',
       load_path: 'project .codex/agents/<native_id>.toml -> plugin skill/reference',
       evidence: ['reference/surfaces/codex-bridge-spike-2026-07-23.json'],
-      missing_capability: 'The full thirteen-role fresh-release support record is incomplete.',
+      missing_capability: 'The full fourteen-role fresh-release support record is incomplete.',
       disclosure: 'Bridge-viable for integration; not a supported release surface.',
     })
     : item);
@@ -360,18 +361,31 @@ test('INV20/S18 — each discovered role requires a distinct invocation token', 
     };
   };
   const native = validRecord.role_identities.native;
+  const nativeBatches = Array.from(
+    { length: Math.ceil(native.length / 4) },
+    (_, index) => native.slice(index * 4, index * 4 + 4),
+  );
+  const phaseNumber = (number) => String(number).padStart(2, '0');
+  const tailStart = nativeBatches.length + 2;
   validRecord.probe_evidence = {
     phases: [
       phase('01-driving-session', 'driving-session', []),
-      phase('02-native-batch-1', 'native-batch', native.slice(0, 4)),
-      phase('03-native-batch-2', 'native-batch', native.slice(4, 8)),
-      phase('04-native-batch-3', 'native-batch', native.slice(8, 12)),
-      phase('05-producer-reviewer-separation', 'separation', [
+      ...nativeBatches.map((batch, index) =>
+        phase(
+          `${phaseNumber(index + 2)}-native-batch-${index + 1}`,
+          'native-batch',
+          batch,
+        )),
+      phase(`${phaseNumber(tailStart)}-producer-reviewer-separation`, 'separation', [
         validRecord.producer_reviewer_separation.producer,
         validRecord.producer_reviewer_separation.reviewer,
       ]),
-      phase('06-scoped-dispatcher', 'scoped-dispatcher', [validRecord.spawned_dispatcher]),
-      phase('07-config-addendum', 'config-addendum', [validRecord.config_and_addendum]),
+      phase(`${phaseNumber(tailStart + 1)}-scoped-dispatcher`, 'scoped-dispatcher', [
+        validRecord.spawned_dispatcher,
+      ]),
+      phase(`${phaseNumber(tailStart + 2)}-config-addendum`, 'config-addendum', [
+        validRecord.config_and_addendum,
+      ]),
     ],
     plugin_list: 'logs/plugin-list.json',
     plugin_list_sha256: 'e'.repeat(64),
@@ -396,8 +410,12 @@ test('INV20/S18 — each discovered role requires a distinct invocation token', 
     /probe_evidence/i,
   );
   const reusedChild = structuredClone(validRecord);
-  reusedChild.probe_evidence.phases[5].invocations[0].thread_id =
-    reusedChild.probe_evidence.phases[4].invocations[0].thread_id;
+  const reusedScoped = reusedChild.probe_evidence.phases.find(
+    (item) => item.kind === 'scoped-dispatcher',
+  );
+  reusedScoped.invocations[0].thread_id = reusedChild.probe_evidence.phases.find(
+    (item) => item.kind === 'separation',
+  ).invocations[0].thread_id;
   assert.match(
     validateSupportRecord(reusedChild, supportedRow, '0.3.0', {
       inventory,
@@ -406,7 +424,9 @@ test('INV20/S18 — each discovered role requires a distinct invocation token', 
     /does not prove invocation/i,
   );
   const unrelatedParent = structuredClone(validRecord);
-  unrelatedParent.probe_evidence.phases[5].invocations[0].observed_parent_thread_id = 'other-root';
+  unrelatedParent.probe_evidence.phases.find(
+    (item) => item.kind === 'scoped-dispatcher',
+  ).invocations[0].observed_parent_thread_id = 'other-root';
   assert.match(
     validateSupportRecord(unrelatedParent, supportedRow, '0.3.0', {
       inventory,
@@ -415,8 +435,10 @@ test('INV20/S18 — each discovered role requires a distinct invocation token', 
     /does not prove invocation/i,
   );
   const unboundTaskPath = structuredClone(validRecord);
-  unboundTaskPath.probe_evidence.phases[5].invocations[0].observed_agent_path =
-    `/root/other/${unboundTaskPath.probe_evidence.phases[5].invocations[0].task_name}`;
+  const unboundInvocation = unboundTaskPath.probe_evidence.phases.find(
+    (item) => item.kind === 'scoped-dispatcher',
+  ).invocations[0];
+  unboundInvocation.observed_agent_path = `/root/other/${unboundInvocation.task_name}`;
   assert.match(
     validateSupportRecord(unboundTaskPath, supportedRow, '0.3.0', {
       inventory,
@@ -425,7 +447,9 @@ test('INV20/S18 — each discovered role requires a distinct invocation token', 
     /does not prove invocation/i,
   );
   const malformedTaskName = structuredClone(validRecord);
-  malformedTaskName.probe_evidence.phases[5].invocations[0].task_name = 'Probe-Executor';
+  malformedTaskName.probe_evidence.phases.find(
+    (item) => item.kind === 'scoped-dispatcher',
+  ).invocations[0].task_name = 'Probe-Executor';
   assert.match(
     validateSupportRecord(malformedTaskName, supportedRow, '0.3.0', {
       inventory,
@@ -434,8 +458,10 @@ test('INV20/S18 — each discovered role requires a distinct invocation token', 
     /does not prove invocation/i,
   );
   const cyclicChild = structuredClone(validRecord);
-  cyclicChild.probe_evidence.phases[5].invocations[0].thread_id =
-    cyclicChild.probe_evidence.phases[5].root_thread_id;
+  const cyclicPhase = cyclicChild.probe_evidence.phases.find(
+    (item) => item.kind === 'scoped-dispatcher',
+  );
+  cyclicPhase.invocations[0].thread_id = cyclicPhase.root_thread_id;
   assert.match(
     validateSupportRecord(cyclicChild, supportedRow, '0.3.0', {
       inventory,
@@ -444,10 +470,14 @@ test('INV20/S18 — each discovered role requires a distinct invocation token', 
     /does not prove invocation/i,
   );
   const childReusedAsRoot = structuredClone(validRecord);
-  childReusedAsRoot.probe_evidence.phases[6].root_thread_id =
-    childReusedAsRoot.probe_evidence.phases[5].invocations[0].thread_id;
-  childReusedAsRoot.probe_evidence.phases[6].invocations[0].observed_parent_thread_id =
-    childReusedAsRoot.probe_evidence.phases[6].root_thread_id;
+  const reusedRoot = childReusedAsRoot.probe_evidence.phases.find(
+    (item) => item.kind === 'config-addendum',
+  );
+  const reusedChildThread = childReusedAsRoot.probe_evidence.phases.find(
+    (item) => item.kind === 'scoped-dispatcher',
+  ).invocations[0].thread_id;
+  reusedRoot.root_thread_id = reusedChildThread;
+  reusedRoot.invocations[0].observed_parent_thread_id = reusedRoot.root_thread_id;
   assert.match(
     validateSupportRecord(childReusedAsRoot, supportedRow, '0.3.0', {
       inventory,
@@ -471,7 +501,7 @@ test('INV15/S11 — actual package composes and discovers its inventory-derived 
   const script = resolve(import.meta.dirname, '..', '..', 'probes', 'bin', 'smoke-codex-projection.mjs');
   const { stdout } = await execFileAsync(process.execPath, [script]);
   assert.match(stdout, /package smoke passed/i);
-  assert.match(stdout, /12 native/i);
+  assert.match(stdout, /13 native/i);
   assert.match(stdout, /2 driving/i);
 });
 
@@ -505,11 +535,11 @@ test('INV20/S18 — probe preparation isolates candidate state without launching
     'utf8',
   );
   const scopedPrompt = await readFile(
-    join(outputRoot, 'prompts', '06-scoped-dispatcher.md'),
+    join(outputRoot, 'prompts', '07-scoped-dispatcher.md'),
     'utf8',
   );
   const configPrompt = await readFile(
-    join(outputRoot, 'prompts', '07-config-addendum.md'),
+    join(outputRoot, 'prompts', '08-config-addendum.md'),
     'utf8',
   );
   const preflight = await execFileAsync(
@@ -523,14 +553,23 @@ test('INV20/S18 — probe preparation isolates candidate state without launching
   assert.equal(manifest.model, 'gpt-5.6-sol');
   assert.equal(manifest.model_provider, 'openai');
   assert.equal(manifest.multi_agent_version, 'v2');
-  assert.equal(manifest.expected.native.length, 12);
+  assert.equal(manifest.expected.native.length, 13);
   assert.equal(manifest.expected.driving_session.length, 2);
-  assert.deepEqual(manifest.phases.map((phase) => phase.expected_count), [2, 4, 4, 4, 2, 1, 1]);
+  assert.deepEqual(
+    manifest.phases.map((phase) => phase.expected_count),
+    [2, 4, 4, 4, 1, 2, 1, 1],
+  );
+  assert.equal(
+    manifest.phases
+      .filter((phase) => phase.kind === 'native-batch')
+      .every((phase) => phase.expected_count <= 4),
+    true,
+  );
   assert.deepEqual(
     marketplace.plugins[0].source,
     { source: 'local', path: './plugins/grove' },
   );
-  assert.equal(launchers.filter((name) => name.endsWith('.toml')).length, 12);
+  assert.equal(launchers.filter((name) => name.endsWith('.toml')).length, 13);
   assert.match(config, /fixture-support-command-030/);
   assert.match(addendum, /fixture-executor-addendum-030/);
   assert.match(probeConfig, /cli_auth_credentials_store = "file"/);

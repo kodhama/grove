@@ -1,12 +1,12 @@
 ---
 id: spec-0004-dual-host-distribution
 type: spec
-status: gated  # v5 self-check and independent review follow ADR-0036 before implementation handoff
+status: gated  # v6 adds the independently reviewed planner amendment after v5 removed retired bookkeeping
 implements: adr-0031-multi-host-distribution
-depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0036-remove-retired-review-bookkeeping]
+depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0037-pre-execution-planning, adr-0036-remove-retired-review-bookkeeping]
 owner: agent
 updated: 2026-07-25
-version: 5
+version: 6
 ---
 
 # spec-0004 — dual-host distribution
@@ -104,6 +104,31 @@ decision reserves for a later intent gate.
 > **CONFIDENCE:** `verified` after the removal-specific CI, package, and probe
 > checks pass against the exact committed candidate.
 
+> **Amendment (2026-07-25, `adr-0037-pre-execution-planning` +
+> independent spec-adversary review).**
+> **WHAT:** The canonical fleet, generated adapters, routing, bounded
+> human-readable plan, artifact-authoritative execution, and transient handoff
+> now include one cold, read-only `implementation-planner`.
+> **WHY:** Approved ADR-0037 separates implementation reconnaissance and
+> decomposition from the separately cold executor without creating a second
+> implementation authority or persisted plan.
+> **SCOPE:** Behavioral version `v6`; v5's distribution, lifecycle, package,
+> migration, surface-support, marketplace, release, and retired-bookkeeping
+> removal contracts remain unchanged. No experiment harness, model or resource
+> tier, token/cost metric, adoption mechanism, canonical plan serialization or
+> parser, request-byte work-scope collector or locator grammar, evidence or
+> checkpoint schema, or release activation is introduced.
+> **POINTER:** Current requirements live in “Pre-execution planning contract,”
+> the fourteen-role inventory clauses, and acceptance criteria
+> `INV37`–`INV41` / `S35`–`S39`.
+> **VALUE:** A maintainer can send ratified code-bearing work through a bounded
+> implementation plan while the governing artifact remains authoritative and
+> an interrupted relay is safely recomputed.
+> **CONFIDENCE:** `verified` — approved ADR-0037 contains no open decision,
+> explicitly separates the planner role from the parked experiment, and the
+> observable content, routing-safety, authority, and relay bounds preserve its
+> choices without prescribing a plan format or gate.
+
 ## Terms
 
 | Term | Meaning |
@@ -112,7 +137,8 @@ decision reserves for a later intent gate.
 | **adapter** | Host metadata, an invocation/loading pointer, or a deterministic projection required to expose the kernel on Claude or Codex. |
 | **authored source** | A file a maintainer or agent edits directly as normative input. Generated output is never an authored source. |
 | **projection** | A byte-deterministic file produced from an authored source and adapter metadata. |
-| **role inventory** | The thirteen canonical role ids, their Codex-native underscore ids, and their permitted exposures: interactive driving-session role, cold native role, and, for `dispatcher`, the distinct scoped spawned advisor. It contains metadata and source paths, never charter instructions. |
+| **role inventory** | The fourteen canonical role ids, including `implementation-planner`, their Codex-native underscore ids, and their permitted exposures: interactive driving-session role, cold native role, and, for `dispatcher`, the distinct scoped spawned advisor. It contains metadata and source paths, never charter instructions. |
+| **advisory implementation plan** | The planner's bounded, human-readable output for one ratified code-bearing artifact. It may sequence implementation but cannot add, remove, or reinterpret a requirement and is never an artifact or gate. |
 | **bridge-viable** | A thin project TOML launcher successfully resolved and loaded its plugin-carried skill/reference on the exact Codex mode tested. This proves the loading primitive only; it is not a release-support claim. |
 | **surface matrix** | One machine-readable record of host surfaces, support state, explicit load path, test evidence, and supported role identities. |
 | **supported** | The recorded load path passed on a fresh instance of that exact surface for the release under test. |
@@ -132,7 +158,7 @@ decision reserves for a later intent gate.
 | Deliverable | Authority | Required property |
 |---|---|---|
 | Role and companion charters | `charters/` | The only authored normative role/method prose. |
-| Role inventory, lifecycle inventory, surface matrix, host metadata, stamp schema, and legacy ownership inventory | `plugins/grove/metadata/` | Metadata only; role inventory has exactly thirteen unique role ids and declares every permitted exposure; host inventories declare exact positive discovery and driving-session loaders; the versioned legacy inventory declares exact historical managed bytes without carrying old executable code. |
+| Role inventory, lifecycle inventory, surface matrix, host metadata, stamp schema, and legacy ownership inventory | `plugins/grove/metadata/` | Metadata only; role inventory has exactly fourteen unique role ids, including `implementation-planner` as `cold-native` only, and declares every permitted exposure; host inventories declare exact positive discovery and driving-session loaders; the versioned legacy inventory declares exact historical managed bytes without carrying old executable code. |
 | Claude adapter | `plugins/grove/adapters/claude/` | Generated native-agent envelopes plus only the four lifecycle skill entrypoints; its manifest exposes only this adapter. |
 | Codex adapter | `plugins/grove/adapters/codex/` | Generated lifecycle and role skills, no custom-agent definitions; its manifest exposes only this adapter. |
 | Shared runtime | `plugins/grove/runtime/lifecycle/` and `plugins/grove/runtime/gates/` | The only installed executable lifecycle and gate behavior; host adapters invoke it in place and setup never copies it into a consumer. |
@@ -236,6 +262,11 @@ exposure. A driving-session exposure has no `native_id`; a `cold-native` or
 `scoped-advisor` exposure has exactly one unique `native_id`. The generator
 shall reject a cold full-dispatcher or cold shaper exposure.
 
+With `implementation-planner`, this yields fourteen canonical role rows,
+twelve cold-native exposures, one scoped-advisor exposure, and two
+driving-session exposures; Codex still receives one role skill per canonical
+row.
+
 For a clean installed package:
 
 | Host | Manifest declaration | Exact discovered Grove components | Components that shall not be discovered |
@@ -313,11 +344,11 @@ check mode.
 
 The generator shall:
 
-1. validate that the role inventory contains exactly the thirteen roles named
-   by the approved decision, `shaper` only as driving-session, `dispatcher`
-   only as driving-session plus scoped-advisor, every other role only as its
-   declared cold-native exposure, and one unique native id per non-driving
-   exposure;
+1. validate that the role inventory contains exactly the fourteen roles named
+   by the approved decisions, including `implementation-planner` exactly once
+   as cold-native, `shaper` only as driving-session, `dispatcher` only as
+   driving-session plus scoped-advisor, every other role only as its declared
+   cold-native exposure, and one unique native id per non-driving exposure;
 2. reject duplicate role ids, missing charter sources, unexpected authored
    instruction fields, Codex-native ids containing hyphens, and output paths
    outside declared generated roots;
@@ -343,6 +374,95 @@ Generation tests shall change one canonical charter in a fixture and prove
 that both affected host projections change, while unrelated role projections
 remain byte-identical. A direct edit to either generated projection shall make
 check mode fail.
+
+## Pre-execution planning contract
+
+### Role delivery and plan contents
+
+`charters/implementation-planner.md` shall be the only authored normative
+source for the planner role. The existing generator shall project it through
+the Claude native-agent envelope and Codex role-skill/reference adapter, and
+the role inventory shall declare it exactly once with `cold-native` exposure.
+The planner shall be read-only: it may inspect the ratified artifact, its
+declared dependency graph, and the relevant repository basis, but shall not
+edit files, perform implementation mutations, amend or ratify an artifact,
+clear a gate, or review its own output.
+
+For one dispatch, the planner's final response shall be one bounded,
+human-readable advisory plan. Bounded means concise, scoped to one governing
+artifact, and substantively limited to these six required information kinds:
+
+1. the intended outcome and governing artifact;
+2. coverage addressing every acceptance criterion in that artifact;
+3. relevant code and test anchors, with verified facts distinguished from
+   inferred anchors;
+4. ordered red → green → refactor slices;
+5. exact verification commands; and
+6. risks, ambiguities, and blockers.
+
+No heading, ordering, repetition, or entry grammar is prescribed. Explanatory
+detail is allowed when it clarifies one of those information kinds and adds no
+requirement or authority.
+
+These contents constrain what the ordinary handoff communicates; they do not
+define a canonical JSON form, parser, request-byte collector, locator grammar,
+evidence schema, or checkpoint schema.
+
+### Routing precedence
+
+Before implementation, the dispatcher shall apply this precedence:
+
+1. wrong or conflicting approved-decision evidence returns the work to
+   shaping;
+2. a missing, inadequate, or ambiguous specification returns the work to
+   specification convergence;
+3. decision-only non-code work follows its existing direct route;
+4. a reproduced, root-caused, localized implementation slip may route directly
+   to the executor or planner-first at dispatcher judgment, subject to the
+   qualifications below; and
+5. all other ratified code-bearing specification work routes first to a cold
+   `implementation-planner` and then to a separately cold executor.
+
+The direct route is allowed only when the dispatcher establishes that the slip
+is reproduced, root-caused, localized, and changes no public interface, schema,
+dispatch behavior, cross-component behavior, or governing artifact. When all
+conditions hold, direct execution and planner-first execution are both allowed
+routes at dispatcher judgment. When any condition is unproven or false, direct
+execution is forbidden; planner-first routing applies unless an earlier
+decision/specification route applies. A mere assertion that a defect is
+localized is not evidence and shall not override the earlier checks.
+
+### Authority, relay, and interruption
+
+The planner's final-response message is the relay boundary. In the same
+driving session, the dispatcher shall forward that response to the separately
+cold executor as one unchanged message and supply the authoritative artifact
+pointer separately. The dispatcher shall not splice, summarize, reorder, or
+selectively omit the plan. A missing or truncated final-response message is a
+lost relay. The executor shall independently reopen the artifact and its
+declared dependency graph before any mutation.
+
+The plan may order work but shall not add, remove, or reinterpret requirements.
+When the intact plan is stale, substantively incomplete, ambiguous, or
+conflicting, the executor shall surface that finding. The authoritative
+artifact wins: when independently reopening it and its declared dependency
+graph supplies sufficient implementation authority, the executor may ignore
+the defective plan and proceed from those artifacts; it shall never implement
+a requirement added or reinterpreted by the plan. When the authoritative
+decision or specification is itself missing, inadequate, ambiguous, or
+conflicting, the dispatcher shall apply the earlier shaping or
+specification-convergence route.
+
+The plan shall remain transient: it is not committed, does not enter
+`depends_on` or `implements`, creates no gate, and uses no temporary repository
+carrier. A session interruption is not relay loss when the intact, unchanged
+planner final-response message remains available; the dispatcher may resume
+forwarding that message without replanning. Only a missing or truncated
+message is relay loss and requires a fresh planner run from the authoritative
+inputs before the planner-first executor dispatch. An intact but substantively
+weak plan is also not relay loss and follows the artifact-authority rule above.
+This contract adds no plan-admission gate, retry counter, checkpoint, or
+persistence mechanism.
 
 ## Codex compatibility evidence and bridge contract
 
@@ -391,7 +511,7 @@ for that host and changes no repository path. Setup and refresh may emit Codex
 launchers only when the selected row is classified `supported` and declares
 the bridge load path. Selecting
 `codex-exec-ephemeral`, `codex-desktop-local`, `codex-cloud-web`,
-`codex-ide`, or `codex-sdk` at v4 therefore produces the row's unsupported
+`codex-ide`, or `codex-sdk` at v6 therefore produces the row's unsupported
 disclosure and the per-operation valid-unsupported behavior. A future runtime
 detector or newly supported row changes the matrix/adapter metadata and its
 tests, not this precedence rule.
@@ -405,7 +525,7 @@ passes the full support record:
 - clean-environment setup used;
 - exact plugin install/load path;
 - launcher form under test;
-- all thirteen role identities and their expected execution class;
+- all fourteen role identities and their expected execution class;
 - observed discoverability for every identity;
 - proof that a cold producer and an independent read-only reviewer can be
   invoked separately;
@@ -434,7 +554,7 @@ passes the full support record:
   the returned exposure class shall be `scoped-advisor`, never
   `driving-session`.
 
-The support fixture shall derive the expected set from the thirteen-row role
+The support fixture shall derive the expected set from the fourteen-row role
 inventory, not from generated host files. It shall fail for a missing,
 duplicate, extra, wrong-class, wrong-source, or wrong-digest identity. The
 dispatcher/shaper boundary check shall additionally prove that the driving
@@ -825,7 +945,7 @@ version-bump change is the human release act.
 
 The matrix shall contain at least these rows:
 
-| Surface id | Bridge state at v4 | Release state at v4 |
+| Surface id | Bridge state at v6 | Release state at v6 |
 |---|---|---|
 | `claude-interactive` | Host-native agents; not a Codex bridge row. | Evidence required. |
 | `claude-cloud` | Host-native agents; not a Codex bridge row. | Evidence required. |
@@ -892,10 +1012,14 @@ derived from, or mechanically validated against, this matrix.
 - A persistent runner-hosted dispatcher.
 - A full dispatcher or interactive shaper running as a cold subagent.
 - Self-contained Codex TOML containing generated charter bodies.
-- A third authored charter, companion, instruction, or lifecycle-operation
-  corpus.
-- Changing Grove's gate semantics, role charters, or consumer-authoritative
-  `.grove/` dials.
+- A third authored methodology corpus; the new planner charter joins the
+  existing canonical `charters/` corpus.
+- Reintroducing the retired review-bookkeeping CI or installing its dormant
+  runtime through either host plugin.
+- Changing Grove's gate semantics, consumer-authoritative `.grove/` dials, or
+  the existing thirteen roles' semantics beyond the dispatcher/executor
+  planning handoff stated above; v6 adds the planner's canonical charter and
+  preserves their other method and authority.
 - Changing any surface support classification, marketplace authority, release
   version, or release tag merely because package paths move.
 - Physically separate Claude and Codex package roots or a published generated
@@ -903,6 +1027,13 @@ derived from, or mechanically validated against, this matrix.
 - Performing repository git actions from setup, refresh, or remove.
 - Publishing a GitHub Release object or making a marketplace the version
   authority.
+- A planner-assisted execution experiment, experiment harness, model or
+  resource tiers, token or cost accounting, metrics, thresholds, adoption
+  decision, or release activation.
+- A canonical JSON plan, parser, request-byte work-scope collector, locator
+  grammar, evidence schema, checkpoint schema, persisted plan artifact, or
+  plan gate.
+- A planner-specific runtime, resource selector, or central pipeline branch.
 
 ## Acceptance criteria
 
@@ -919,7 +1050,8 @@ derived from, or mechanically validated against, this matrix.
   expected projection, generation check mode shall exit non-zero without
   writing files and shall name the divergent path.
 - **INV5 — inventory completeness:** The role inventory shall contain exactly
-  thirteen unique canonical role ids, each resolving to one canonical charter;
+  fourteen unique canonical role ids, each resolving to one canonical charter,
+  including `implementation-planner` exactly once as cold-native;
   shaper shall be driving-session only, dispatcher shall be driving-session
   plus scoped-advisor only, every other role shall have only its declared
   cold-native exposure, and every non-driving exposure shall have one unique
@@ -975,7 +1107,7 @@ derived from, or mechanically validated against, this matrix.
   the surface write-permissions table.
 - **INV20 — exposure-specific discovery:** A supported-surface discovery run
   shall derive all expected identities and exposure classes from the
-  thirteen-row authored inventory and shall pass only when each declared
+  fourteen-row authored inventory and shall pass only when each declared
   driving-session, cold-native, and scoped-advisor exposure satisfies its
   corresponding oracle exactly once.
 - **INV21 — immutable tag identity:** When `grove-v<VERSION>` already exists,
@@ -1007,7 +1139,7 @@ derived from, or mechanically validated against, this matrix.
   dispatcher agent shall expose only scoped-advisor.
 - **INV27 — Codex isolation:** From a clean installed cache, Codex discovery
   shall return exactly the four lifecycle skills and one `role-<canonical-id>`
-  skill for each of the thirteen role rows, all from
+  skill for each of the fourteen role rows, all from
   `adapters/codex/skills/`; generated project launchers shall exist only for
   `cold-native` or `scoped-advisor` exposures, with no shaper launcher or
   full-dispatcher launcher.
@@ -1050,6 +1182,36 @@ derived from, or mechanically validated against, this matrix.
   classify its surface input before mutation and shall perform no creation,
   replacement, or deletion beyond the exact cell for that operation and
   `supported`, `valid-unsupported`, or `invalid` class.
+- **INV37 — planner delivery:** The build system shall derive the
+  `implementation-planner` Claude envelope and Codex role skill/reference from
+  exactly one canonical `charters/implementation-planner.md` source, expose it
+  only as cold-native, and include it in the fourteen-role inventory and
+  inventory-derived discovery checks.
+- **INV38 — bounded advisory plan:** For each planner dispatch, the planner
+  shall return one concise, human-readable final response scoped to one
+  governing artifact and the six required information kinds, addressing every
+  artifact acceptance criterion without prescribing headings, ordering,
+  repetition, or an entry grammar.
+- **INV39 — routing precedence:** Before code-bearing implementation, the
+  dispatcher shall apply decision conflict, specification deficiency,
+  decision-only non-code, qualified localized-slip bypass, and otherwise
+  planner-first routing in that order; it may select direct execution or
+  planner-first execution when every localized-slip condition holds, but shall
+  forbid direct execution when any condition is unproven or false.
+- **INV40 — artifact authority:** The executor shall independently reopen the
+  authoritative artifact and its declared dependency graph, surface a stale,
+  substantively incomplete, ambiguous, or conflicting plan, and never
+  implement a requirement added or reinterpreted by that plan; it may proceed
+  from sufficient authoritative artifacts despite the advisory defect, while
+  an authoritative decision/specification defect shall take the applicable
+  upstream route.
+- **INV41 — transient cold relay:** The dispatcher shall relay the complete
+  planner final-response message unchanged in the driving session and supply
+  the artifact pointer separately, without persisting either as a plan
+  artifact or creating a gate; only a missing or truncated final-response
+  message shall count as relay loss and require a fresh planner run, while an
+  interrupted session with that intact, unchanged message still available may
+  resume relay without replanning.
 
 ### GWT scenarios
 
@@ -1170,7 +1332,7 @@ companion, or lifecycle-operation body.
 
 #### S15 — native Codex ids and package boundary
 
-**Given** the thirteen-role inventory and generated Codex package,
+**Given** the fourteen-role inventory and generated Codex package,
 **When** generation and package validation run,
 **Then** every native exposure has a unique underscore-form id, the plugin
 contains its skills only under `adapters/codex/skills/`, contains no
@@ -1189,7 +1351,7 @@ makes no Wisp change.
 #### S17 — Codex surface input fails closed
 
 **Given** a Codex lifecycle invocation with no surface id, an unknown id, a
-Claude id, contradictory provenance, or a v4 unsupported Codex id,
+Claude id, contradictory provenance, or a v6 unsupported Codex id,
 **When** setup or refresh validates its surface invocation record,
 **Then** invalid input reports the valid Codex ids and reason and makes no
 repository mutation, while a valid-unsupported id reports its missing
@@ -1202,7 +1364,7 @@ bounded writes proceed.
 #### S18 — discovery is complete by exposure
 
 **Given** a fresh candidate on a claimed-supported surface and the authored
-thirteen-row inventory,
+fourteen-row inventory,
 **When** discovery runs,
 **Then** the driving task follows the host's declared generated loaders and
 returns matching source identity for full dispatcher and interactive shaper
@@ -1262,7 +1424,7 @@ discovered.
 and an at-least-eight-level-deep cache whose path contains spaces,
 **When** Codex component discovery runs from a fresh host state,
 **Then** its result equals the authored Codex positive inventory exactly: the
-four lifecycle skills and thirteen `role-<canonical-id>` skills come from
+four lifecycle skills and fourteen `role-<canonical-id>` skills come from
 `adapters/codex/skills/`, project launchers exist only for cold-native and
 scoped-advisor exposures, dispatcher is scoped only, shaper has no launcher,
 and no Claude agent envelope, plugin custom-agent TOML, package
@@ -1385,6 +1547,68 @@ and only individually confirmed Remove deletions, invalid input permits no
 mutation for any operation, and read-only disclosure in no case becomes a
 partial write.
 
+#### S35 — the planner joins both generated hosts
+
+**Given** the fourteen-role inventory and one canonical
+`charters/implementation-planner.md` plus a supported bridge fixture,
+**When** generation and host-discovery checks run,
+**Then** Claude receives one cold-native planner envelope, Codex receives one
+planner role skill/reference and one thin project launcher, both
+projections name the same canonical source and digest, and no second authored
+planner instruction source appears.
+
+#### S36 — ordinary code-bearing spec work is planned before execution
+
+**Given** ratified code-bearing specification work with no earlier routing
+defect and no qualified localized-slip bypass,
+**When** the dispatcher prepares implementation,
+**Then** it cold-starts the planner, receives one bounded human-readable plan
+limited to the six required information kinds and addressing every artifact
+criterion, and relays the unchanged final-response message plus the separate
+artifact pointer to a separately cold executor without requiring a prescribed
+heading, order, repetition rule, or entry grammar.
+
+#### S37 — only a qualified localized slip bypasses planning
+
+**Given** a reproduced, root-caused, localized implementation slip that changes
+no public interface, schema, dispatch behavior, cross-component behavior, or
+governing artifact,
+**When** the dispatcher applies routing precedence,
+**Then** either direct execution or planner-first execution is allowed at
+dispatcher judgment; **but given** any unproven or false condition or an
+earlier decision/specification defect, **when** routing runs, **then** direct
+execution is forbidden and the earlier applicable route or planner-first route
+wins.
+
+#### S38 — the governing artifact defeats a bad plan
+
+**Given** an intact relayed plan that is stale, substantively incomplete,
+ambiguous, or conflicts with the governing artifact or its declared dependency
+graph,
+**When** the separately cold executor reopens those authoritative inputs,
+**Then** it surfaces the advisory defect and implements no requirement added or
+reinterpreted by the plan; **given** the artifacts independently provide
+sufficient authority, **when** execution continues, **then** it proceeds from
+those artifacts while ignoring the defective plan; **but given** an
+authoritative decision or specification defect, **when** the finding is
+returned, **then** the dispatcher follows the earlier upstream route.
+
+#### S39 — a lost relay is recomputed
+
+**Given** the session was interrupted after planning but the intact, unchanged
+planner final-response message remains available,
+**When** the dispatcher resumes the work,
+**Then** it may resume forwarding that message with the artifact pointer
+supplied separately without rerunning the planner; **but given** the message
+is missing or truncated, **when** the dispatcher resumes, **then** it treats
+the relay as lost and reruns the planner from the authoritative artifact,
+dependency graph, and relevant repository basis before forwarding the fresh
+final-response message unchanged, without committing or creating a temporary
+plan carrier, checkpoint, retry record, or gate.
+
+An intact message whose advisory content is stale, substantively incomplete,
+ambiguous, or conflicting is not relay loss and follows `S38`.
+
 ## Open questions
 
 None. The thin bridge is settled as viable for non-ephemeral `codex exec`;
@@ -1403,12 +1627,14 @@ criteria above.
 `.grove/config.toml`, and no contract-author addendum exists. Self-check
 against the contract-author charter:
 
-- **Settled input:** PASS — `adr-0031-multi-host-distribution`,
-  `adr-0032-status-emission-belongs-to-wisp`, and
-  `adr-0036-remove-retired-review-bookkeeping` are approved; ADR-0031 remains
-  the original `implements:` upstream and the live decision inputs appear in
+- **Settled input:** PASS — `adr-0031-multi-host-distribution` and
+  `adr-0032-status-emission-belongs-to-wisp` remain approved, and
+  `adr-0035-plugin-and-consumer-boundary` and
+  `adr-0037-pre-execution-planning` and
+  `adr-0036-remove-retired-review-bookkeeping` are approved change inputs;
+  ADR-0031 remains the original `implements:` upstream and all five appear in
   `depends_on`.
-- **Required shape:** PASS — shared frontmatter, behavioral `version: 5`, the
+- **Required shape:** PASS — shared frontmatter, behavioral `version: 6`, the
   seven-field section-level amendment note, explicit non-goals, acceptance
   criteria, open questions, and this rubric check are present.
 - **Both test grammars:** PASS — behavioral examples use Given/When/Then and
@@ -1420,9 +1646,15 @@ against the contract-author charter:
   generated driving loaders without repeating any charter or
   lifecycle-operation body.
 - **Bounded scope:** PASS — public-directory publication, universal first-wave
-  support, persistent orchestration, and unrelated role/gate changes are
-  excluded; the retired bookkeeping implementation is removed only under
-  ADR-0036, and ADR-0032's removed status surface is not reintroduced.
+  support, persistent orchestration, CI-bookkeeping revival, and unrelated
+  role/gate changes are excluded; the planner amendment adds no experiment,
+  model/resource policy, token/cost/metric/adoption machinery, canonical plan
+  parser, request-byte locator machinery, evidence/checkpoint schema, or
+  release activation; the planner charter joins rather than duplicates the
+  canonical corpus, existing-role semantics change only at the specified
+  dispatcher/executor handoff, the retired bookkeeping implementation is
+  removed only under its ADR-0036, and ADR-0032's removed status surface is
+  not reintroduced.
 - **Testability:** PASS — generation drift, explicit surface selection,
   exposure-specific discovery, immutable tag identity, stamp-skew disclosure,
   bridge evidence, exact package contents, positive and negative host
@@ -1431,8 +1663,15 @@ against the contract-author charter:
   handling, per-operation surface writes, legacy migration confirmations,
   managed-file ownership, underscore ids, status absence, version equality,
   channel installs, and per-surface support each have observable pass/fail
-  behavior.
+  behavior; canonical planner delivery, routing precedence, bounded plan
+  contents addressing every criterion, safety-bounded localized-slip routing,
+  artifact-authoritative handling of weak advisory plans, unchanged-message
+  cold relay, interruption-resume with an intact message, and replanning for a
+  missing or truncated relay add explicit manual checks without weakening any
+  v4 criterion or requiring canonical serialization or a plan gate.
 - **Lifecycle:** PASS — these significant revise-in-place amendments have
-  durable approved decision inputs and bump `v4 → v5`; the spec remains
-  self-checked at `gated`, with independent intrinsic-quality and fidelity
-  reviews owed before implementation proceeds under the project gate profile.
+  durable approved decision inputs through ADR-0036 and ADR-0037 and bump
+  `v5 → v6`; the
+  spec remains self-checked at `gated`, with independent intrinsic-quality and
+  fidelity reviews owed before implementation proceeds under the steward
+  profile's agent-owned spec gate.

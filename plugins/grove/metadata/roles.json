@@ -158,6 +158,25 @@
       }
     },
     {
+      "id": "implementation-planner",
+      "source": "charters/implementation-planner.md",
+      "description": "Cold, read-only pre-execution reconnaissance and strict-TDD planning for one ratified code-bearing specification; advisory only.",
+      "tool_policy": {
+        "claude": ["Read", "Grep", "Glob", "Bash"]
+      },
+      "exposures": [
+        {
+          "class": "cold-native",
+          "native_id": "grove_implementation_planner"
+        }
+      ],
+      "outputs": {
+        "reference": "plugins/grove/reference/charters/implementation-planner.md",
+        "claude_agent": "plugins/grove/adapters/claude/agents/implementation-planner.md",
+        "codex_skill": "plugins/grove/adapters/codex/skills/role-implementation-planner/SKILL.md"
+      }
+    },
+    {
       "id": "propagation-remediator",
       "source": "charters/propagation-remediator.md",
       "description": "Self-improvement remediation for missing propagation and recommended-next-task records, evaluated against the parked-item graph.",

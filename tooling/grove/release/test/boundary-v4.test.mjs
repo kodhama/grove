@@ -1,4 +1,4 @@
-// Upstream: spec-0004-dual-host-distribution@v5 INV23, INV24, INV32; S21, S30.
+// Upstream: spec-0004-dual-host-distribution@v6 INV23, INV24, INV32; S21, S30.
 // Decisions: adr-0035-plugin-and-consumer-boundary; adr-0036-remove-retired-review-bookkeeping.
 import test from 'node:test';
 import assert from 'node:assert/strict';

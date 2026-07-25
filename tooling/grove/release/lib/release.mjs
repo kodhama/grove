@@ -673,25 +673,21 @@ function validateCodexProbeEvidence(record, row, errors) {
     invocation: childResult?.invocation,
     child_result: childResult,
   });
+  const nativeBatches = Array.from(
+    { length: Math.ceil(native.length / 4) },
+    (_, index) => native.slice(index * 4, index * 4 + 4),
+  );
+  const phaseNumber = (number) => String(number).padStart(2, '0');
+  const tailStart = nativeBatches.length + 2;
   const phasePlan = [
     { id: '01-driving-session', kind: 'driving-session', invocations: [] },
-    {
-      id: '02-native-batch-1',
+    ...nativeBatches.map((batch, index) => ({
+      id: `${phaseNumber(index + 2)}-native-batch-${index + 1}`,
       kind: 'native-batch',
-      invocations: native.slice(0, 4).map((item) => expectedInvocation(item)),
-    },
+      invocations: batch.map((item) => expectedInvocation(item)),
+    })),
     {
-      id: '03-native-batch-2',
-      kind: 'native-batch',
-      invocations: native.slice(4, 8).map((item) => expectedInvocation(item)),
-    },
-    {
-      id: '04-native-batch-3',
-      kind: 'native-batch',
-      invocations: native.slice(8, 12).map((item) => expectedInvocation(item)),
-    },
-    {
-      id: '05-producer-reviewer-separation',
+      id: `${phaseNumber(tailStart)}-producer-reviewer-separation`,
       kind: 'separation',
       invocations: [
         expectedInvocation(record?.producer_reviewer_separation?.producer),
@@ -699,12 +695,12 @@ function validateCodexProbeEvidence(record, row, errors) {
       ],
     },
     {
-      id: '06-scoped-dispatcher',
+      id: `${phaseNumber(tailStart + 1)}-scoped-dispatcher`,
       kind: 'scoped-dispatcher',
       invocations: [expectedInvocation(record?.spawned_dispatcher)],
     },
     {
-      id: '07-config-addendum',
+      id: `${phaseNumber(tailStart + 2)}-config-addendum`,
       kind: 'config-addendum',
       invocations: [expectedInvocation(
         record?.config_and_addendum,

@@ -1,5 +1,6 @@
-// Upstream: spec-0004-dual-host-distribution@v5 INV1, INV2, INV5-INV7,
-// INV17, INV20, INV23-INV28, INV33; S1, S2, S15, S18, S21-S24, S31.
+// Upstream: spec-0004-dual-host-distribution@v6 INV1, INV2, INV5-INV7,
+// INV17, INV20, INV23-INV28, INV33, INV37-INV41;
+// S1, S2, S15, S18, S21-S24, S31, S35-S39.
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, writeFile, cp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -66,8 +67,8 @@ test("inventory is metadata-only, complete, and models the driving/scoped bounda
     await readFile(path.join(REPO_ROOT, INVENTORY_PATH), "utf8"),
   );
 
-  assert.equal(inventory.roles.length, 13);
-  assert.equal(new Set(inventory.roles.map((role) => role.id)).size, 13);
+  assert.equal(inventory.roles.length, 14);
+  assert.equal(new Set(inventory.roles.map((role) => role.id)).size, 14);
   assert.equal(
     Object.keys(inventory).some((key) =>
       ["instructions", "method", "workflow", "boundaries"].includes(key),
@@ -101,6 +102,70 @@ test("inventory is metadata-only, complete, and models the driving/scoped bounda
   );
   assert.match(dispatcherEnvelope, /scoped-agent-boundary/);
   assert.doesNotMatch(dispatcherEnvelope, /sequence every other agent/);
+
+  const planner = inventory.roles.find(
+    (role) => role.id === "implementation-planner",
+  );
+  assert.deepEqual(planner.exposures, [
+    {
+      class: "cold-native",
+      native_id: "grove_implementation_planner",
+    },
+  ]);
+});
+
+test("INV38-INV41/S36-S39: canonical charters bound planning, routing, authority, and relay", async () => {
+  const [planner, dispatcher, executor] = (
+    await Promise.all(
+      ["implementation-planner", "dispatcher", "executor"].map((role) =>
+        readFile(path.join(REPO_ROOT, "charters", `${role}.md`), "utf8"),
+      ),
+    )
+  ).map((text) => text.replace(/\s+/g, " "));
+
+  for (const required of [
+    /concise/i,
+    /human-readable/i,
+    /one governing artifact/i,
+    /every acceptance criterion/i,
+    /verified facts?.*inferences?|inferences?.*verified facts?/is,
+    /red → green → refactor/i,
+    /exact verification commands/i,
+    /risks, ambiguities, and blockers/i,
+  ]) {
+    assert.match(planner, required);
+  }
+  assert.match(planner, /read-only/i);
+  assert.match(planner, /shall not edit|never edit/i);
+  assert.match(planner, /no (?:prescribed|required) heading|headings?[^.]*not prescribed/i);
+  assert.doesNotMatch(planner, /packet_schema|canonical JSON|locator grammar|checkpoint schema/i);
+
+  const precedence = [
+    /wrong or conflicting approved decision/i,
+    /missing, inadequate, or ambiguous specification/i,
+    /decision-only non-code/i,
+    /reproduced, root-caused, localized implementation slip/i,
+    /all other ratified code-bearing specification work/i,
+  ].map((pattern) => dispatcher.search(pattern));
+  assert.ok(precedence.every((index) => index >= 0), "dispatcher names every route");
+  assert.deepEqual([...precedence].sort((left, right) => left - right), precedence);
+  assert.match(
+    dispatcher,
+    /public interface,\s+schema,\s+dispatch behavior,\s+cross-component\s+behavior,\s+or governing artifact/i,
+  );
+  assert.match(dispatcher, /complete planner final-response\s+message unchanged/i);
+  assert.match(dispatcher, /artifact\s+pointer separately/i);
+  assert.match(dispatcher, /separately cold executor/i);
+  assert.match(dispatcher, /missing or truncated[^.]*relay loss/is);
+  assert.match(dispatcher, /intact,\s+unchanged[^.]*without replanning/is);
+
+  assert.match(executor, /independently reopen/i);
+  assert.match(executor, /artifact and its declared\s+dependency graph/i);
+  assert.match(executor, /stale,\s+substantively incomplete,\s+ambiguous,\s+or conflicting/i);
+  assert.match(executor, /artifact wins/i);
+  assert.match(executor, /never implement a requirement\s+added or reinterpreted by the plan/i);
+  assert.match(executor, /may ignore the defective plan and\s+proceed/i);
+  assert.match(executor, /decision or specification is itself[^.]*upstream route/is);
 });
 
 test("all projections are marked, source-addressed, and native ids are unique underscore forms", async () => {
@@ -114,7 +179,7 @@ test("all projections are marked, source-addressed, and native ids are unique un
       .map((exposure) => exposure.native_id),
   );
 
-  assert.equal(native.length, 12);
+  assert.equal(native.length, 13);
   assert.equal(new Set(native).size, native.length);
   for (const id of native) {
     assert.match(id, /^[a-z0-9_]+$/);
@@ -138,7 +203,7 @@ test("all projections are marked, source-addressed, and native ids are unique un
     [...outputs].filter(([name]) =>
       name.startsWith("plugins/grove/reference/charters/"),
     ).length,
-    13,
+    14,
   );
   assert.deepEqual(
     COMPANION_PROJECTIONS.map(({ output }) => output),
@@ -152,13 +217,13 @@ test("all projections are marked, source-addressed, and native ids are unique un
     [...outputs].filter(([name]) =>
       name.startsWith("plugins/grove/adapters/codex/skills/role-"),
     ).length,
-    13,
+    14,
   );
   assert.equal(
     [...outputs].filter(([name]) =>
       name.startsWith("plugins/grove/adapters/claude/agents/"),
     ).length,
-    12,
+    13,
   );
 
   for (const [name, content] of outputs) {
@@ -218,7 +283,7 @@ test("artifact-only metadata changes the source digest but not runtime prose", a
     const canonical = await readFile(source, "utf8");
     await writeFile(
       source,
-      canonical.replace("updated: 2026-07-21", "updated: 2026-07-24"),
+      canonical.replace(/^updated: .+$/m, "updated: 2099-01-01"),
     );
     const after = await buildProjectionSet({ repoRoot: root });
     const reference = "plugins/grove/reference/charters/executor.md";
