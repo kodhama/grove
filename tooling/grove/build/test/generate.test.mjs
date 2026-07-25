@@ -1,4 +1,4 @@
-// Upstream: spec-0004-dual-host-distribution@v4 INV1, INV2, INV5-INV7,
+// Upstream: spec-0004-dual-host-distribution@v5 INV1, INV2, INV5-INV7,
 // INV17, INV20, INV23-INV28, INV33; S1, S2, S15, S18, S21-S24, S31.
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, writeFile, cp, rm } from "node:fs/promises";

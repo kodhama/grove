@@ -78,8 +78,8 @@ the dispatcher sequences by:
   advisory, untargeted, never self-exempting: they inform *which*
   reviewer you dispatch, never *whether* work gets eyes. The human at
   merge is the gate (`ship = human`); no mechanical check recomputes
-  review completeness today (adr-0027 D1 — retired-for-now, revival via
-  its D4).
+  review completeness today (ADR-0036 removed the retired implementation;
+  any future mechanism needs a new decision).
 - **Failed reviews route by what they indict:** a `FAIL`/`BLOCK`/
   `NEEDS-REVISION` routes to the subject's own producing layer; a
   conformance `UPSTREAM-INDICTED` routes to the *upstream's* layer — a

@@ -1,12 +1,12 @@
 ---
 id: spec-0004-dual-host-distribution
 type: spec
-status: gated  # v4 self-checked 2026-07-24; spec-adversary APPROVE-READY and conformance-reviewer PASS ratify downstream use under the steward agent-owned spec gate
+status: gated  # v5 self-check and independent review follow ADR-0036 before implementation handoff
 implements: adr-0031-multi-host-distribution
-depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary]
+depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0036-remove-retired-review-bookkeeping]
 owner: agent
-updated: 2026-07-24
-version: 4
+updated: 2026-07-25
+version: 5
 ---
 
 # spec-0004 — dual-host distribution
@@ -86,6 +86,24 @@ decision reserves for a later intent gate.
 > preserves the existing dual-host and release semantics, and requires exact
 > package, discovery, installed-cache, and migration evidence.
 
+> **Amendment (2026-07-25, `adr-0036-remove-retired-review-bookkeeping`).**
+> **WHAT:** The retired review-bookkeeping implementation, its templates, and
+> its direct policy carriers are removed rather than preserved outside the
+> package. CI and shared validation commands cover only the five live tooling
+> suites.
+> **WHY:** The maintainer explicitly chose permanent removal after confirming
+> the dormant machinery was no longer wanted.
+> **SCOPE:** Behavioral version `v5`; the package boundary, host adapters,
+> lifecycle behavior, surface evidence, and release authority remain unchanged.
+> **POINTER:** Current requirements live in “Deliverables and ownership,”
+> “Installable package and host-discovery contract,” “Shared setup, refresh,
+> set-profile, and remove contract,” “Release and publication contract,” and
+> acceptance criteria `INV24` / `S30`.
+> **VALUE:** The repository no longer retains runnable machinery that no
+> current workflow, package, or consumer can use.
+> **CONFIDENCE:** `verified` after the removal-specific CI, package, and probe
+> checks pass against the exact committed candidate.
+
 ## Terms
 
 | Term | Meaning |
@@ -127,7 +145,6 @@ decision reserves for a later intent gate.
 | Package declarations | `plugins/grove/README.md`, both manifest directories, `VERSION`, `adapters/`, `runtime/`, `reference/`, and `metadata/` | These are the only permitted package-root entries; an exact recursive leaf allowlist is declared once and validated before any package or release claim. |
 | Surface matrix and spike evidence | Declared machine-readable sources under `plugins/grove/metadata/` or `plugins/grove/reference/` | The matrix is the sole source for support claims and links immutable evidence records such as `reference/surfaces/codex-bridge-spike-2026-07-23.json`. |
 | Maintainer machinery | `tooling/grove/build/`, `tooling/grove/release/`, `tooling/grove/tests/`, and `tooling/grove/probes/` | Retained source-repository inputs outside the installable package; tests import package modules and release/probe commands operate on an exact ephemeral package snapshot. |
-| Dormant review bookkeeping | `retired/review-bookkeeping/` | Preserved, dormant, and outside the installable package; no lifecycle or release path installs it. |
 | Claude marketplace entry | Existing Claude marketplace | Resolves the released Grove Claude package. |
 | Codex marketplace entry | A Git-backed repo catalog at `.agents/plugins/marketplace.json` | Resolves the released Grove Codex package. |
 
@@ -189,8 +206,8 @@ the target is also allowlisted.
 
 No package path may be named root `skills/`, root `agents/`, root `commands/`,
 or root `SKILL.md`. No leaf under `plugins/grove/` may be build, release, test,
-probe, fixture, coverage, temporary, cache, or dormant review-bookkeeping
-implementation. Generated files required by a Git-subdirectory marketplace
+probe, fixture, coverage, temporary, or cache machinery. Generated files
+required by a Git-subdirectory marketplace
 remain committed; generation check mode proves them current.
 
 Maintainer commands shall assemble an ephemeral package snapshot from the
@@ -620,7 +637,7 @@ Setup shall:
 - leave another host's existing managed block and launchers unchanged;
 - remain git-neutral and make no recommendation about how the consumer lands
   the resulting files;
-- keep the retired review-bookkeeping CI uninstalled; and
+- install no check-only CI runtime, template, or consumer surface; and
 - report every path written, skipped, or refused.
 
 Running setup twice for one host shall be idempotent. Running it once from each
@@ -783,8 +800,7 @@ shall, before creating a tag:
    tag.
 
 The workflow is deterministic and idempotent. It does not choose the semantic
-version level, publish a GitHub Release, merge a change, or revive the retired
-review-bookkeeping gate. Relocating its validator source outside
+version level, publish a GitHub Release, or merge a change. Relocating its validator source outside
 `plugins/grove/` does not change those semantics. The maintainer's merge of the
 version-bump change is the human release act.
 
@@ -878,11 +894,6 @@ derived from, or mechanically validated against, this matrix.
 - Self-contained Codex TOML containing generated charter bodies.
 - A third authored charter, companion, instruction, or lifecycle-operation
   corpus.
-- Reintroducing the retired review-bookkeeping CI or installing its dormant
-  runtime through either host plugin.
-- Deleting or judging the necessity of retained build, release, test, probe,
-  or dormant review-bookkeeping machinery; that is reserved for the later
-  repository audit.
 - Changing Grove's gate semantics, role charters, or consumer-authoritative
   `.grove/` dials.
 - Changing any surface support classification, marketplace authority, release
@@ -982,9 +993,9 @@ derived from, or mechanically validated against, this matrix.
   kind-mismatched path, while preserving and comparing the literal target of
   every declared internal symlink.
 - **INV24 — source-side machinery:** Build, release, test, and probe
-  implementation shall reside under `tooling/grove/`, dormant review
-  bookkeeping shall reside under `retired/review-bookkeeping/`, and neither
-  shall appear in the installable package snapshot.
+  implementation shall reside under `tooling/grove/`; no review-bookkeeping
+  runtime or template shall remain in the repository, and source-side tooling
+  shall not appear in the installable package snapshot.
 - **INV25 — no default discovery roots:** The package root shall contain no
   `skills/`, `agents/`, `commands/`, or `SKILL.md`, and neither manifest shall
   expose `runtime/`, `reference/`, `metadata/`, or the opposite-host adapter as
@@ -1319,12 +1330,12 @@ non-empty parent.
 
 #### S30 — source-side tooling exercises the exact snapshot
 
-**Given** build, release, test, and probe sources under `tooling/grove/`, dormant
-review bookkeeping under `retired/review-bookkeeping/`, and a valid package
+**Given** build, release, test, and probe sources under `tooling/grove/`, no
+review-bookkeeping runtime or template in the repository, and a valid package
 allowlist,
 **When** release validation assembles and tests the ephemeral package snapshot,
 **Then** the snapshot's path set and bytes equal the validated package, contains
-none of that source-side or dormant machinery, preserves all v3 surface and
+none of that source-side tooling, preserves all v3 surface and
 release classifications, and no version or tag changes merely because the
 paths moved.
 
@@ -1392,12 +1403,12 @@ criteria above.
 `.grove/config.toml`, and no contract-author addendum exists. Self-check
 against the contract-author charter:
 
-- **Settled input:** PASS — `adr-0031-multi-host-distribution` and
-  `adr-0032-status-emission-belongs-to-wisp` remain approved, and
-  `adr-0035-plugin-and-consumer-boundary` is the approved change input;
-  ADR-0031 remains the original `implements:` upstream and all three appear in
+- **Settled input:** PASS — `adr-0031-multi-host-distribution`,
+  `adr-0032-status-emission-belongs-to-wisp`, and
+  `adr-0036-remove-retired-review-bookkeeping` are approved; ADR-0031 remains
+  the original `implements:` upstream and the live decision inputs appear in
   `depends_on`.
-- **Required shape:** PASS — shared frontmatter, behavioral `version: 4`, the
+- **Required shape:** PASS — shared frontmatter, behavioral `version: 5`, the
   seven-field section-level amendment note, explicit non-goals, acceptance
   criteria, open questions, and this rubric check are present.
 - **Both test grammars:** PASS — behavioral examples use Given/When/Then and
@@ -1409,9 +1420,9 @@ against the contract-author charter:
   generated driving loaders without repeating any charter or
   lifecycle-operation body.
 - **Bounded scope:** PASS — public-directory publication, universal first-wave
-  support, persistent orchestration, CI-bookkeeping revival, and unrelated
-  role/gate changes are excluded; retained tooling is relocated rather than
-  judged or deleted, and ADR-0032's removed status surface is not reintroduced.
+  support, persistent orchestration, and unrelated role/gate changes are
+  excluded; the retired bookkeeping implementation is removed only under
+  ADR-0036, and ADR-0032's removed status surface is not reintroduced.
 - **Testability:** PASS — generation drift, explicit surface selection,
   exposure-specific discovery, immutable tag identity, stamp-skew disclosure,
   bridge evidence, exact package contents, positive and negative host
@@ -1422,6 +1433,6 @@ against the contract-author charter:
   channel installs, and per-surface support each have observable pass/fail
   behavior.
 - **Lifecycle:** PASS — these significant revise-in-place amendments have
-  durable approved decision input and bump `v3 → v4`; the spec remains
+  durable approved decision inputs and bump `v4 → v5`; the spec remains
   self-checked at `gated`, with independent intrinsic-quality and fidelity
   reviews owed before implementation proceeds under the project gate profile.

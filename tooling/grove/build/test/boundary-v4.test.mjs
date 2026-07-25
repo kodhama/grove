@@ -1,8 +1,8 @@
-// Upstream: spec-0004-dual-host-distribution@v4 INV23–INV27, INV33; S21–S23, S31.
-// Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary.
+// Upstream: spec-0004-dual-host-distribution@v5 INV23–INV27, INV33; S21–S23, S31.
+// Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary; adr-0036-remove-retired-review-bookkeeping.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 import { buildProjectionSet } from '../lib/generate.mjs';
@@ -107,27 +107,23 @@ test('INV28/INV33/S24/S31 — driving loaders stay thin, canonical, and package-
   assert.match(`${dispatcher}\n${dispatcherReference}`, /runtime_dir/);
 });
 
-test('repository checks retain all six suites and moved ledgers name their actual roots', async () => {
-  const [workflow, config, gatesLedger, retiredLedger, retiredReadme, probesLedger] =
+test('repository checks retain the five live suites and exclude retired bookkeeping', async () => {
+  const [workflow, config, gatesLedger, probesLedger] =
     await Promise.all([
       readFile(join(REPOSITORY_ROOT, '.github/workflows/grove-tests.yml'), 'utf8'),
       readFile(join(REPOSITORY_ROOT, '.grove/config.toml'), 'utf8'),
       readFile(join(REPOSITORY_ROOT, 'tooling/grove/tests/gates/test-deps.md'), 'utf8'),
-      readFile(join(REPOSITORY_ROOT, 'retired/review-bookkeeping/check/test-deps.md'), 'utf8'),
-      readFile(join(REPOSITORY_ROOT, 'retired/review-bookkeeping/reference/ci/README.md'), 'utf8'),
       readFile(join(REPOSITORY_ROOT, 'tooling/grove/probes/test-deps.md'), 'utf8'),
     ]);
   for (const text of [workflow, config]) {
-    assert.match(text, /retired\/review-bookkeeping\/check/);
     assert.match(text, /tooling\/grove\/probes/);
+    assert.doesNotMatch(text, /retired\/review-bookkeeping/);
   }
-  assert.match(workflow, /six suites/i);
+  assert.match(workflow, /five live suites/i);
   assert.match(gatesLedger, /tooling\/grove\/tests\/gates/);
   assert.doesNotMatch(gatesLedger, /plugins\/grove\/gates/);
-  assert.match(retiredLedger, /retired\/review-bookkeeping\/check/);
-  assert.doesNotMatch(retiredLedger, /root is\s+`plugins\/grove\/check/);
-  assert.match(retiredReadme, /retired\/review-bookkeeping\/check/);
-  assert.match(probesLedger, /spec-0004-dual-host-distribution@v4/);
+  assert.match(probesLedger, /spec-0004-dual-host-distribution@v5/);
+  await assert.rejects(access(join(REPOSITORY_ROOT, 'retired', 'review-bookkeeping')));
 });
 
 test('S22/S23 remain an explicit external live-host release gate, not a manifest-only pass claim', async () => {
