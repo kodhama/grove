@@ -1,7 +1,7 @@
 ---
 id: spec-0004-dual-host-distribution
 type: spec
-status: gated  # v5 conformance PASS covered 239874d; residual intrinsic findings folded and self-checked 2026-07-25; fresh spec-adversary and scoped conformance re-reviews are owed on the changed final SHA before implementation
+status: gated  # v5 spec-adversary APPROVE-READY and conformance PASS at 262ee80 ratify downstream use under the steward agent-owned spec gate
 implements: adr-0031-multi-host-distribution
 depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0036-pre-execution-planning]
 owner: agent
@@ -2599,8 +2599,7 @@ against the contract-author charter:
 - **Lifecycle:** PASS — these significant revise-in-place amendments have
   durable approved decision input and bump `v4 → v5`; these review-driven
   corrections converge that same unratified v5 rather than creating a second
-  behavioral release. The conformance review at `239874d` returned `PASS`, but
-  it does not cover this changed exact artifact. The spec remains self-checked
-  at `gated`, with fresh independent intrinsic-quality and scoped conformance
-  re-reviews owed on the final SHA before implementation proceeds under the
-  project gate profile.
+  behavioral release. The fresh conformance `PASS` and spec-adversary
+  `APPROVE-READY` at `262ee80` ratify v5 for downstream use under the active
+  steward profile's agent-owned spec gate. The lifecycle status remains
+  `gated`; the separate `ship` gate remains human-owned.
