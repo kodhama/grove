@@ -1061,6 +1061,149 @@ export function classifyRoute(
   exactKeys(p, ROUTE_PREDICATE_FIELDS, "route predicates");
   const predicateValues = {};
   const predicateEvidence = {};
+  const validSubjectIds = (subjectIds, label) => {
+    stringArray(subjectIds, `${label}.subject_ids`, { nonempty: true });
+    if (
+      new Set(subjectIds).size !== subjectIds.length
+      || !equalJson(subjectIds, [...subjectIds].sort(compareUtf8))
+      || subjectIds.some((id) => !workIds.includes(id))
+    ) {
+      throw new Error(`${label}.subject_ids must be unique, sorted, and bind known work ids`);
+    }
+  };
+  const validStringSet = (values, label, { nonempty = true } = {}) => {
+    stringArray(values, label, { nonempty });
+    if (
+      new Set(values).size !== values.length
+      || !equalJson(values, [...values].sort(compareUtf8))
+    ) {
+      throw new Error(`${label} must be unique and sorted`);
+    }
+  };
+  const validateEvidence = (field, item) => {
+    const label = `route predicate ${field} evidence`;
+    if (!plainObject(item) || item.evidence_type !== ROUTE_EVIDENCE_TYPES[field]) {
+      throw new Error(`${label} must use its predicate-specific evidence type`);
+    }
+    if (field === "adequate_spec") {
+      exactKeys(item, ["criterion_ids", "evidence_type", "subject_ids"], label);
+      validSubjectIds(item.subject_ids, label);
+      validStringSet(item.criterion_ids, `${label}.criterion_ids`);
+      if (item.criterion_ids.some((id) => !artifactCriteria.has(id))) {
+        throw new Error(`${label} names a criterion outside the artifact`);
+      }
+    } else if (field === "ambiguous") {
+      exactKeys(item, ["defect", "evidence_type", "subject_ids"], label);
+      validSubjectIds(item.subject_ids, label);
+      nonEmptyString(item.defect, `${label}.defect`);
+    } else if (field === "code_bearing" || field === "decision_only_non_code") {
+      exactKeys(item, ["evidence_type", "path_classes", "subject_ids"], label);
+      validSubjectIds(item.subject_ids, label);
+      validStringSet(item.path_classes, `${label}.path_classes`);
+      if (item.path_classes.some((pathClass) =>
+        !record.requested_path_classes.includes(pathClass))) {
+        throw new Error(`${label} path classes must come from requested_path_classes`);
+      }
+    } else if (field === "localized") {
+      exactKeys(
+        item,
+        [
+          "component",
+          "evidence_type",
+          "excluded_change_classes",
+          "regression_test_target",
+          "subject_ids",
+        ],
+        label,
+      );
+      validSubjectIds(item.subject_ids, label);
+      nonEmptyString(item.component, `${label}.component`);
+      if (
+        !equalJson(item.excluded_change_classes, [
+          "artifact",
+          "cross-component",
+          "dispatch",
+          "public-interface",
+          "schema",
+        ])
+      ) {
+        throw new Error(`${label} must rule out every non-local change class`);
+      }
+      exactKeys(
+        item.regression_test_target,
+        ["path", "symbol"],
+        `${label}.regression_test_target`,
+      );
+      nonEmptyString(item.regression_test_target.path, `${label}.regression_test_target.path`);
+      nonEmptyString(item.regression_test_target.symbol, `${label}.regression_test_target.symbol`);
+    } else if (field === "reproduced") {
+      exactKeys(
+        item,
+        [
+          "command",
+          "evidence_type",
+          "failing_observation",
+          "repository_basis",
+          "subject_ids",
+        ],
+        label,
+      );
+      validSubjectIds(item.subject_ids, label);
+      nonEmptyString(item.command, `${label}.command`);
+      nonEmptyString(item.failing_observation, `${label}.failing_observation`);
+      validateBasis(item.repository_basis, `${label}.repository_basis`);
+      if (!equalJson(item.repository_basis, repositoryBasis)) {
+        throw new Error(`${label} repository basis is stale or mismatched`);
+      }
+    } else if (field === "root_caused") {
+      exactKeys(
+        item,
+        [
+          "anchors",
+          "causal_trace",
+          "contrary_contract_gap_ruled_out",
+          "evidence_type",
+          "subject_ids",
+        ],
+        label,
+      );
+      validSubjectIds(item.subject_ids, label);
+      nonEmptyString(item.causal_trace, `${label}.causal_trace`);
+      if (
+        !Array.isArray(item.anchors)
+        || item.anchors.length === 0
+        || item.anchors.some((anchor) => {
+          try {
+            exactKeys(anchor, ["path", "symbol"], `${label}.anchor`);
+            nonEmptyString(anchor.path, `${label}.anchor.path`);
+            nonEmptyString(anchor.symbol, `${label}.anchor.symbol`);
+            return false;
+          } catch {
+            return true;
+          }
+        })
+        || item.contrary_contract_gap_ruled_out !== true
+      ) {
+        throw new Error(`${label} requires exact file/symbol anchors and a ruled-out contract gap`);
+      }
+    } else if (field === "spec_gap") {
+      exactKeys(item, ["criterion_ids", "evidence_type", "subject_ids"], label);
+      validSubjectIds(item.subject_ids, label);
+      validStringSet(item.criterion_ids, `${label}.criterion_ids`);
+      if (!equalJson(item.criterion_ids, [...artifactCriteria].sort(compareUtf8))) {
+        throw new Error(`${label} must retain the exhaustive artifact criterion search`);
+      }
+    } else if (field === "wrong_decision") {
+      exactKeys(
+        item,
+        ["clause", "decision_id", "evidence_type", "subject_ids"],
+        label,
+      );
+      validSubjectIds(item.subject_ids, label);
+      nonEmptyString(item.decision_id, `${label}.decision_id`);
+      nonEmptyString(item.clause, `${label}.clause`);
+    }
+  };
   for (const field of ROUTE_PREDICATE_FIELDS) {
     exactKeys(
       p[field],
@@ -1072,15 +1215,8 @@ export function classifyRoute(
       || !Array.isArray(p[field].evidence)
       || p[field].evidence.some((item) => {
         try {
-          exactKeys(
-            item,
-            ["evidence_type", "subject_ids", "summary"],
-            `route predicate ${field} evidence`,
-          );
-          if (item.evidence_type !== ROUTE_EVIDENCE_TYPES[field]) return true;
-          stringArray(item.subject_ids, `${field} evidence.subject_ids`, { nonempty: true });
-          nonEmptyString(item.summary, `${field} evidence.summary`);
-          return !item.subject_ids.some((id) => workIds.includes(id));
+          validateEvidence(field, item);
+          return false;
         } catch {
           return true;
         }
@@ -1182,6 +1318,105 @@ export function classifyRoute(
       if (mappedWorkIds.some((workId) => !evidencedWorkIds.has(workId))) {
         throw new Error(`${field} evidence must bind every mapped work id`);
       }
+    }
+  }
+  for (const field of [
+    "adequate_spec",
+    "decision_only_non_code",
+    "localized",
+    "reproduced",
+    "root_caused",
+  ]) {
+    if (predicateValues[field]) {
+      const evidencedWorkIds = new Set(
+        predicateEvidence[field].flatMap((evidence) => evidence.subject_ids),
+      );
+      if (workIds.some((workId) => !evidencedWorkIds.has(workId))) {
+        throw new Error(`${field} evidence must bind every work id`);
+      }
+    }
+  }
+  if (predicateValues.adequate_spec) {
+    for (const mapping of record.mappings) {
+      const evidencedCriteria = new Set(
+        predicateEvidence.adequate_spec
+          .filter((evidence) => evidence.subject_ids.includes(mapping.work_id))
+          .flatMap((evidence) => evidence.criterion_ids),
+      );
+      if (mapping.criterion_ids.some((criterion) => !evidencedCriteria.has(criterion))) {
+        throw new Error(
+          "adequate_spec evidence must bind every mapped work id to its exact criteria",
+        );
+      }
+    }
+  }
+  if (predicateValues.wrong_decision) {
+    for (const mapping of record.mappings.filter(
+      (item) => item.result === "wrong_decision",
+    )) {
+      if (!predicateEvidence.wrong_decision.some(
+        (evidence) =>
+          evidence.subject_ids.includes(mapping.work_id)
+          && evidence.decision_id === mapping.decision_id
+          && evidence.clause === mapping.clause,
+      )) {
+        throw new Error("wrong_decision evidence must match the exact decision and clause");
+      }
+    }
+  }
+  if (predicateValues.spec_gap) {
+    for (const mapping of record.mappings.filter(
+      (item) => item.result === "spec_gap",
+    )) {
+      if (!predicateEvidence.spec_gap.some(
+        (evidence) =>
+          evidence.subject_ids.includes(mapping.work_id)
+          && equalJson(evidence.criterion_ids, mapping.exhaustive_criterion_search),
+      )) {
+        throw new Error("spec_gap evidence must match the exhaustive mapped criterion search");
+      }
+    }
+  }
+  const executablePathClasses = new Set([
+    "build",
+    "package",
+    "runtime",
+    "source",
+    "test",
+    "tests",
+  ]);
+  const hasExplicitExecutablePath = record.requested_path_classes.some(
+    (pathClass) => executablePathClasses.has(pathClass),
+  );
+  const allDecisionOnlyPaths = record.requested_path_classes.every(
+    (pathClass) => ["metadata", "prose"].includes(pathClass),
+  );
+  if (
+    (hasExplicitExecutablePath && !predicateValues.code_bearing)
+    || (predicateValues.decision_only_non_code && !allDecisionOnlyPaths)
+  ) {
+    throw new Error(
+      "requested_path_classes contradict the code_bearing or decision_only_non_code predicate",
+    );
+  }
+  if (predicateValues.code_bearing) {
+    const evidencedClasses = new Set(
+      predicateEvidence.code_bearing.flatMap((evidence) => evidence.path_classes),
+    );
+    if (
+      !record.requested_path_classes.some((pathClass) => evidencedClasses.has(pathClass))
+    ) {
+      throw new Error("code_bearing evidence must bind a requested path class");
+    }
+  }
+  if (predicateValues.decision_only_non_code) {
+    const evidencedClasses = new Set(
+      predicateEvidence.decision_only_non_code.flatMap(
+        (evidence) => evidence.path_classes,
+      ),
+    );
+    if (record.requested_path_classes.some((pathClass) => !evidencedClasses.has(pathClass))) {
+      throw new Error("decision_only_non_code evidence must bind every requested path class");
     }
   }
   const selected = (precedence, route) => ({
@@ -1696,11 +1931,17 @@ export function validateExperimentPreregistration(preregistration) {
   validateTasks(preregistration.tasks, "tasks");
   validateTasks(preregistration.replacement_tasks, "replacement_tasks");
   for (const stratum of strata) {
+    const original = preregistration.tasks[stratum];
+    const replacement = preregistration.replacement_tasks[stratum];
     if (
-      preregistration.tasks[stratum].task_id
-      === preregistration.replacement_tasks[stratum].task_id
+      original.task_id === replacement.task_id
+      || original.spec_id === replacement.spec_id
+      || original.revision === replacement.revision
+      || equalJson(original.repository_basis, replacement.repository_basis)
     ) {
-      throw new Error(`replacement_tasks.${stratum} must name a distinct task`);
+      throw new Error(
+        `replacement_tasks.${stratum} must have a distinct task, spec, revision, and repository basis`,
+      );
     }
   }
 
@@ -1851,6 +2092,21 @@ export function validateExperimentPreregistration(preregistration) {
   validateCapabilityBinding(armA, "bindings.arm_a");
   validateCapabilityBinding(bindings.arm_b, "bindings.arm_b");
   validateCapabilityBinding(bindings.arm_c, "bindings.arm_c");
+  for (const field of [
+    "capability_probe_identity",
+    "capability_source_identity",
+    "host",
+    "surface",
+  ]) {
+    if (
+      bindings.arm_b[field] !== armA[field]
+      || bindings.arm_c[field] !== armA[field]
+    ) {
+      throw new Error(
+        `matched arm bindings must share the same ${field} capability proof`,
+      );
+    }
+  }
   if (
     typeof armA.executor_model_id !== "string"
     || armA.premium_selector !== armA.pre_adoption_selector
@@ -2186,20 +2442,26 @@ function validateRunResult(
   for (let round = 1; round <= expectedReviewRounds; round += 1) {
     const conformance = run.review_history[(round - 1) * 2];
     const codeReview = run.review_history[(round - 1) * 2 + 1];
-    for (const [entry, reviewer] of [
-      [conformance, "conformance-reviewer"],
-      [codeReview, "code-reviewer"],
-    ]) {
+    for (const entry of [conformance, codeReview]) {
       exactKeys(entry, ["blocking", "reviewer", "round", "verdict"], "review history entry");
-      if (
-        entry.reviewer !== reviewer
-        || entry.round !== round
-        || typeof entry.blocking !== "boolean"
-        || !["PASS", "FAIL", "UPSTREAM-INDICTED"].includes(entry.verdict)
-        || entry.blocking === (entry.verdict === "PASS")
-      ) {
-        throw new Error(`experiment run review history is invalid at round ${round}`);
-      }
+    }
+    if (
+      conformance.reviewer !== "conformance-reviewer"
+      || conformance.round !== round
+      || typeof conformance.blocking !== "boolean"
+      || !["PASS", "FAIL", "UPSTREAM-INDICTED"].includes(conformance.verdict)
+      || conformance.blocking === (conformance.verdict === "PASS")
+    ) {
+      throw new Error(`experiment run conformance review history is invalid at round ${round}`);
+    }
+    if (
+      codeReview.reviewer !== "code-reviewer"
+      || codeReview.round !== round
+      || typeof codeReview.blocking !== "boolean"
+      || !["CLEAN", "PASS-WITH-ADVISORIES", "BLOCK"].includes(codeReview.verdict)
+      || codeReview.blocking !== (codeReview.verdict === "BLOCK")
+    ) {
+      throw new Error(`experiment run code-review history is invalid at round ${round}`);
     }
     if (codeReview.blocking) blockingCodeReviewObserved = true;
     const terminal = round === expectedReviewRounds;
@@ -2211,7 +2473,8 @@ function validateRunResult(
       && (
         conformance.verdict !== run.conformance_verdict
         || codeReview.blocking !== run.terminal_code_review_blocking
-        || (run.accepted_quality === 1 && codeReview.verdict !== "PASS")
+        || (run.accepted_quality === 1
+          && !["CLEAN", "PASS-WITH-ADVISORIES"].includes(codeReview.verdict))
       )
     ) {
       throw new Error("terminal review history contradicts the run's terminal review outcome");

@@ -405,9 +405,8 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
   assert.equal(scope.work_items.length, 2);
   assert.match(scope.work_scope_identity, /^[0-9a-f]{64}$/);
 
-  const predicate = (field, value, detail, subjectIds = ["WB1"]) => ({
-    evidence: value ? [{
-      evidence_type: {
+  const predicate = (field, value, detail, subjectIds = ["WB1"]) => {
+    const evidenceType = {
         adequate_spec: "criterion-mapping",
         ambiguous: "evidence-defect",
         code_bearing: "requested-path-class",
@@ -417,13 +416,79 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
         root_caused: "causal-trace",
         spec_gap: "exhaustive-criterion-search",
         wrong_decision: "decision-contradiction",
-      }[field],
-      subject_ids: subjectIds,
-      summary: detail,
-    }] : [],
-    missing_evidence_reason: value ? null : detail,
-    value,
-  });
+      }[field];
+    const payload = {
+      adequate_spec: {
+        criterion_ids: ["INV55"],
+        evidence_type: evidenceType,
+        subject_ids: subjectIds,
+      },
+      ambiguous: {
+        defect: detail,
+        evidence_type: evidenceType,
+        subject_ids: subjectIds,
+      },
+      code_bearing: {
+        evidence_type: evidenceType,
+        path_classes: ["source", "test"],
+        subject_ids: subjectIds,
+      },
+      decision_only_non_code: {
+        evidence_type: evidenceType,
+        path_classes: ["metadata"],
+        subject_ids: subjectIds,
+      },
+      localized: {
+        component: "tooling/grove/release",
+        evidence_type: evidenceType,
+        excluded_change_classes: [
+          "artifact",
+          "cross-component",
+          "dispatch",
+          "public-interface",
+          "schema",
+        ],
+        regression_test_target: {
+          path: "tooling/grove/release/test/planning-v5.test.mjs",
+          symbol: "route classification",
+        },
+        subject_ids: subjectIds,
+      },
+      reproduced: {
+        command: "npm test --prefix tooling/grove/release",
+        evidence_type: evidenceType,
+        failing_observation: detail,
+        repository_basis: BASIS,
+        subject_ids: subjectIds,
+      },
+      root_caused: {
+        anchors: [{
+          path: "tooling/grove/release/lib/planning.mjs",
+          symbol: "classifyRoute",
+        }],
+        causal_trace: detail,
+        contrary_contract_gap_ruled_out: true,
+        evidence_type: evidenceType,
+        subject_ids: subjectIds,
+      },
+      spec_gap: {
+        criterion_ids: ["INV55", "S56"],
+        evidence_type: evidenceType,
+        subject_ids: subjectIds,
+      },
+      wrong_decision: {
+        clause: "D5",
+        decision_id: "adr-0036-pre-execution-planning",
+        evidence_type: evidenceType,
+        subject_ids: subjectIds,
+      },
+    }[field];
+    return {
+      evidence: value ? [payload] : [],
+      missing_evidence_reason: value ? null : detail,
+      value,
+    };
+  };
   const base = {
     artifact: ARTIFACT,
     classification_schema: 1,
@@ -510,8 +575,14 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
   }).route, "shaping");
 
   const contradictory = structuredClone(base);
+  contradictory.requested_path_classes = ["metadata", "source", "test"];
   contradictory.predicates.decision_only_non_code =
-    predicate("decision_only_non_code", true, "incorrectly claims prose-only work");
+    predicate(
+      "decision_only_non_code",
+      true,
+      "incorrectly claims prose-only work",
+      ["WB1", "WB2"],
+    );
   assert.throws(
     () => classifyRoute(contradictory, {
       activation: "experiment-arm-c",
@@ -523,15 +594,36 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
     /contradict|mutually exclusive|code_bearing.*decision_only/i,
   );
 
+  const sourceBearingDecisionOnly = structuredClone(base);
+  sourceBearingDecisionOnly.predicates.code_bearing =
+    predicate("code_bearing", false, "incorrectly claims no executable behavior");
+  sourceBearingDecisionOnly.predicates.decision_only_non_code =
+    predicate("decision_only_non_code", true, "incorrectly claims prose-only work");
+  assert.throws(
+    () => classifyRoute(sourceBearingDecisionOnly, {
+      activation: "experiment-arm-c",
+      artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }),
+    /requested.path|source|test|decision.only|code.bearing/i,
+  );
+
   const nonCodeLocalized = structuredClone(base);
   nonCodeLocalized.predicates.code_bearing =
     predicate("code_bearing", false, "incorrectly claims no executable behavior");
   nonCodeLocalized.predicates.localized =
-    predicate("localized", true, "incorrectly claims an implementation slip");
+    predicate(
+      "localized",
+      true,
+      "incorrectly claims an implementation slip",
+      ["WB1", "WB2"],
+    );
   nonCodeLocalized.predicates.reproduced =
-    predicate("reproduced", true, "reproduction");
+    predicate("reproduced", true, "reproduction", ["WB1", "WB2"]);
   nonCodeLocalized.predicates.root_caused =
-    predicate("root_caused", true, "root cause");
+    predicate("root_caused", true, "root cause", ["WB1", "WB2"]);
   assert.throws(
     () => classifyRoute(nonCodeLocalized, {
       activation: "experiment-arm-c",
@@ -657,6 +749,76 @@ test("INV39/INV55/S49/S56 — work scope covers every source byte and route prec
       workScope: scope,
     }),
     /predicate.*evidence.*typed|structured.*evidence|evidence.*object/i,
+  );
+
+  const localized = structuredClone(base);
+  localized.predicates.reproduced =
+    predicate("reproduced", true, "exact failing observation", ["WB1", "WB2"]);
+  localized.predicates.root_caused =
+    predicate("root_caused", true, "observation reaches classifyRoute", ["WB1", "WB2"]);
+  localized.predicates.localized =
+    predicate("localized", true, "bounded component", ["WB1", "WB2"]);
+  assert.equal(
+    classifyRoute(localized, {
+      activation: "experiment-arm-c",
+      artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }).route,
+    "direct-executor-localized-slip",
+  );
+  for (const mutate of [
+    (value) => {
+      delete value.predicates.reproduced.evidence[0].command;
+    },
+    (value) => {
+      delete value.predicates.reproduced.evidence[0].failing_observation;
+    },
+    (value) => {
+      value.predicates.root_caused.evidence[0].anchors = [];
+    },
+    (value) => {
+      value.predicates.root_caused.evidence[0].contrary_contract_gap_ruled_out = false;
+    },
+    (value) => {
+      delete value.predicates.localized.evidence[0].regression_test_target;
+    },
+    (value) => {
+      value.predicates.reproduced.evidence[0].subject_ids = ["WB1"];
+      value.predicates.root_caused.evidence[0].subject_ids = ["WB1"];
+      value.predicates.localized.evidence[0].subject_ids = ["WB1"];
+    },
+    (value) => {
+      value.predicates.reproduced.evidence[0].repository_basis.revision =
+        "stale-revision";
+    },
+  ]) {
+    const insubstantial = structuredClone(localized);
+    mutate(insubstantial);
+    assert.throws(
+      () => classifyRoute(insubstantial, {
+        activation: "experiment-arm-c",
+        artifact: ARTIFACT,
+        criteria: ["INV55", "S56"],
+        repositoryBasis: BASIS,
+        workScope: scope,
+      }),
+      /predicate|evidence|command|observation|anchor|contract|regression/i,
+    );
+  }
+
+  const mismatchedDecision = structuredClone(mixedUpstreamDefects);
+  mismatchedDecision.predicates.wrong_decision.evidence[0].clause = "D6";
+  assert.throws(
+    () => classifyRoute(mismatchedDecision, {
+      activation: "experiment-arm-c",
+      artifact: ARTIFACT,
+      criteria: ["INV55", "S56"],
+      repositoryBasis: BASIS,
+      workScope: scope,
+    }),
+    /wrong.decision|decision|clause|evidence/i,
   );
 });
 
@@ -1011,6 +1173,7 @@ function rawResult({
   reviewerLoops = 0,
   upstreamStatus = "valid",
   independentUpstreamFinding = null,
+  terminalCodeVerdict = "CLEAN",
 }) {
   const preregistration = experimentPreregistration();
   const taskRecord = [
@@ -1091,7 +1254,9 @@ function rawResult({
         blocking: !terminal || blocking === 1 || accepted !== 1,
         reviewer: "code-reviewer",
         round,
-        verdict: !terminal || blocking === 1 || accepted !== 1 ? "FAIL" : "PASS",
+        verdict: !terminal || blocking === 1 || accepted !== 1
+          ? "BLOCK"
+          : terminalCodeVerdict,
       },
     );
   }
@@ -1415,12 +1580,32 @@ test("INV44 — preregistration identities, metrics, and run provenance are exac
     (value) => {
       value.price_snapshot.dated_identity = "";
     },
+    (value) => {
+      value.replacement_tasks.small.spec_id = value.tasks.small.spec_id;
+    },
+    (value) => {
+      value.replacement_tasks.small.revision = value.tasks.small.revision;
+      value.replacement_tasks.small.repository_basis =
+        structuredClone(value.tasks.small.repository_basis);
+    },
+    (value) => {
+      value.bindings.arm_b.host = "claude";
+    },
+    (value) => {
+      value.bindings.arm_b.surface = "claude-cloud";
+    },
+    (value) => {
+      value.bindings.arm_b.capability_source_identity = "other-catalog";
+    },
+    (value) => {
+      value.bindings.arm_b.capability_probe_identity = "other-probe";
+    },
   ]) {
     const malformed = structuredClone(preregistration);
     mutate(malformed);
     assert.throws(
       () => validateExperimentPreregistration(malformed),
-      /identity|metrics|rules|truth|review|capability|price/i,
+      /identity|metrics|rules|truth|review|capability|price|replacement|revision|repository|host|surface|matched/i,
     );
   }
 
@@ -1576,6 +1761,53 @@ test("INV45/S44 — accepted review history clears every blocker through a class
       ),
       true,
     );
+
+    const advisoryEvidenceRoot = await mkdtemp(
+      path.join(tmpdir(), "grove-planning-advisory-review-history-"),
+    );
+    try {
+      const advisoryOutcome = await runPlanningExperiment({
+        evidenceRoot: advisoryEvidenceRoot,
+        preregistration: experimentPreregistration(),
+        repoRoot: REPO_ROOT,
+        runCell: async ({ arm, repetition, task }) => rawResult({
+          accepted: 1,
+          arm,
+          repetition,
+          task: task.task_id,
+          terminalCodeVerdict: "PASS-WITH-ADVISORIES",
+        }),
+      });
+      assert.equal(
+        advisoryOutcome.results.every((run) => run.accepted_quality === 1),
+        true,
+      );
+    } finally {
+      await rm(advisoryEvidenceRoot, { recursive: true, force: true });
+    }
+
+    const invalidVocabularyRoot = await mkdtemp(
+      path.join(tmpdir(), "grove-planning-invalid-review-vocabulary-"),
+    );
+    try {
+      await assert.rejects(
+        runPlanningExperiment({
+          evidenceRoot: invalidVocabularyRoot,
+          preregistration: experimentPreregistration(),
+          repoRoot: REPO_ROOT,
+          runCell: async ({ arm, repetition, task }) => rawResult({
+            accepted: 1,
+            arm,
+            repetition,
+            task: task.task_id,
+            terminalCodeVerdict: "PASS",
+          }),
+        }),
+        /code.review|verdict|review history/i,
+      );
+    } finally {
+      await rm(invalidVocabularyRoot, { recursive: true, force: true });
+    }
   } finally {
     await rm(evidenceRoot, { recursive: true, force: true });
     await rm(validEvidenceRoot, { recursive: true, force: true });

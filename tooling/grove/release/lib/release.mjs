@@ -368,6 +368,10 @@ export function validatePlanningReleaseMetadata(
         errors.push(
           `${host} experiment surface ${surfaceId} must resolve to exactly one same-host surface matrix row`,
         );
+      } else if (!['candidate', 'supported'].includes(matchingRows[0].release_state)) {
+        errors.push(
+          `${host} experiment surface ${surfaceId} must have a usable candidate or supported release state`,
+        );
       }
     }
     if (
@@ -376,6 +380,25 @@ export function validatePlanningReleaseMetadata(
       || !nonEmpty(baseline.selection_source_identity)
     ) {
       errors.push(`${host} experiment support requires a fixture-proven pre-adoption direct executor selector`);
+    } else {
+      const baselineRows = surfaceRows.filter(
+        (row) => row?.surface_id === baseline.surface_id && row?.host === host,
+      );
+      const evidencePath = baseline.selection_source_identity.split('#', 1)[0];
+      const evidenceOwners = surfaceRows.filter(
+        (row) => Array.isArray(row?.evidence) && row.evidence.includes(evidencePath),
+      );
+      if (
+        baselineRows.length !== 1
+        || !Array.isArray(baselineRows[0].evidence)
+        || !baselineRows[0].evidence.includes(evidencePath)
+        || evidenceOwners.length !== 1
+        || evidenceOwners[0] !== baselineRows[0]
+      ) {
+        errors.push(
+          `${host} pre-adoption selection identity must bind evidence on its exact surface matrix row`,
+        );
+      }
     }
   }
   if (

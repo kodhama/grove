@@ -377,6 +377,11 @@ test('S22/S23 — external discovery gate blocks an otherwise release-acceptable
     (row) => row.surface_id === 'codex-exec-non-ephemeral',
   ).release_state = 'unsupported';
   await writeFile(surfacesPath, `${JSON.stringify(surfaces, null, 2)}\n`);
+  const hostsPath = join(candidate, 'metadata', 'hosts.json');
+  const hosts = JSON.parse(await readFile(hostsPath, 'utf8'));
+  hosts.resource_defaults = {};
+  hosts.pre_adoption_direct_executor = {};
+  await writeFile(hostsPath, `${JSON.stringify(hosts, null, 2)}\n`);
   const contract = JSON.parse(await readFile(
     join(REPOSITORY_ROOT, 'tooling', 'grove', 'probes', 'host-discovery-contract.json'),
     'utf8',

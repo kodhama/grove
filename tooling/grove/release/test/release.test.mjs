@@ -199,6 +199,28 @@ test('INV37/INV42/INV50/INV51/S35/S50 — first planner release is oracle-comple
     ).join('\n'),
     /surface.*row|matrix|fabricated|host.*surface/i,
   );
+
+  const unsupportedSurface = structuredClone(hosts);
+  unsupportedSurface.resource_defaults.codex.surfaces = ['codex-sdk'];
+  unsupportedSurface.pre_adoption_direct_executor.codex.surface_id = 'codex-sdk';
+  assert.match(
+    validatePlanningReleaseMetadata(
+      { hosts: unsupportedSurface, roles, surfaces },
+      { release: false },
+    ).join('\n'),
+    /surface.*usable|release.state|unsupported/i,
+  );
+
+  const inheritedEvidence = structuredClone(hosts);
+  inheritedEvidence.pre_adoption_direct_executor.codex.selection_source_identity =
+    'reference/surfaces/codex-bridge-spike-2026-07-23.json#unrelated-surface';
+  assert.match(
+    validatePlanningReleaseMetadata(
+      { hosts: inheritedEvidence, roles, surfaces },
+      { release: false },
+    ).join('\n'),
+    /surface.*evidence|selection.*identity|exact.*row/i,
+  );
 });
 
 test('INV6/S3 — bridge viability remains a candidate until full support evidence exists', () => {
