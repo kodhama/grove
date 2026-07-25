@@ -1,10 +1,10 @@
 ---
 id: adr-0034-pre-execution-planning
 type: adr
-status: gated  # revised after scoped NEEDS-REVISION preview; planner-failure scoring remains open before fresh self-check
+status: gated  # shaper self-check rerun 2026-07-25 after scoped preview revisions; awaiting another fresh independent verdict
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0033-adopt-family-plugin-contracts]
 owner: agent
-updated: 2026-07-24
+updated: 2026-07-25
 ---
 
 # ADR-0034: pre-execution planning as an advisory cold role
@@ -15,7 +15,7 @@ updated: 2026-07-24
 > strict TDD, independent review, or dual-host delivery. The scoped adversarial
 > preview confirmed the original routing, fleet, recovery, and resource
 > revisions, then found one experiment gap and two graph/propagation omissions.
-> The omissions are folded; planner-failure scoring remains open.
+> All three are now folded and the complete self-check has been rerun.
 
 ## Decision state
 
@@ -71,10 +71,11 @@ updated: 2026-07-24
 - **D9 — require a material planner advantage over medium-only control**
   *(maintainer, 2026-07-24; chose Option A)*. Across nine runs per arm,
   treatment C must earn at least one more accepted-quality result than B or,
-  when their accepted-quality counts tie, use at least 20% fewer
-  executor-retry plus reviewer-return loops. Together with D8, this prevents
-  adopting an extra premium planning call when medium execution alone already
-  performs equivalently.
+  when their accepted-quality counts tie, use at least 20% fewer total
+  remediation dispatches. Planner retries, executor retries, and
+  reviewer-return loops all count once in that total. Together with D8, this
+  prevents adopting an extra premium planning call when medium execution alone
+  already performs equivalently.
 - **D10 — Grove owns portable resource intent; host adapters own concrete
   mapping** *(maintainer, 2026-07-24; chose Option A)*. Canonical dispatch
   metadata in `plugins/grove/roles.json` assigns the planner
@@ -111,12 +112,12 @@ updated: 2026-07-24
   artifact and repository basis.
 - **D15 — preregister accepted quality, bounded remediation, and cost
   arithmetic** *(maintainer, 2026-07-24; chose Option A after adversary F4)*.
-  One experimental run includes its initial calls and at most two additional
-  remediation dispatches, classified without double-counting as either an
-  executor retry or a reviewer-return loop. It is accepted only when all
-  required tests/typechecks pass, conformance returns `PASS`, and code review
-  has no blocking finding within that bound. Every triggered model call is
-  priced from the dated provider snapshot; zero acceptances yields infinite
+  One experimental run includes its arm-defined base sequence and at most two
+  additional remediation dispatches, classified without double-counting as a
+  planner retry, executor retry, or reviewer-return loop. It is accepted only
+  when all required tests/typechecks pass, conformance returns `PASS`, and code
+  review has no blocking finding within that bound. Every triggered model call
+  is priced from the dated provider snapshot; zero acceptances yields infinite
   cost per acceptance. A genuinely upstream-invalid task is replaced across
   all three arms.
 - **D16 — use versioned adapter defaults plus consumer-owned overrides**
@@ -141,14 +142,19 @@ updated: 2026-07-24
   version-bumped, and re-gated to replace every thirteen-role invariant and
   scenario with inventory-derived completeness plus the exact fourteen-role
   expectation for the first planner release.
+- **D19 — planner retries share the two-dispatch remediation budget**
+  *(maintainer, 2026-07-25; chose Option A after scoped adversary F4)*. A failed
+  or unusable planner output may be cold-retried, but each retry consumes one
+  of the same two remediation dispatches available to the whole run. It is
+  classified as a `planner retry` and counts in D9. If the budget expires
+  without an executable plan or accepted implementation, treatment C is
+  unaccepted; every call still counts toward tokens, cost, and elapsed time.
+  A planner-indicted upstream is excluded only through D15's matched,
+  independently established upstream-invalid replacement rule.
 
 ### Open
 
-- **O17 — planner-failure scoring.** Define whether an unusable or failed
-  planner call retries within the existing two-remediation budget, immediately
-  fails treatment C, or receives its own separate retry allowance. The choice
-  must also say whether planner retries count in D9's comparison with
-  medium-only control B.
+- None.
 
 ### Parked
 
@@ -395,20 +401,26 @@ Measure:
 - invalid plan anchors, executor deviations with reasons, unused steps, and
   ambiguities caught before implementation.
 
-One run starts with the arm's first model invocation and ends with its final
-independent-review result. It may contain at most two remediation dispatches
-after the initial executor attempt:
+One run starts with the arm's first model invocation and ends when it earns an
+accepted-quality result, exhausts its remediation budget, or reaches a terminal
+failure. Its **base sequence** is the executor call for A/B and the
+planner-then-executor calls for C. On top of that base sequence, every arm may
+contain at most two remediation dispatches:
 
+- a **planner retry** repeats a failed or unusable planner call before
+  execution;
 - an **executor retry** repeats execution after failure or unusable output
   before independent review; and
 - a **reviewer-return loop** is one blocking independent-review result followed
   by a fresh executor remediation dispatch.
 
-Each remediation dispatch receives exactly one classification, so D9's sum
-cannot double-count it. A run earns one **accepted-quality result** only when,
-within the two-dispatch bound, all declared required test and typecheck
-commands pass, conformance returns `PASS`, and code review reports no blocking
-finding. Reaching the bound without all three conditions is an unaccepted run.
+Each remediation dispatch receives exactly one classification, so D9's total
+cannot double-count it. A failed or unusable planner may retry only while this
+shared budget remains; exhausting it without an executable plan makes treatment
+C unaccepted. A run earns one **accepted-quality result** only when, within the
+two-dispatch bound, all declared required test and typecheck commands pass,
+conformance returns `PASS`, and code review reports no blocking finding.
+Reaching the bound without all three conditions is an unaccepted run.
 
 Weighted cost is the sum, across every planner, executor, reviewer, and
 remediation model call triggered by the run, of each reported token category
@@ -431,8 +443,9 @@ After all 27 runs, treatment C may be adopted only if, across its nine runs, it:
 
 Against medium-only control B, C must earn at least one additional
 accepted-quality result or, when accepted-quality counts tie, use at least 20%
-fewer executor-retry plus reviewer-return loops. Fewer total raw tokens are
-desirable but not assumed.
+fewer total remediation dispatches. Each planner retry, executor retry, or
+reviewer-return loop counts once. Fewer total raw tokens are desirable but not
+assumed.
 
 ## Consequences and propagation if approved
 
@@ -533,6 +546,13 @@ conformance target is added.
 - **Require every consumer to provide every concrete mapping.** Not chosen
   after adversary F5: it removes Grove's versioned default behavior and makes a
   missing project configuration block otherwise supported dispatch.
+- **Make the first failed planner call immediately fail treatment C.** Not
+  chosen after scoped adversary F4: it gives the additional stage no bounded
+  recovery from a stochastic failure even though every other failed call can
+  consume the shared remediation budget.
+- **Give the planner one separate retry in addition to two executor
+  remediations.** Not chosen after scoped adversary F4: it raises treatment C's
+  maximum call budget and makes the arm comparison structurally uneven.
 
 ## Acceptance criteria for this decision
 
@@ -549,17 +569,31 @@ conformance target is added.
 
 ## Self-check
 
-The self-check recorded at commit `354a9b8` is stale. Scoped independent
-preview confirmed original F1–F3 and F5 closed and F2 narrowly closed, then
-returned `NEEDS-REVISION` for:
+Passed by the shaper on 2026-07-25 after folding both adversarial previews:
 
-- missing planner-failure scoring in the experimental treatment (O17);
-- the operative dual-host spec's remaining thirteen-role contract (folded in
-  D18); and
-- the missing ADR-0026 coupling edge (folded in D18).
+- **Authority and lifecycle:** D1–D2 keep the packet advisory and outside the
+  artifact graph; no gate or plan artifact is added.
+- **Transport and recovery:** D4/D14 make relay preconditions and the
+  checkpoint-versus-replan behavior exhaustive.
+- **Routing coherence:** D5/D12 preserve ADR-0012's local-rule architecture
+  and explicit W3 bug split.
+- **Standing contracts and graph:** D13 plus ADR-0031's forward annotation
+  amend fleet completeness append-only; D18 names the operative spec revision;
+  all six `depends_on` targets exist and are `approved`, including ADR-0026 for
+  D16's consumer-authority coupling.
+- **Experiment soundness:** D6–D9, D15, and D19 separate planner value from
+  model downgrade; bound every arm to its declared base sequence plus two
+  remediation dispatches; classify each retry exactly once; define acceptance, upstream
+  invalidation, and zero-acceptance cost; and make every adoption threshold
+  executable.
+- **Host/resource ownership:** D10/D16 assign portable intent, host defaults,
+  consumer overrides, precedence, failure behavior, and effective-map
+  evidence to exact carriers.
+- **Propagation:** the follow-up contract names canonical roles, local triggers,
+  executor authority, relay/checkpoint behavior, resource carriers, experiment
+  evidence, the revise/version/re-gate of `spec-0004`, generated parity,
+  support requalification, and release judgment.
 
-The canvas has eighteen Decided items and one Open item. It remains `gated`
-with the failed re-review disclosed, but is not ready for the intent gate.
-Resolve O17, rerun the complete self-check, and obtain another fresh scoped
-review; the session preview still cannot substitute for a posted
-change-request verdict.
+The canvas has nineteen Decided items, zero Open items, and remains `gated`.
+Another fresh independent review is owed. Any session preview remains
+diagnostic until its verdict is posted on an authenticated change-request.
