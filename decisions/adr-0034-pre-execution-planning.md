@@ -1,7 +1,7 @@
 ---
 id: adr-0034-pre-execution-planning
 type: adr
-status: gated  # scoped preview found D9's zero/zero remediation comparison undefined; revision remains open
+status: gated  # shaper self-check rerun 2026-07-25 after defining D9's zero denominator; awaiting narrow independent preview
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0033-adopt-family-plugin-contracts]
 owner: agent
 updated: 2026-07-25
@@ -15,8 +15,8 @@ updated: 2026-07-25
 > strict TDD, independent review, or dual-host delivery. The scoped adversarial
 > preview confirmed the original routing, fleet, recovery, and resource
 > revisions, then found one experiment gap and two graph/propagation omissions.
-> Those are folded; the latest narrow preview found only D9's zero/zero
-> remediation-comparison edge case.
+> Those are folded; the latest narrow preview found only D9's zero-denominator
+> remediation edge, now resolved by D20.
 
 ## Decision state
 
@@ -74,7 +74,9 @@ updated: 2026-07-25
   treatment C must earn at least one more accepted-quality result than B or,
   when their accepted-quality counts tie, use at least 20% fewer total
   remediation dispatches. Planner retries, executor retries, and
-  reviewer-return loops all count once in that total. Together with D8, this
+  reviewer-return loops all count once in that total. The percentage branch is
+  available only when B used at least one remediation dispatch; if B used zero,
+  it fails rather than treating 0/0 as improvement. Together with D8, this
   prevents adopting an extra premium planning call when medium execution alone
   already performs equivalently.
 - **D10 — Grove owns portable resource intent; host adapters own concrete
@@ -152,13 +154,17 @@ updated: 2026-07-25
   unaccepted; every call still counts toward tokens, cost, and elapsed time.
   A planner-indicted upstream is excluded only through D15's matched,
   independently established upstream-invalid replacement rule.
+- **D20 — zero remediation proves no loop-reduction advantage**
+  *(maintainer, 2026-07-25; chose Option A after narrow adversary F4)*. When
+  accepted-quality counts tie, D9's reduction is
+  `(B remediation - C remediation) / B remediation` and must be at least
+  `0.20`. This branch is false whenever B's remediation count is zero,
+  including zero/zero. In that case treatment C can satisfy D9 only through
+  its separate accepted-quality advantage; a quality tie does not adopt.
 
 ### Open
 
-- **O20 — zero-remediation comparison.** When B and C tie on accepted quality
-  and both use zero remediation dispatches, define whether D9's planner-value
-  criterion fails, passes, or uses a different absolute comparison; “20%
-  fewer” is undefined at a zero denominator.
+- None.
 
 ### Parked
 
@@ -448,8 +454,10 @@ After all 27 runs, treatment C may be adopted only if, across its nine runs, it:
 Against medium-only control B, C must earn at least one additional
 accepted-quality result or, when accepted-quality counts tie, use at least 20%
 fewer total remediation dispatches. Each planner retry, executor retry, or
-reviewer-return loop counts once. Fewer total raw tokens are desirable but not
-assumed.
+reviewer-return loop counts once. For tied quality with `B remediation > 0`,
+the reduction is `(B remediation - C remediation) / B remediation`; it must be
+at least `0.20`. With `B remediation = 0`, this branch is false, including when
+C also uses zero. Fewer total raw tokens are desirable but not assumed.
 
 ## Consequences and propagation if approved
 
@@ -557,6 +565,13 @@ conformance target is added.
 - **Give the planner one separate retry in addition to two executor
   remediations.** Not chosen after scoped adversary F4: it raises treatment C's
   maximum call budget and makes the arm comparison structurally uneven.
+- **Treat zero/zero remediation as satisfying D9.** Not chosen after narrow
+  adversary F4: medium-only already completed without repair, so the planner
+  demonstrated no workflow improvement to justify its additional premium call.
+- **Replace zero/zero with a 20% weighted-cost advantage over B.** Not chosen:
+  D8 already supplies the treatment's cost threshold against the premium
+  baseline, while D9 exists specifically to establish value beyond the
+  medium-only control.
 
 ## Acceptance criteria for this decision
 
@@ -573,13 +588,31 @@ conformance target is added.
 
 ## Self-check
 
-The self-check recorded at commit `0ae6a48` is stale. Scoped independent
-preview confirmed routing, fleet amendment, recovery, resource ownership,
-planner-failure scoring, ADR-0026 coupling, and `spec-0004` propagation closed.
-It returned `NEEDS-REVISION` only because D9 leaves a zero/zero remediation
-comparison undefined (O20).
+Passed by the shaper on 2026-07-25 after folding all preview findings:
 
-The canvas has nineteen Decided items and one Open item. It remains `gated`
-with the failed preview disclosed, but is not ready for the intent gate.
-Resolve O20, rerun the self-check, and obtain one narrow re-review. Session
-previews remain diagnostic until posted on an authenticated change-request.
+- **Authority and lifecycle:** D1–D2 keep the packet advisory and outside the
+  artifact graph; no gate or plan artifact is added.
+- **Transport and recovery:** D4/D14 make relay preconditions and the
+  checkpoint-versus-replan behavior exhaustive.
+- **Routing coherence:** D5/D12 preserve ADR-0012's local-rule architecture
+  and explicit W3 bug split.
+- **Standing contracts and graph:** D13 plus ADR-0031's forward annotation
+  amend fleet completeness append-only; D18 names the operative spec revision;
+  all six `depends_on` targets exist and are `approved`, including ADR-0026 for
+  D16's consumer-authority coupling.
+- **Experiment soundness:** D6–D9, D15, D19, and D20 separate planner value
+  from model downgrade; bound every arm to its declared base sequence plus two
+  remediation dispatches; classify each retry exactly once; define terminal
+  planner failure, acceptance, upstream invalidation, zero-acceptance cost, and
+  zero-remediation comparison; and make every threshold executable.
+- **Host/resource ownership:** D10/D16 assign portable intent, host defaults,
+  consumer overrides, precedence, failure behavior, and effective-map
+  evidence to exact carriers.
+- **Propagation:** the follow-up contract names canonical roles, local triggers,
+  executor authority, relay/checkpoint behavior, resource carriers, experiment
+  evidence, the revise/version/re-gate of `spec-0004`, generated parity,
+  support requalification, and release judgment.
+
+The canvas has twenty Decided items, zero Open items, and remains `gated`.
+One narrow independent preview of D20 is owed. Session previews remain
+diagnostic until posted on an authenticated change-request.
