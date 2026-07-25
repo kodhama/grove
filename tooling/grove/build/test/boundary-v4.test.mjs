@@ -1,5 +1,6 @@
-// Upstream: spec-0004-dual-host-distribution@v4 INV23–INV27, INV33; S21–S23, S31.
-// Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary.
+// Upstream: spec-0004-dual-host-distribution@v5 INV23–INV27, INV33, INV37; S21–S23, S31, S35.
+// Decisions: adr-0031-multi-host-distribution; adr-0035-plugin-and-consumer-boundary;
+// adr-0036-pre-execution-planning.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
@@ -36,9 +37,9 @@ test('INV26–INV27 — generated host isolation is a precondition, not S22/S23 
   const codexSkills = paths.filter((path) =>
     /^plugins\/grove\/adapters\/codex\/skills\/[^/]+\/SKILL\.md$/.test(path));
 
-  assert.equal(claudeAgents.length, 12, 'Claude gets eleven cold-native agents and the scoped dispatcher');
+  assert.equal(claudeAgents.length, 13, 'Claude gets twelve cold-native agents and the scoped dispatcher');
   assert.equal(claudeSkills.length, 4, 'Claude gets only the four lifecycle skills');
-  assert.equal(codexSkills.length, 17, 'Codex gets thirteen role skills and four lifecycle skills');
+  assert.equal(codexSkills.length, 18, 'Codex gets fourteen role skills and four lifecycle skills');
   assert.equal(paths.some((path) => path.startsWith('plugins/grove/agents/')), false);
   assert.equal(paths.some((path) => path.startsWith('plugins/grove/skills/')), false);
 
@@ -64,8 +65,8 @@ test('INV26–INV27 — generated host isolation is a precondition, not S22/S23 
   const codexInventory = JSON.parse(
     outputs.get('plugins/grove/metadata/codex-inventory.json'),
   );
-  assert.equal(claudeInventory.components.length, 16);
-  assert.equal(codexInventory.components.length, 17);
+  assert.equal(claudeInventory.components.length, 17);
+  assert.equal(codexInventory.components.length, 18);
   for (const inventory of [claudeInventory, codexInventory]) {
     for (const component of inventory.components) {
       assert.match(component.raw_id, /^grove:/);
@@ -127,7 +128,8 @@ test('repository checks retain all six suites and moved ledgers name their actua
   assert.match(retiredLedger, /retired\/review-bookkeeping\/check/);
   assert.doesNotMatch(retiredLedger, /root is\s+`plugins\/grove\/check/);
   assert.match(retiredReadme, /retired\/review-bookkeeping\/check/);
-  assert.match(probesLedger, /spec-0004-dual-host-distribution@v4/);
+  assert.match(probesLedger, /spec-0004-dual-host-distribution@v5/);
+  assert.match(probesLedger, /adr-0036-pre-execution-planning/);
 });
 
 test('S22/S23 remain an explicit external live-host release gate, not a manifest-only pass claim', async () => {

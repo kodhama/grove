@@ -60,8 +60,8 @@ non-interactive preflight verifies the exact package digest, launcher bytes,
 composition seam, and every source-side harness module hash without launching
 Codex. The normal runner then authenticates only the isolated home,
 verifies it has exactly one enabled Grove candidate, and executes sequential
-non-ephemeral phases: both driving roles, three native batches of four, a
-separate executor/reviewer check, the scoped dispatcher, and the executor
+non-ephemeral phases: both driving roles, four native batches of at most four,
+a separate executor/reviewer check, the scoped dispatcher, and the executor
 config/addendum sentinels. The probe-local config caps subagent concurrency at
 one, pins `gpt-5.6-sol` with MultiAgentV2, and explicitly trusts only the
 fresh isolated consumer so Codex loads its project-scoped launchers. Native

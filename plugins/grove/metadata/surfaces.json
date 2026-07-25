@@ -9,7 +9,7 @@
       "release_state": "unsupported",
       "load_path": "kodhama/stewards marketplace -> grove@kodhama -> fresh interactive session",
       "evidence": [],
-      "missing_capability": "No complete fresh-release thirteen-role support record is retained for 0.3.0.",
+      "missing_capability": "No complete fresh-release fourteen-role support record is retained for 0.3.0.",
       "disclosure": "The package has an established interactive load path, but Grove does not claim 0.3.0 support until the complete release record passes."
     },
     {

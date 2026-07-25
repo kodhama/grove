@@ -1,5 +1,5 @@
-// Upstream: spec-0004-dual-host-distribution@v4 INV8, INV9, INV13, INV17,
-// INV19, INV30, INV33, INV35, INV36; S5, S6, S13, S17, S26, S31, S33, S34.
+// Upstream: spec-0004-dual-host-distribution@v5 INV8, INV9, INV13, INV17,
+// INV19, INV30, INV33, INV35-INV37; S5, S6, S13, S17, S26, S31, S33-S35.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, readdir, stat, symlink, writeFile } from 'node:fs/promises';
@@ -81,11 +81,16 @@ test('Claude and Codex setup in either order share one floor and are idempotent'
       claude: await readFile(join(repoRoot, 'CLAUDE.md'), 'utf8'),
       codex: await readFile(join(repoRoot, 'AGENTS.md'), 'utf8'),
       launcher: await readFile(join(repoRoot, '.codex', 'agents', 'grove_executor.toml'), 'utf8'),
+      planner: await readFile(
+        join(repoRoot, '.codex', 'agents', 'grove_implementation_planner.toml'),
+        'utf8',
+      ),
     };
     assert.match(snapshot.claude, /\$\{CLAUDE_PLUGIN_ROOT\}\/reference\/charters\/dispatcher\.md/);
     assert.match(snapshot.claude, /\$\{CLAUDE_PLUGIN_ROOT\}\/reference\/charters\/shaper\.md/);
     assert.match(snapshot.codex, /grove:role-dispatcher/);
     assert.match(snapshot.codex, /grove:role-shaper/);
+    assert.match(snapshot.planner, /name = "grove_implementation_planner"/);
     assert.doesNotMatch(JSON.stringify(snapshot), /grove-status|status emission/i);
     assert.equal((snapshot.claude.match(/grove:begin/g) ?? []).length, 1);
     assert.equal((snapshot.codex.match(/grove:begin/g) ?? []).length, 1);
@@ -105,6 +110,13 @@ test('Claude and Codex setup in either order share one floor and are idempotent'
     assert.equal(await readFile(join(repoRoot, 'CLAUDE.md'), 'utf8'), snapshot.claude);
     assert.equal(await readFile(join(repoRoot, 'AGENTS.md'), 'utf8'), snapshot.codex);
     assert.equal(await readFile(join(repoRoot, '.codex', 'agents', 'grove_executor.toml'), 'utf8'), snapshot.launcher);
+    assert.equal(
+      await readFile(
+        join(repoRoot, '.codex', 'agents', 'grove_implementation_planner.toml'),
+        'utf8',
+      ),
+      snapshot.planner,
+    );
   }
 });
 

@@ -66,7 +66,7 @@
       "class": "role",
       "exposure": "driving-session,scoped-advisor",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27"
+      "canonical_digest": "493cc8699cbffde61a1d8d47c961e0134ffa46d066a08019a72334fbf65a2a01"
     },
     {
       "raw_id": "grove:role-divergent-researcher",
@@ -82,7 +82,15 @@
       "class": "role",
       "exposure": "cold-native",
       "canonical_source": "charters/executor.md",
-      "canonical_digest": "8531d32a9793d32f6517c84d9fdbf620467cdeb2b88f72a28d0e514f5d434f03"
+      "canonical_digest": "6bcee50cca1ef8d311514a04d2e6067fca64096ef96f175ff016120befd1a776"
+    },
+    {
+      "raw_id": "grove:role-implementation-planner",
+      "path": "adapters/codex/skills/role-implementation-planner/SKILL.md",
+      "class": "role",
+      "exposure": "cold-native",
+      "canonical_source": "charters/implementation-planner.md",
+      "canonical_digest": "23e04ff2d6e2349f202190b4d58ac6d688b7caf8887aeecad256f66cd1422046"
     },
     {
       "raw_id": "grove:role-propagation-remediator",
@@ -145,7 +153,7 @@
     "dispatcher": {
       "raw_skill_id": "grove:role-dispatcher",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27"
+      "canonical_digest": "493cc8699cbffde61a1d8d47c961e0134ffa46d066a08019a72334fbf65a2a01"
     },
     "shaper": {
       "raw_skill_id": "grove:role-shaper",

@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: 493cc8699cbffde61a1d8d47c961e0134ffa46d066a08019a72334fbf65a2a01 -->
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
 
@@ -361,6 +361,38 @@ human ratifies at `ship`.
 7. **User-facing findings stay evidence-first**: a `feedback`-type
    artifact records the observation; a bug ticket is opened for the
    defect and cross-linked (feedback informs, never decides).
+
+## Pre-execution planning
+
+Before code-bearing implementation, apply this routing precedence:
+
+1. Evidence of a wrong or conflicting approved decision returns the work to
+   shaping.
+2. A missing, inadequate, or ambiguous specification returns the work to
+   specification convergence.
+3. Decision-only non-code work follows its existing direct route.
+4. A reproduced, root-caused, localized implementation slip may route
+   directly to the executor or planner-first at dispatcher judgment only when
+   it changes no public interface, schema, dispatch behavior, cross-component
+   behavior, or governing artifact. If any condition is unproven or false,
+   direct execution is forbidden.
+5. All other ratified code-bearing specification work routes first to a cold
+   `implementation-planner` and then to a separately cold executor.
+
+On the planner-first route, supply the authoritative artifact pointer to the
+planner. In the same driving session, relay the complete planner final-response
+message unchanged to the separately cold executor and supply the artifact
+pointer separately. Do not splice, summarize, reorder, or selectively omit
+the plan.
+
+The plan stays transient and creates no artifact, dependency edge, gate, or
+temporary repository carrier. An interrupted session with the intact,
+unchanged final-response message still available may resume forwarding it
+without replanning. Only a missing or truncated final-response message is
+relay loss; rerun the planner from the authoritative artifact, dependency
+graph, and relevant repository basis before dispatching the executor. An
+intact but stale, incomplete, ambiguous, or conflicting plan is not relay
+loss—the executor applies artifact authority.
 
 ## Checkpoint-resume (the bound shared with run-resumer)
 

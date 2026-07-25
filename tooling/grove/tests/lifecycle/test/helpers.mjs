@@ -84,6 +84,15 @@ export async function fixture() {
           content: '# GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: abc\nname = "grove_executor"\n',
         },
         {
+          canonical_id: 'implementation-planner',
+          native_id: 'grove_implementation_planner',
+          exposure: 'cold-native',
+          source: 'charters/implementation-planner.md',
+          digest: 'planner',
+          output: '.codex/agents/grove_implementation_planner.toml',
+          content: '# GENERATED — DO NOT EDIT; canonical-source: charters/implementation-planner.md; sha256: planner\nname = "grove_implementation_planner"\n',
+        },
+        {
           canonical_id: 'dispatcher',
           native_id: 'grove_dispatcher_advisor',
           exposure: 'scoped-advisor',

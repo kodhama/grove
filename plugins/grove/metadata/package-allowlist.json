@@ -52,6 +52,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/adapters/claude/agents/implementation-planner.md",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/adapters/claude/agents/propagation-remediator.md",
       "kind": "file"
     },
@@ -121,6 +125,10 @@
     },
     {
       "path": "plugins/grove/adapters/codex/skills/role-executor/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/role-implementation-planner/SKILL.md",
       "kind": "file"
     },
     {
@@ -225,6 +233,10 @@
     },
     {
       "path": "plugins/grove/reference/charters/executor.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/charters/implementation-planner.md",
       "kind": "file"
     },
     {

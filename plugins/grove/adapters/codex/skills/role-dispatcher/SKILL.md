@@ -2,10 +2,10 @@
 name: role-dispatcher
 description: "One-shot dispatch advisor for a bounded workflow classification or next-dispatch recommendation; the full dispatcher remains in the driving session."
 ---
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: 493cc8699cbffde61a1d8d47c961e0134ffa46d066a08019a72334fbf65a2a01 -->
 
 Canonical source: `charters/dispatcher.md`
-Canonical digest: `a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27`
+Canonical digest: `493cc8699cbffde61a1d8d47c961e0134ffa46d066a08019a72334fbf65a2a01`
 Exposure: `driving-session, scoped-advisor`
 
 When the full role is selected, invoke it in the current driving task; do not delegate or spawn it.
