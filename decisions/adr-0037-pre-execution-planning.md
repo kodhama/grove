@@ -149,3 +149,13 @@ planner-specific runtime or central pipeline branch.
   contents, discovery, and probe batching are mechanically checkable.
 - **Separated:** yes — the experiment and any adoption decision live in issue
   #143, not this implementation.
+
+## Proposed forward annotation — ADR-0038 (draft, 2026-07-25)
+
+Draft `adr-0038-dogfood-implementation-planner` proposes to narrow only this
+decision's blanket deferral of planner adoption: Grove may classify ordinary
+planner use during its own development as dogfood under Stewards decision
+`kodhama-0021`. The experiment, model and token claims, routing contract,
+transient handoff, host support, release behavior, and every other boundary in
+this decision remain unchanged. This annotation is non-operative unless
+ADR-0038 is ratified.
