@@ -492,7 +492,7 @@ contract would cover:
 - generated role inventory/counts, discovery, and dual-host parity tests; and
 - release-candidate requalification and a separately judged version bump.
 
-No gate-profile row, lifecycle state, artifact type, `depends_on` relation, or
+No gate-profile row, lifecycle state, artifact type, relation kind, or
 conformance target is added.
 
 ## Rejected options
