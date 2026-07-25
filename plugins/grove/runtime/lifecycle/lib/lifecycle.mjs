@@ -1121,24 +1121,6 @@ function floorReadme(version) {
 The gate runtime and fixed enforcement data remain in the active installed
 Grove package. This consumer floor never contains executable machinery.
 
-## Optional resource overrides
-
-Concrete model overrides are consumer-owned and use exact active-host/class
-keys:
-
-\`\`\`toml
-[resources.<host>]
-reasoning-heavy = "<host model selector>"
-execution-medium = "<host model selector>"
-\`\`\`
-
-Only experiment B/C or a later approved activated production route consults
-these keys. Inactive ordinary production and experiment arm A ignore resource
-overrides and retain the fixture-proven pre-adoption selector. An unknown host,
-class, or selector, an unavailable authoritative capability source/probe, or a
-cross-host fallback fails before dispatch. Setup and refresh document this
-schema but never create, replace, or remove a consumer's override.
-
 The operating model ships in the Grove plugin, \`plugin@${version}\`.
 `;
 }

@@ -9,7 +9,7 @@
       "release_state": "unsupported",
       "load_path": "kodhama/stewards marketplace -> grove@kodhama -> fresh interactive session",
       "evidence": [],
-      "missing_capability": "No complete fresh-release fourteen-role support record is retained for 0.3.0.",
+      "missing_capability": "No complete fresh-release thirteen-role support record is retained for 0.3.0.",
       "disclosure": "The package has an established interactive load path, but Grove does not claim 0.3.0 support until the complete release record passes."
     },
     {
@@ -70,8 +70,7 @@
       "load_path": "project .codex/agents/<native_id>.toml -> installed Grove plugin skill/reference",
       "evidence": [
         "reference/surfaces/codex-bridge-spike-2026-07-23.json",
-        "reference/surfaces/codex-exec-non-ephemeral-0.3.0-attempt-2026-07-23.json",
-        "reference/surfaces/codex-exec-non-ephemeral-0.3.0-2026-07-24.json"
+        "reference/surfaces/codex-exec-non-ephemeral-0.3.0-attempt-2026-07-23.json"
       ],
       "missing_capability": "The v4 package-boundary snapshot and regenerated loader digests require a fresh exact-surface support run.",
       "disclosure": "Bridge-viable after the v4 package split; candidate only until a fresh non-ephemeral Codex support record passes against the exact package snapshot."

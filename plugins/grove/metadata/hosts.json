@@ -9,44 +9,6 @@
   "stamp_schema": "metadata/stamp-schema.json",
   "legacy_ownership": "metadata/legacy-ownership.json",
   "package_allowlist": "metadata/package-allowlist.json",
-  "planning_activation": {
-    "state": "inactive-experiment-only",
-    "adoption_decision": null,
-    "evidence_identity": null
-  },
-  "resource_defaults_version": 1,
-  "resource_defaults": {
-    "codex": {
-      "surfaces": [
-        "codex-exec-non-ephemeral"
-      ],
-      "classes": {
-        "execution-medium": "gpt-5.6-terra",
-        "reasoning-heavy": "gpt-5.6-sol"
-      },
-      "selector_capability_source": {
-        "identity": "codex-cli-0.145.0-app-server-protocol-v2-model-list",
-        "kind": "host-runtime-model-catalog",
-        "version": "codex-cli-0.145.0"
-      },
-      "selector_capability_probe": {
-        "identity": "codex-app-server-model-list-probe",
-        "operation": "model/list",
-        "request": {
-          "includeHidden": true
-        },
-        "response_field": "data[].model",
-        "version": "2"
-      }
-    }
-  },
-  "pre_adoption_direct_executor": {
-    "codex": {
-      "surface_id": "codex-exec-non-ephemeral",
-      "selector": "gpt-5.6-sol",
-      "selection_source_identity": "reference/surfaces/codex-exec-non-ephemeral-0.3.0-2026-07-24.json#clean_environment.model"
-    }
-  },
   "hosts": {
     "claude": {
       "manifest": ".claude-plugin/plugin.json",

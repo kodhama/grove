@@ -1,6 +1,5 @@
-// Upstream: spec-0004-dual-host-distribution@v5 INV9, INV10, INV16, INV18,
-// INV22, INV31, INV34–INV36, INV42; S7–S9, S16, S20, S27–S29, S32–S34,
-// S41.
+// Upstream: spec-0004-dual-host-distribution@v4 INV9, INV10, INV16, INV18,
+// INV22, INV31, INV34–INV36; S7–S9, S16, S20, S27–S29, S32–S34.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, stat, symlink, writeFile } from 'node:fs/promises';
@@ -33,10 +32,7 @@ test('refresh preserves consumer-owned and other-host state while disclosing ske
   const { packageRoot, repoRoot } = await fixture();
   await setupBoth(packageRoot, repoRoot);
   const claudeBefore = await readFile(join(repoRoot, 'CLAUDE.md'), 'utf8');
-  await writeFile(
-    join(repoRoot, '.grove', 'config.toml'),
-    'TEST_CMD = "consumer"\n\n[resources.codex]\nreasoning-heavy = "consumer-premium"\n',
-  );
+  await writeFile(join(repoRoot, '.grove', 'config.toml'), 'TEST_CMD = "consumer"\n');
   await writeFile(join(repoRoot, '.grove', 'gates.toml'), gatesTemplate().replace('seeded_from = "steward"', 'seeded_from = "custom"'));
   await mkdir(join(repoRoot, '.grove', 'agents'), { recursive: true });
   await writeFile(join(repoRoot, '.grove', 'agents', 'executor.md'), 'consumer addendum\n');
@@ -54,10 +50,7 @@ test('refresh preserves consumer-owned and other-host state while disclosing ske
   await applyAll(plan);
 
   assert.equal(await readFile(join(repoRoot, 'CLAUDE.md'), 'utf8'), claudeBefore);
-  assert.equal(
-    await readFile(join(repoRoot, '.grove', 'config.toml'), 'utf8'),
-    'TEST_CMD = "consumer"\n\n[resources.codex]\nreasoning-heavy = "consumer-premium"\n',
-  );
+  assert.equal(await readFile(join(repoRoot, '.grove', 'config.toml'), 'utf8'), 'TEST_CMD = "consumer"\n');
   assert.match(await readFile(join(repoRoot, '.grove', 'gates.toml'), 'utf8'), /seeded_from = "custom"/);
   assert.equal(await readFile(join(repoRoot, '.grove', 'agents', 'executor.md'), 'utf8'), 'consumer addendum\n');
   assert.equal(await exists(join(repoRoot, '.claude', 'skills', 'grove-status', 'SKILL.md')), true);

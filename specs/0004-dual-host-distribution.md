@@ -1,7 +1,7 @@
 ---
 id: spec-0004-dual-host-distribution
 type: spec
-status: gated  # v5 spec-adversary APPROVE-READY and conformance PASS at 262ee80 ratify downstream use under the steward agent-owned spec gate
+status: gated  # v5 self-checked 2026-07-25; independent spec-adversary and conformance reviews are owed before downstream use under the steward agent-owned spec gate
 implements: adr-0031-multi-host-distribution
 depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0036-pre-execution-planning]
 owner: agent
@@ -15,11 +15,8 @@ This contract realizes `adr-0031-multi-host-distribution`: one authored Grove
 methodology, generated Claude and Codex adapters, and an installable marketplace
 channel for each host. It constrains the build, packages, lifecycle operations,
 compatibility evidence, package/consumer boundary, migration, and release
-checks. As amended by `adr-0036-pre-execution-planning`, it also constrains the
-advisory implementation-planning role, local handoff, portable resource
-intent, experiment, and fourteen-role first-release requalification. It does
-not authorize the Codex self-contained-agent fallback that the decision
-reserves for a later intent gate.
+checks. It does not authorize the Codex self-contained-agent fallback that the
+decision reserves for a later intent gate.
 
 > **Amendment (2026-07-23, `adr-0032-status-emission-belongs-to-wisp` +
 > Codex compatibility spike).**
@@ -89,37 +86,30 @@ reserves for a later intent gate.
 > preserves the existing dual-host and release semantics, and requires exact
 > package, discovery, installed-cache, and migration evidence.
 
-> **Amendment (2026-07-25, `adr-0036-pre-execution-planning`).**
-> **WHAT:** Inventory completeness, the canonical role/generation contract,
-> deterministic work-scope collection, route classification and activation,
-> executor authority, advisory packet wire/coverage and typed-reference rules,
-> bounded relay/recovery, context-bound resource resolution, experimental
-> accounting, release requalification, acceptance criteria, open questions,
-> and the rubric check now include the `implementation-planner` increment and
-> the independent-review refinements.
-> **WHY:** ADR-0036 approved an advisory cold planning handoff before
-> code-bearing spec execution, required an inventory-derived fleet contract
-> with fourteen roles in its first release, and preregistered the experiment
-> that must justify any permanent optimized route.
-> **SCOPE:** Behavioral version `v5`; the v4 package boundary, lifecycle
-> operations, surface classifications, marketplace authority, gate semantics,
-> status-emission absence, and immutable release-tag behavior remain
-> unchanged.
+> **Amendment (2026-07-25, `adr-0036-pre-execution-planning` +
+> independent spec-adversary review).**
+> **WHAT:** The canonical fleet, generated adapters, routing, bounded
+> human-readable plan, artifact-authoritative execution, and transient handoff
+> now include one cold, read-only `implementation-planner`.
+> **WHY:** Approved ADR-0036 separates implementation reconnaissance and
+> decomposition from the separately cold executor without creating a second
+> implementation authority or persisted plan.
+> **SCOPE:** Behavioral version `v5`; v4's distribution, lifecycle, package,
+> migration, surface-support, marketplace, and release contracts remain
+> unchanged. No experiment harness, model or resource tier, token/cost metric,
+> adoption mechanism, canonical plan serialization or parser, request-byte
+> work-scope collector or locator grammar, evidence or checkpoint schema, or
+> release activation is introduced.
 > **POINTER:** Current requirements live in “Pre-execution planning contract,”
-> “Portable resource-resolution contract,” “Planning experiment and
-> evidence,” the inventory-derived generation/support/release clauses, and
-> acceptance criteria `INV37`–`INV57` / `S35`–`S58`.
-> **VALUE:** As a maintainer, I can test whether an explicit implementation
-> plan lets a medium executor retain accepted quality without making that plan
-> authoritative or weakening Grove’s dual-host guarantees.
-> **CONFIDENCE:** `inferred` — approved ADR-0036 fixes the role boundary,
-> routing exceptions, packet fields, resource ownership, experiment arms,
-> metrics, truth tables, thresholds, and first-release count; the exact
-> oracle, wire schema, classification evidence, retry bound, probe contract,
-> work-scope and cross-reference namespaces, context-bound resource bindings,
-> and accounting normalization are the narrow deterministic contract
-> resolutions needed to make those approved choices executable after
-> independent review, without changing product intent.
+> the fourteen-role inventory clauses, and acceptance criteria
+> `INV37`–`INV41` / `S35`–`S39`.
+> **VALUE:** A maintainer can send ratified code-bearing work through a bounded
+> implementation plan while the governing artifact remains authoritative and
+> an interrupted relay is safely recomputed.
+> **CONFIDENCE:** `verified` — approved ADR-0036 contains no open decision,
+> explicitly separates the planner role from the parked experiment, and the
+> observable content, routing-safety, authority, and relay bounds preserve its
+> choices without prescribing a plan format or gate.
 
 ## Terms
 
@@ -129,12 +119,8 @@ reserves for a later intent gate.
 | **adapter** | Host metadata, an invocation/loading pointer, or a deterministic projection required to expose the kernel on Claude or Codex. |
 | **authored source** | A file a maintainer or agent edits directly as normative input. Generated output is never an authored source. |
 | **projection** | A byte-deterministic file produced from an authored source and adapter metadata. |
-| **role inventory** | Every canonical role id declared by `plugins/grove/metadata/roles.json`, its Codex-native underscore id where applicable, permitted exposure, local dispatch declarations, portable resource class where applicable, and canonical source/output paths. It contains metadata, never charter instructions. The first release containing `implementation-planner` must be bijective with this spec's independent fourteen-id oracle. |
-| **ratified spec** | An `approved` spec, or a `gated` spec whose active agent-owned gate has a posted independent convergence record ratifying that exact version for downstream use. |
-| **advisory plan packet** | The bounded, non-authoritative output of a cold `implementation-planner`; it is relayed beside the ratified artifact pointer, never added to the artifact graph or used as review evidence. |
-| **resource class** | A host-neutral role intent declared in `metadata/roles.json`; in an applicable binding context, a host resolves it to one exact concrete model selector through versioned defaults and optional consumer override. |
-| **effective resource map** | The exact resource-class-to-model-selector mapping after applying one host's defaults and any exact consumer override; it is recorded in support and experiment evidence. |
-| **resource binding context** | The dispatch context that selects either the preserved pre-adoption direct selector, arm A's exact premium pin, or the class map for experiment B/C and activated production. |
+| **role inventory** | The fourteen canonical role ids, including `implementation-planner`, their Codex-native underscore ids, and their permitted exposures: interactive driving-session role, cold native role, and, for `dispatcher`, the distinct scoped spawned advisor. It contains metadata and source paths, never charter instructions. |
+| **advisory implementation plan** | The planner's bounded, human-readable output for one ratified code-bearing artifact. It may sequence implementation but cannot add, remove, or reinterpret a requirement and is never an artifact or gate. |
 | **bridge-viable** | A thin project TOML launcher successfully resolved and loaded its plugin-carried skill/reference on the exact Codex mode tested. This proves the loading primitive only; it is not a release-support claim. |
 | **surface matrix** | One machine-readable record of host surfaces, support state, explicit load path, test evidence, and supported role identities. |
 | **supported** | The recorded load path passed on a fresh instance of that exact surface for the release under test. |
@@ -154,8 +140,7 @@ reserves for a later intent gate.
 | Deliverable | Authority | Required property |
 |---|---|---|
 | Role and companion charters | `charters/` | The only authored normative role/method prose. |
-| Role inventory, lifecycle inventory, surface matrix, host metadata, stamp schema, and legacy ownership inventory | `plugins/grove/metadata/` | Metadata only; role completeness derives from every unique canonical row in `metadata/roles.json`, whose first `implementation-planner` release is checked bijectively against this spec's fourteen-id oracle; `metadata/hosts.json` carries versioned per-host resource defaults and the fixture-proven pre-adoption direct selector; host inventories declare exact positive discovery and driving-session loaders; the versioned legacy inventory declares exact historical managed bytes without carrying old executable code. |
-| Implementation-planner charter | `charters/implementation-planner.md` | The only authored normative planning-role contract: cold-started, read-only, advisory, locally triggered, and bounded to ratified code-bearing spec work. |
+| Role inventory, lifecycle inventory, surface matrix, host metadata, stamp schema, and legacy ownership inventory | `plugins/grove/metadata/` | Metadata only; role inventory has exactly fourteen unique role ids, including `implementation-planner` as `cold-native` only, and declares every permitted exposure; host inventories declare exact positive discovery and driving-session loaders; the versioned legacy inventory declares exact historical managed bytes without carrying old executable code. |
 | Claude adapter | `plugins/grove/adapters/claude/` | Generated native-agent envelopes plus only the four lifecycle skill entrypoints; its manifest exposes only this adapter. |
 | Codex adapter | `plugins/grove/adapters/codex/` | Generated lifecycle and role skills, no custom-agent definitions; its manifest exposes only this adapter. |
 | Shared runtime | `plugins/grove/runtime/lifecycle/` and `plugins/grove/runtime/gates/` | The only installed executable lifecycle and gate behavior; host adapters invoke it in place and setup never copies it into a consumer. |
@@ -168,7 +153,6 @@ reserves for a later intent gate.
 | Package declarations | `plugins/grove/README.md`, both manifest directories, `VERSION`, `adapters/`, `runtime/`, `reference/`, and `metadata/` | These are the only permitted package-root entries; an exact recursive leaf allowlist is declared once and validated before any package or release claim. |
 | Surface matrix and spike evidence | Declared machine-readable sources under `plugins/grove/metadata/` or `plugins/grove/reference/` | The matrix is the sole source for support claims and links immutable evidence records such as `reference/surfaces/codex-bridge-spike-2026-07-23.json`. |
 | Maintainer machinery | `tooling/grove/build/`, `tooling/grove/release/`, `tooling/grove/tests/`, and `tooling/grove/probes/` | Retained source-repository inputs outside the installable package; tests import package modules and release/probe commands operate on an exact ephemeral package snapshot. |
-| Planning experiment harness | Source-side maintainer machinery outside `plugins/grove/` | Runs the preregistered three-arm study without changing the source tree and writes preregistration/results only to a caller-supplied out-of-tree evidence root. |
 | Dormant review bookkeeping | `retired/review-bookkeeping/` | Preserved, dormant, and outside the installable package; no lifecycle or release path installs it. |
 | Claude marketplace entry | Existing Claude marketplace | Resolves the released Grove Claude package. |
 | Codex marketplace entry | A Git-backed repo catalog at `.agents/plugins/marketplace.json` | Resolves the released Grove Codex package. |
@@ -253,42 +237,18 @@ snapshot fidelity.
 ### Exact host discovery
 
 The authored role inventory and lifecycle inventory shall determine the
-expected host sets. Host-equivalence shall discover every unique role row in
-the canonical role inventory; tests shall not carry an independent standing
-role count. Each release candidate shall nevertheless declare and assert its
-exact expected inventory count, and the first release candidate containing
-`implementation-planner` shall prove a bijection between its inventory ids and
-this independent first-release oracle:
-
-```text
-code-reviewer
-conformance-reviewer
-contract-author
-corpus-reviewer
-decision-adversary
-dispatcher
-divergent-researcher
-executor
-implementation-planner
-propagation-remediator
-run-resumer
-shaper
-spec-adversary
-validator
-```
-
-The comparison shall reject a missing, extra, duplicate, or renamed id and
-shall assert exactly fourteen only after that set comparison passes. Later
-releases shall continue to derive completeness from the canonical inventory
-and shall carry their own release-declared exact-count evidence; they shall not
-reuse this first-release set as a permanent fleet allowlist. The lifecycle
-inventory contains exactly `setup`, `refresh`, `set-profile`, and `remove`.
-The role inventory shall assign
+expected host sets. The lifecycle inventory contains exactly `setup`,
+`refresh`, `set-profile`, and `remove`. The role inventory shall assign
 `shaper` only `driving-session`, `dispatcher` exactly `driving-session` then
 `scoped-advisor`, and every other role exactly its approved `cold-native`
 exposure. A driving-session exposure has no `native_id`; a `cold-native` or
 `scoped-advisor` exposure has exactly one unique `native_id`. The generator
 shall reject a cold full-dispatcher or cold shaper exposure.
+
+With `implementation-planner`, this yields fourteen canonical role rows,
+twelve cold-native exposures, one scoped-advisor exposure, and two
+driving-session exposures; Codex still receives one role skill per canonical
+row.
 
 For a clean installed package:
 
@@ -352,10 +312,8 @@ inside this repository does not satisfy installed discovery.
 - Every companion paragraph originates in `charters/lifecycle.md`,
   `charters/versioning.md`, or `charters/relations.md`.
 - Host metadata may name a role, description, tool policy, source path,
-  exposure/execution class, portable resource class, output path, and the
-  machine-readable local trigger or input-route declaration assigned to that
-  role. It shall not contain method, boundary, or workflow instructions copied
-  from a charter or a central pipeline ordering.
+  execution class, and output path. It shall not contain method, boundary, or
+  workflow instructions copied from a charter.
 - Setup/refresh/set-profile/remove semantics have one authored host-neutral source.
   Host-specific skill files contain only host invocation metadata and generated
   projections or pointers to that source.
@@ -369,13 +327,11 @@ check mode.
 
 The generator shall:
 
-1. validate every unique canonical role row in the authored inventory,
-   including `implementation-planner`; require `shaper` only as
-   driving-session, `dispatcher` only as driving-session plus scoped-advisor,
-   every other role only as its declared cold-native exposure, and one unique
-   native id per non-driving exposure; and prove an exact bijection to the
-   fourteen-id first-release oracle for the first release containing
-   `implementation-planner`;
+1. validate that the role inventory contains exactly the fourteen roles named
+   by the approved decisions, including `implementation-planner` exactly once
+   as cold-native, `shaper` only as driving-session, `dispatcher` only as
+   driving-session plus scoped-advisor, every other role only as its declared
+   cold-native exposure, and one unique native id per non-driving exposure;
 2. reject duplicate role ids, missing charter sources, unexpected authored
    instruction fields, Codex-native ids containing hyphens, and output paths
    outside declared generated roots;
@@ -404,621 +360,92 @@ check mode fail.
 
 ## Pre-execution planning contract
 
-### Canonical role and generated projections
-
-`charters/implementation-planner.md` shall be the single authored normative
-source for `implementation-planner`. Its shared artifact frontmatter shall
-identify `charter-implementation-planner`, declare the scalar
-`implements: adr-0036-pre-execution-planning`, include that ADR in
-`depends_on`, and use the ordinary charter lifecycle. The charter shall define
-a cold-started, read-only role that:
-
-1. accepts one ratified code-bearing spec and its declared dependency graph,
-   the exact repository revision and disclosed working-tree basis, and the
-   consumer-owned configuration/addenda needed to locate commands and
-   conventions;
-2. performs repository reconnaissance and decomposes the accepted criteria
-   into a test-first implementation route without changing repository or
-   external state;
-3. returns the advisory packet grammar below, separating verified repository
-   facts from inferences;
-4. returns a blocked, non-executable packet when load-bearing ambiguity,
-   invalid upstream authority, or an unverifiable basis prevents a trustworthy
-   route; and
-5. never resolves product intent, writes tests or implementation, edits an
-   artifact, becomes a gate, or claims that its packet is authoritative.
-
-The charter shall declare `<TEST_CMD>`, `<TYPECHECK_CMD>`, `<LINT_CMD>`, and
-`<CONVENTIONS_PATH>` as repository-locating config tokens and the optional
-consumer addendum `.grove/agents/implementation-planner.md`. Like every Grove
-role, it shall treat configured values as verified priors: verify present
-paths and command declarations without performing a mutating command, surface
-stale values as configuration findings, classify a command as unverified when
-only execution could establish it, disclose self-detection when absent, and
-preserve an explicit `none` without silently substituting another value.
-
-The `implementation-planner` row in `plugins/grove/metadata/roles.json` shall
-declare:
-
-- canonical id `implementation-planner`;
-- source `charters/implementation-planner.md`;
-- one `cold-native` exposure with one unique underscore-form native id;
-- portable resource class `reasoning-heavy`;
-- its local code-bearing-spec trigger declaration, including
-  `inactive-experiment-only` activation and the optional adoption-decision
-  reference; and
-- the generated reference, Claude-agent, and Codex-skill output paths.
-
-The existing `executor` row shall declare portable resource class
-`execution-medium` and its activation-conditional local input-route
-requirements. The generator shall
-produce the planner's Claude native-agent envelope, Codex role skill, and
-frontmatter-free reference projection through the same canonical-source
-pipeline as every other cold role. Host metadata or a generated projection
-shall not restate, extend, or fork the charter.
-
-`charters/executor.md` shall add `adr-0036-pre-execution-planning` to its
-declared upstreams and state the authority, packet verification, explicit
-direct-route, stale/conflict, and reviewer-target rules below. Its generated
-reference, Claude-agent, and Codex-skill projections shall change from that
-canonical edit; adapters shall not patch executor behavior independently.
-
-### Advisory packet grammar
-
-The planner result shall be exactly one canonical UTF-8 JSON byte sequence:
-one object, no byte-order mark, no leading/trailing whitespace or newline, no
-prefix, suffix, prose, or Markdown fence. Object keys shall be ASCII and sorted
-by ascending UTF-8 byte value; arrays preserve semantic order; numbers shall be
-base-10 integers; strings shall escape only quote, backslash, and control
-characters (control escapes use lowercase `\u00xx`) and emit every other
-Unicode scalar as its original UTF-8 without normalization. Parsers shall
-reject a duplicate key before materializing the object, every unknown field at every
-schema-defined object level, every missing required field, invalid UTF-8, and
-any byte outside the single object. The byte boundary relayed verbatim is the
-entire cold-role result.
-
-That object shall have `packet_schema: 1`,
-`outcome: "executable" | "blocked"`, and exactly these required fields:
-
-| Field | Required content |
-|---|---|
-| `artifact` | Authoritative artifact id, repository-relative path, lifecycle status, and version or content identity. |
-| `repository_basis` | Exact revision plus an explicit clean-tree statement or the disclosed paths/diff identity on which reconnaissance relied. |
-| `authority` | The literal semantic marker `advisory — artifact wins`. |
-| `criterion_test_map` | Exactly one entry for every EARS invariant and GWT scenario id in the artifact, with a disposition defined below; artifact criteria may not be omitted or excluded. |
-| `code_anchors` | Relevant code anchors in the `CA<n>` namespace, each classified `verified` or `inferred` with its file/symbol locator and supporting observation or inference. |
-| `test_anchors` | Intended or existing test anchors in the `TA<n>` namespace, each bound to artifact criteria and one verification command. |
-| `slices` | An ordered sequence of uniquely identified entries whose criterion references and phase preserve red → green → refactor order. |
-| `verification` | Exact commands in the `CMD<n>` namespace for test, typecheck, lint, and other declared verification, including an explicit `none` for a command class not configured. |
-| `verification_oracles` | Verify-only oracles in the `OR<n>` namespace, each bound to artifact criteria and one or more verification commands. |
-| `risks_and_gaps` | Risks, blockers, non-criterion scope exclusions, and unresolved ambiguities, each with whether it blocks execution. |
-
-The nested shape is closed:
-
-- `artifact` has exactly string keys `id`, `path`, `status`, and `identity`.
-- `repository_basis` has exactly string keys `revision`, `worktree_kind`
-  (`clean` or `disclosed-dirty`), `worktree_identity` (`clean` or a lowercase
-  SHA-256), plus array keys `worktree_manifest` and `assumptions`. A clean
-  basis has an empty manifest. Each dirty-manifest entry has exactly `path`,
-  `state` (`added`, `modified`, or `deleted`), `kind` (`regular`, `symlink`,
-  or `deleted`), `mode`, and `content_identity` (lowercase SHA-256 of current
-  bytes or literal `deleted`); entries sort by path. `worktree_identity` is
-  the SHA-256 of that manifest's canonical JSON bytes.
-- every `criterion_test_map` entry has `criterion_id` and `disposition`, plus
-  only its disposition-specific keys: `failing_test_ids` and `slice_ids` for
-  `implement`; `oracle_id` for `verify-only`; or `gap_id` for `blocked`.
-- every `code_anchors` entry has exactly `code_anchor_id`, `path`, `symbol`,
-  `fact_class` (`verified` or `inferred`), and `evidence`.
-- every `test_anchors` entry has exactly `test_anchor_id`, `criterion_ids`,
-  `path`, `symbol`, `fact_class` (`verified` or `inferred`), `evidence`, and
-  `command_id`.
-- every `slices` entry has exactly `slice_id`, `criterion_ids`, `phase`
-  (`red`, `green`, or `refactor`), `code_anchor_ids`, and `test_anchor_ids`.
-- every `verification` entry has exactly `command_id`, `class` (`test`,
-  `typecheck`, `lint`, or `other`), and `command`; an unavailable class uses
-  the literal prefix `none — ` followed by its configured reason.
-- every `verification_oracles` entry has exactly `oracle_id`,
-  `criterion_ids`, `command_ids`, `expected_result`, and
-  `basis_observation`.
-- `risks_and_gaps` has exactly the array keys `risks`, `blockers`,
-  `scope_exclusions`, and `ambiguities`; every entry has exactly `id`, `text`,
-  and Boolean `blocking`.
-
-All ids and cross-references are case-sensitive strings. Namespace ids shall
-match `CA[1-9][0-9]*`, `TA[1-9][0-9]*`, `CMD[1-9][0-9]*`,
-`OR[1-9][0-9]*`, or `SL[1-9][0-9]*` for code anchors, test anchors,
-commands, oracles, and slices respectively, and shall be unique within their
-collection. Set-like arrays (`criterion_test_map`, `code_anchors`,
-`test_anchors`, `verification`, and `verification_oracles`) shall sort by
-their typed id; `slices` shall retain execution order; `assumptions` and each
-risks/gaps array shall sort by id or, for assumption strings, by ascending
-UTF-8 byte value.
-
-Each `criterion_test_map` entry shall use exactly one disposition:
-
-- `implement`: names at least one intended failing-test id and one or more
-  slice ids, including a red slice before its green slice; or
-- `verify-only`: allowed only when no implementation change is proposed for
-  that criterion and names one exact verification oracle that supplies its
-  command links, expected result, and basis observation; or
-- `blocked`: names the load-bearing gap and appears only when packet
-  `outcome` is `blocked`.
-
-For an `executable` packet, every artifact criterion shall appear exactly once
-as `implement` or `verify-only`, at least one entry shall be `implement`, every
-slice criterion reference shall resolve to an `implement` entry, and no
-blocking gap may exist. For every `implement` entry, each
-`failing_test_ids` value shall resolve exactly once in `test_anchors`, that
-test anchor shall include the same criterion id, and its `command_id` shall
-resolve exactly once to a non-`none` `verification` entry of class `test`.
-Each referenced slice shall include the same criterion id; its typed code/test
-anchor ids shall resolve only in their corresponding collections; and its red
-slice shall reference at least one of the criterion's failing test anchors.
-
-For every `verify-only` entry, `oracle_id` shall resolve exactly once in
-`verification_oracles`, that oracle shall include the same criterion id, and
-its nonempty `command_ids` shall each resolve exactly once to a non-`none`
-entry in `verification`.
-Every test anchor, oracle, slice, and code anchor shall be reached by at least
-one criterion/slice reference; every criterion id carried by a test anchor,
-oracle, or slice shall point back to a compatible criterion-map entry. A
-`verify-only` entry shall not name a slice or failing test.
-
-A `blocked` packet shall still enumerate every artifact criterion exactly
-once, contain at least one `blocked` entry, contain no slices, code/test
-anchors, verification oracles, or executable test target, and identify the
-upstream or repository-basis failure.
-
-`risks_and_gaps.scope_exclusions` may name repository work outside the
-artifact only; naming an artifact criterion is invalid. A criterion id
-appearing twice, an unreferenced slice, a disposition inconsistent with its
-fields or packet outcome, an id in the wrong namespace, an inference labeled
-verified, an orphan namespace entry, or any failed/cross-criterion reference
-shall make the packet unusable.
-
-The packet is transient working material. It shall not gain artifact
-frontmatter, enter `depends_on` or `implements`, become a committed repo file,
-or serve as conformance, code-quality, gate-clearance, or release evidence.
-
-### Local routing declarations
-
-The generic dispatcher shall derive planning behavior from the
-`implementation-planner` and `executor` rows in `metadata/roles.json`; no
-central pipeline branch or dispatcher-owned role list shall encode it.
-
-Before classification, a work-scope collector shall snapshot this closed
-source set:
-
-1. the exact dispatch-request bytes; and
-2. every task, change-request, issue body, or comment referenced by a stable
-   locator in those bytes, at its exact revision/edit identity.
-
-The collector shall not silently add conversation memory or omit a referenced
-source. It shall assign sources stable ids `SRC1`, `SRC2`, …: `SRC1` is the
-dispatch request and the rest sort by canonical locator then revision. Each
-source record has exactly `source_id`, `locator`, `revision`, `byte_length`,
-`sha256`, and standard padded `bytes_base64`; decoding shall reproduce the
-hashed bytes. A missing, mutable-without-identity, unreadable, or invalid-UTF-8
-referent makes collection ambiguous.
-
-For every source, `source_coverage` shall partition byte offsets
-`[0, byte_length)` into ordered, non-overlapping, gap-free intervals. Each
-interval has exactly `source_id`, `start_byte`, `end_byte`, `disposition`
-(`desired-behavior` or `context`), and `reason`. Every desired-behavior
-interval points to exactly one stable work item `WB1`, `WB2`, …, assigned by
-source order then start byte. Interval boundaries shall fall on UTF-8 scalar
-boundaries. A work item has exactly `work_id`, `source_id`,
-`start_byte`, `end_byte`, `text_sha256`, and `statement`. Context may cover
-formatting or explanatory text only and shall state why it imposes no outcome
-or constraint; uncertainty about that judgment makes the collection
-ambiguous. Each work item corresponds to exactly one desired-behavior
-interval; distinct behaviors shall be split into distinct intervals and
-non-adjacent or cross-source text shall remain separate.
-
-`work_scope_identity` is the lowercase SHA-256 of the canonical JSON bytes of
-the ordered source records, coverage intervals, and work items, using the
-packet serialization rules below. The collector shall record a source-level
-coverage summary proving every byte is classified and every
-`desired-behavior` interval resolves to exactly one work id. This transient
-collection is the route-classification oracle; it is not an implementation
-authority, repo artifact, or gate record.
-
-Before selecting a route, the dispatcher shall produce one transient
-`route_classification` record with `classification_schema: 1`, artifact and
-repository-basis identities, `work_scope_identity`, the complete ordered work
-items, requested deliverable/path classes, and the evidence fields below. The
-record is routing evidence only: it is neither a repo artifact nor a gate
-record.
-
-| Predicate | It is true exactly when the record contains |
-|---|---|
-| `wrong_decision` | One or more exact work ids plus an exact approved-decision id/clause that contradicts each; disagreement with implementation or a planner inference is insufficient. |
-| `spec_gap` | At least one exact work id not entailed by any acceptance criterion in the ratified spec, with the exhaustive criterion search recorded, and no `wrong_decision` evidence for that work id. |
-| `adequate_spec` | Every work id in the complete work-scope oracle maps to one or more exact ratified-spec criterion ids, with no uncovered behavior, contradiction, context-classification ambiguity, or unresolved mapping. |
-| `reproduced` | A deterministic command or bounded manual procedure, its exact failing observation, and the repository basis on which it repeated. |
-| `root_caused` | A causal trace from the reproduced observation to exact implementation file/symbol anchors, with contrary contract-gap evidence ruled out. |
-| `localized` | The root-cause trace and proposed regression-test target remain within one declared component/package boundary and require no public interface, schema, cross-component, dispatch, or artifact-contract change. |
-| `decision_only_non_code` | The eligible authoritative input is a decision and every work id requests only non-executable prose/metadata with no source, test, build, runtime, or package-behavior change. |
-| `code_bearing` | At least one work id requests creation or change of source, tests, build/runtime behavior, package behavior, or other executable behavior governed by a spec. |
-| `ambiguous` | Required evidence is absent, mutually inconsistent, stale against the basis, or makes more than one same-precedence terminal class true. |
-
-Classification shall apply this precedence and stop at the first satisfied
-row:
-
-| Precedence | Predicate | Required route |
-|---:|---|---|
-| 1 | `wrong_decision` | Route to shaping; no planner or executor. |
-| 2 | `spec_gap` | Amend and reconverge the spec; only then reclassify and plan the corrected ratified spec. |
-| 3 | `ambiguous`, or neither `adequate_spec` nor `decision_only_non_code` is proven | Fail closed with the evidence defect; no planner or executor. |
-| 4 | `decision_only_non_code` | Direct to executor with the eligible decision; no packet. |
-| 5 | `adequate_spec AND reproduced AND root_caused AND localized` | Direct to executor with the ratified spec and failing regression target; no packet. |
-| 6 | `adequate_spec AND code_bearing` | Planner-candidate route; the activation contract below decides experiment/planner versus pre-adoption direct executor. This includes non-local slips and forward construction. |
-| 7 | Any other combination | Fail closed as unclassified; no planner or executor. |
-
-The record shall retain the truth value and supporting evidence or explicit
-missing-evidence reason for every predicate, the selected precedence row, and
-the route result. It shall carry exactly one mapping result for every work id:
-mapped artifact criterion ids, `wrong_decision`, `spec_gap`, or `ambiguous`.
-No work id may be omitted, duplicated, or classified only as context after
-collection. A changed source, work-scope identity, artifact, or repository
-basis invalidates the record. The classifier shall not use token count, line
-count, task size, model tier, or ad-hoc complexity.
-
-A `gated` spec without the active agent-owned gate's posted independent
-convergence record is not ratified: classification shall fail before planner
-or executor dispatch and wait for `approved` or that record. A packet is never
-ratification.
-
-### Experiment availability and production activation
-
-The first release containing `implementation-planner` shall ship its canonical
-role, generated projections, local planner/executor declarations, resource
-resolution, and experiment harness with the optimized production route marked
-`inactive-experiment-only`. The experiment harness may explicitly invoke the
-planner route for arm C after validating the same local declarations; an
-ordinary dispatcher shall continue the pre-adoption direct spec → executor
-route and shall not invoke the planner or require a packet merely because the
-declarations are installed. The planner declaration's trigger and the
-executor declaration's packet requirement shall therefore be conditional on
-either `experiment-arm-c` or an active adoption reference; they remain local
-role declarations rather than a dispatcher-owned branch.
-
-Before activation, `execution-medium` is available to experiment arm B and the
-`reasoning-heavy` / `execution-medium` pair to arm C, but neither shall
-downgrade the ordinary direct executor: ordinary dispatch retains the
-fixture-proven premium/no-planner baseline-A selection. After activation, the
-optimized planner route resolves the declared class pair. This availability
-rule does not change the canonical class values stored on the role rows.
-
-Production activation requires both a completed valid twenty-seven-run result
-that passes the A and B conditions and a later approved decision recording the
-maintainer's adoption intent for the exact evidence identity and release
-candidate. The activation flag shall reference that decision. Missing,
-draft, mismatched, or evidence-only activation input shall leave the route
-inactive. Installing the first release, passing the nine-run screen, or
-passing support/resource probes shall not activate production planning.
-
-### Relay, executor authority, checkpoint, and replan
-
-On the ordinary route, the cold planner shall return one bounded packet to the
-driving-session dispatcher. The dispatcher shall validate it, compute the
-lowercase SHA-256 of the exact packet bytes, and pass those same bytes
-verbatim, alongside the authoritative artifact pointer, into a separately cold
-executor invocation. The ordinary relay shall perform no repo, tracker, or
-other external write and shall not require or create a task/change-request.
-
-The executor shall independently reopen the ratified artifact and declared
-dependency graph, verify the packet's artifact identity, repository basis,
-criterion coverage, typed code/test anchors, verification oracles, and
-commands, and then apply strict red → green → refactor from the artifact. The
-artifact wins every conflict. A stale
-repository basis, contradictory packet requirement, invalid or unverifiable
-anchor, softened/extended criterion, or unusable packet shall be surfaced
-before executor mutation and may trigger at most one automatic replan when the
-same artifact and repository basis remain reproducible. Ordinary dispatch
-therefore permits at most two planner invocations total: the initial attempt
-and one replan. A second unusable result, a changed/unreproducible basis, or an
-unresolved blocking gap is terminal: the dispatcher shall emit a planning
-failure with both attempt findings, dispatch no executor, and return control
-for human/shaping resolution. The packet shall never be silently repaired or
-treated as executor authority. Reviewers shall judge code against the artifact
-and code-quality contract, never against packet adherence.
-
-If dispatched work already has an identifiable task/change-request and the
-existing checkpoint/resume seam fires, its carrier may contain one canonical
-UTF-8 JSON checkpoint envelope and no rewritten/reduced plan. The envelope has
-the packet grammar's serialization, duplicate-key, unknown-field, and
-trailing-byte rules, `checkpoint_schema: 1`, and exactly:
-
-- the original `artifact` and `repository_basis` objects;
-- `packet_sha256` and standard padded `packet_base64` encoding the exact
-  original packet bytes;
-- `checkpoint_basis`, using the same basis-object grammar for executor state
-  at checkpoint time;
-- `completed_slice_ids`, `remaining_slice_ids`,
-  `verified_criterion_ids`, and `pending_verify_only_criterion_ids`; and
-- `completion_evidence`, with exactly one evidence entry for every completed
-  slice and verified criterion.
-
-`packet_base64` shall use the standard alphabet with required `=` padding and
-no whitespace. Decoding it shall reproduce bytes matching `packet_sha256` and
-the original executable packet. Completed slice ids shall be one exact prefix
-of the packet's ordered slices and remaining ids its exact suffix, with no
-duplicate, omission, insertion, or reorder. Verified and pending verify-only
-ids shall be a disjoint exhaustive partition of the packet's verify-only
-criterion ids. Each completion-evidence entry shall reference one member of
-those completed/verified sets and have exactly `subject_kind` (`slice` or
-`criterion`), `subject_id`, and `evidence`, recording its command or
-observation result at `checkpoint_basis`. Completed/remaining ids retain
-packet order, verify-only partitions sort by criterion id, and completion
-evidence sorts by `(subject_kind, subject_id)`.
-
-The artifact identity, original basis identity, packet digest, and progress
-partitions together are the checkpoint identity. A mismatch, invalid envelope,
-non-prefix “remainder,” stale checkpoint basis, or changed packet shall refuse
-resume and dispatch no executor; it shall not synthesize a second packet from
-the remainder. The planning route shall not create a carrier merely to gain
-recovery.
-
-If no carrier exists and relay is lost before executor dispatch, the
-dispatcher may use the one ordinary automatic replan against the unchanged
-authoritative artifact and repository basis. If that basis is no longer
-reproducible or the replan fails, planning shall terminate with no executor
-rather than reuse hidden session state or stale bytes. The experiment's D19
-shared remediation budget governs experimental planner retries separately and
-does not enlarge this ordinary-path cap.
-
-## Portable resource-resolution contract
-
-Portable resource intent shall live only on role rows in
-`plugins/grove/metadata/roles.json`: `implementation-planner` is
-`reasoning-heavy`, and `executor` is `execution-medium`. The executor class is
-route-bound intent for the optimized planner route and experiment arms B/C;
-it is not a claim that every executor invocation is medium. Canonical charters
-and generated role projections shall not pin provider-specific model names.
-
-`plugins/grove/metadata/hosts.json` shall carry a schema version and a
-versioned default mapping for every supported host from each referenced
-resource class to one exact host-valid model selector. For every host/surface
-that claims a class, it shall also name `selector_capability_source` as the
-exact versioned host-runtime model catalog or provider model catalog
-authoritative for that selector, and `selector_capability_probe` as the exact
-read-only command/API operation plus response field that proves the selector
-exists and the surface may invoke it. `hosts.json`, consumer configuration,
-documentation, and prior evidence declare intent but are not themselves
-capability sources.
-
-For each supported host/surface, `hosts.json` shall also record
-`pre_adoption_direct_executor` with the exact selector and selection-source
-identity observed before the planner change. Release validation shall compare
-that record with a clean pre-change fixture and its capability probe; mismatch
-fails the candidate rather than redefining the baseline. This record preserves
-inactive production behavior and is not a third portable resource class.
-
-Resource binding is exhaustive:
-
-| Context | Executor binding | Planner binding |
-|---|---|---|
-| Ordinary production while activation is inactive | Exact `pre_adoption_direct_executor`; the new class map and consumer resource overrides do not apply. | None. |
-| Experiment arm A | Exact preregistered premium selector, which shall equal the recorded pre-adoption selector and pass its source/probe at run time; it is not resolved through `execution-medium`. | None. |
-| Experiment arm B | Effective active-host `execution-medium` class mapping. | None. |
-| Experiment arm C | Effective active-host `execution-medium` class mapping. | Effective active-host `reasoning-heavy` class mapping. |
-| Ordinary production after approved activation | Effective active-host `execution-medium` class mapping. | Effective active-host `reasoning-heavy` class mapping. |
-
-A consumer may replace a default only through an exact key in its
-consumer-authoritative
-`.grove/config.toml` table:
-
-```toml
-[resources.<host>]
-reasoning-heavy = "<host model selector>"
-execution-medium = "<host model selector>"
-```
-
-These overrides participate only in the class-bound rows of the context table;
-they shall not alter `pre_adoption_direct_executor` or arm A's exact pin.
-
-For an experiment B/C or activated-production class-bound dispatch, resolution
-shall:
-
-1. select only the active host's default map;
-2. replace a class only when `[resources.<active-host>]` supplies that exact
-   class;
-3. execute the declared capability probe against its exact authoritative
-   source and validate that the selected model exists and is permitted for
-   that host and surface;
-4. reject an absent, inaccessible, stale-version, unauthenticated,
-   unparseable, or contradictory source/probe result as unavailable
-   validation;
-5. reject missing required classes, unknown host or class keys, unknown or
-   unsupported selectors, ambiguous duplicates, and any attempt to fall back
-   to another host; and
-6. return and record the complete effective class-to-model map, context,
-   source
-   identity/version, probe identity, response-field evidence, and probe time
-   before the first role dispatch.
-
-For experiment arm A, the harness shall bypass class resolution, pin the exact
-premium selector in preregistration, and execute the same authoritative
-capability-source/probe validation directly against that selector. It shall
-fail the matched block if the selector differs from
-`pre_adoption_direct_executor`, is not preregistered as premium, or cannot be
-validated. Inactive ordinary production shall continue its recorded direct
-selection and shall not consult `execution-medium`; the candidate's release
-evidence, not a new runtime routing dependency, proves that selection was
-preserved.
-
-A surface that cannot honor a class shall explicitly reject the optimized
-route before dispatch. It shall not silently substitute a model or claim
-planner-route support. Support evidence and every experimental run shall
-record the binding context, the pre-adoption/arm-A exact selector or effective
-class map as applicable, defaults version, overrides used, and exact concrete
-model ids plus the capability-source/probe evidence. The Grove-managed
-`.grove/README.md` shall document the valid
-host/class keys, precedence, and failure behavior, but setup and refresh shall
-not create or change a consumer's optional resource overrides.
-
-## Planning experiment and evidence
-
-The experiment harness shall require a caller-supplied evidence root outside
-the source repository and shall refuse an evidence destination within the
-repository tree. It shall make no source-tree change. Before any run, one
-retained preregistration shall record:
-
-- three ratified code-bearing specs and exact repository revisions, one each
-  in predeclared small, medium, and large strata;
-- one replacement task per stratum for an independently established invalid
-  upstream;
-- all required test/typecheck commands and review procedures;
-- the recorded pre-adoption direct-executor selector and fixture proof; arm
-  A's exact equal premium selector; B/C's effective host/resource maps; every
-  binding's capability-source/probe result; and exact planner, executor, and
-  reviewer model ids;
-- a dated provider-price snapshot and normalization table that maps each
-  provider-reported input, output, cached, reasoning, and other billed token
-  field to one disjoint billable leaf bucket and one rate for each model;
-- randomized execution order; and
-- the two-remediation bound, futility rule, acceptance rule, metrics, and
-  adoption truth tables below.
-
-For each task/revision cell, the harness shall run these three arms cold and in
-the preregistered randomized order from fresh isolated repository fixtures
-with identical ratified input and repository/working-tree basis:
-
-| Arm | Base sequence |
-|---|---|
-| A — current baseline | Exact preregistered, capability-validated premium selector equal to `pre_adoption_direct_executor`; no planner and no executor-class lookup. |
-| B — downgrade control | Executor resolved through active-host `execution-medium`; no planner. |
-| C — planner treatment | Planner resolved through `reasoning-heavy`, followed by a separately cold executor resolved through `execution-medium`. |
-
-Phase one shall complete each of the nine cells in a three-valid-task ×
-three-arm matched block once, for exactly nine valid cold analysis runs. Raw
-attempts later invalidated as upstream-invalid do not count toward nine. The
-harness shall evaluate futility only after one complete valid matched block
-exists for all three strata and arms, and shall stop when either:
-
-1. C is unaccepted on at least two tasks for which matched A is accepted; or
-2. none of the three matched tasks has C use fewer premium-model tokens than A
-   or incur lower total weighted model-call cost than A.
-
-Every other phase-one result shall add exactly two valid repetitions of every
-task/arm cell, yielding exactly twenty-seven valid analysis runs and nine
-valid runs per arm. Raw attempt count may be higher only because retained
-invalidated attempts were replaced symmetrically. Passing phase one shall
-never authorize adoption.
-
-One run starts at its arm's first model invocation and ends on acceptance,
-shared-remediation-budget exhaustion, or terminal failure. In addition to its
-base sequence, every arm may use at most two remediation dispatches total,
-each classified exactly once:
-
-| Classification | Meaning |
-|---|---|
-| `planner retry` | Repeats a failed or unusable planner before execution; available only while the shared budget remains. |
-| `executor retry` | Repeats execution after failure or unusable output before independent review. |
-| `reviewer-return loop` | One blocking independent-review result followed by one fresh executor remediation dispatch. |
-
-Exhausting the shared budget without an executable plan or accepted
-implementation makes the run unaccepted. Every call still counts toward
-tokens, cost, remediation, and elapsed time.
-
-A run has exactly one accepted-quality result if and only if, within that
-bound, all declared required test and typecheck commands pass, conformance
-returns `PASS`, and the terminal required code-review pass reports no blocking
-finding. Otherwise it has zero. A blocking-finding run is counted once when
-any independent code-review pass reports at least one blocking finding,
-irrespective of finding count or later remediation.
-
-For every model call, the harness shall retain the provider's raw input,
-output, cached, reasoning, and total fields; role; arm; task; attempt; elapsed
-time; model id/tier; dated price identity; and a normalized
-`billable_buckets` list of `(bucket, count, rate)`. The preregistered
-normalization shall form a partition: one billed token may contribute to
-exactly one leaf bucket. An overlapping provider total is informational only.
-When reasoning or cached counts are provider-documented subsets of another
-field, the normalization shall subtract them into disjoint leaf operands; an
-undocumented overlap, negative residual, missing priced bucket, or inability
-to form the partition invalidates that run's measurement. A
-measurement-invalid run makes the experiment ineligible for adoption until
-the preregistration and complete matched block are rerun with valid
-instrumentation; it is not an upstream-invalid task and shall not be
-selectively omitted or replaced.
-
-`premium_tokens` shall equal the sum of all disjoint billable-bucket counts
-from calls whose exact model id is preregistered as premium, across planner,
-executor, reviewer, and remediation roles. `total_tokens` is informational and
-shall equal the sum of disjoint bucket counts across all calls; any raw
-provider `total` shall be retained separately and shall not be added again or
-used as a cost operand.
-
-Weighted run cost shall sum `count * rate` once for every disjoint bucket in
-every triggered planner, executor, reviewer, and remediation call, using the
-dated model-specific price snapshot and distinct cached-token rate where
-published. The harness shall also retain per-run and per-arm premium tokens,
-informational total tokens, weighted cost, test/typecheck outcomes,
-conformance and code-review findings, blocking-finding incidence, all three
-remediation counts, invalid packet anchors, executor deviations and reasons,
-unused plan steps, and ambiguities caught before implementation. For each arm,
-`cost_per_acceptance = total_weighted_cost / accepted_quality_count`; zero
-acceptances yields positive infinity.
-
-If independent review establishes that a ratified upstream is itself invalid,
-the harness shall mark every attempt for that task/stratum across all three
-arms `invalidated-upstream`, retain any packets plus findings, tokens,
-weighted cost, remediation, and elapsed time in a separate
-audit/invalidation-overhead ledger, and exclude those cells from futility, arm
-metrics, exact valid-run counts, and adoption arithmetic. Gross experiment
-spend shall report that overhead separately and shall not add it to analyzed
-arm cost.
-
-The harness shall then use the preregistered same-stratum replacement and run
-every required arm/repetition cell for it. It shall not exclude the task from
-only one arm or classify a planner-indicted upstream as invalid without that
-independent finding. An invalidation before or after a preliminary screen
-voids that screen; futility shall be recomputed only after the complete valid
-replacement block exists. Phase two likewise reaches twenty-seven only from
-three complete valid task × arm × repetition blocks.
-
-After twenty-seven valid analysis runs, C passes the baseline-A floor only
-when all four conditions are true across nine valid runs per arm:
-
-- `C_accepted >= A_accepted - 1`;
-- `C_blocking_finding_runs <= A_blocking_finding_runs`;
-- `C_premium_tokens <= 0.70 * A_premium_tokens`; and
-- the A/C cost condition in this truth table is true.
-
-| `A_cost` | `C_cost` | A/C cost condition |
-|---|---|---|
-| finite and positive | finite and `C_cost <= 0.80 * A_cost` | true |
-| positive infinity | finite | true |
-| finite and positive | positive infinity or above the 20% reduction threshold | false |
-| positive infinity | positive infinity | false |
-| zero | any value | false |
-
-Treatment C passes the medium-only-B advantage only under this truth table:
-
-| Accepted-quality relation | B remediation | Required result |
-|---|---:|---|
-| `C_accepted >= B_accepted + 1` | any | true |
-| `C_accepted = B_accepted` | `> 0` | true only when `(B_remediation - C_remediation) / B_remediation >= 0.20` |
-| `C_accepted = B_accepted` | `0` | false, including zero/zero |
-| `C_accepted < B_accepted` | any | false |
-
-The optimized production route may be proposed for adoption only when the
-full experiment comprising twenty-seven valid analysis runs passes both the
-baseline-A floor and the medium-only-B advantage. The evidence shall remain
-out of tree and shall not change a surface support row, resource default,
-gate, or production route by itself.
-
-Adding `implementation-planner`, its resource declarations, or its generated
-outputs invalidates prior release-candidate fleet evidence. Generation,
-package snapshots, exact host discovery, driving/cold exposure checks,
-resource resolution, supported-surface records, and both marketplace channel
-smokes shall be rerun from the changed candidate. Each host shall discover the
-inventory-derived set exactly, and the first such candidate shall prove
-bijection to the fourteen-id first-release oracle. The release change shall
-separately judge and human-ratify the semantic version bump; this spec does
-not choose it.
+### Role delivery and plan contents
+
+`charters/implementation-planner.md` shall be the only authored normative
+source for the planner role. The existing generator shall project it through
+the Claude native-agent envelope and Codex role-skill/reference adapter, and
+the role inventory shall declare it exactly once with `cold-native` exposure.
+The planner shall be read-only: it may inspect the ratified artifact, its
+declared dependency graph, and the relevant repository basis, but shall not
+edit files, perform implementation mutations, amend or ratify an artifact,
+clear a gate, or review its own output.
+
+For one dispatch, the planner's final response shall be one bounded,
+human-readable advisory plan. Bounded means concise, scoped to one governing
+artifact, and substantively limited to these six required information kinds:
+
+1. the intended outcome and governing artifact;
+2. coverage addressing every acceptance criterion in that artifact;
+3. relevant code and test anchors, with verified facts distinguished from
+   inferred anchors;
+4. ordered red → green → refactor slices;
+5. exact verification commands; and
+6. risks, ambiguities, and blockers.
+
+No heading, ordering, repetition, or entry grammar is prescribed. Explanatory
+detail is allowed when it clarifies one of those information kinds and adds no
+requirement or authority.
+
+These contents constrain what the ordinary handoff communicates; they do not
+define a canonical JSON form, parser, request-byte collector, locator grammar,
+evidence schema, or checkpoint schema.
+
+### Routing precedence
+
+Before implementation, the dispatcher shall apply this precedence:
+
+1. wrong or conflicting approved-decision evidence returns the work to
+   shaping;
+2. a missing, inadequate, or ambiguous specification returns the work to
+   specification convergence;
+3. decision-only non-code work follows its existing direct route;
+4. a reproduced, root-caused, localized implementation slip may route directly
+   to the executor or planner-first at dispatcher judgment, subject to the
+   qualifications below; and
+5. all other ratified code-bearing specification work routes first to a cold
+   `implementation-planner` and then to a separately cold executor.
+
+The direct route is allowed only when the dispatcher establishes that the slip
+is reproduced, root-caused, localized, and changes no public interface, schema,
+dispatch behavior, cross-component behavior, or governing artifact. When all
+conditions hold, direct execution and planner-first execution are both allowed
+routes at dispatcher judgment. When any condition is unproven or false, direct
+execution is forbidden; planner-first routing applies unless an earlier
+decision/specification route applies. A mere assertion that a defect is
+localized is not evidence and shall not override the earlier checks.
+
+### Authority, relay, and interruption
+
+The planner's final-response message is the relay boundary. In the same
+driving session, the dispatcher shall forward that response to the separately
+cold executor as one unchanged message and supply the authoritative artifact
+pointer separately. The dispatcher shall not splice, summarize, reorder, or
+selectively omit the plan. A missing or truncated final-response message is a
+lost relay. The executor shall independently reopen the artifact and its
+declared dependency graph before any mutation.
+
+The plan may order work but shall not add, remove, or reinterpret requirements.
+When the intact plan is stale, substantively incomplete, ambiguous, or
+conflicting, the executor shall surface that finding. The authoritative
+artifact wins: when independently reopening it and its declared dependency
+graph supplies sufficient implementation authority, the executor may ignore
+the defective plan and proceed from those artifacts; it shall never implement
+a requirement added or reinterpreted by the plan. When the authoritative
+decision or specification is itself missing, inadequate, ambiguous, or
+conflicting, the dispatcher shall apply the earlier shaping or
+specification-convergence route.
+
+The plan shall remain transient: it is not committed, does not enter
+`depends_on` or `implements`, creates no gate, and uses no temporary repository
+carrier. A session interruption is not relay loss when the intact, unchanged
+planner final-response message remains available; the dispatcher may resume
+forwarding that message without replanning. Only a missing or truncated
+message is relay loss and requires a fresh planner run from the authoritative
+inputs before the planner-first executor dispatch. An intact but substantively
+weak plan is also not relay loss and follows the artifact-authority rule above.
+This contract adds no plan-admission gate, retry counter, checkpoint, or
+persistence mechanism.
 
 ## Codex compatibility evidence and bridge contract
 
@@ -1067,8 +494,7 @@ for that host and changes no repository path. Setup and refresh may emit Codex
 launchers only when the selected row is classified `supported` and declares
 the bridge load path. Selecting
 `codex-exec-ephemeral`, `codex-desktop-local`, `codex-cloud-web`,
-`codex-ide`, or `codex-sdk` while its current row is unsupported therefore
-produces the row's unsupported
+`codex-ide`, or `codex-sdk` at v5 therefore produces the row's unsupported
 disclosure and the per-operation valid-unsupported behavior. A future runtime
 detector or newly supported row changes the matrix/adapter metadata and its
 tests, not this precedence rule.
@@ -1082,15 +508,7 @@ passes the full support record:
 - clean-environment setup used;
 - exact plugin install/load path;
 - launcher form under test;
-- every role identity derived from the canonical inventory, the release's
-  exact expected count, and each identity's expected execution class; the
-  first support record containing `implementation-planner` shall prove
-  bijection to the fourteen-id oracle;
-- the exact fixture-proven `pre_adoption_direct_executor`, arm-A premium
-  selector equality where the surface is experiment-capable, host-defaults
-  version, any consumer overrides, B/C effective resource maps, exact concrete
-  model ids, and every capability-source/probe result, or explicit evidence
-  that the optimized route is rejected before dispatch;
+- all fourteen role identities and their expected execution class;
 - observed discoverability for every identity;
 - proof that a cold producer and an independent read-only reviewer can be
   invoked separately;
@@ -1119,11 +537,8 @@ passes the full support record:
   the returned exposure class shall be `scoped-advisor`, never
   `driving-session`.
 
-The support fixture shall derive the future expected set and count from the
-canonical role inventory, not from generated host files. For the first
-candidate containing `implementation-planner`, it shall additionally prove
-that the inventory is bijective with the independent fourteen-id oracle. It
-shall fail for a missing,
+The support fixture shall derive the expected set from the fourteen-row role
+inventory, not from generated host files. It shall fail for a missing,
 duplicate, extra, wrong-class, wrong-source, or wrong-digest identity. The
 dispatcher/shaper boundary check shall additionally prove that the driving
 task answers both driving-session probes without spawning, that no cold native
@@ -1478,23 +893,11 @@ shall, before creating a tag:
 6. run package-level installation and exact host-discovery smoke tests from
    the snapshot for every
    supported automatable surface;
-7. derive the canonical role count from `metadata/roles.json`, assert the
-   candidate's declared expected count, and prove exact bijection to the
-   fourteen-id oracle for the first candidate containing
-   `implementation-planner`;
-8. fixture-prove each claimed-supported surface's pre-adoption direct selector,
-   capability-validate the exact arm-A premium pin on each
-   experiment-capable surface, resolve B/C's required resource classes through
-   their authoritative source/probes, and retain all context bindings and
-   effective maps;
-9. verify the first planner-bearing candidate marks ordinary production
-   planning `inactive-experiment-only`, unless a later approved adoption
-   decision bound to completed valid evidence explicitly activates it;
-10. verify that unsupported rows are disclosed in generated install
-   documentation;
-11. resolve the intended release commit as the workflow event commit for the
-    merged version-authority change; and
-12. create the tag only if it does not already exist; if it exists, peel it to
+7. verify that unsupported rows are disclosed in generated install
+   documentation; and
+8. resolve the intended release commit as the workflow event commit for the
+   merged version-authority change; and
+9. create the tag only if it does not already exist; if it exists, peel it to
    a commit and no-op only when that commit equals the intended release commit,
    otherwise fail and report both commit ids without moving or replacing the
    tag.
@@ -1526,7 +929,7 @@ version-bump change is the human release act.
 
 The matrix shall contain at least these rows:
 
-| Surface id | Current bridge state | Current release state |
+| Surface id | Bridge state at v5 | Release state at v5 |
 |---|---|---|
 | `claude-interactive` | Host-native agents; not a Codex bridge row. | Evidence required. |
 | `claude-cloud` | Host-native agents; not a Codex bridge row. | Evidence required. |
@@ -1585,33 +988,6 @@ derived from, or mechanically validated against, this matrix.
   precedent.
 - An existing `grove-v<VERSION>` tag that does not peel to the intended
   release commit is a release conflict; automation shall not move it.
-- A missing, malformed, blocked, stale, contradictory, extending, softening,
-  or unverifiable advisory packet is a planned-route failure; it shall not be
-  silently repaired or treated as artifact authority.
-- A missing work-scope source/range/work id, or a packet test/oracle reference
-  that is absent, duplicated, orphaned, wrong-namespace, or
-  cross-criterion, is a pre-relay failure.
-- An ambiguous, stale, incomplete, or unclassified route record is a
-  pre-dispatch failure; its precedence/evidence defect shall be reported and
-  no planner or executor shall run.
-- An inactive or unratified production-planning activation is not support for
-  ordinary planner routing; only the experiment harness may exercise the
-  experiment-only declaration.
-- A second unusable ordinary planner result, changed basis, invalid checkpoint
-  identity, or non-prefix remainder is terminal with no executor dispatch.
-- A missing resource class, unknown or unsupported selector, or cross-host
-  fallback, unavailable authoritative capability source, or failed selector
-  probe is a pre-dispatch failure; no concrete model shall be silently
-  substituted.
-- A pre-adoption fixture mismatch or arm-A selector that is unpinned,
-  non-premium, unequal to the recorded baseline, or capability-unverified
-  invalidates release/experiment evidence; it shall not be resolved through
-  `execution-medium` or change inactive production selection.
-- In-tree experiment evidence is invalid; a nine-run result cannot authorize
-  adoption; invalidated task attempts remain audit overhead but not valid
-  analysis cells; an unresolved billable-token overlap invalidates the
-  experiment rather than being dropped; and old fleet/support evidence cannot
-  qualify a candidate that adds `implementation-planner`.
 
 ## Non-goals
 
@@ -1620,25 +996,17 @@ derived from, or mechanically validated against, this matrix.
 - A persistent runner-hosted dispatcher.
 - A full dispatcher or interactive shaper running as a cold subagent.
 - Self-contained Codex TOML containing generated charter bodies.
-- A third authored charter, companion, instruction, or lifecycle-operation
-  corpus.
+- A third authored methodology corpus; the new planner charter joins the
+  existing canonical `charters/` corpus.
 - Reintroducing the retired review-bookkeeping CI or installing its dormant
   runtime through either host plugin.
 - Deleting or judging the necessity of retained build, release, test, probe,
   or dormant review-bookkeeping machinery; that is reserved for the later
   repository audit.
-- Changing Grove's gate semantics, unrelated role charters, or
-  consumer-authoritative `.grove/` dials outside the optional
-  `[resources.<host>]` override schema.
-- Adding a plan artifact, plan gate, committed production packet, persistent
-  planner service, or task/change-request precondition.
-- Pinning provider-specific model names in canonical role charters or silently
-  substituting across resource classes or hosts.
-- Adopting the optimized route from the nine-run pilot or from evidence that
-  fails either completed-experiment comparison.
-- Activating ordinary production planning in the first role-bearing release
-  without a later approved adoption decision bound to completed valid
-  evidence.
+- Changing Grove's gate semantics, consumer-authoritative `.grove/` dials, or
+  the existing thirteen roles' semantics beyond the dispatcher/executor
+  planning handoff stated above; v5 adds the planner's canonical charter and
+  preserves their other method and authority.
 - Changing any surface support classification, marketplace authority, release
   version, or release tag merely because package paths move.
 - Physically separate Claude and Codex package roots or a published generated
@@ -1646,6 +1014,13 @@ derived from, or mechanically validated against, this matrix.
 - Performing repository git actions from setup, refresh, or remove.
 - Publishing a GitHub Release object or making a marketplace the version
   authority.
+- A planner-assisted execution experiment, experiment harness, model or
+  resource tiers, token or cost accounting, metrics, thresholds, adoption
+  decision, or release activation.
+- A canonical JSON plan, parser, request-byte work-scope collector, locator
+  grammar, evidence schema, checkpoint schema, persisted plan artifact, or
+  plan gate.
+- A planner-specific runtime, resource selector, or central pipeline branch.
 
 ## Acceptance criteria
 
@@ -1661,15 +1036,13 @@ derived from, or mechanically validated against, this matrix.
 - **INV4 — drift detection:** When any generated output differs from its
   expected projection, generation check mode shall exit non-zero without
   writing files and shall name the divergent path.
-- **INV5 — inventory completeness:** Host, generation, and support expectations
-  shall derive from every unique canonical role row in `metadata/roles.json`,
-  each resolving to one canonical charter; each release shall declare and
-  assert its exact count, the first release containing
-  `implementation-planner` shall prove bijection to this spec's fourteen-id
-  oracle, shaper shall be driving-session only, dispatcher shall be
-  driving-session plus scoped-advisor only, every other role shall have only
-  its declared cold-native exposure, and every non-driving exposure shall have
-  one unique underscore-form native id.
+- **INV5 — inventory completeness:** The role inventory shall contain exactly
+  fourteen unique canonical role ids, each resolving to one canonical charter,
+  including `implementation-planner` exactly once as cold-native;
+  shaper shall be driving-session only, dispatcher shall be driving-session
+  plus scoped-advisor only, every other role shall have only its declared
+  cold-native exposure, and every non-driving exposure shall have one unique
+  underscore-form native id.
 - **INV6 — bridge/support separation:** When a Codex surface is only
   bridge-viable, the release validator shall not classify it as supported
   until the full support record passes on that exact surface.
@@ -1721,11 +1094,9 @@ derived from, or mechanically validated against, this matrix.
   the surface write-permissions table.
 - **INV20 — exposure-specific discovery:** A supported-surface discovery run
   shall derive all expected identities and exposure classes from the
-  canonical authored inventory and shall pass only when each declared
+  fourteen-row authored inventory and shall pass only when each declared
   driving-session, cold-native, and scoped-advisor exposure satisfies its
-  corresponding oracle exactly once; the first release containing
-  `implementation-planner` shall additionally prove bijection to the
-  independent fourteen-id oracle.
+  corresponding oracle exactly once.
 - **INV21 — immutable tag identity:** When `grove-v<VERSION>` already exists,
   release automation shall peel it to a commit and shall fail without changing
   the tag unless that commit equals the workflow event commit for the merged
@@ -1755,12 +1126,10 @@ derived from, or mechanically validated against, this matrix.
   dispatcher agent shall expose only scoped-advisor.
 - **INV27 — Codex isolation:** From a clean installed cache, Codex discovery
   shall return exactly the four lifecycle skills and one `role-<canonical-id>`
-  skill for every canonical role row, all from
+  skill for each of the fourteen role rows, all from
   `adapters/codex/skills/`; generated project launchers shall exist only for
   `cold-native` or `scoped-advisor` exposures, with no shaper launcher or
-  full-dispatcher launcher; the first candidate containing
-  `implementation-planner` shall derive exactly the fourteen oracle-matched
-  role skills.
+  full-dispatcher launcher.
 - **INV28 — package-resident default runtime:** When `runtime_dir` is absent,
   every handover shall invoke `runtime/gates/` relative to the active installed
   plugin without writing an absolute cache path or falling back to a source
@@ -1800,129 +1169,36 @@ derived from, or mechanically validated against, this matrix.
   classify its surface input before mutation and shall perform no creation,
   replacement, or deletion beyond the exact cell for that operation and
   `supported`, `valid-unsupported`, or `invalid` class.
-- **INV37 — canonical planner generation:** The build shall derive every
-  `implementation-planner` instruction from
-  `charters/implementation-planner.md`, whose frontmatter shall declare scalar
-  `implements: adr-0036-pre-execution-planning`; generate its reference,
-  Claude-agent, and Codex-skill projections; and expose it as one read-only
-  `cold-native` role with a unique underscore-form native id and
-  `reasoning-heavy` resource intent.
-- **INV38 — packet validity:** When `implementation-planner` returns a result,
-  the relay shall accept only the closed canonical UTF-8 JSON schema with no
-  duplicate/unknown/trailing bytes, exact artifact and repository identities,
-  exhaustive one-entry-per-artifact-criterion coverage, disposition-consistent
-  typed code/test/command/oracle cross-references, fact-classified anchors,
-  ordered slices, verification commands, and risks/gaps.
-- **INV39 — local deterministic routing:** The generic dispatcher shall derive
-  planning from the planner and executor rows' local declarations and shall
-  snapshot and completely cover the closed work-scope source set, emit every
-  stable work id in the route-classification record, evaluate observable
-  predicates in declared precedence, fail closed on ambiguity or missing
-  coverage, and select only the corresponding direct, planning,
-  reconvergence, or shaping route.
-- **INV40 — artifact authority:** When an executor receives an advisory
-  packet, it shall reopen and implement the ratified artifact, verify packet
-  identity and typed code/test/oracle references, let the artifact win every
-  conflict, and surface stale, contradictory, extending, softening, or
-  unverifiable packet content for replan rather than silently following it.
-- **INV41 — direct relay and bounded recovery:** The dispatcher shall relay a
-  valid packet's exact bytes and digest beside the artifact pointer into a
-  separately cold executor without an ordinary-path external write; it shall
-  allow at most one automatic ordinary replan and terminate without executor
-  after a second failure or changed basis.
-- **INV42 — resource ownership and precedence:** The role inventory shall
-  declare planner `reasoning-heavy` and executor `execution-medium` intent;
-  versioned defaults shall live in `metadata/hosts.json`; and an exact
-  `[resources.<active-host>]` consumer key shall override only the same
-  host/class default in class-bound contexts, never pre-adoption or arm A,
-  while lifecycle operations shall document but never create or change
-  consumer overrides.
-- **INV43 — fail-loud resource resolution:** Before role dispatch, resolution
-  shall follow the binding-context table, execute every applicable exact
-  `hosts.json` capability probe against its named versioned
-  host-runtime/provider catalog, and reject unavailable validation, missing
-  classes, unknown host/class/selectors, unsupported selectors, ambiguity, or
-  cross-host fallback; declaration files and prior evidence shall not
-  substitute for a current authoritative probe.
-- **INV44 — exact experiment shape:** The harness shall run preregistered
-  small/medium/large tasks across A premium-executor, B medium-executor, and C
-  premium-planner → medium-executor from fresh isolated identical-basis
-  fixtures, once for exactly nine valid phase-one analysis runs, apply the
-  one-way futility rule only to a complete valid matched block, and otherwise
-  add two valid repetitions per cell for exactly twenty-seven valid analysis
-  runs and nine valid runs per arm.
-- **INV45 — bounded run truth:** Each experimental run shall allow at most two
-  additional dispatches classified exactly once as planner retry, executor
-  retry, or reviewer-return loop, and shall award one accepted-quality result
-  only when required tests/typechecks pass, conformance is `PASS`, and code
-  review's terminal required pass has no blocking finding within that shared
-  bound.
-- **INV46 — complete experiment accounting:** The harness shall retain every
-  raw provider token field and normalize billed tokens into a preregistered
-  disjoint leaf-bucket partition; premium tokens and weighted cost shall use
-  each billable bucket exactly once, raw provider totals shall remain
-  informational, and unresolvable overlaps shall invalidate measurement.
-- **INV47 — baseline adoption floor:** After twenty-seven valid analysis runs,
-  treatment C
-  shall fail the A comparison unless it trails A by at most one accepted
-  result, has no more blocking-finding runs, uses at least 30% fewer premium
-  tokens, and satisfies the totalized 20%-cost-reduction truth table,
-  including its finite, zero, and infinity cases.
-- **INV48 — medium-control advantage:** Treatment C shall fail the B
-  comparison unless it has at least one more accepted result or, on an
-  accepted-count tie with nonzero B remediation, uses at least 20% fewer total
-  remediation dispatches; a tie with zero B remediation shall be false.
-- **INV49 — out-of-tree evidence and requalification:** The harness shall
-  retain preregistration and results outside the source repository; preserve
-  invalidated task attempts as separately reported audit overhead while
-  excluding them from valid counts and adoption arithmetic; replace every arm
-  symmetrically and recompute futility from a complete valid block; and rerun
-  release qualification before a separately human-ratified version bump and
-  adoption decision.
-- **INV50 — independent first-release oracle:** The first release containing
-  `implementation-planner` shall prove a bijection between
-  `metadata/roles.json` and the fourteen ids enumerated in this spec, rejecting
-  missing, extra, duplicate, or renamed ids; later releases shall return to
-  inventory-derived completeness with release-declared exact counts.
-- **INV51 — experiment-only activation:** The first planner-bearing release
-  shall mark ordinary production planning `inactive-experiment-only`; only arm
-  C may invoke the installed local declarations until a later approved
-  adoption decision binds a passing valid twenty-seven-run evidence identity
-  to the exact candidate, and ordinary direct execution shall retain the
-  fixture-proven pre-adoption premium/no-planner selector rather than applying
-  `execution-medium`.
-- **INV52 — criterion non-exclusion:** An executable packet shall map every
-  artifact EARS/GWT id exactly once to `implement` or justified
-  `verify-only`; a blocked packet shall enumerate all ids and use `blocked` for
-  unresolved criteria; no scope exclusion shall name an artifact criterion.
-- **INV53 — checkpoint identity:** A checkpoint shall embed the unchanged
-  original packet bytes, digest, artifact/basis identities, current checkpoint
-  basis, prefix/suffix slice partition, verify-only partition, and matching
-  completion evidence in the closed checkpoint schema; mismatch shall refuse
-  resume without inventing a remainder packet.
-- **INV54 — terminal planning bound:** Ordinary planning shall permit only an
-  initial call plus one same-basis automatic replan; when neither yields a
-  usable packet, the dispatcher shall surface both findings and dispatch no
-  executor, independently of the experiment-only remediation budget.
-- **INV55 — complete requested-work oracle:** Route classification shall
-  snapshot the dispatch request and every stable referenced source, partition
-  every source byte without gaps/overlap, assign every desired-behavior
-  interval one stable work id, and require each work id to map to artifact
-  criteria or produce `wrong_decision`, `spec_gap`, or `ambiguous`; an omitted
-  source, byte range, or work id shall preclude `adequate_spec`.
-- **INV56 — typed packet namespaces:** Every `failing_test_ids` value shall
-  resolve exactly once to a criterion-consistent `TA<n>` entry whose `CMD<n>`
-  is a real test command, every verify-only `oracle_id` shall resolve exactly
-  once to a criterion-consistent `OR<n>` whose nonempty command list resolves
-  to real verification commands, and every
-  slice/code/test reference shall resolve in its declared namespace with no
-  orphan or cross-criterion entry.
-- **INV57 — context-bound executor resources:** While production activation is
-  inactive, ordinary execution shall retain the fixture-proven pre-adoption
-  selector; arm A shall pin that exact capability-validated premium selector
-  without class lookup; and only experiment B/C or activated production shall
-  apply `execution-medium`, with `reasoning-heavy` additionally applying to C
-  or activated planner calls.
+- **INV37 — planner delivery:** The build system shall derive the
+  `implementation-planner` Claude envelope and Codex role skill/reference from
+  exactly one canonical `charters/implementation-planner.md` source, expose it
+  only as cold-native, and include it in the fourteen-role inventory and
+  inventory-derived discovery checks.
+- **INV38 — bounded advisory plan:** For each planner dispatch, the planner
+  shall return one concise, human-readable final response scoped to one
+  governing artifact and the six required information kinds, addressing every
+  artifact acceptance criterion without prescribing headings, ordering,
+  repetition, or an entry grammar.
+- **INV39 — routing precedence:** Before code-bearing implementation, the
+  dispatcher shall apply decision conflict, specification deficiency,
+  decision-only non-code, qualified localized-slip bypass, and otherwise
+  planner-first routing in that order; it may select direct execution or
+  planner-first execution when every localized-slip condition holds, but shall
+  forbid direct execution when any condition is unproven or false.
+- **INV40 — artifact authority:** The executor shall independently reopen the
+  authoritative artifact and its declared dependency graph, surface a stale,
+  substantively incomplete, ambiguous, or conflicting plan, and never
+  implement a requirement added or reinterpreted by that plan; it may proceed
+  from sufficient authoritative artifacts despite the advisory defect, while
+  an authoritative decision/specification defect shall take the applicable
+  upstream route.
+- **INV41 — transient cold relay:** The dispatcher shall relay the complete
+  planner final-response message unchanged in the driving session and supply
+  the artifact pointer separately, without persisting either as a plan
+  artifact or creating a gate; only a missing or truncated final-response
+  message shall count as relay loss and require a fresh planner run, while an
+  interrupted session with that intact, unchanged message still available may
+  resume relay without replanning.
 
 ### GWT scenarios
 
@@ -2043,11 +1319,9 @@ companion, or lifecycle-operation body.
 
 #### S15 — native Codex ids and package boundary
 
-**Given** the canonical role inventory and generated Codex package for the
-first release containing `implementation-planner`,
+**Given** the fourteen-role inventory and generated Codex package,
 **When** generation and package validation run,
-**Then** the inventory ids are bijective with the independent fourteen-id
-oracle, every native exposure has a unique underscore-form id, the plugin
+**Then** every native exposure has a unique underscore-form id, the plugin
 contains its skills only under `adapters/codex/skills/`, contains no
 custom-agent TOML, and setup owns generation of the project launchers.
 
@@ -2064,7 +1338,7 @@ makes no Wisp change.
 #### S17 — Codex surface input fails closed
 
 **Given** a Codex lifecycle invocation with no surface id, an unknown id, a
-Claude id, contradictory provenance, or a currently unsupported Codex id,
+Claude id, contradictory provenance, or a v5 unsupported Codex id,
 **When** setup or refresh validates its surface invocation record,
 **Then** invalid input reports the valid Codex ids and reason and makes no
 repository mutation, while a valid-unsupported id reports its missing
@@ -2076,11 +1350,10 @@ bounded writes proceed.
 
 #### S18 — discovery is complete by exposure
 
-**Given** a fresh candidate on a claimed-supported surface, the canonical
-authored inventory, and the independent first-release fourteen-id oracle,
+**Given** a fresh candidate on a claimed-supported surface and the authored
+fourteen-row inventory,
 **When** discovery runs,
-**Then** the inventory is bijective with that oracle, the driving task follows
-the host's declared generated loaders and
+**Then** the driving task follows the host's declared generated loaders and
 returns matching source identity for full dispatcher and interactive shaper
 without spawning, every inventory exposure classified cold-native is
 enumerated and returns matching source identity independently, the one native
@@ -2138,13 +1411,10 @@ discovered.
 and an at-least-eight-level-deep cache whose path contains spaces,
 **When** Codex component discovery runs from a fresh host state,
 **Then** its result equals the authored Codex positive inventory exactly: the
-four lifecycle skills and one `role-<canonical-id>` skill for every canonical
-role row come from
+four lifecycle skills and fourteen `role-<canonical-id>` skills come from
 `adapters/codex/skills/`, project launchers exist only for cold-native and
 scoped-advisor exposures, dispatcher is scoped only, shaper has no launcher,
-the first candidate containing `implementation-planner` derives exactly the
-fourteen oracle-matched role skills, and no Claude agent envelope, plugin
-custom-agent TOML, package
+and no Claude agent envelope, plugin custom-agent TOML, package
 reference/runtime path, duplicate, or undeclared Grove component is
 discovered.
 
@@ -2264,276 +1534,67 @@ and only individually confirmed Remove deletions, invalid input permits no
 mutation for any operation, and read-only disclosure in no case becomes a
 partial write.
 
-#### S35 — the planner joins both generated fleets
+#### S35 — the planner joins both generated hosts
 
-**Given** the canonical role inventory has added `implementation-planner` with
-its charter, one cold-native exposure, local trigger, output paths, and
-`reasoning-heavy` intent,
-**When** generation and exact host-discovery checks run,
-**Then** the charter declares scalar
-`implements: adr-0036-pre-execution-planning`, both host projections derive
-from it, the inventory ids are bijective with the spec's fourteen-id oracle,
-Claude and Codex each expose the planner exactly once through their declared
-adapter, and unrelated projections remain byte-identical.
+**Given** the fourteen-role inventory and one canonical
+`charters/implementation-planner.md` plus a supported bridge fixture,
+**When** generation and host-discovery checks run,
+**Then** Claude receives one cold-native planner envelope, Codex receives one
+planner role skill/reference and one thin project launcher, both
+projections name the same canonical source and digest, and no second authored
+planner instruction source appears.
 
-#### S36 — code-bearing spec work plans before execution
+#### S36 — ordinary code-bearing spec work is planned before execution
 
-**Given** a ratified code-bearing spec, its dependency graph, a reproducible
-repository basis, and either experiment arm C or an active later adoption
-decision,
-**When** the generic dispatcher evaluates the planner and executor rows' local
-declarations and the route-classification record,
-**Then** it cold-runs `implementation-planner`, validates a complete executable
-packet, and relays that packet and artifact pointer into a separately cold
-executor without consulting a central workflow branch.
+**Given** ratified code-bearing specification work with no earlier routing
+defect and no qualified localized-slip bypass,
+**When** the dispatcher prepares implementation,
+**Then** it cold-starts the planner, receives one bounded human-readable plan
+limited to the six required information kinds and addressing every artifact
+criterion, and relays the unchanged final-response message plus the separate
+artifact pointer to a separately cold executor without requiring a prescribed
+heading, order, repetition rule, or entry grammar.
 
-#### S37 — explicit direct routes remain direct
+#### S37 — only a qualified localized slip bypasses planning
 
-**Given** one classification record proving adequate-spec criterion coverage,
-a repeated failing observation, an exact causal trace, and a single-component
-localized boundary, plus another record proving decision-only non-code
-deliverables,
-**When** precedence evaluates them,
-**Then** each routes directly to executor without a packet; **but given** an
-adequate non-local code-bearing slip, **when** row 6 evaluates under experiment
-or active adoption, **then** it plans without manufacturing a spec amendment;
-**and given** exact wrong-decision or spec-gap evidence, **when** precedence
-runs, **then** the former routes to shaping first and the latter reconverges
-before any reclassification.
+**Given** a reproduced, root-caused, localized implementation slip that changes
+no public interface, schema, dispatch behavior, cross-component behavior, or
+governing artifact,
+**When** the dispatcher applies routing precedence,
+**Then** either direct execution or planner-first execution is allowed at
+dispatcher judgment; **but given** any unproven or false condition or an
+earlier decision/specification defect, **when** routing runs, **then** direct
+execution is forbidden and the earlier applicable route or planner-first route
+wins.
 
-#### S38 — blocked or stale advice cannot become authority
+#### S38 — the governing artifact defeats a bad plan
 
-**Given** a planner encounters a load-bearing ambiguity, or an executor
-receives a packet with a stale basis, duplicate/unknown wire field,
-non-exhaustive criterion map, contradictory criterion, extended or softened
-requirement, or unverifiable anchor,
-**When** packet or executor validation runs,
-**Then** it reports a blocked/unusable packet and the exact gap, performs no
-implementation from that advice, and uses at most one same-basis replan;
-reviewers continue to judge eventual code against the artifact, not plan
-adherence.
+**Given** an intact relayed plan that is stale, substantively incomplete,
+ambiguous, or conflicts with the governing artifact or its declared dependency
+graph,
+**When** the separately cold executor reopens those authoritative inputs,
+**Then** it surfaces the advisory defect and implements no requirement added or
+reinterpreted by the plan; **given** the artifacts independently provide
+sufficient authority, **when** execution continues, **then** it proceeds from
+those artifacts while ignoring the defective plan; **but given** an
+authoritative decision or specification defect, **when** the finding is
+returned, **then** the dispatcher follows the earlier upstream route.
 
-#### S39 — the ordinary relay is verbatim and write-free
+#### S39 — a lost relay is recomputed
 
-**Given** one valid executable advisory packet and no checkpoint event,
-**When** the driving-session dispatcher hands off to executor,
-**Then** the executor receives the exact canonical UTF-8 JSON byte sequence and
-its matching SHA-256 verbatim beside the authoritative pointer, independently
-reopens and verifies the artifact plus typed code/test/oracle references, and
-no repo, tracker, task, or change-request write occurs.
+**Given** the session was interrupted after planning but the intact, unchanged
+planner final-response message remains available,
+**When** the dispatcher resumes the work,
+**Then** it may resume forwarding that message with the artifact pointer
+supplied separately without rerunning the planner; **but given** the message
+is missing or truncated, **when** the dispatcher resumes, **then** it treats
+the relay as lost and reruns the planner from the authoritative artifact,
+dependency graph, and relevant repository basis before forwarding the fresh
+final-response message unchanged, without committing or creating a temporary
+plan carrier, checkpoint, retry record, or gate.
 
-#### S40 — relay interruption checkpoints or replans
-
-**Given** planned work with an existing identifiable task/change-request,
-**When** its established checkpoint seam fires,
-**Then** the checkpoint carries the unchanged packet bytes/digest and valid
-prefix/suffix plus verify-only partitions in the closed checkpoint envelope,
-without elevating authority or creating a second packet; **but given** no such
-carrier and a relay lost before executor dispatch, **when** dispatch resumes,
-**then** the dispatcher uses at most its one same-basis replan and does not
-create a carrier or recover hidden session state.
-
-#### S41 — resource selection honors one host and fails closed
-
-**Given** versioned active-host defaults and an exact
-`[resources.<active-host>]` override for `reasoning-heavy`,
-**When** experiment C or activated production resolves class-bound resources,
-**Then** only that class is replaced, `execution-medium` retains the same
-host's default, the exact declared authoritative capability probe proves both
-selectors, and the complete map/source/probe evidence is recorded; **but
-given** a missing class, unknown selector, unsupported model, unavailable
-source/probe, or only an other-host mapping, **when** resolution runs, **then**
-it fails before dispatch without substitution or optimized-route support.
-
-#### S42 — the nine-run futility screen is one-way
-
-**Given** preregistered small, medium, and large tasks and one valid cold run of
-A, B, and C for each,
-**When** the complete valid matched block shows C unaccepted on at least two
-tasks where A is accepted, or no matched task has C use fewer premium tokens
-or lower weighted cost than A,
-**Then** the experiment stops after exactly nine valid analysis runs as futile
-and cannot adopt; **but when** neither condition holds, **then** the pilot still
-cannot adopt and proceeds to phase two.
-
-#### S43 — a passing screen expands to exactly twenty-seven
-
-**Given** phase one did not meet futility,
-**When** phase two runs,
-**Then** it adds exactly two valid cold repetitions for every task/arm cell in
-the preregistered randomized order and ends with twenty-seven valid analysis
-runs total and nine valid runs per arm, irrespective of separately retained
-invalidated attempts.
-
-#### S44 — retries share one two-dispatch budget
-
-**Given** a treatment-C planner fails once, retries successfully, and later
-independent review returns one blocking finding,
-**When** the run accounts for remediation,
-**Then** the planner retry and reviewer-return loop consume the two shared
-dispatches exactly once each, every call remains in cost/token/time totals,
-and no further retry is allowed; the run is accepted only if required
-tests/typechecks, conformance `PASS`, and a blocking-free terminal required
-code-review pass all occur within that bound, while the earlier blocking pass
-still counts the run once as a blocking-finding run.
-
-#### S45 — cost comparison totalizes zero acceptance
-
-**Given** raw provider fields, a preregistered disjoint bucket normalization,
-model tiers, and a dated price snapshot,
-**When** weighted cost per accepted completion is calculated,
-**Then** each billed token is priced exactly once, raw provider totals remain
-informational, premium tokens include every disjoint bucket from premium-model
-calls, and zero acceptances yields positive infinity; **and when** the A/C
-baseline cost condition is evaluated, **then** it passes only for finite
-positive A with C at most 80% of A, or infinite A with finite C, and fails for
-infinite C, both infinite, zero A, or a smaller reduction.
-
-#### S46 — planner value must exceed medium-only control
-
-**Given** twenty-seven completed valid analysis runs,
-**When** C has at least one more accepted-quality result than B,
-**Then** the B-advantage condition passes; **and given** tied accepted counts
-with positive B remediation, **when** C's reduction is at least 20%, **then**
-it passes; **but given** tied counts with zero B remediation or fewer C
-acceptances, **when** the condition runs, **then** it fails, including
-zero/zero.
-
-#### S47 — evidence stays outside the tree and release proof is fresh
-
-**Given** a caller selects a repository-contained evidence path, or an old
-release candidate predates `implementation-planner`,
-**When** the harness or release validation starts,
-**Then** the harness rejects the in-tree destination and release validation
-rejects the stale fleet evidence; **and given** a valid outside-tree root,
-**when** a matched task is independently found upstream-invalid, **then** all
-three arms' invalidated attempts remain separately costed audit overhead,
-every valid cell uses the preregistered same-stratum replacement, futility is
-recomputed only from a complete valid block, evidence records the effective
-mappings, and the changed candidate must freshly prove generated parity,
-bijection to the fourteen-id oracle, supported surfaces, package/channel
-installation, and a separately judged version bump.
-
-#### S48 — packet criteria cannot self-exclude
-
-**Given** a ratified artifact with EARS and GWT ids, including one criterion
-already satisfied on the repository basis,
-**When** an executable packet is validated,
-**Then** every id appears exactly once, changed behavior uses `implement` with
-resolved typed test-anchor/slice references, the already-satisfied criterion
-uses `verify-only` with an exact command-linked oracle and basis observation,
-and any omission, criterion-naming scope exclusion, duplicate id, wrong
-namespace, cross-criterion reference, or `verify-only` slice makes the packet
-unusable.
-
-#### S49 — ambiguous route evidence fails before dispatch
-
-**Given** classification evidence that lacks a repeatable failure, cannot rule
-out a spec gap, contains stale anchors, or makes conflicting same-precedence
-classes true,
-**When** the route classifier records every predicate and applies precedence,
-**Then** it selects `ambiguous` or unclassified, names the missing/conflicting
-evidence, and dispatches neither planner nor executor.
-
-#### S50 — the first role-bearing release is experiment-only
-
-**Given** the first candidate installs the planner and local trigger
-declarations but has no later approved adoption decision,
-**When** an ordinary dispatcher receives ratified code-bearing spec work,
-**Then** production planning remains `inactive-experiment-only` and the
-ordinary fixture-proven pre-adoption premium/no-planner selector remains in
-force without `execution-medium`; **but when** experiment arm C invokes the
-declarations, **then** planning and the reasoning-heavy/execution-medium pair
-are available only inside that measured run and do not activate production.
-
-#### S51 — ordinary replanning terminates after one retry
-
-**Given** an initial packet is unusable while its artifact and basis remain
-reproducible,
-**When** the dispatcher requests its one automatic replan and that result is
-also blocked or unusable,
-**Then** it reports both attempt findings, performs no third planner call,
-dispatches no executor, and returns control for human/shaping resolution.
-
-#### S52 — checkpoint progress cannot rewrite the plan
-
-**Given** an executable packet with ordered slices and verify-only criteria,
-**When** a checkpoint records completed work,
-**Then** it embeds the original packet bytes and digest, a completed prefix and
-remaining suffix, a disjoint exhaustive verify-only partition, matching
-completion evidence, and exact artifact/original/current basis identities;
-**but given** any digest mismatch, reordered remainder, changed packet, or
-stale basis, **when** resume validates it, **then** resume refuses with no
-executor and creates no reduced packet.
-
-#### S53 — selector declarations do not prove capability
-
-**Given** `hosts.json` and consumer config name a concrete selector but the
-declared host-runtime/provider catalog or read-only capability probe is absent,
-unauthenticated, stale, or unparseable,
-**When** resource resolution runs,
-**Then** it fails before planner/executor dispatch and does not treat the
-declaration, documentation, prior evidence, or another host's probe as proof.
-
-#### S54 — overlapping token reports are normalized once
-
-**Given** a provider reports total output including reasoning output and a
-separate reasoning subset,
-**When** the preregistered normalization produces billable operands,
-**Then** it creates disjoint reasoning and non-reasoning output buckets,
-retains raw total output informationally, and prices each token once; **but
-given** no documented subtraction can form nonnegative disjoint leaves,
-**when** normalization runs, **then** measurement is invalid rather than
-double-counted.
-
-#### S55 — invalid upstream attempts do not distort the matched experiment
-
-**Given** independent review invalidates one task after some A/B/C attempts,
-**When** the harness applies the same-stratum replacement,
-**Then** it retains all invalidated attempts and their cost/time/token data in
-the audit-overhead ledger, excludes every invalidated cell symmetrically from
-valid metrics and adoption arithmetic, completes every arm/repetition for the
-replacement, and evaluates or recomputes futility only after a complete valid
-matched block yields exactly nine or twenty-seven valid analysis runs.
-
-#### S56 — requested behavior cannot disappear before classification
-
-**Given** a dispatch request with two desired behaviors and one stably
-referenced issue containing a third,
-**When** the work-scope collector snapshots the closed sources,
-**Then** their byte coverage is gap-free/non-overlapping, all three desired
-intervals receive stable ordered work ids and source provenance, and
-`adequate_spec` is true only if every work id maps to artifact criteria; **but
-given** the issue is unreadable, a byte range is omitted, or one desired span
-is labeled context without a non-normative reason, **when** classification
-runs, **then** it records `ambiguous` or `spec_gap` and dispatches neither a
-planner nor executor under `adequate_spec`.
-
-#### S57 — packet references resolve through typed closed collections
-
-**Given** an implement criterion naming `TA1` and a verify-only criterion
-naming `OR1`,
-**When** packet validation runs,
-**Then** `TA1` resolves exactly once to a test anchor carrying that criterion
-and a real class-test `CMD<n>`, `OR1` resolves exactly once to an oracle
-carrying the verify-only criterion and nonempty real command ids, and every
-slice/code/test back-reference is criterion-consistent; **but given** a missing
-collection entry, duplicate typed id, wrong namespace, orphan entry,
-non-test failing command, or cross-criterion link, **when** validation runs,
-**then** the packet is unusable before relay.
-
-#### S58 — resource binding depends on activation and experiment arm
-
-**Given** inactive production and a fixture-proven pre-adoption premium
-executor selector,
-**When** ordinary work and experiment arms A, B, and C resolve models,
-**Then** ordinary work retains that direct selector, A pins the exact equal
-premium selector and capability-validates it without class lookup, B resolves
-only `execution-medium`, and C resolves `reasoning-heavy` plus
-`execution-medium`; **but given** A differs from the baseline, is not premium,
-or lacks capability proof, **when** the harness validates preregistration,
-**then** the matched experiment fails without changing inactive production or
-using the executor class as an A fallback.
+An intact message whose advisory content is stale, substantively incomplete,
+ambiguous, or conflicting is not relay loss and follows `S38`.
 
 ## Open questions
 
@@ -2544,28 +1605,24 @@ remain unsupported until verified. A failed thin bridge returns to the
 maintainer's intent gate before any fallback is adopted. The exact Git
 repository hosting the Codex catalog is a publication input, not a second
 method authority; the selected source must satisfy the marketplace-channel
-criteria above. The experiment result, exact semantic release bump, and
-surface-by-surface ability to honor the new resource classes are future
-evidence or human release/adoption judgments under the fixed requirements
-above, not unresolved contract choices.
+criteria above.
 
 ## Rubric check
 
 `SPEC_RUBRIC_PATH` is explicitly configured as
-`none exists yet`; that exact value was verified in `.grove/config.toml`, no
-rubric path is present in the repository, and no
-`.grove/agents/contract-author.md` addendum exists. Self-check
+`none — no spec rubric exists yet`; that absence was verified in
+`.grove/config.toml`, and no contract-author addendum exists. Self-check
 against the contract-author charter:
 
-- **Settled input:** PASS — `adr-0031-multi-host-distribution`,
-  `adr-0032-status-emission-belongs-to-wisp`,
-  `adr-0035-plugin-and-consumer-boundary`, and
-  `adr-0036-pre-execution-planning` are approved; ADR-0031 remains the original
-  `implements:` upstream and all four appear in `depends_on`.
+- **Settled input:** PASS — `adr-0031-multi-host-distribution` and
+  `adr-0032-status-emission-belongs-to-wisp` remain approved, and
+  `adr-0035-plugin-and-consumer-boundary` and
+  `adr-0036-pre-execution-planning` are approved change inputs; ADR-0031
+  remains the original `implements:` upstream and all four appear in
+  `depends_on`.
 - **Required shape:** PASS — shared frontmatter, behavioral `version: 5`, the
   seven-field section-level amendment note, explicit non-goals, acceptance
-  criteria, open questions, and this rubric check are present; the future
-  planner charter's scalar `implements:` edge is explicit.
+  criteria, open questions, and this rubric check are present.
 - **Both test grammars:** PASS — behavioral examples use Given/When/Then and
   requirements use EARS `shall` statements.
 - **No invented fallback:** PASS — thin-launcher failure returns to the intent
@@ -2576,9 +1633,14 @@ against the contract-author charter:
   lifecycle-operation body.
 - **Bounded scope:** PASS — public-directory publication, universal first-wave
   support, persistent orchestration, CI-bookkeeping revival, and unrelated
-  role/gate changes are excluded; retained tooling is relocated rather than
-  judged or deleted, ADR-0032's removed status surface is not reintroduced,
-  and the advisory packet adds neither an artifact nor a gate.
+  role/gate changes are excluded; the planner amendment adds no experiment,
+  model/resource policy, token/cost/metric/adoption machinery, canonical plan
+  parser, request-byte locator machinery, evidence/checkpoint schema, or
+  release activation; retained tooling is relocated rather than judged or
+  deleted, the planner charter joins rather than duplicates the canonical
+  corpus, existing-role semantics change only at the specified
+  dispatcher/executor handoff, and ADR-0032's removed status surface is not
+  reintroduced.
 - **Testability:** PASS — generation drift, explicit surface selection,
   exposure-specific discovery, immutable tag identity, stamp-skew disclosure,
   bridge evidence, exact package contents, positive and negative host
@@ -2587,19 +1649,14 @@ against the contract-author charter:
   handling, per-operation surface writes, legacy migration confirmations,
   managed-file ownership, underscore ids, status absence, version equality,
   channel installs, and per-surface support each have observable pass/fail
-  behavior; planner routing, packet validation, relay/replan, resource
-  resolution, independent fourteen-id bijection, route predicate precedence,
-  closed source/byte coverage for every desired behavior, experiment-only
-  activation, closed packet/checkpoint wire schemas and typed test/oracle
-  namespaces, criterion non-exclusion, bounded terminal replanning,
-  authoritative selector probes, context-bound baseline/A/B/C resource
-  bindings, disjoint token arithmetic, symmetric invalid-task replacement,
-  the 9 → 27 harness, control comparisons, out-of-tree evidence, and release
-  requalification are likewise executable.
+  behavior; canonical planner delivery, routing precedence, bounded plan
+  contents addressing every criterion, safety-bounded localized-slip routing,
+  artifact-authoritative handling of weak advisory plans, unchanged-message
+  cold relay, interruption-resume with an intact message, and replanning for a
+  missing or truncated relay add explicit manual checks without weakening any
+  v4 criterion or requiring canonical serialization or a plan gate.
 - **Lifecycle:** PASS — these significant revise-in-place amendments have
-  durable approved decision input and bump `v4 → v5`; these review-driven
-  corrections converge that same unratified v5 rather than creating a second
-  behavioral release. The fresh conformance `PASS` and spec-adversary
-  `APPROVE-READY` at `262ee80` ratify v5 for downstream use under the active
-  steward profile's agent-owned spec gate. The lifecycle status remains
-  `gated`; the separate `ship` gate remains human-owned.
+  durable approved decision input through `adr-0036` and bump `v4 → v5`; the
+  spec remains self-checked at `gated`, with independent intrinsic-quality and
+  fidelity reviews owed before implementation proceeds under the steward
+  profile's agent-owned spec gate.

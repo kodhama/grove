@@ -608,19 +608,12 @@ async function main() {
     );
     const driving = (await phaseOutput('01-driving-session')).identities;
     const native = [];
-    for (const phase of manifest.phases.filter((item) => item.kind === 'native-batch')) {
-      native.push(...(await phaseOutput(phase.id)).identities);
+    for (const id of ['02-native-batch-1', '03-native-batch-2', '04-native-batch-3']) {
+      native.push(...(await phaseOutput(id)).identities);
     }
-    const phaseId = (kind) => {
-      const matches = manifest.phases.filter((item) => item.kind === kind);
-      if (matches.length !== 1) {
-        throw new Error(`probe manifest must contain exactly one ${kind} phase`);
-      }
-      return matches[0].id;
-    };
-    const separation = await phaseOutput(phaseId('separation'));
-    const scopedDispatcher = await phaseOutput(phaseId('scoped-dispatcher'));
-    const configAndAddendum = await phaseOutput(phaseId('config-addendum'));
+    const separation = await phaseOutput('05-producer-reviewer-separation');
+    const scopedDispatcher = await phaseOutput('06-scoped-dispatcher');
+    const configAndAddendum = await phaseOutput('07-config-addendum');
     const hostVersion = (await readFile(join(paths.logs, 'codex-version.txt'), 'utf8')).trim();
     const record = {
       schema_version: 1,
@@ -672,7 +665,7 @@ async function main() {
       procedure: [
         'Prepared an empty consumer and exact immutable candidate snapshot without launching Codex.',
         'Used a fresh isolated CODEX_HOME and verified exactly one enabled Grove plugin.',
-        `Ran driving roles without delegation and ${native.length} native identities in ${manifest.phases.filter((item) => item.kind === 'native-batch').length} sequential batches.`,
+        'Ran driving roles without delegation and twelve native identities in three sequential batches.',
         'Ran separate executor/reviewer, scoped-dispatcher, and executor config/addendum probes.',
         'Validated exact V2 agent_type calls, no-history forks, child agent_role metadata, and invocation challenges.',
         'Retained Codex JSONL plus normalized persisted-session proof, exact argv, timestamps, exit codes, and structured final output for every phase.',

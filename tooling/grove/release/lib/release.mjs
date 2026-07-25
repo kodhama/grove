@@ -45,22 +45,6 @@ const DISCOVERY_CASES = Object.freeze([
   ['codex', 'shallow'],
   ['codex', 'deep-with-spaces'],
 ]);
-const FIRST_PLANNER_RELEASE_ORACLE = Object.freeze([
-  'code-reviewer',
-  'conformance-reviewer',
-  'contract-author',
-  'corpus-reviewer',
-  'decision-adversary',
-  'dispatcher',
-  'divergent-researcher',
-  'executor',
-  'implementation-planner',
-  'propagation-remediator',
-  'run-resumer',
-  'shaper',
-  'spec-adversary',
-  'validator',
-]);
 
 export function validateVersionText(text) {
   const normalized = text.endsWith('\n') ? text.slice(0, -1) : text;
@@ -262,151 +246,6 @@ export function validateHostDeclarations(config) {
   if (config?.surface_matrix !== 'metadata/surfaces.json') errors.push('metadata/hosts.json must declare metadata/surfaces.json as the surface authority');
   if (config?.config_tokens !== 'metadata/config-tokens.json') {
     errors.push('metadata/hosts.json must declare metadata/config-tokens.json as the config-token authority');
-  }
-  return errors;
-}
-
-export function validatePlanningReleaseMetadata(
-  { hosts, roles, surfaces },
-  { release = false } = {},
-) {
-  const errors = [];
-  const ids = Array.isArray(roles?.roles)
-    ? roles.roles.map((role) => role.id)
-    : [];
-  const expected = [...FIRST_PLANNER_RELEASE_ORACLE].sort();
-  if (
-    roles?.release_expectation?.first_planner_release_oracle
-      !== 'spec-0004-dual-host-distribution@v5'
-    || roles?.release_expectation?.expected_role_count !== 14
-    || ids.length !== 14
-    || new Set(ids).size !== 14
-    || JSON.stringify([...ids].sort()) !== JSON.stringify(expected)
-  ) {
-    errors.push('first planner release must prove the independent fourteen-role oracle bijection');
-  }
-  const planner = roles?.roles?.find((role) => role.id === 'implementation-planner');
-  const executor = roles?.roles?.find((role) => role.id === 'executor');
-  if (
-    planner?.resource_class !== 'reasoning-heavy'
-    || planner?.local_routing?.activation !== 'inactive-experiment-only'
-    || planner?.local_routing?.adoption_decision !== null
-    || planner?.local_routing?.trigger !== 'ratified-code-bearing-spec'
-  ) {
-    errors.push('implementation-planner metadata must keep reasoning-heavy, ratified-code-bearing, inactive-experiment-only routing');
-  }
-  if (
-    executor?.resource_class !== 'execution-medium'
-    || !Array.isArray(executor?.local_routing?.packet_required_when)
-    || !executor.local_routing.packet_required_when.includes('experiment-arm-c')
-    || !executor.local_routing.packet_required_when.includes('active-adoption')
-    || !Array.isArray(executor?.local_routing?.packet_prohibited_when)
-    || !executor.local_routing.packet_prohibited_when.includes('inactive-ordinary-production')
-  ) {
-    errors.push('executor metadata must keep execution-medium intent conditional on experiment/adoption routes');
-  }
-
-  const activation = hosts?.planning_activation;
-  if (
-    activation?.state === 'inactive-experiment-only'
-    && activation?.adoption_decision === null
-    && activation?.evidence_identity === null
-  ) {
-    // The first planner-bearing candidate deliberately ships inactive.
-  } else {
-    errors.push('first planner release activation must remain inactive-experiment-only; later activation requires externally resolved approved-ADR and exact-release 27-run evidence proof');
-  }
-
-  if (!Number.isInteger(hosts?.resource_defaults_version) || hosts.resource_defaults_version < 1) {
-    errors.push('metadata/hosts.json resource_defaults_version must be a positive integer');
-  }
-  if (!plainObject(hosts?.resource_defaults) || !plainObject(hosts?.pre_adoption_direct_executor)) {
-    errors.push('metadata/hosts.json must declare resource defaults and pre-adoption direct selectors');
-    return errors;
-  }
-  const defaultHosts = Object.keys(hosts.resource_defaults);
-  const baselineHosts = Object.keys(hosts.pre_adoption_direct_executor);
-  const experimentHosts = new Set([...defaultHosts, ...baselineHosts]);
-  if (
-    JSON.stringify(defaultHosts.sort()) !== JSON.stringify(baselineHosts.sort())
-  ) {
-    errors.push('resource-default and pre-adoption host sets must match exactly');
-  }
-  const surfaceRows = Array.isArray(surfaces?.rows) ? surfaces.rows : [];
-  for (const host of experimentHosts) {
-    const defaults = hosts.resource_defaults[host];
-    const baseline = hosts.pre_adoption_direct_executor[host];
-    const declaredSurfaces = Array.isArray(defaults?.surfaces)
-      ? defaults.surfaces
-      : [];
-    if (
-      !plainObject(defaults)
-      || !plainObject(defaults.classes)
-      || !nonEmpty(defaults.classes['reasoning-heavy'])
-      || !nonEmpty(defaults.classes['execution-medium'])
-      || !plainObject(defaults.selector_capability_source)
-      || !nonEmpty(defaults.selector_capability_source.identity)
-      || !nonEmpty(defaults.selector_capability_source.version)
-      || !plainObject(defaults.selector_capability_probe)
-      || !nonEmpty(defaults.selector_capability_probe.identity)
-      || !nonEmpty(defaults.selector_capability_probe.operation)
-      || !nonEmpty(defaults.selector_capability_probe.response_field)
-      || !nonEmpty(defaults.selector_capability_probe.version)
-      || !Array.isArray(defaults.surfaces)
-      || !defaults.surfaces.includes(baseline?.surface_id)
-    ) {
-      errors.push(`${host} experiment support requires complete class defaults, exact surfaces, and an authoritative selector capability source/probe`);
-    }
-    for (const surfaceId of new Set([
-      ...declaredSurfaces,
-      baseline?.surface_id,
-    ].filter(nonEmpty))) {
-      const matchingRows = surfaceRows.filter(
-        (row) => row?.surface_id === surfaceId && row?.host === host,
-      );
-      if (matchingRows.length !== 1) {
-        errors.push(
-          `${host} experiment surface ${surfaceId} must resolve to exactly one same-host surface matrix row`,
-        );
-      } else if (!['candidate', 'supported'].includes(matchingRows[0].release_state)) {
-        errors.push(
-          `${host} experiment surface ${surfaceId} must have a usable candidate or supported release state`,
-        );
-      }
-    }
-    if (
-      !plainObject(baseline)
-      || !nonEmpty(baseline.selector)
-      || !nonEmpty(baseline.selection_source_identity)
-    ) {
-      errors.push(`${host} experiment support requires a fixture-proven pre-adoption direct executor selector`);
-    } else {
-      const baselineRows = surfaceRows.filter(
-        (row) => row?.surface_id === baseline.surface_id && row?.host === host,
-      );
-      const evidencePath = baseline.selection_source_identity.split('#', 1)[0];
-      const evidenceOwners = surfaceRows.filter(
-        (row) => Array.isArray(row?.evidence) && row.evidence.includes(evidencePath),
-      );
-      if (
-        baselineRows.length !== 1
-        || !Array.isArray(baselineRows[0].evidence)
-        || !baselineRows[0].evidence.includes(evidencePath)
-        || evidenceOwners.length !== 1
-        || evidenceOwners[0] !== baselineRows[0]
-      ) {
-        errors.push(
-          `${host} pre-adoption selection identity must bind evidence on its exact surface matrix row`,
-        );
-      }
-    }
-  }
-  if (
-    release
-    && activation?.state === 'inactive-experiment-only'
-    && planner?.local_routing?.activation !== 'inactive-experiment-only'
-  ) {
-    errors.push('release candidate does not preserve inactive ordinary production routing');
   }
   return errors;
 }
@@ -834,21 +673,25 @@ function validateCodexProbeEvidence(record, row, errors) {
     invocation: childResult?.invocation,
     child_result: childResult,
   });
-  const nativeBatches = Array.from(
-    { length: Math.ceil(native.length / 4) },
-    (_, index) => native.slice(index * 4, index * 4 + 4),
-  );
-  const phaseNumber = (number) => String(number).padStart(2, '0');
-  const tailStart = nativeBatches.length + 2;
   const phasePlan = [
     { id: '01-driving-session', kind: 'driving-session', invocations: [] },
-    ...nativeBatches.map((batch, index) => ({
-      id: `${phaseNumber(index + 2)}-native-batch-${index + 1}`,
-      kind: 'native-batch',
-      invocations: batch.map((item) => expectedInvocation(item)),
-    })),
     {
-      id: `${phaseNumber(tailStart)}-producer-reviewer-separation`,
+      id: '02-native-batch-1',
+      kind: 'native-batch',
+      invocations: native.slice(0, 4).map((item) => expectedInvocation(item)),
+    },
+    {
+      id: '03-native-batch-2',
+      kind: 'native-batch',
+      invocations: native.slice(4, 8).map((item) => expectedInvocation(item)),
+    },
+    {
+      id: '04-native-batch-3',
+      kind: 'native-batch',
+      invocations: native.slice(8, 12).map((item) => expectedInvocation(item)),
+    },
+    {
+      id: '05-producer-reviewer-separation',
       kind: 'separation',
       invocations: [
         expectedInvocation(record?.producer_reviewer_separation?.producer),
@@ -856,12 +699,12 @@ function validateCodexProbeEvidence(record, row, errors) {
       ],
     },
     {
-      id: `${phaseNumber(tailStart + 1)}-scoped-dispatcher`,
+      id: '06-scoped-dispatcher',
       kind: 'scoped-dispatcher',
       invocations: [expectedInvocation(record?.spawned_dispatcher)],
     },
     {
-      id: `${phaseNumber(tailStart + 2)}-config-addendum`,
+      id: '07-config-addendum',
       kind: 'config-addendum',
       invocations: [expectedInvocation(
         record?.config_and_addendum,
@@ -1419,12 +1262,6 @@ export async function validateReleaseTree(root, {
         roleInventory,
         lifecycleInventory,
       }));
-    }
-    if (roleInventory && hostDeclarations && surfaces) {
-      errors.push(...validatePlanningReleaseMetadata(
-        { hosts: hostDeclarations, roles: roleInventory, surfaces },
-        { release },
-      ));
     }
   }
 

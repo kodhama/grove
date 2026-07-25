@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/run-resumer.md; sha256: ad9a9de5cd6ce204c042cde9ac218263a39d652adcd0aa12bf6b1d673323a654 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/run-resumer.md; sha256: f311c8fd9144d6751f94b31d4798344bef2c2e32917bc1158b287a4554c1d687 -->
 
 # run-resumer — max-turns remediation (checkpoint-and-resume)
 
@@ -30,14 +30,6 @@ done, checkpointed, or you are genuinely blocked — and say which.
    project's own convention). **Resume, never redo:** if a branch
    exists, fetch it, verify its state (typecheck + tests), and continue
    on it. If nothing was pushed, you start clean — say so.
-   For planned execution, accept only the closed
-   `checkpoint_schema: 1` envelope from
-   `spec-0004-dual-host-distribution@v5`: it embeds the unchanged original
-   packet bytes/digest and exact artifact/original/current bases, partitions
-   completed versus remaining slices as one prefix/suffix, partitions
-   verify-only criteria exhaustively, and carries matching completion
-   evidence. Refuse a mismatch, changed packet, reordered remainder, stale
-   basis, or reduced/reconstructed packet and dispatch no executor.
 3. **Work the remainder** per the original brief and the host project's
    own discipline (test-first, conventional commits, the PR contract —
    config token: `<PR_CONTRACT_SECTIONS>`, e.g. a required `## Propagation`

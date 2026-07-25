@@ -47,7 +47,7 @@ export const LIFECYCLE_SKILLS = Object.freeze([
     }))),
 ]);
 
-export const FIRST_PLANNER_RELEASE_ROLE_IDS = Object.freeze([
+export const CANONICAL_ROLE_IDS = Object.freeze([
   "code-reviewer",
   "conformance-reviewer",
   "contract-author",
@@ -56,7 +56,6 @@ export const FIRST_PLANNER_RELEASE_ROLE_IDS = Object.freeze([
   "dispatcher",
   "divergent-researcher",
   "executor",
-  "implementation-planner",
   "propagation-remediator",
   "run-resumer",
   "shaper",

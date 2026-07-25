@@ -2,7 +2,7 @@
 id: charter-run-resumer
 type: charter
 status: gated
-depends_on: [adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0036-pre-execution-planning]
+depends_on: [adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now]
 owner: agent
 updated: 2026-07-21
 ---
@@ -37,14 +37,6 @@ done, checkpointed, or you are genuinely blocked — and say which.
    project's own convention). **Resume, never redo:** if a branch
    exists, fetch it, verify its state (typecheck + tests), and continue
    on it. If nothing was pushed, you start clean — say so.
-   For planned execution, accept only the closed
-   `checkpoint_schema: 1` envelope from
-   `spec-0004-dual-host-distribution@v5`: it embeds the unchanged original
-   packet bytes/digest and exact artifact/original/current bases, partitions
-   completed versus remaining slices as one prefix/suffix, partitions
-   verify-only criteria exhaustively, and carries matching completion
-   evidence. Refuse a mismatch, changed packet, reordered remainder, stale
-   basis, or reduced/reconstructed packet and dispatch no executor.
 3. **Work the remainder** per the original brief and the host project's
    own discipline (test-first, conventional commits, the PR contract —
    config token: `<PR_CONTRACT_SECTIONS>`, e.g. a required `## Propagation`

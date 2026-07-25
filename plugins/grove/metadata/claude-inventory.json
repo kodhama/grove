@@ -50,7 +50,7 @@
       "class": "agent",
       "exposure": "scoped-advisor",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "6075ca7f40d38db7a80488797d911be374468822135252911d41b2b1401eec1c"
+      "canonical_digest": "a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27"
     },
     {
       "raw_id": "grove:divergent-researcher",
@@ -66,15 +66,7 @@
       "class": "agent",
       "exposure": "cold-native",
       "canonical_source": "charters/executor.md",
-      "canonical_digest": "8f75475b2dca4a5e9b15a734e45d30f4b230c9e67be9de7e716bccb4752dccab"
-    },
-    {
-      "raw_id": "grove:implementation-planner",
-      "path": "adapters/claude/agents/implementation-planner.md",
-      "class": "agent",
-      "exposure": "cold-native",
-      "canonical_source": "charters/implementation-planner.md",
-      "canonical_digest": "865c9a53bed6c9e8c3d449e15b1ef5b14fcf5d9a1be6897fa4c4826330555e0a"
+      "canonical_digest": "8531d32a9793d32f6517c84d9fdbf620467cdeb2b88f72a28d0e514f5d434f03"
     },
     {
       "raw_id": "grove:propagation-remediator",
@@ -90,7 +82,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "6559eeaa8d0d34f4e0e46342a72a8f87b92f13df498f95393c2b3fdec56b7fa4"
+      "canonical_digest": "061304fbbfa3483d5f5379551b504a418e8702635b7616b8c43dc64f56ad1c50"
     },
     {
       "raw_id": "grove:remove",
@@ -98,7 +90,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "6559eeaa8d0d34f4e0e46342a72a8f87b92f13df498f95393c2b3fdec56b7fa4"
+      "canonical_digest": "061304fbbfa3483d5f5379551b504a418e8702635b7616b8c43dc64f56ad1c50"
     },
     {
       "raw_id": "grove:run-resumer",
@@ -106,7 +98,7 @@
       "class": "agent",
       "exposure": "cold-native",
       "canonical_source": "charters/run-resumer.md",
-      "canonical_digest": "ad9a9de5cd6ce204c042cde9ac218263a39d652adcd0aa12bf6b1d673323a654"
+      "canonical_digest": "f311c8fd9144d6751f94b31d4798344bef2c2e32917bc1158b287a4554c1d687"
     },
     {
       "raw_id": "grove:set-profile",
@@ -114,7 +106,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "6559eeaa8d0d34f4e0e46342a72a8f87b92f13df498f95393c2b3fdec56b7fa4"
+      "canonical_digest": "061304fbbfa3483d5f5379551b504a418e8702635b7616b8c43dc64f56ad1c50"
     },
     {
       "raw_id": "grove:setup",
@@ -122,7 +114,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "6559eeaa8d0d34f4e0e46342a72a8f87b92f13df498f95393c2b3fdec56b7fa4"
+      "canonical_digest": "061304fbbfa3483d5f5379551b504a418e8702635b7616b8c43dc64f56ad1c50"
     },
     {
       "raw_id": "grove:spec-adversary",
@@ -145,7 +137,7 @@
     "dispatcher": {
       "raw_reference": "${CLAUDE_PLUGIN_ROOT}/reference/charters/dispatcher.md",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "6075ca7f40d38db7a80488797d911be374468822135252911d41b2b1401eec1c"
+      "canonical_digest": "a1e478da92edce14e830f277876b461d10075df6880f8c52b1136a7e2e035c27"
     },
     "shaper": {
       "raw_reference": "${CLAUDE_PLUGIN_ROOT}/reference/charters/shaper.md",

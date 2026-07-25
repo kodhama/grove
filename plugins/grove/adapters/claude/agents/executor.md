@@ -3,10 +3,10 @@ name: executor
 description: "Stage-4 strict test-first implementation from approved or ratified-gated artifacts, cold-started from the artifact dependency graph."
 tools: Bash, Read, Grep, Glob, Edit, Write
 ---
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 8f75475b2dca4a5e9b15a734e45d30f4b230c9e67be9de7e716bccb4752dccab -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 8531d32a9793d32f6517c84d9fdbf620467cdeb2b88f72a28d0e514f5d434f03 -->
 
 Canonical source: `charters/executor.md`
-Canonical digest: `8f75475b2dca4a5e9b15a734e45d30f4b230c9e67be9de7e716bccb4752dccab`
+Canonical digest: `8531d32a9793d32f6517c84d9fdbf620467cdeb2b88f72a28d0e514f5d434f03`
 Exposure: `cold-native`
 
 Load the canonical projection at `${CLAUDE_PLUGIN_ROOT}/reference/charters/executor.md` and follow it as the complete role contract.
