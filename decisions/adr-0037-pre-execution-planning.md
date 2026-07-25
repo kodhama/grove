@@ -10,6 +10,12 @@ updated: 2026-07-25
 
 # ADR-0037: add advisory pre-execution planning
 
+> **Partial supersession (2026-07-25):** Approved ADR-0039 resolves only this
+> decision's parked adoption choice by classifying the existing qualifying
+> planner route as Grove dogfood. The experiment, model and token claims,
+> routing contract, transient handoff, host support, release behavior, and
+> every other boundary remain unchanged.
+
 ## Decision state
 
 ### Decided
