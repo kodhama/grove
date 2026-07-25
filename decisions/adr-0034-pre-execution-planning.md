@@ -1,7 +1,7 @@
 ---
 id: adr-0034-pre-execution-planning
 type: adr
-status: gated  # shaper self-check rerun 2026-07-25 after scoped preview revisions; awaiting another fresh independent verdict
+status: gated  # scoped preview found D9's zero/zero remediation comparison undefined; revision remains open
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0033-adopt-family-plugin-contracts]
 owner: agent
 updated: 2026-07-25
@@ -15,7 +15,8 @@ updated: 2026-07-25
 > strict TDD, independent review, or dual-host delivery. The scoped adversarial
 > preview confirmed the original routing, fleet, recovery, and resource
 > revisions, then found one experiment gap and two graph/propagation omissions.
-> All three are now folded and the complete self-check has been rerun.
+> Those are folded; the latest narrow preview found only D9's zero/zero
+> remediation-comparison edge case.
 
 ## Decision state
 
@@ -154,7 +155,10 @@ updated: 2026-07-25
 
 ### Open
 
-- None.
+- **O20 — zero-remediation comparison.** When B and C tie on accepted quality
+  and both use zero remediation dispatches, define whether D9's planner-value
+  criterion fails, passes, or uses a different absolute comparison; “20%
+  fewer” is undefined at a zero denominator.
 
 ### Parked
 
@@ -569,31 +573,13 @@ conformance target is added.
 
 ## Self-check
 
-Passed by the shaper on 2026-07-25 after folding both adversarial previews:
+The self-check recorded at commit `0ae6a48` is stale. Scoped independent
+preview confirmed routing, fleet amendment, recovery, resource ownership,
+planner-failure scoring, ADR-0026 coupling, and `spec-0004` propagation closed.
+It returned `NEEDS-REVISION` only because D9 leaves a zero/zero remediation
+comparison undefined (O20).
 
-- **Authority and lifecycle:** D1–D2 keep the packet advisory and outside the
-  artifact graph; no gate or plan artifact is added.
-- **Transport and recovery:** D4/D14 make relay preconditions and the
-  checkpoint-versus-replan behavior exhaustive.
-- **Routing coherence:** D5/D12 preserve ADR-0012's local-rule architecture
-  and explicit W3 bug split.
-- **Standing contracts and graph:** D13 plus ADR-0031's forward annotation
-  amend fleet completeness append-only; D18 names the operative spec revision;
-  all six `depends_on` targets exist and are `approved`, including ADR-0026 for
-  D16's consumer-authority coupling.
-- **Experiment soundness:** D6–D9, D15, and D19 separate planner value from
-  model downgrade; bound every arm to its declared base sequence plus two
-  remediation dispatches; classify each retry exactly once; define acceptance,
-  upstream invalidation, and zero-acceptance cost; and make every adoption
-  threshold executable.
-- **Host/resource ownership:** D10/D16 assign portable intent, host defaults,
-  consumer overrides, precedence, failure behavior, and effective-map
-  evidence to exact carriers.
-- **Propagation:** the follow-up contract names canonical roles, local triggers,
-  executor authority, relay/checkpoint behavior, resource carriers, experiment
-  evidence, the revise/version/re-gate of `spec-0004`, generated parity,
-  support requalification, and release judgment.
-
-The canvas has nineteen Decided items, zero Open items, and remains `gated`.
-Another fresh independent review is owed. Any session preview remains
-diagnostic until its verdict is posted on an authenticated change-request.
+The canvas has nineteen Decided items and one Open item. It remains `gated`
+with the failed preview disclosed, but is not ready for the intent gate.
+Resolve O20, rerun the self-check, and obtain one narrow re-review. Session
+previews remain diagnostic until posted on an authenticated change-request.
