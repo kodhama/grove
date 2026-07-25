@@ -1,13 +1,13 @@
 ---
-id: adr-0034-pre-execution-planning
+id: adr-0036-pre-execution-planning
 type: adr
-status: gated  # shaper self-check rerun 2026-07-25 after defining D9's zero denominator; awaiting narrow independent preview
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0033-adopt-family-plugin-contracts]
+status: gated  # shaper self-check rerun 2026-07-25; latest session-only preview SOUND, fresh posted verdict required before ratification
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary]
 owner: agent
 updated: 2026-07-25
 ---
 
-# ADR-0034: pre-execution planning as an advisory cold role
+# ADR-0036: pre-execution planning as an advisory cold role
 
 > **Gated decision canvas — nothing here authorizes implementation.** The
 > maintainer wants to test whether a stronger planning pass can make a
@@ -81,9 +81,9 @@ updated: 2026-07-25
   already performs equivalently.
 - **D10 — Grove owns portable resource intent; host adapters own concrete
   mapping** *(maintainer, 2026-07-24; chose Option A)*. Canonical dispatch
-  metadata in `plugins/grove/roles.json` assigns the planner
+  metadata in `plugins/grove/metadata/roles.json` assigns the planner
   `reasoning-heavy` and the executor `execution-medium`;
-  `plugins/grove/install/hosts.json` owns each versioned host default; and an
+  `plugins/grove/metadata/hosts.json` owns each versioned host default; and an
   optional consumer-owned `.grove/config.toml` override may replace that
   host's class mappings. The experiment harness pins and records the effective
   mappings. A surface that cannot honor or explicitly reject a class cannot
@@ -125,9 +125,10 @@ updated: 2026-07-25
   all three arms.
 - **D16 — use versioned adapter defaults plus consumer-owned overrides**
   *(maintainer, 2026-07-24; chose Option A after adversary F5)*. Role resource
-  intent lives in `plugins/grove/roles.json`; concrete per-host defaults live
-  in `plugins/grove/install/hosts.json`; and optional overrides live under
-  `[resources.<host>]` in consumer-authoritative `.grove/config.toml`. An exact
+  intent lives in `plugins/grove/metadata/roles.json`; concrete per-host
+  defaults live in `plugins/grove/metadata/hosts.json`; and optional overrides
+  live under `[resources.<host>]` in consumer-authoritative
+  `.grove/config.toml`. An exact
   host override wins over its default. Missing classes, unknown selectors, and
   cross-host fallback fail before dispatch. Experiment and support evidence
   record the effective class-to-model map.
@@ -140,7 +141,9 @@ updated: 2026-07-25
 - **D18 — make configuration coupling and the operative dual-host spec
   explicit** *(shaper correction after scoped adversary F6/F7, 2026-07-24)*.
   ADR-0026 is a `depends_on` upstream because D16 relies on its
-  consumer-authoritative configuration boundary. Before implementation,
+  consumer-authoritative configuration boundary; ADR-0035 is one because it
+  fixes `plugins/grove/metadata/` as the package metadata boundary. Before
+  implementation,
   `specs/0004-dual-host-distribution.md` must be revised in place,
   version-bumped, and re-gated to replace every thirteen-role invariant and
   scenario with inventory-derived completeness plus the exact fourteen-role
@@ -229,9 +232,10 @@ contract without pretending it is already supported: the experiment harness
 must pin exact models, and each host adapter must independently prove its
 mapping before the optimized route is supportable there.
 
-The ownership chain is explicit: `plugins/grove/roles.json` is the canonical
-role-to-resource-class declaration; `plugins/grove/install/hosts.json` carries
-Grove's versioned per-host defaults; and optional
+The ownership chain is explicit: `plugins/grove/metadata/roles.json` is the
+canonical role-to-resource-class declaration;
+`plugins/grove/metadata/hosts.json` carries Grove's versioned per-host
+defaults; and optional
 `.grove/config.toml [resources.<host>]` entries are consumer-authoritative
 overrides under ADR-0026 D3. Resolution never crosses hosts and never silently
 falls back. The effective mapping is evidence, not hidden runtime state.
@@ -599,7 +603,8 @@ Passed by the shaper on 2026-07-25 after folding all preview findings:
 - **Standing contracts and graph:** D13 plus ADR-0031's forward annotation
   amend fleet completeness append-only; D18 names the operative spec revision;
   all six `depends_on` targets exist and are `approved`, including ADR-0026 for
-  D16's consumer-authority coupling.
+  D16's consumer-authority coupling and ADR-0035 for the package metadata
+  boundary.
 - **Experiment soundness:** D6–D9, D15, D19, and D20 separate planner value
   from model downgrade; bound every arm to its declared base sequence plus two
   remediation dispatches; classify each retry exactly once; define terminal
@@ -614,5 +619,6 @@ Passed by the shaper on 2026-07-25 after folding all preview findings:
   support requalification, and release judgment.
 
 The canvas has twenty Decided items, zero Open items, and remains `gated`.
-One narrow independent preview of D20 is owed. Session previews remain
-diagnostic until posted on an authenticated change-request.
+The latest narrow session-only preview returned `SOUND`; it remains diagnostic
+until a fresh independent verdict is posted on the authenticated
+change-request.

@@ -330,9 +330,9 @@ This ADR's Grove-owned version, adapters, surface matrix, evidence, release
 validator, and tag workflow remain current. Stewards integration is narrowed
 to marketplace-test metadata and CI marketplace/plugin setup authoring.
 
-## Forward annotation — ADR-0034 (effective upon approval)
+## Forward annotation — ADR-0036 (effective upon approval)
 
-ADR-0034 partially amends §5 item 3's hardcoded thirteen-role discovery
+ADR-0036 partially amends §5 item 3's hardcoded thirteen-role discovery
 contract. Host-equivalence instead requires discovery of every role identity
 in the canonical inventory, and each release's evidence must state and assert
 the exact expected count. The first release containing
