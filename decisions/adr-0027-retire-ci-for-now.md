@@ -1,14 +1,18 @@
 ---
 id: adr-0027-retire-ci-for-now
 type: adr
-status: approved  # maintainer's intent act ("I approve", in-session, 2026-07-21 — "every repo needs a bit of a break from the CI adventure"; revisit is D4/D5's future decision, "back to the drawing board another time") — recorded in-PR by the shaper per lifecycle.md; decision-adversary SOUND at 7494a8f → SOUND on scoped re-review at 11252a9 (all findings folded); author (shaper) ≠ approver (maintainer); the PR merge is the ship act (ship = human) and is not performed by this flip
+status: superseded in part  # ADR-0036 removes the retained runtime, templates, and revival route; D2's prose hand-off and the retirement of the record medium remain in force
 depends_on: [adr-0026-thin-vendor-boundary, adr-0012-methodology-delivery-machinery]
 informed_by: [adr-0013-check-scope-mode, adr-0022-strict-mode-review-friction, adr-0024-enforced-gate-under-ship-agent, adr-0025-decline-review-waiver, adr-0023-review-triage-blackboard, spec-0002-review-bookkeeping-check, spec-0003-review-asks-and-audit]
 owner: agent
-updated: 2026-07-23
+updated: 2026-07-25
 ---
 
 # ADR-0027: retire the deterministic CI/bookkeeping machinery for now — Claude-plugin path only, revive via a provider-agnostic installer later (grove#119)
+
+> **Partial supersession (2026-07-25):** ADR-0036 removes the preserved runtime,
+> templates, and revival route. D2's prose hand-off and the retirement of the
+> record medium remain in force.
 
 > **`gated` — converged on arrival, awaiting the adversary + the intent gate.**
 > grove#119 asked whether the deterministic per-pair review-record model

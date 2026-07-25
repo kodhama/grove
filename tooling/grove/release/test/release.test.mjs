@@ -1,4 +1,4 @@
-// Upstream: spec-0004-dual-host-distribution@v4.
+// Upstream: spec-0004-dual-host-distribution@v5.
 // INV6/11/12/15/17/21/23-29/33 and S3/S10/S11/S15/S19/S24-S26/S31.
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';

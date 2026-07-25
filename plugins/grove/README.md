@@ -168,8 +168,6 @@ support is earned per exact matrix row; evidence never flows between rows.
   value as `VERSION`.
 - `tooling/grove/build/`, `tooling/grove/release/`, and
   `tooling/grove/probes/` are repository tooling and are not packaged.
-- `retired/review-bookkeeping/` preserves the dormant ADR-0027 machinery
-  outside the production package.
 
 For role definitions, dispatch behavior, and workflow semantics, read the
 canonical charters rather than this packaging guide.
