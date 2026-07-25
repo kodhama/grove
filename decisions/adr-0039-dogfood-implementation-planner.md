@@ -1,7 +1,7 @@
 ---
 id: adr-0039-dogfood-implementation-planner
 type: adr
-status: gated
+status: approved
 depends_on: [adr-0037-pre-execution-planning, adr-0040-receive-stewards-adoption-posture-strategy, stewards/kodhama-0021-separate-adoption-posture-from-support]
 owner: agent
 updated: 2026-07-25
@@ -98,5 +98,7 @@ The original draft used ADR-0038, but older open PR #142 already owned that
 identifier. The still-draft canvas was therefore renumbered to ADR-0039 and
 rebased onto current main, including approved ADR-0040. After the dependency,
 scope, parked-item, and forward-pointer reconciliation, the author completed
-the self-check and moved the artifact to `gated` for independent review.
-Human ratification remains a later intent act.
+the self-check and moved the artifact to `gated` for independent review. The
+independent decision adversary returned `SOUND` for exact commit `0124ba8`.
+On 2026-07-25, the maintainer explicitly ratified this decision and authorized
+its merge; `approved` records that human intent act.
