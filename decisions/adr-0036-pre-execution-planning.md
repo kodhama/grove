@@ -2,7 +2,7 @@
 id: adr-0036-pre-execution-planning
 type: adr
 status: gated  # shaper self-check rerun 2026-07-25 after rebased review findings; fresh posted verdict required before ratification
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary]
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0012-methodology-delivery-machinery, adr-0020-dispatcher-honors-gate-profile, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary]
 owner: agent
 updated: 2026-07-25
 ---
@@ -57,17 +57,19 @@ updated: 2026-07-25
   cannot establish adoption by themselves.
 - **D7 — make phase one a conservative, one-way futility screen**
   *(maintainer delegated this experiment-detail choice, 2026-07-24)*. Stop
-  after nine runs if treatment C loses independent quality on at least two of
-  the three tasks that baseline A passes, or if C reduces neither premium
-  tokens nor weighted cost on any task. Otherwise expand to 27 runs. Passing
-  this screen never authorizes early adoption.
+  after nine runs if C is unaccepted on at least two tasks for which baseline A
+  earns an accepted-quality result, or if no matched task shows C using fewer
+  premium-model tokens or incurring lower total weighted run cost than A.
+  Otherwise expand to 27 runs. Passing this screen never authorizes early
+  adoption.
 - **D8 — use the balanced baseline-adoption floor** *(maintainer, 2026-07-24;
   chose Option A)*. Across the nine treatment runs in the completed experiment,
-  C may finish at most one accepted-quality result behind A, must introduce no
-  additional blocking independent-review finding, must consume at least 30%
-  fewer premium-model tokens, and must reduce weighted cost per accepted
-  completion by at least 20%. D9 separately makes the required advantage over
-  medium-only control B testable.
+  C may finish at most one accepted-quality result behind A, may have no more
+  blocking-finding runs than A, must consume at least 30% fewer premium-model
+  tokens, and must reduce weighted cost per accepted completion by at least
+  20%. A blocking-finding run is counted once when any independent code-review
+  pass reports at least one blocking finding, even if later remediated. D9
+  separately makes the required advantage over medium-only control B testable.
 - **D9 — require a material planner advantage over medium-only control**
   *(maintainer, 2026-07-24; chose Option A)*. Across nine runs per arm,
   treatment C must earn at least one more accepted-quality result than B or,
@@ -94,9 +96,11 @@ updated: 2026-07-25
 - **D12 — declare planning triggers locally, never as dispatcher-owned flow**
   *(maintainer, 2026-07-24; chose Option A after adversary F1)*. The
   `implementation-planner` declaration triggers on code-bearing spec work; the
-  executor declaration requires its advisory packet except for D5's localized
-  implementation-slip route. The generic dispatcher discovers and enacts
-  those declarations. No central pipeline or ADR-0012 exception is added.
+  executor declaration requires its advisory packet only for code-bearing spec
+  work, except for D5's localized implementation-slip route. Decision-only
+  non-code work remains a second explicit direct path. The generic dispatcher
+  discovers and enacts those declarations. No central pipeline or ADR-0012
+  exception is added.
 - **D13 — derive fleet completeness from canonical inventory, with an exact
   release count** *(maintainer, 2026-07-24; chose Option A after adversary
   F2)*. This decision partially amends ADR-0031 §5 item 3: host-equivalence
@@ -210,6 +214,9 @@ The executor charter currently says all context travels through the artifact
 and its `depends_on` graph, and rejects a conversational prose brief as a
 substitute. ADR-0005 makes the load-bearing guarantee precise: executor must
 have a `gated`/`approved` spec or decision, never conversation in its place.
+Those lifecycle statuses are necessary but not sufficient for this route: a
+`gated` spec is downstream-consumable only with ADR-0020's posted agent-owned
+ratification record; otherwise the planner waits for `approved`.
 
 An advisory plan can coexist with that guarantee only if the new contract says:
 
@@ -252,8 +259,9 @@ The `implementation-planner` is cold-started and read-only.
 
 ### Inputs
 
-- one exact `gated`/`approved` spec for code-bearing work, plus its declared
-  dependency graph;
+- one exact `approved` spec, or a `gated` spec whose active agent-owned gate has
+  a posted independent convergence record ratifying it for downstream
+  consumption under ADR-0020, plus its declared dependency graph;
 - the repository revision and disclosed working-tree basis to plan against;
 - consumer-owned Grove configuration/addenda relevant to locating tests,
   commands, and conventions.
@@ -402,10 +410,10 @@ discretion cannot bias the result.
 
 Phase one stops for futility when either:
 
-- treatment C fails independent quality on at least two tasks for which
-  baseline A passes; or
-- treatment C reduces neither premium tokens nor weighted cost on any of the
-  three tasks.
+- treatment C is unaccepted on at least two tasks for which baseline A earns
+  an accepted-quality result; or
+- none of the three matched tasks shows C using fewer premium-model tokens or
+  incurring lower total weighted model-call cost for that run than A.
 
 Every other phase-one result expands to 27 runs. The screen is deliberately
 one-way: it avoids the full expense of an evidently poor treatment without
@@ -416,7 +424,8 @@ Measure:
 - input/output/cached/reasoning tokens by role, premium tokens separately, and
   total tokens;
 - a dated price snapshot, total cost, and cost per accepted completion;
-- test/typecheck outcomes and independent conformance/code-review findings;
+- test/typecheck outcomes, independent conformance/code-review findings, and
+  per-run incidence of blocking code-review findings;
 - retries, reviewer → executor loops, and elapsed time;
 - invalid plan anchors, executor deviations with reasons, unused steps, and
   ambiguities caught before implementation.
@@ -442,6 +451,10 @@ two-dispatch bound, all declared required test and typecheck commands pass,
 conformance returns `PASS`, and code review reports no blocking finding.
 Reaching the bound without all three conditions is an unaccepted run.
 
+A **blocking-finding run** is counted once if any independent code-review pass
+within that run reports at least one blocking finding, regardless of how many
+findings that pass reports or whether later remediation clears them.
+
 Weighted cost is the sum, across every planner, executor, reviewer, and
 remediation model call triggered by the run, of each reported token category
 multiplied by its dated provider price (including a distinct cached-token rate
@@ -457,7 +470,7 @@ stratum. No single arm receives a selective exclusion.
 After all 27 runs, treatment C may be adopted only if, across its nine runs, it:
 
 - finishes at most one accepted-quality result behind baseline A;
-- introduces no additional blocking independent-review finding;
+- has no more blocking-finding runs than A;
 - consumes at least 30% fewer premium-model tokens than A; and
 - reduces weighted cost per accepted completion by at least 20% versus A,
   using D21's totalized finite/zero/infinite comparison.
@@ -500,8 +513,9 @@ conformance target is added.
 - **Always post every plan to a task/change-request.** Rejected for the first
   increment in favor of D4: immediate durability does not justify an
   authenticated external write, permanent history noise, platform coupling,
-  and stale-plan conventions when the packet is advisory and the existing
-  checkpoint seam already covers interrupted work.
+  and stale-plan conventions when the packet is advisory. The existing
+  checkpoint seam covers interrupted work only when an identifiable carrier
+  already exists; otherwise D14 deliberately accepts bounded replanning.
 - **Use a temporary filesystem packet as production transport.** Rejected:
   inherits direct relay's lack of durable project visibility while adding
   path, ownership, cleanup, lifetime, and cross-host semantics. Out-of-tree
@@ -610,9 +624,9 @@ Passed by the shaper on 2026-07-25 after folding all preview findings:
   and explicit W3 bug split.
 - **Standing contracts and graph:** D13 plus ADR-0031's forward annotation
   amend fleet completeness append-only; D18 names the operative spec revision;
-  all six `depends_on` targets exist and are `approved`, including ADR-0026 for
-  D16's consumer-authority coupling and ADR-0035 for the package metadata
-  boundary.
+  all seven `depends_on` targets exist and are `approved`, including ADR-0020
+  for ratified-gated input, ADR-0026 for D16's consumer-authority coupling, and
+  ADR-0035 for the package metadata boundary.
 - **Experiment soundness:** D6–D9, D15, and D19–D21 separate planner value
   from model downgrade; bound every arm to its declared base sequence plus two
   remediation dispatches; classify each retry exactly once; define terminal
