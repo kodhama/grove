@@ -4,7 +4,7 @@ type: adr
 status: approved  # maintainer's intent act 2026-07-23 ("Approved ... go ahead, I'll check at the end"); self-checked by the shaper; conformance scoped re-review PASS after graph fixes; decision-adversary NEEDS-REVISION on draft readiness, revision folded, scoped re-review SOUND; the later ship gate remains human
 depends_on: [adr-0014-install-is-invisible-and-ungated, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0028-plugin-release-tagging, adr-0029-non-interactive-loading]
 owner: agent
-updated: 2026-07-24  # forward annotation for adr-0034's fleet-completeness amendment
+updated: 2026-07-25  # forward annotation for adr-0036's fleet-completeness amendment
 ---
 
 # ADR-0031: one grove fleet, distributed through Claude and Codex

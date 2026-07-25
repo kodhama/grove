@@ -128,10 +128,9 @@ updated: 2026-07-25
   intent lives in `plugins/grove/metadata/roles.json`; concrete per-host
   defaults live in `plugins/grove/metadata/hosts.json`; and optional overrides
   live under `[resources.<host>]` in consumer-authoritative
-  `.grove/config.toml`. An exact
-  host override wins over its default. Missing classes, unknown selectors, and
-  cross-host fallback fail before dispatch. Experiment and support evidence
-  record the effective class-to-model map.
+  `.grove/config.toml`. An exact host override wins over its default. Missing
+  classes, unknown selectors, and cross-host fallback fail before dispatch.
+  Experiment and support evidence record the effective class-to-model map.
 - **D17 — complete local gating and scoped adversarial preview before posting**
   *(maintainer, 2026-07-24; chose Option A)*. The shaper reruns the complete
   self-check and moves this decision to `gated`, then dispatches a scoped
