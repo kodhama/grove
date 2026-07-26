@@ -1,12 +1,12 @@
 ---
 id: spec-0004-dual-host-distribution
 type: spec
-status: gated  # v6 adds the independently reviewed planner amendment after v5 removed retired bookkeeping
+status: gated  # v7 separates operational availability from support after the independently reviewed v6 planner amendment
 implements: adr-0031-multi-host-distribution
-depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0037-pre-execution-planning, adr-0036-remove-retired-review-bookkeeping]
+depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0037-pre-execution-planning, adr-0036-remove-retired-review-bookkeeping, adr-0041-separate-support-from-operational-availability]
 owner: agent
-updated: 2026-07-25
-version: 6
+updated: 2026-07-26
+version: 7
 ---
 
 # spec-0004 — dual-host distribution
@@ -129,6 +129,31 @@ decision reserves for a later intent gate.
 > observable content, routing-safety, authority, and relay bounds preserve its
 > choices without prescribing a plan format or gate.
 
+> **Amendment (2026-07-26,
+> `adr-0041-separate-support-from-operational-availability`).**
+> **WHAT:** Every exact surface row now records operational availability
+> independently from its support claim; lifecycle authorization, disclosure,
+> release validation, and the initial row assignments follow those two fields
+> instead of durable `supported` / `candidate` / `unsupported` release states.
+> **WHY:** The former single state made an evidence-backed public support claim
+> a prerequisite for honest Grove dogfood even when a complete load path was
+> intentionally available without support.
+> **SCOPE:** Behavioral version `v7`; v6's package boundary, host adapters,
+> planner delivery, migration, marketplace, release authority, and exact
+> support-evidence requirements remain unchanged except where they consume the
+> new surface fields and operation table.
+> **POINTER:** Current requirements live in “Codex compatibility evidence and
+> bridge contract,” “Shared setup, refresh, set-profile, and remove contract,”
+> “Release and publication contract,” “Surface matrix,” and acceptance
+> criteria `INV6`, `INV12`–`INV15`, `INV17`, `INV19`–`INV20`, `INV36`,
+> `INV42`–`INV44`, and `S3`–`S4`, `S11`–`S13`, `S17`–`S18`, `S30`–`S31`,
+> `S34`, `S40`–`S42`.
+> **VALUE:** A maintainer can install and maintain Grove on the two selected
+> dogfood surfaces without falsely presenting either surface as supported.
+> **CONFIDENCE:** `verified` — approved ADR-0041 fixes the initial assignments,
+> operation permissions, disclosure, release behavior, and evidence boundary,
+> and its deep independent review returned `SOUND`.
+
 ## Terms
 
 | Term | Meaning |
@@ -139,10 +164,12 @@ decision reserves for a later intent gate.
 | **projection** | A byte-deterministic file produced from an authored source and adapter metadata. |
 | **role inventory** | The fourteen canonical role ids, including `implementation-planner`, their Codex-native underscore ids, and their permitted exposures: interactive driving-session role, cold native role, and, for `dispatcher`, the distinct scoped spawned advisor. It contains metadata and source paths, never charter instructions. |
 | **advisory implementation plan** | The planner's bounded, human-readable output for one ratified code-bearing artifact. It may sequence implementation but cannot add, remove, or reinterpret a requirement and is never an artifact or gate. |
-| **bridge-viable** | A thin project TOML launcher successfully resolved and loaded its plugin-carried skill/reference on the exact Codex mode tested. This proves the loading primitive only; it is not a release-support claim. |
-| **surface matrix** | One machine-readable record of host surfaces, support state, explicit load path, test evidence, and supported role identities. |
-| **supported** | The recorded load path passed on a fresh instance of that exact surface for the release under test. |
-| **unsupported** | Grove makes no role-loading claim for the surface and every Grove entrypoint available there reports that limitation rather than claiming or simulating role parity. |
+| **bridge-viable** | A thin project TOML launcher successfully resolved and loaded its plugin-carried skill/reference on the exact Codex mode tested. This proves the loading primitive only; it implies neither operational availability nor a support claim. |
+| **surface matrix** | One machine-readable record of exact host surfaces, `availability_state`, `support_claim`, explicit load mechanism and path, test evidence, and role identities. |
+| **available** | The row is authorized for setup, refresh, and set-profile and declares a complete host-valid load mechanism and load path. Availability is product-assigned and is not a support claim. |
+| **unavailable** | The row is not authorized for setup, refresh, or set-profile. Remove may still perform its confirmation-bound cleanup on a known row. |
+| **claimed support** | `support_claim: claimed`: Grove makes an evidence-backed public support claim for this exact surface and package snapshot. |
+| **no support claim** | `support_claim: none`: Grove makes no support claim for this exact surface. This does not by itself make the surface unavailable. |
 | **host adapter surface** | The managed instruction block and any host-native launcher files composed into a consumer repository. |
 | **surface invocation record** | The lifecycle input containing one exact `surface_id` from the surface matrix and its provenance (`host-runtime` or `user-explicit`). It carries no role instructions. |
 | **discovery probe** | A host-neutral diagnostic request that returns only canonical role id, exposure class, canonical source path, and canonical-source digest. It proves identity/loading, not substantive role behavior. |
@@ -150,8 +177,9 @@ decision reserves for a later intent gate.
 | **package allowlist** | The declared exact set of installable paths under `plugins/grove/`; validation rejects every path not in the set and every missing declared path. |
 | **legacy internal state** | The known prior Grove-managed paths `.grove/internal/gates/` and `.grove/internal/enforcement.toml`, plus a `runtime_dir` whose repository-relative normalized target is `.grove/internal/gates`. |
 | **repository stamp** | The exact `grove plugin@<MAJOR.MINOR.PATCH>` line inside a valid Grove-managed host instruction block; it records the package version that last successfully wrote that block and is not release authority. |
-| **valid-unsupported surface** | A known, host-matched surface-matrix row with valid provenance whose release state is `unsupported`; its identity is valid input even though Grove role loading is unavailable there. |
-| **invalid surface input** | An absent, malformed, unknown, host-mismatched, multiply selected, or provenance-contradictory surface invocation record. |
+| **valid-available surface** | A known, host-matched row with valid provenance, `availability_state: available`, and a complete host-valid load mechanism and load path. |
+| **valid-unavailable surface** | A known, host-matched row with valid provenance and `availability_state: unavailable`; its identity is valid input even though setup, refresh, and set-profile are unavailable there. |
+| **invalid surface input** | An absent, malformed, unknown, host-mismatched, multiply selected, or provenance-contradictory surface invocation record, or one selecting contradictory matrix metadata. |
 
 ## Deliverables and ownership
 
@@ -163,13 +191,13 @@ decision reserves for a later intent gate.
 | Codex adapter | `plugins/grove/adapters/codex/` | Generated lifecycle and role skills, no custom-agent definitions; its manifest exposes only this adapter. |
 | Shared runtime | `plugins/grove/runtime/lifecycle/` and `plugins/grove/runtime/gates/` | The only installed executable lifecycle and gate behavior; host adapters invoke it in place and setup never copies it into a consumer. |
 | Runtime references | `plugins/grove/reference/` | Deterministic frontmatter-free projections and fixed package data; no path is a host-discovery root. |
-| Codex project role bridge | Generated by setup from package metadata | Uses native underscore ids and thin TOML launchers only on bridge-viable surfaces. |
+| Codex project role bridge | Generated by setup from package metadata | Uses native underscore ids and thin TOML launchers only on available surfaces with a declared bridge load path. |
 | Setup, refresh, set-profile, and remove behavior | One host-neutral operation source | Claude and Codex entrypoints are thin generated adapters over the same operation semantics. |
 | Claude manifest | `plugins/grove/.claude-plugin/plugin.json` | Host metadata plus the shared release version. |
 | Codex manifest | `plugins/grove/.codex-plugin/plugin.json` | Host metadata plus the same shared release version. |
 | Release version | `plugins/grove/VERSION` | One line containing the current semantic version without a `v` prefix. |
 | Package declarations | `plugins/grove/README.md`, both manifest directories, `VERSION`, `adapters/`, `runtime/`, `reference/`, and `metadata/` | These are the only permitted package-root entries; an exact recursive leaf allowlist is declared once and validated before any package or release claim. |
-| Surface matrix and spike evidence | Declared machine-readable sources under `plugins/grove/metadata/` or `plugins/grove/reference/` | The matrix is the sole source for support claims and links immutable evidence records such as `reference/surfaces/codex-bridge-spike-2026-07-23.json`. |
+| Surface matrix and spike evidence | Declared machine-readable sources under `plugins/grove/metadata/` or `plugins/grove/reference/` | The matrix is the sole source for operational availability and support claims and links immutable evidence records such as `reference/surfaces/codex-bridge-spike-2026-07-23.json`. |
 | Maintainer machinery | `tooling/grove/build/`, `tooling/grove/release/`, `tooling/grove/tests/`, and `tooling/grove/probes/` | Retained source-repository inputs outside the installable package; tests import package modules and release/probe commands operate on an exact ephemeral package snapshot. |
 | Claude marketplace entry | Existing Claude marketplace | Resolves the released Grove Claude package. |
 | Codex marketplace entry | A Git-backed repo catalog at `.agents/plugins/marketplace.json` | Resolves the released Grove Codex package. |
@@ -471,13 +499,13 @@ surfaces:
 
 | Codex mode | Observed bridge result | Release implication |
 |---|---|---|
-| Local CLI, interactive | Not tested. | No support claim; interactive TTY smoke test required. |
-| `codex exec`, non-ephemeral project | Thin project TOML launcher loaded a plugin-carried skill/reference. | `bridge-viable`; full release-support evidence remains required. |
-| `codex exec`, ephemeral project | Thin launcher loaded the plugin skill; the plugin-relative role reference was not tested. | Partial primitive only; unsupported until the complete bridge and support record pass. |
-| Desktop local | Not smoke-tested. | No support claim; desktop smoke test required. |
-| IDE | Documentation-derived constraint; not tested in the spike. | Unsupported until an explicit supported path is verified. |
-| Cloud/web | Not verified. | No support claim; classify unsupported for release until verified. |
-| SDK | Not verified. | No support claim; classify unsupported for release until verified. |
+| Local CLI, interactive | Not tested. | `unavailable + none`; interactive TTY smoke test required before reconsidering availability or support. |
+| `codex exec`, non-ephemeral project | Thin project TOML launcher loaded a plugin-carried skill/reference. | `bridge-viable` and product-assigned `available + none`; full support evidence remains required before `claimed`. |
+| `codex exec`, ephemeral project | Thin launcher loaded the plugin skill; the plugin-relative role reference was not tested. | Partial primitive only; `unavailable + none` until the complete bridge passes. |
+| Desktop local | Not smoke-tested. | `unavailable + none`; desktop smoke test required. |
+| IDE | Documentation-derived constraint; not tested in the spike. | `unavailable + none` until an explicit load path is verified and availability is assigned. |
+| Cloud/web | Not verified. | `unavailable + none`. |
+| SDK | Not verified. | `unavailable + none`. |
 
 Two facts constrain the implementation:
 
@@ -508,16 +536,17 @@ ancestry, or the fact that a launcher file can be written.
 An absent, malformed, multiply selected, unknown, contradictory, or
 host-mismatched surface id is invalid input: the operation lists the valid ids
 for that host and changes no repository path. Setup and refresh may emit Codex
-launchers only when the selected row is classified `supported` and declares
-the bridge load path. Selecting
+launchers only when the selected row has `availability_state: available` and
+declares a complete bridge load mechanism and path. Selecting
 `codex-exec-ephemeral`, `codex-desktop-local`, `codex-cloud-web`,
-`codex-ide`, or `codex-sdk` at v6 therefore produces the row's unsupported
-disclosure and the per-operation valid-unsupported behavior. A future runtime
-detector or newly supported row changes the matrix/adapter metadata and its
+`codex-ide`, or `codex-sdk` at v7 therefore produces the row's unavailable
+disclosure and the per-operation valid-unavailable behavior. A future runtime
+detector or newly available row changes the matrix/adapter metadata and its
 tests, not this precedence rule.
 
-Bridge viability proves only that this pointer/load primitive works. A surface
-may be marked `supported` only after a fresh release candidate additionally
+Bridge viability proves only that this pointer/load primitive works. It does
+not itself assign availability or support. A surface may use
+`support_claim: claimed` only after a fresh release candidate additionally
 passes the full support record:
 
 - host and surface id;
@@ -538,7 +567,7 @@ passes the full support record:
 
 “Observed discoverability” in that record has one oracle per exposure:
 
-- **Driving-session exposure:** from a fresh supported session, invoke the
+- **Driving-session exposure:** from a fresh claimed-support session, invoke the
   generated Grove discovery entrypoint in the driving task. It passes only
   when the task returns the inventory-declared canonical id, exposure class,
   canonical source path, and digest matching the packaged canonical
@@ -564,11 +593,12 @@ dispatcher advertises only `scoped-advisor`. These are loading and exposure
 oracles; substantive role conformance remains governed by the canonical
 charters and their own tests.
 
-A bridge-viable surface is not `supported` until every support assertion
-passes on that exact surface. A bridge failure or incomplete support record has
-exactly two legal outcomes:
+A bridge-viable or available surface carries no support claim until every
+support assertion passes on that exact surface. An incomplete support record
+requires `support_claim: none`; it does not by itself change availability. A
+failed or incomplete load mechanism has exactly two legal outcomes:
 
-1. mark that surface `unsupported`, with the failed assertion visible in the
+1. mark that surface `unavailable`, with the failed assertion visible in the
    surface matrix and install documentation; or
 2. stop and return the evidence to the maintainer's intent gate.
 
@@ -586,7 +616,8 @@ Both manifests shall:
   host-discovery table;
 - carry a `version` exactly equal to the trimmed contents of
   `plugins/grove/VERSION`; and
-- describe only capabilities supported by the surface matrix.
+- describe only capabilities operationally available in the surface matrix
+  and make no support claim absent `support_claim: claimed`.
 
 The Claude manifest shall enumerate each generated Claude agent file and shall
 declare `adapters/claude/skills/` as its sole skill root. The Codex manifest
@@ -717,21 +748,32 @@ host's stamp permits changing the other host's block.
 ### Surface classification and write permissions
 
 Every operation shall classify the invocation record before stamp or
-repository writes as exactly one of: host-matched `supported`,
-host-matched `valid-unsupported`, or `invalid`. “Supported” means the selected
-matrix row's release state is `supported`; bridge viability alone does not
-qualify. The permitted mutations are:
+repository writes as exactly one of: host-matched `valid-available`,
+host-matched `valid-unavailable`, or `invalid`. A `valid-available` row has
+`availability_state: available` and a complete host-valid load mechanism and
+load path. A row claiming availability without those technical fields is
+contradictory and invalid; bridge viability alone does not assign
+availability. The permitted mutations are:
 
-| Operation | Supported | Valid-unsupported | Invalid |
+| Operation | Valid-available | Valid-unavailable | Invalid |
 |---|---|---|---|
 | Setup | The bounded Setup writes below, including Codex launchers only for their declared native exposures. | Report the row and missing capability; create, update, or delete no repository path. | Report valid ids and the input defect; create, update, or delete no repository path. |
 | Refresh | The bounded Refresh writes and confirmation-bound legacy migration below. | Report the row and missing capability; create, update, or delete no repository path, including stamps and legacy state. | Report valid ids and the input defect; create, update, or delete no repository path. |
 | Set-profile | After its ordinary diff and confirmation, only `.grove/gates.toml`. | Report the row and missing capability; do not write `.grove/gates.toml` or any other path. | Report valid ids and the input defect; create, update, or delete no repository path. |
-| Remove | Only the inventory-derived, individually confirmed deletions allowed by Remove; no creation, replacement, or stamp rewrite. | The same confirmation-bound deletions, so a user can remove Grove from an unsupported surface; no creation, replacement, or stamp rewrite. | Report valid ids and the input defect; create, update, or delete no repository path. |
+| Remove | Only the inventory-derived, individually confirmed deletions allowed by Remove; no creation, replacement, or stamp rewrite. | The same confirmation-bound deletions, so a user can remove Grove from an unavailable surface; no creation, replacement, or stamp rewrite. | Report valid ids and the input defect; create, update, or delete no repository path. |
 
 Read-only inventory and disclosure are permitted in every class. An operation
 shall not perform an allowed write from one row and then fail on a disallowed
 write from another; classification precedes the complete mutation plan.
+
+For every valid row with `support_claim: none`, the disclosed plan shall lead
+with a plain statement that Grove makes no support claim for the selected
+surface. The operation then follows the existing
+plan → disclose → confirm-exact-action-ids → apply sequence. That exact-action
+confirmation is the only acknowledgement required: no second non-support
+confirmation or adoption-posture input is accepted. `support_claim: claimed`
+changes only the public support statement and evidence requirement; it does
+not expand the row's operation cell.
 
 ### Setup
 
@@ -906,12 +948,16 @@ shall, before creating a tag:
    and assemble the byte-identical ephemeral package snapshot;
 3. validate both manifests from that snapshot;
 4. validate exact version equality across all declared carriers;
-5. validate that the surface matrix has no unclassified or pending row;
+5. validate that every surface row uses the exact
+   `availability_state: available | unavailable` and
+   `support_claim: claimed | none` grammar, rejects
+   `unavailable + claimed`, and rejects an available row without a complete
+   host-valid load mechanism and load path;
 6. run package-level installation and exact host-discovery smoke tests from
-   the snapshot for every
-   supported automatable surface;
-7. verify that unsupported rows are disclosed in generated install
-   documentation; and
+   the snapshot for every automatable surface carrying
+   `support_claim: claimed`;
+7. verify that unavailable rows and every `support_claim: none` row receive
+   their required generated install disclosure;
 8. resolve the intended release commit as the workflow event commit for the
    merged version-authority change; and
 9. create the tag only if it does not already exist; if it exists, peel it to
@@ -923,6 +969,13 @@ The workflow is deterministic and idempotent. It does not choose the semantic
 version level, publish a GitHub Release, or merge a change. Relocating its validator source outside
 `plugins/grove/` does not change those semantics. The maintainer's merge of the
 version-bump change is the human release act.
+
+Any valid surface-field combination may ship. A release, an available row, or
+a marketplace listing does not imply support. A support record is required
+only for `support_claim: claimed`. `candidate` may appear in transient
+qualification or release-candidate evidence, but it is not a durable matrix
+value, does not authorize lifecycle writes, and does not by itself block a
+release.
 
 ### Marketplace channels
 
@@ -945,28 +998,36 @@ version-bump change is the human release act.
 
 The matrix shall contain at least these rows:
 
-| Surface id | Bridge state at v6 | Release state at v6 |
-|---|---|---|
-| `claude-interactive` | Host-native agents; not a Codex bridge row. | Evidence required. |
-| `claude-cloud` | Host-native agents; not a Codex bridge row. | Evidence required. |
-| `claude-github-action` | Host-native agents; not a Codex bridge row. | Evidence required. |
-| `claude-headless` | Host-native agents; not a Codex bridge row. | Evidence required. |
-| `claude-agent-sdk` | Host-native agents; not a Codex bridge row. | Evidence required. |
-| `codex-cli-interactive` | Not tested. | Unsupported until verified. |
-| `codex-exec-non-ephemeral` | Verified bridge-viable. | Full support evidence required. |
-| `codex-exec-ephemeral` | Partial skill-loading primitive; role reference untested. | Unsupported until the complete bridge and support record pass. |
-| `codex-desktop-local` | Unknown; smoke test required. | Unsupported until verified. |
-| `codex-cloud-web` | Unknown. | Unsupported until verified. |
-| `codex-ide` | Documentation-derived constraint; not spike-tested. | Unsupported until an explicit path is verified. |
-| `codex-sdk` | Unknown. | Unsupported until verified. |
+| Surface id | Load-mechanism evidence at v7 | `availability_state` | `support_claim` |
+|---|---|---|---|
+| `claude-interactive` | Host-native agents with a declared load path. | `available` | `none` |
+| `claude-cloud` | Host-native agents with a declared load path; not selected for this dogfood step. | `unavailable` | `none` |
+| `claude-github-action` | Host-native agents with a declared load path; not selected for this dogfood step. | `unavailable` | `none` |
+| `claude-headless` | Host-native agents with a declared load path; not selected for this dogfood step. | `unavailable` | `none` |
+| `claude-agent-sdk` | Host-native agents with a declared load path; not selected for this dogfood step. | `unavailable` | `none` |
+| `codex-cli-interactive` | Not tested. | `unavailable` | `none` |
+| `codex-exec-non-ephemeral` | Verified bridge-viable with a declared load path. | `available` | `none` |
+| `codex-exec-ephemeral` | Partial skill-loading primitive; role reference untested. | `unavailable` | `none` |
+| `codex-desktop-local` | Unknown; smoke test required. | `unavailable` | `none` |
+| `codex-cloud-web` | Unknown. | `unavailable` | `none` |
+| `codex-ide` | Documentation-derived constraint; not spike-tested. | `unavailable` | `none` |
+| `codex-sdk` | Unknown. | `unavailable` | `none` |
 
-Before release, every row shall resolve to `supported` or `unsupported`.
+Every row shall carry exactly one value for each shared field. The valid
+combinations are `available + claimed`, `available + none`, and
+`unavailable + none`; `unavailable + claimed` is invalid. A release may carry
+any valid combination. Technical evidence does not assign availability:
+although every Claude row names a host-native load path, only
+`claude-interactive` is initially available.
+
 There is no implied support by host family: evidence for one row cannot satisfy
-another, and `bridge-viable` does not satisfy the release state. Every supported
-row names its explicit install/load path and full support record. Every
-unsupported row names the missing capability and the user-visible failure or
-disclosure. Generated documentation and manifest support claims shall be
-derived from, or mechanically validated against, this matrix.
+another, and neither bridge viability nor availability satisfies a support
+claim. Every claimed row names its explicit install/load path and full support
+record. Every unavailable row names the missing capability or product-owned
+availability boundary and the user-visible failure or disclosure. Every
+no-claim row carries the leading non-support disclosure. Generated
+documentation and manifest capability/support statements shall be derived
+from, or mechanically validated against, both fields in this matrix.
 
 ## Failure behavior
 
@@ -979,15 +1040,19 @@ derived from, or mechanically validated against, this matrix.
 - A manifest/version mismatch is a release failure.
 - A marketplace entry that resolves a different version is a publication
   failure.
-- A missing bridge or full-support record for a claimed Codex surface is a
-  Codex release failure.
+- A missing full-support record for any `support_claim: claimed` row is a
+  release failure; an incomplete record on a `none` row is not.
+- An available row with no complete host-valid load mechanism or load path, or
+  an `unavailable + claimed` combination, is an invalid-matrix release
+  failure.
 - A missing or invalid surface invocation record is a pre-write lifecycle
   failure.
-- A valid-unsupported surface is not invalid input; it follows the exact
+- A valid-unavailable surface is not invalid input; it follows the exact
   no-write or Remove-only cell and shall not be promoted by bridge viability.
-- A role-discovery failure on a claimed-supported surface is a surface failure
-  and removes that support claim until reverified.
-- A Grove entrypoint on an unsupported surface shall state that Grove roles
+- A role-discovery failure on a claimed surface is a support failure and
+  removes that support claim until reverified; it does not silently change
+  availability.
+- A Grove entrypoint on an unavailable surface shall state that Grove roles
   are unavailable there and shall not silently continue under generic-agent
   identities.
 - A lifecycle operation that cannot prove ownership of a target file shall
@@ -1020,8 +1085,9 @@ derived from, or mechanically validated against, this matrix.
   the existing thirteen roles' semantics beyond the dispatcher/executor
   planning handoff stated above; v6 adds the planner's canonical charter and
   preserves their other method and authority.
-- Changing any surface support classification, marketplace authority, release
-  version, or release tag merely because package paths move.
+- Changing any surface availability assignment or support claim, marketplace
+  authority, release version, or release tag merely because package paths
+  move.
 - Physically separate Claude and Codex package roots or a published generated
   distribution artifact.
 - Performing repository git actions from setup, refresh, or remove.
@@ -1034,6 +1100,8 @@ derived from, or mechanically validated against, this matrix.
   grammar, evidence schema, checkpoint schema, persisted plan artifact, or
   plan gate.
 - A planner-specific runtime, resource selector, or central pipeline branch.
+- Encoding dogfood, preview, supported adoption posture, or any other adoption
+  label in the surface matrix or lifecycle request.
 
 ## Acceptance criteria
 
@@ -1056,9 +1124,10 @@ derived from, or mechanically validated against, this matrix.
   plus scoped-advisor only, every other role shall have only its declared
   cold-native exposure, and every non-driving exposure shall have one unique
   underscore-form native id.
-- **INV6 — bridge/support separation:** When a Codex surface is only
-  bridge-viable, the release validator shall not classify it as supported
-  until the full support record passes on that exact surface.
+- **INV6 — bridge/availability/support separation:** Bridge viability shall
+  assign neither operational availability nor support; the release validator
+  shall permit `support_claim: claimed` only when the full support record
+  passes on that exact surface.
 - **INV7 — fallback prohibition:** If the thin Codex bridge fails, the build
   shall not emit self-contained role TOML unless a later approved decision
   explicitly authorizes it.
@@ -1078,34 +1147,37 @@ derived from, or mechanically validated against, this matrix.
   carrier shall equal `plugins/grove/VERSION`; before publishing a channel,
   that channel's marketplace entry shall resolve a package with the same
   released version.
-- **INV12 — evidence per surface:** A support claim shall be backed by evidence
-  from the exact surface claimed; evidence shall not flow across matrix rows.
+- **INV12 — evidence per surface:** `support_claim: claimed` shall be backed
+  by evidence from the exact surface and package snapshot claimed; evidence
+  shall not flow across matrix rows, while `none` requires no support record.
 - **INV13 — fail loud:** When Grove cannot load its role identities on a
-  surface, every available Grove entrypoint shall report the unsupported state
+  surface, every available Grove entrypoint shall report the unavailable state
   and shall not label generic agents as Grove roles.
 - **INV14 — channel parity:** Each host's documented marketplace path shall
   install the same Grove release version and expose only the capabilities
-  classified for that host's surface and the components in that host's exact
-  discovery inventory.
+  marked available for that host's surface, make only the support claims in
+  that row, and expose only the components in that host's exact discovery
+  inventory.
 - **INV15 — release gate:** The tag workflow shall create
-  `grove-v<VERSION>` only after generation, manifest, version, surface, and
-  package checks pass, and shall no-op only if an existing tag peels to the
-  intended release commit.
+  `grove-v<VERSION>` only after generation, manifest, version, valid
+  two-field surface grammar, claimed-support evidence, disclosure, and package
+  checks pass, and shall no-op only if an existing tag peels to the intended
+  release commit.
 - **INV16 — git neutrality:** Setup, refresh, set-profile, and remove shall perform no git
   add, commit, branch, push, pull-request, merge, or landing recommendation.
 - **INV17 — plugin/agent boundary:** The Codex plugin shall carry no native
   custom-agent definitions; setup shall compose thin project launchers only
-  for bridge-viable surfaces, and Codex shall discover only
-  `adapters/codex/skills/`.
+  for available surfaces with a declared complete bridge load path, and Codex
+  shall discover only `adapters/codex/skills/`.
 - **INV18 — status absence:** Setup and refresh shall compose or maintain no
   status-emission adapter; remove shall treat only a detected legacy
   Grove-installed copy as confirmed cleanup state.
-- **INV19 — explicit surface selection:** Before a Codex lifecycle write, the
+- **INV19 — explicit surface selection:** Before a Codex lifecycle plan, the
   operation shall validate one exact host-matched surface id with declared
   provenance; invalid input shall produce no repository mutation, and a
-  valid-unsupported input shall permit only the operation-specific behavior in
+  valid-unavailable input shall permit only the operation-specific behavior in
   the surface write-permissions table.
-- **INV20 — exposure-specific discovery:** A supported-surface discovery run
+- **INV20 — exposure-specific discovery:** A claimed-support discovery run
   shall derive all expected identities and exposure classes from the
   fourteen-row authored inventory and shall pass only when each declared
   driving-session, cold-native, and scoped-advisor exposure satisfies its
@@ -1181,7 +1253,7 @@ derived from, or mechanically validated against, this matrix.
 - **INV36 — surface-bounded operations:** Each lifecycle operation shall
   classify its surface input before mutation and shall perform no creation,
   replacement, or deletion beyond the exact cell for that operation and
-  `supported`, `valid-unsupported`, or `invalid` class.
+  `valid-available`, `valid-unavailable`, or `invalid` class.
 - **INV37 — planner delivery:** The build system shall derive the
   `implementation-planner` Claude envelope and Codex role skill/reference from
   exactly one canonical `charters/implementation-planner.md` source, expose it
@@ -1212,6 +1284,23 @@ derived from, or mechanically validated against, this matrix.
   message shall count as relay loss and require a fresh planner run, while an
   interrupted session with that intact, unchanged message still available may
   resume relay without replanning.
+- **INV42 — independent surface fields:** Every exact surface row shall carry
+  exactly one `availability_state: available | unavailable` and one
+  `support_claim: claimed | none`; validation shall accept only
+  `available + claimed`, `available + none`, and `unavailable + none`, assign
+  `available + none` initially only to `claude-interactive` and
+  `codex-exec-non-ephemeral`, and assign `unavailable + none` to every other
+  declared row.
+- **INV43 — qualification is not release state:** `candidate` shall occur only
+  in transient qualification or release-candidate evidence, shall never be a
+  durable surface value or authorize a lifecycle write, and shall not by
+  itself block release of any valid shared-field combination.
+- **INV44 — non-support disclosure:** For every valid
+  `support_claim: none` invocation, the operation plan shall lead with the
+  missing-support disclosure and then use the existing exact-action
+  confirmation; it shall require no second acknowledgement or
+  adoption-posture input, and the support field shall never expand or contract
+  the availability-selected operation cell.
 
 ### GWT scenarios
 
@@ -1236,19 +1325,21 @@ not accept the edit as a new source.
 through a thin project launcher,
 **When** the matrix records the spike result without a complete fresh-release
 support record,
-**Then** the surface is bridge-viable but not supported.
+**Then** the surface is bridge-viable, may retain its product-assigned
+`availability_state: available`, and has `support_claim: none`.
 
 #### S4 — a bridge fails
 
 **Given** an ephemeral `codex exec` project proves only skill loading, or
-another proposed surface has an incomplete bridge record,
+another proposed surface has an incomplete load mechanism,
 **When** the spike records that incomplete evidence,
-**Then** the surface becomes unsupported or the work returns to the intent
-gate, and no self-contained TOML is generated.
+**Then** the surface is unavailable or the work returns to the intent gate,
+and no self-contained TOML is generated.
 
 #### S5 — setup from both hosts
 
-**Given** a clean consumer repository,
+**Given** a clean consumer repository and the selected
+`claude-interactive` and `codex-exec-non-ephemeral` available rows,
 **When** Claude setup and Codex setup run in either order,
 **Then** one shared `.grove/` floor exists, each host has exactly one managed
 instruction block, Codex has only the spike-approved generated launchers, and
@@ -1265,7 +1356,8 @@ not claim the affected role is installed.
 
 #### S7 — refresh preserves consumer and other-host state
 
-**Given** both host adapters exist and consumer config/addenda are edited,
+**Given** both host adapters exist on their available rows and consumer
+config/addenda are edited,
 **When** refresh runs from one host,
 **Then** it refreshes only `.grove/README.md` in the shared floor plus the
 invoking-host adapter,
@@ -1302,25 +1394,27 @@ fails and identifies that entry.
 #### S11 — release validation succeeds
 
 **Given** generation is clean, both manifests validate, all version carriers
-match, every surface row is classified, and all supported-surface tests pass,
+match, every surface row has a valid shared-field combination, every claimed
+row has its exact support record, and all required disclosures validate,
 **When** the release workflow handles the merged version bump,
 **Then** it creates `grove-v<VERSION>` once and a rerun performs no tag write
 only after proving the existing tag resolves to that same workflow commit.
 
 #### S12 — install through each marketplace
 
-**Given** clean Claude and Codex environments and the documented catalog
-sources,
+**Given** clean Claude and Codex environments, the documented catalog
+sources, and one available row for each host,
 **When** each environment adds its marketplace, installs Grove, starts a fresh
 session, and runs setup,
-**Then** each installs the same Grove version and passes the discovery contract
-for its supported surface.
+**Then** each installs the same Grove version, leads its plan with the
+no-support disclosure when required, and composes the declared role-loading
+path without claiming support.
 
-#### S13 — unsupported surface invocation
+#### S13 — unavailable surface invocation
 
-**Given** a surface matrix row marked unsupported,
+**Given** a surface matrix row marked unavailable,
 **When** a user invokes an available Grove entrypoint on that surface,
-**Then** the entrypoint reports the unsupported surface and missing capability
+**Then** the entrypoint reports the unavailable surface and missing capability
 and does not silently substitute generic agents.
 
 #### S14 — marketplace contents stay thin
@@ -1351,10 +1445,10 @@ makes no Wisp change.
 #### S17 — Codex surface input fails closed
 
 **Given** a Codex lifecycle invocation with no surface id, an unknown id, a
-Claude id, contradictory provenance, or a v6 unsupported Codex id,
+Claude id, contradictory provenance, or a v7 unavailable Codex id,
 **When** setup or refresh validates its surface invocation record,
 **Then** invalid input reports the valid Codex ids and reason and makes no
-repository mutation, while a valid-unsupported id reports its missing
+repository mutation, while a valid-unavailable id reports its missing
 capability and follows the operation's no-write cell; neither infers a mode
 from the environment;
 and **given** an explicit `codex-exec-non-ephemeral` record, **when** setup
@@ -1363,7 +1457,8 @@ bounded writes proceed.
 
 #### S18 — discovery is complete by exposure
 
-**Given** a fresh candidate on a claimed-supported surface and the authored
+**Given** a fresh release candidate for a row with
+`support_claim: claimed` and the authored
 fourteen-row inventory,
 **When** discovery runs,
 **Then** the driving task follows the host's declared generated loaders and
@@ -1497,13 +1592,13 @@ review-bookkeeping runtime or template in the repository, and a valid package
 allowlist,
 **When** release validation assembles and tests the ephemeral package snapshot,
 **Then** the snapshot's path set and bytes equal the validated package, contains
-none of that source-side tooling, preserves all v3 surface and
-release classifications, and no version or tag changes merely because the
-paths moved.
+none of that source-side tooling, preserves all v7 surface availability and
+support assignments, and no version or tag changes merely because the paths
+moved.
 
 #### S31 — driving roles load in the current task
 
-**Given** a fresh supported Claude session and a fresh supported Codex session
+**Given** a fresh available Claude session and a fresh available Codex session
 whose managed blocks were generated from the host inventories,
 **When** the driving task selects full dispatcher and then interactive shaper,
 **Then** Claude reads the two exact `${CLAUDE_PLUGIN_ROOT}` complete
@@ -1538,11 +1633,12 @@ carrier and writes nothing.
 
 #### S34 — every operation obeys the surface write cell
 
-**Given** one supported record, one host-matched valid-unsupported record, and
+**Given** one valid-available record, one host-matched valid-unavailable
+record, and
 one invalid record for each host,
 **When** setup, refresh, set-profile, and remove each plan against all three,
-**Then** supported input permits only that operation's bounded writes,
-valid-unsupported input permits no mutation for setup, refresh, or set-profile
+**Then** valid-available input permits only that operation's bounded writes,
+valid-unavailable input permits no mutation for setup, refresh, or set-profile
 and only individually confirmed Remove deletions, invalid input permits no
 mutation for any operation, and read-only disclosure in no case becomes a
 partial write.
@@ -1550,7 +1646,7 @@ partial write.
 #### S35 — the planner joins both generated hosts
 
 **Given** the fourteen-role inventory and one canonical
-`charters/implementation-planner.md` plus a supported bridge fixture,
+`charters/implementation-planner.md` plus an available bridge fixture,
 **When** generation and host-discovery checks run,
 **Then** Claude receives one cold-native planner envelope, Codex receives one
 planner role skill/reference and one thin project launcher, both
@@ -1609,21 +1705,53 @@ plan carrier, checkpoint, retry record, or gate.
 An intact message whose advisory content is stale, substantively incomplete,
 ambiguous, or conflicting is not relay loss and follows `S38`.
 
+#### S40 — the initial matrix separates availability from support
+
+**Given** the twelve exact v7 surface rows,
+**When** surface validation reads their shared fields,
+**Then** `claude-interactive` and `codex-exec-non-ephemeral` are exactly
+`available + none`, every other row is exactly `unavailable + none`, all three
+shared valid combinations are accepted in a fixture, `unavailable + claimed`
+is rejected, and no host-native or bridge-viable fact silently changes a
+product-owned assignment.
+
+#### S41 — an available no-claim operation uses the existing confirmation
+
+**Given** a valid-available row with `support_claim: none` and a bounded setup,
+refresh, or set-profile diff,
+**When** the lifecycle operation constructs its plan,
+**Then** the first disclosure states that Grove makes no support claim for
+that surface, the existing exact-action confirmation alone authorizes the
+bounded cell, declining it produces no mutation, and no second
+acknowledgement or adoption-posture input is requested.
+
+#### S42 — qualification evidence neither authorizes nor blocks release
+
+**Given** one transient release-candidate evidence record, one
+`available + none` row with no support record, and one
+`available + claimed` row with an exact-surface support record,
+**When** release validation runs,
+**Then** it treats `candidate` as evidence terminology rather than a durable
+matrix value, accepts both valid rows, requires the record only for the
+claimed row, and derives lifecycle authorization only from
+`availability_state`.
+
 ## Open questions
 
 None. The thin bridge is settled as viable for non-ephemeral `codex exec`;
 interactive CLI and desktop local still owe their smoke tests, and that does
-not settle release support, which remains earned per matrix row. Unknown surfaces
-remain unsupported until verified. A failed thin bridge returns to the
-maintainer's intent gate before any fallback is adopted. The exact Git
-repository hosting the Codex catalog is a publication input, not a second
-method authority; the selected source must satisfy the marketplace-channel
-criteria above.
+not settle availability or support, which remain assigned and earned
+independently per matrix row. Unknown surfaces remain unavailable with no
+support claim until separately changed through the proper product authority.
+A failed thin bridge returns to the maintainer's intent gate before any
+fallback is adopted. The exact Git repository hosting the Codex catalog is a
+publication input, not a second method authority; the selected source must
+satisfy the marketplace-channel criteria above.
 
 ## Rubric check
 
 `SPEC_RUBRIC_PATH` is explicitly configured as
-`none — no spec rubric exists yet`; that absence was verified in
+`none exists yet`; that absence was verified in
 `.grove/config.toml`, and no contract-author addendum exists. Self-check
 against the contract-author charter:
 
@@ -1631,10 +1759,11 @@ against the contract-author charter:
   `adr-0032-status-emission-belongs-to-wisp` remain approved, and
   `adr-0035-plugin-and-consumer-boundary` and
   `adr-0037-pre-execution-planning` and
-  `adr-0036-remove-retired-review-bookkeeping` are approved change inputs;
-  ADR-0031 remains the original `implements:` upstream and all five appear in
-  `depends_on`.
-- **Required shape:** PASS — shared frontmatter, behavioral `version: 6`, the
+  `adr-0036-remove-retired-review-bookkeeping` and
+  `adr-0041-separate-support-from-operational-availability` are approved
+  change inputs; ADR-0031 remains the original `implements:` upstream and all
+  six appear in `depends_on`.
+- **Required shape:** PASS — shared frontmatter, behavioral `version: 7`, the
   seven-field section-level amendment note, explicit non-goals, acceptance
   criteria, open questions, and this rubric check are present.
 - **Both test grammars:** PASS — behavioral examples use Given/When/Then and
@@ -1654,7 +1783,9 @@ against the contract-author charter:
   canonical corpus, existing-role semantics change only at the specified
   dispatcher/executor handoff, the retired bookkeeping implementation is
   removed only under its ADR-0036, and ADR-0032's removed status surface is
-  not reintroduced.
+  not reintroduced; the availability amendment selects only two initial
+  dogfood rows, makes no support promotion, adds no acknowledgement or
+  adoption-posture field, and changes no experiment or model policy.
 - **Testability:** PASS — generation drift, explicit surface selection,
   exposure-specific discovery, immutable tag identity, stamp-skew disclosure,
   bridge evidence, exact package contents, positive and negative host
@@ -1668,10 +1799,14 @@ against the contract-author charter:
   artifact-authoritative handling of weak advisory plans, unchanged-message
   cold relay, interruption-resume with an intact message, and replanning for a
   missing or truncated relay add explicit manual checks without weakening any
-  v4 criterion or requiring canonical serialization or a plan gate.
+  v4 criterion or requiring canonical serialization or a plan gate; exact
+  two-field combinations and initial assignments, technical-state
+  contradictions, claimed-evidence requirements, transient `candidate`
+  handling, valid-unavailable Remove behavior, and leading no-support
+  disclosure have explicit positive and negative checks.
 - **Lifecycle:** PASS — these significant revise-in-place amendments have
-  durable approved decision inputs through ADR-0036 and ADR-0037 and bump
-  `v5 → v6`; the
+  durable approved decision inputs through ADR-0036, ADR-0037, and ADR-0041
+  and bump `v6 → v7`; the
   spec remains self-checked at `gated`, with independent intrinsic-quality and
   fidelity reviews owed before implementation proceeds under the steward
   profile's agent-owned spec gate.

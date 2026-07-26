@@ -4,6 +4,7 @@ type: adr
 status: approved  # maintainer's explicit intent act in conversation, 2026-07-26: "Ratified"
 depends_on: [adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary, adr-0039-dogfood-implementation-planner, adr-0042-receive-stewards-surface-state-strategy, stewards/kodhama-0023-separate-operational-availability-from-support]
 informed_by: [discovery-surface-support-and-setup-eligibility]
+changes: [spec-0004-dual-host-distribution@v7]
 owner: agent
 updated: 2026-07-26
 ---
