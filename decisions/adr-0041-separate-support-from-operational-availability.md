@@ -1,7 +1,7 @@
 ---
 id: adr-0041-separate-support-from-operational-availability
 type: adr
-status: gated
+status: approved  # maintainer's explicit intent act in conversation, 2026-07-26: "Ratified"
 depends_on: [adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary, adr-0039-dogfood-implementation-planner, adr-0042-receive-stewards-surface-state-strategy, stewards/kodhama-0023-separate-operational-availability-from-support]
 informed_by: [discovery-surface-support-and-setup-eligibility]
 owner: agent
@@ -176,5 +176,7 @@ plan any write. Shaping then moved upstream: Stewards decision 0023 established
 the common fields, and ADR-0042 received that strategy locally. This canvas
 then resumed as the separate Grove product decision. On 2026-07-26 the
 maintainer accepted the recommended operation and confirmation policy,
-closing the remaining questions. It remains decision-only; no runtime,
-metadata, generated output, or support claim changes in this PR.
+closing the remaining questions. Independent deep review returned `SOUND` at
+exact commit `7c23fbd`; the maintainer then ratified that commit explicitly in
+conversation on 2026-07-26. It remains decision-only; no runtime, metadata,
+generated output, or support claim changes in this PR.
