@@ -3,6 +3,7 @@ id: adr-0016-implements-edge-taxonomy
 type: adr
 status: approved  # maintainer intent act 2026-07-18 ("approved") after decision-adversary round-1 SOUND; in-conversation flip, adr-0015/adr-0011 precedent
 depends_on: [adr-0011-relations-companion, adr-0012-methodology-delivery-machinery, adr-0006-operational-conformance-mechanism]
+superseded_in_part_by: [adr-0043-structured-test-dependency-canary]
 owner: agent
 updated: 2026-07-18
 ---

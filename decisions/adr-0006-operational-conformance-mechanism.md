@@ -3,6 +3,7 @@ id: adr-0006-operational-conformance-mechanism
 type: adr
 status: approved  # 2026-07-11, direct maintainer approval (intent act) after two adversarial rounds — see Self-check
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, trellis/decision-0045, trellis/decision-0044]
+superseded_in_part_by: [adr-0043-structured-test-dependency-canary]
 owner: agent
 updated: 2026-07-16  # forward pointer to adr-0012 added at the dec-5 conformance-reviewer bullet (adr-0012 AC11) — annotation only, no content edit
 ---
@@ -10,8 +11,10 @@ updated: 2026-07-16  # forward pointer to adr-0012 added at the dec-5 conformanc
 > **Partially superseded by
 > `adr-0043-structured-test-dependency-canary` (gated, 2026-07-26):** the
 > package-ledger carrier, granularity, local role duties, and absence behavior
-> move to an optional structured YAML canary. The version-as-trigger principle
-> and the rest of this decision remain unchanged.
+> move to an optional structured YAML canary, and the self-describing-graph
+> rule no longer applies to code/test provenance when that canary is absent.
+> The version-as-trigger principle and the rest of this decision remain
+> unchanged.
 
 > Shaped interactively with the maintainer (2026-07-11), resolving
 > kodhama/grove#34 — the *operational* piece of the artifact-conformance

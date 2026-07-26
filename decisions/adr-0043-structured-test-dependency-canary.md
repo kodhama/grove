@@ -1,7 +1,7 @@
 ---
 id: adr-0043-structured-test-dependency-canary
 type: adr
-status: gated  # author self-check complete 2026-07-26; awaiting independent decision-adversary and the steward-profile human intent gate
+status: gated  # round-1 findings revised 2026-07-26; awaiting fresh independent decision-adversary review and the steward-profile human intent gate
 depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0010-versioning-is-operational, adr-0012-methodology-delivery-machinery, adr-0016-implements-edge-taxonomy, adr-0026-thin-vendor-boundary, adr-0036-remove-retired-review-bookkeeping]
 owner: agent
 updated: 2026-07-26
@@ -17,15 +17,19 @@ updated: 2026-07-26
   per-package carrier is `test-deps.yaml`, schema 2. The old fenced
   `test-deps.md` form remains readable as legacy input but is never written
   again.
-- **D2 — exact named test groups** *(maintainer, 2026-07-26).* One package
-  ledger contains named groups with exact test-file membership and their
-  pinned specs, governing decisions, defect references, coverage anchors,
-  and reviewer notes. Globs are not permitted. A test may belong to several
-  groups.
+- **D2 — exact named test groups with hybrid selectors** *(maintainer,
+  2026-07-26).* One package ledger contains named groups whose members are
+  exact package-relative files, optionally narrowed to exact full static
+  test-title paths, plus their pinned specs, governing decisions, defect
+  references, coverage anchors, and reviewer notes. A file-only selector is
+  shorthand for every static test declaration in a uniform-provenance file;
+  mixed-provenance files use title-path selectors. Globs are not permitted.
+  A test declaration may belong to several groups.
 - **D3 — one provenance home** *(maintainer, 2026-07-26).* Exact group
-  membership satisfies the standing requirement that every test name the
-  upstream it guards. Inline header/`describe` provenance becomes optional
-  human navigation, not a second mandatory declaration.
+  membership—whole-file where uniform, title-path where mixed—satisfies the
+  standing requirement that every test name the upstream it guards. Inline
+  header/`describe` provenance becomes optional human navigation, not a
+  second mandatory declaration.
 - **D4 — executor writes and migrates** *(maintainer, 2026-07-26).* The
   executor is the sole ordinary writer. It reads canonical, legacy, or absent
   state, but every write produces canonical YAML. Touching tests organically
@@ -44,8 +48,9 @@ updated: 2026-07-26
   that candidate before merge.
 - **D7 — strict schema** *(maintainer, 2026-07-26).* Schema 2 rejects unknown
   fields, unsupported schema values, unresolved required references,
-  nonexistent test members, and uncovered discovered tests. Wrong-but-present
-  canonical data never degrades silently into absence.
+  nonexistent test members, and, whenever canonical YAML exists, uncovered
+  discovered tests. Wrong-but-present canonical data never degrades silently
+  into absence.
 - **D8 — independent of retired bookkeeping** *(maintainer, 2026-07-26).*
   This is an agent-readable manifest and report-only staleness canary. It does
   not revive the deleted review-bookkeeping runtime, owed-map, verdict-record
@@ -86,10 +91,11 @@ ADR-0036 later deleted that retired runtime altogether. Five live Grove
 packages still carry `test-deps.md`, and their human prose is often more
 precise than their aggregate fenced blocks.
 
-The desired job is narrower: give the conformance reviewer a per-test map and
-make a stale spec pin a canary that asks for re-derivation. The ledger is
-orientation and trigger evidence. It is not itself proof, not the only way to
-establish an upstream, and not a reason to skip conformance when missing.
+The desired job is narrower: give the conformance reviewer a map precise
+enough to resolve each static test declaration and make a stale spec pin a
+canary that asks for re-derivation. The ledger is orientation and trigger
+evidence. It is not itself proof, not the only way to establish an upstream,
+and not a reason to skip conformance when missing.
 
 ## Decision
 
@@ -108,9 +114,11 @@ schema: 2
 groups:
   record-freshness:
     tests:
-      - test/fingerprint.test.mjs
-      - test/basis.test.mjs
-      - test/match.test.mjs
+      - file: test/fingerprint.test.mjs
+      - file: test/match.test.mjs
+        cases:
+          - record freshness > rejects a record from an older basis
+          - record freshness > accepts a matching basis
     specs:
       - spec-0002-review-bookkeeping-check@v4
     decisions:
@@ -126,7 +134,9 @@ groups:
 Top-level keys are exactly `schema` and `groups`. Each group name is unique.
 Group keys are exactly:
 
-- `tests` — required, non-empty, exact package-relative test-file paths;
+- `tests` — required, non-empty test selectors. Each selector has required
+  `file`, an exact package-relative test-source path, and optional non-empty
+  `cases`, a list of exact full static test-title paths within that file;
 - `specs` — versioned fidelity contracts the tests exercise;
 - `decisions` — append-only governing decisions that supply technical or
   end-to-end obligations but carry no version canary;
@@ -139,11 +149,27 @@ At least one of `specs`, `decisions`, or `defects` is required per group.
 `specs`, `decisions`, and `defects` are distinct on purpose: only a versioned
 spec entry is a pin-comparison canary. The other fields help a reviewer find
 the governing evidence but do not masquerade as versioned fidelity edges.
+Selector keys are exactly `file` and optional `cases`; unknown selector fields
+are invalid.
 
-Every discovered test file in the package must appear in at least one group.
-Multiple membership is valid because one test may cover several contracts.
-Globs are invalid: adding a new test must create an explicit provenance event,
-not silently inherit a possibly wrong group.
+Selector semantics are exact:
+
+- Omitting `cases` selects every static test declaration in that file and is
+  valid only when they share the group's upstreams.
+- A mixed-provenance file uses `cases`. Each entry is the full nested title
+  path as declared in source and must resolve uniquely within the file.
+- A parameterized or generated family is named once at its static declaration
+  or generator call site, using the full static title path (including any
+  literal placeholders), rather than enumerating runtime expansions.
+- Renaming or moving a selected declaration requires updating its selector in
+  the same change. Globs and partial title matching are invalid.
+
+Where canonical YAML exists, every discovered static test declaration in the
+package must be selected by at least one group. Multiple membership is valid
+because one declaration may cover several contracts. File-only shorthand does
+not silently absorb a differently governed new test: the executor must split
+that file into title-path selectors in the same change. Inline comments may
+duplicate an upstream as navigation, but they are non-authoritative.
 
 Schema 2 is a strict operational manifest, not a lifecycle artifact.
 Legacy `id`, `type`, `status`, `implements`, `depends_on`, `owner`, and
@@ -183,13 +209,15 @@ The executor owns test creation and ledger maintenance.
 - If only legacy Markdown exists, read its first well-formed
   `grove-test-deps` block and its surrounding prose. Convert the aggregate
   dependencies losslessly into an explicitly coarse `legacy-package` group
-  covering the package's existing tests, then split touched tests into exact
-  groups where the evidence supports that precision.
+  using file-only selectors for the package's existing tests, then split
+  touched mixed-provenance files into exact title-path groups where the
+  evidence supports that precision.
 - Preserve unique human guidance by translating it into group boundaries,
   `covers`, or `notes`. Translate a legacy `technical` entry into the
   appropriate decision, defect, or note; never silently discard it.
 - Write deterministic schema-2 YAML only. Validate the written file and
-  semantic parity before deleting `test-deps.md` in the same change.
+  semantic parity before deleting `test-deps.md` in the same change. Reject
+  unmatched, ambiguous, nonexistent, or uncovered static declarations.
 - If neither form exists and the executor creates or changes tests, create
   canonical YAML.
 
@@ -248,10 +276,21 @@ use canonical groups to identify stale consumers precisely, legacy ledgers to
 flag a package coarsely, or absence to report that the canary is unobservable.
 It never advances pins and never converts a pin comparison into a verdict.
 
-Exact group membership is the test-to-upstream naming act required by
+Exact selector membership is the test-to-upstream naming act required by
 `inv-graph-maintenance`. The Grove-specific rule that this name must also
 appear in every test header is superseded; optional inline anchors remain
 useful navigation but are not a second source of truth.
+
+This decision also supersedes ADR-0006's self-describing-graph rule **only for
+code/test provenance**. An optional `test-deps.yaml` group is intentionally
+neither a durable artifact `implements:` edge nor a general `depends_on`
+edge. A current code/test change remains discoverable from the change itself,
+its dispatch artifact, tests, and producer hand-off; missing canary data is
+therefore observable as a per-change advisory. The trade-off is explicit:
+without a ledger, a later upstream-only change cannot discover that absent
+consumer through graph traversal. That future-drift blind spot is accepted
+for this advisory model and is part of the parked empirical/tooling question;
+it must not be disguised as a self-describing edge.
 
 ### 6. No bookkeeping revival
 
@@ -276,13 +315,14 @@ workflow, or installer.
   flatter configuration shapes. TOML would add parser work without improving
   the model.
 - **One file per test.** Rejected: it recreates the file proliferation
-  ADR-0006 avoided. One package manifest can still carry exact per-test
+  ADR-0006 avoided. One package manifest can still carry exact declaration
   membership.
 - **Glob membership.** Rejected: a new test would silently inherit a group,
   defeating the provenance canary.
 - **Keep mandatory inline annotations as well.** Rejected: duplicate required
-  homes drift. Exact group membership preserves per-test provenance while
-  making one declaration serve the writer, reviewer, and staleness trigger.
+  homes drift. Hybrid external selectors preserve per-declaration provenance
+  while making one declaration serve the writer, reviewer, and staleness
+  trigger.
 - **Treat absence as failure.** Rejected: the ledger is advisory evidence, not
   the contract itself. ADR-0005 already supplies the correct failure:
   inability to establish a reviewable upstream.
@@ -311,7 +351,8 @@ After approval, a specification and execution pass must:
    removing mandatory inline test provenance.
 
 ADR-0006 is superseded in part for the ledger carrier, granularity, role
-duties, and absence behavior; its version-as-trigger principle remains.
+duties, absence behavior, and the self-describing-graph requirement as
+applied to code/test provenance; its version-as-trigger principle remains.
 ADR-0012 is superseded in part where it makes ledger presence the selector for
 code conformance; its independent-review principle remains. ADR-0016 is
 superseded in part where it treats the ledger as code's authoritative
@@ -322,9 +363,13 @@ unchanged.
 ## Acceptance criteria
 
 1. The canonical carrier is strict schema-2 `test-deps.yaml` with exact named
-   test groups; canonical writers never emit the Markdown form.
-2. Every test is covered by at least one exact group, and inline provenance is
-   optional rather than a duplicate requirement.
+   groups and hybrid file/title-path selectors; canonical writers never emit
+   the Markdown form.
+2. Where canonical YAML exists, every discovered static test declaration is
+   covered by at least one exact group. Whole-file shorthand is valid only for
+   uniform provenance; mixed files and parameterized generators resolve to
+   exact static declarations. Inline provenance is optional rather than a
+   duplicate requirement.
 3. Executor, conformance-reviewer, validator, and dispatcher responsibilities
    are separated as decided; no agent grades its own candidate pin.
 4. Canonical, legacy, absent, both-present, and malformed-canonical states have
@@ -337,6 +382,18 @@ unchanged.
    deleting the old carrier.
 8. No deterministic review-bookkeeping or CI machinery is revived.
 
+## Review history
+
+- **Decision-adversary round 1** reviewed exact commit
+  `18a8ea8e576f8c83c9ad30ba6a289c265dfb8fc6` and returned
+  `NEEDS-REVISION`: file-only membership could not resolve mixed-provenance
+  tests; the optional ledger conflicted with ADR-0006's self-describing graph;
+  unconditional coverage contradicted permitted absence; and predecessor
+  frontmatter lacked partial-supersession edges. After the maintainer chose
+  external-only hybrid selectors, this revision folds all four findings.
+  The prior verdict remains part of the pull-request record; a fresh review
+  must assess the revised exact commit.
+
 ## Self-check
 
 - **Internal coherence:** the ledger is optional evidence, so absence is
@@ -344,12 +401,16 @@ unchanged.
   declaration cannot be trusted. Conformance routing is independent of
   presence, preventing the optional carrier from becoming an escape hatch.
 - **Standing decisions:** ADR-0005's no-contract failure is preserved.
-  ADR-0006's canary principle is preserved while its carrier and duties are
-  partially superseded. ADR-0012/ADR-0016's ledger-specific selector is
-  superseded explicitly. ADR-0036's deleted machinery stays deleted.
-- **Argument:** exact groups remove duplicate inline declarations without
-  weakening the per-test provenance invariant. YAML follows the existing
-  payload and supports the nested model; TOML would require a new shape.
+  ADR-0006's canary principle is preserved while its carrier, duties, and
+  code/test self-description rule are partially superseded, with the
+  upstream-only drift blind spot disclosed. ADR-0012/ADR-0016's
+  ledger-specific selector is superseded explicitly. ADR-0036's deleted
+  machinery stays deleted.
+- **Argument:** hybrid exact selectors remove duplicate inline declarations
+  without weakening the per-test provenance invariant: uniform files use one
+  file selector, while mixed and generated tests resolve to unique static
+  declarations. YAML follows the existing payload and supports the nested
+  model; TOML would require a new shape.
 - **Settled ground:** every `depends_on` target is approved. ADR-0027 is cited
   only as history because its current partial-supersession status is not a
   valid lifecycle value; approved ADR-0036 supplies the operative
@@ -357,8 +418,8 @@ unchanged.
 - **Boundedness:** this ADR decides format, semantics, compatibility, and
   agent duties. It parks deterministic tooling and implementation.
 - **Testability:** the acceptance criteria distinguish every input state,
-  validate exact membership and strict fields, and separate signal from
-  verdict.
+  validate exact file and static-title membership and strict fields, and
+  separate signal from verdict.
 
 The self-check passes. The author moves the artifact to `gated` for
 independent decision-adversary review. No approval is claimed.
