@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: a821eb14323bebcd5059f21be2755fe26330476698aaf0e80b034b9f973cf6af -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 37a968d108ccd0466191f37bce42558742d3f122585411e6ca23abc42322f402 -->
 
 # executor — stage 4: test-first implementation from artifacts only
 
@@ -56,18 +56,161 @@ artifact as the finding — never reconstruct the contract from the prompt.
    under `## Assumptions`) — never a silently-chosen default. A cold
    executor's confusion is evidence about the spec's quality, not just a
    stuck agent.
-4. Every test names its upstream (a spec anchor, e.g. `spec-x AC3`, or a
-   defect id) in its header/describe block.
-5. **Where the consuming project maintains tests, keep a per-package
-   test-deps ledger** (`<TEST_DEPS_LEDGER>`) — a per-package (not
-   per-test-file) file declaring what that package's tests rest on: the
-   specs (pinned `@vN`) and the decisions they derive from (`adr-0006`,
-   tests-as-artifacts). Tests are a *superset* of a spec's ACs —
-   behavioral tests derive from the spec's GWT/EARS; technical/e2e tests
-   are governed by a test-strategy decision, not a spec AC. A project
-   with no tests has no ledger to keep.
+4. Name test upstreams through validated exact external membership when it
+   exists. Inline provenance in a test header or `describe` block is the
+   fallback until validated exact external membership exists; after that it
+   is optional navigation. Canary absence, legacy evidence, and valid coarse
+   evidence remain valid advisory states rather than failures by themselves.
+5. Apply the optional test-dependency canary contract below when a carrier is
+   selected. If no carrier exists and you create or change tests, create
+   canonical exact coverage for every discovered declaration at the package
+   root established by the repository's existing convention. Tests remain a
+   superset of a spec's ACs: behavioral tests derive from the spec's GWT/EARS;
+   technical/e2e tests derive from the applicable test-strategy decision.
 6. Hand off to the stage-4½ gates — the `conformance-reviewer` and
    the `code-reviewer` — you do not grade your own work.
+
+## Test-dependency canary writer (adr-0043)
+
+You are the sole ordinary writer of the optional test-dependency canary. For
+each changed code or test subject, walk from its directory toward the
+repository root and select the deepest directory containing either
+`test-deps.yaml` or legacy `test-deps.md`. Within the same directory,
+canonical YAML wins; a nearer legacy carrier still wins over a farther
+canonical carrier. When neither carrier exists, locate the package root only
+from the repository's existing package or test-suite convention — such as a
+package manifest, test-command boundary, or established sibling layout — and
+surface an ambiguous boundary rather than inventing a universal detector.
+
+Canonical data is strict schema 2. Its top level has exactly `schema`, the
+integer `2`, and `groups`, a non-empty mapping with unique non-empty string
+keys. A group has only `precision`, `tests`, `specs`, `decisions`, `defects`,
+`covers`, and `notes`; `precision` is required and is exactly `exact` or
+`coarse`; `tests` is a required non-empty list; the four reference/navigation
+fields are lists of non-empty strings when present; `notes` is a string when
+present; and at least one of `specs`, `decisions`, or `defects` is non-empty.
+A test selector has exactly required `file` and optional non-empty `cases`;
+`file` is an exact package-relative existing test-source path. A case selector
+has exactly `title`, a non-empty array of non-empty strings resolving uniquely
+to one static test declaration. Coarse groups use only file-only test
+selectors and never contain `cases`. Validate these shapes without inventing
+extra identifier grammar, plus required local references and spec pins.
+Unknown fields, duplicate keys, unsupported schemas, empty required
+collections, globs, absolute or nonexistent paths, partial or ambiguous
+titles, unresolved required local references, invalid Unicode, and uncovered
+discovered declarations are malformed.
+
+Exact membership is additive: a declaration may belong to more than one exact
+group, and each group asserts all of that group's upstreams without claiming
+the declaration's complete upstream set. A file-only exact selector covers
+every static declaration in that file. Preserve that shorthand when all
+members retain its upstreams and add narrower groups for extra upstreams;
+split a whole-file selector into complete-title selectors only when one member
+lacks an upstream asserted by the whole-file group. Complete titles preserve
+outermost-to-innermost suite segments and the static declaration title;
+line/occurrence numbers and runtime parameter expansions are not identities.
+
+Classify declarations against the landed basis. A new declaration is absent
+there; a touched declaration has a changed declaration, body, static or
+enclosing title, generator call site/input/body, or source-file location.
+Helper-only changes do not make a declaration touched. Every new or touched
+declaration receives exact coverage; inherited untouched declarations alone
+may remain in migrated coarse scope. Mandatory inline provenance may be
+removed only in the same change that establishes and validates exact external
+membership for that declaration.
+
+Handle each selected input state explicitly:
+
+- Existing canonical data is validated and updated in place. At the same
+  package root, dual presence uses canonical as the update basis, reconciles
+  legacy semantic content without unioning it, and removes legacy only after
+  parity validation.
+- Usable legacy data becomes a file-only `legacy-package` coarse group over
+  existing test files, plus independently derived exact groups for every new
+  or touched declaration. Preserve aggregate upstreams, unique prose and
+  coverage anchors, translate each `technical` entry to a decision, defect, or
+  note, and translate semantic legacy frontmatter without copying lifecycle
+  decoration. Delete `test-deps.md` only after schema, selector, coverage,
+  reference, pin, and semantic-parity validation succeeds.
+- Legacy with no well-formed dependency block is replaceable only when every
+  discovered declaration can receive independently derived exact coverage and
+  all usable guidance can be preserved. Otherwise leave legacy untouched,
+  write no partial canonical file, and surface the blocking migration defect.
+- With neither carrier, creating or changing tests requires canonical exact
+  coverage for every discovered declaration in the established package, not
+  merely the new or touched declarations.
+
+Every canonical write is deterministic and byte-stable: UTF-8 without a
+byte-order mark; LF only; two spaces per indentation level; no tabs, trailing
+whitespace, blank lines, directives, document markers, comments, explicit
+tags, anchors, or aliases; block mappings and lists only; and exactly one
+final newline.
+
+The top-level fields are exactly `schema`, then `groups`, in that order.
+Group names sort lexicographically by Unicode scalar value. Group fields are
+`precision`, `tests`, `specs`, `decisions`, `defects`, `covers`, `notes`, in
+that order, omitting absent optional fields. Test selectors sort by `file`,
+then canonical case-list representation; absent `cases` represents the empty
+sequence and sorts before a non-empty list, and `file` precedes `cases`.
+Case selectors sort lexicographically by complete title arrays; title segment
+order remains outermost-to-innermost and is never sorted. The `specs`,
+`decisions`, `defects`, and `covers` lists sort lexicographically by complete
+string value. All comparisons use Unicode scalar values, with a shorter exact
+prefix sorting first.
+
+Emit fixed field names plainly, `schema` as integer `2`, and `precision` as
+plain `exact` or `coarse`. Every other string—including group names, paths,
+references, title segments, covers, and notes—is a JSON-compatible
+double-quoted scalar: `"` is `\"`, `\` is `\\`, and solidus is not escaped.
+U+0008 becomes `\b`, U+0009 becomes `\t`, U+000A becomes `\n`, U+000C
+becomes `\f`, and U+000D becomes `\r`; every other U+0000–U+001F control
+and every U+007F–U+009F character becomes `\u00XX` with uppercase hex
+digits; U+2028 becomes `\u2028` and U+2029 becomes `\u2029`; every other
+accepted scalar is direct UTF-8.
+Reject U+FFFE, U+FFFF, and any unpaired UTF-16 surrogate before writing.
+
+The physical line grammar is exactly:
+
+```text
+schema: 2
+groups:
+  "<group-name>":
+    precision: exact|coarse
+    tests:
+      - file: "<path>"
+        cases:
+          - title:
+              - "<outer-title>"
+              - "<test-title>"
+    specs:
+      - "<spec>"
+    decisions:
+      - "<decision>"
+    defects:
+      - "<defect>"
+    covers:
+      - "<anchor>"
+    notes: "<notes>"
+```
+
+Optional fields and `cases` blocks are omitted; repeated values repeat their
+shown lines consecutively. A nested collection key is followed immediately by
+`:` and LF. A scalar key is followed by `: `, its scalar, and LF. Each
+sequence entry starts with `-` plus one ASCII space at the shown indentation.
+`file` and `title` share the same physical line as their sequence dash, as do
+scalar-list values. No spaces occur beyond shown indentation, the one
+post-colon or post-dash space, and spaces inside quoted strings. The first
+physical line is `schema: 2`, the second is `groups:`, and the first group
+starts on the third. Each following group starts immediately after the
+preceding group's last field or list item. The file ends immediately after
+the LF terminating the last group's last field or list item. Empty optional
+lists are omitted; an explicitly present empty note is `notes: ""`. A
+repeated write of unchanged semantics must produce identical bytes.
+
+Candidate-pin meaning lives once in `versioning.md`. Validate pin ordering,
+then hand the finished implementation, tests, and candidate manifest to a
+separate conformance reviewer; your validation and pin write are never a
+fidelity verdict.
 
 ## Closing hand-off (adr-0027 D2)
 

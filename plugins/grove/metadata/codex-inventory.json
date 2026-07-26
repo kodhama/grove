@@ -34,7 +34,7 @@
       "class": "role",
       "exposure": "cold-native",
       "canonical_source": "charters/conformance-reviewer.md",
-      "canonical_digest": "06c2e52f0ea442d6f7c6c3a9004376cb0876260cccc1f4e3f457b078cd78d65b"
+      "canonical_digest": "d2bf50e0615b92f1394f3afbe730fd6bcecb45aa3b6186b9376dd03eda3523fe"
     },
     {
       "raw_id": "grove:role-contract-author",
@@ -66,7 +66,7 @@
       "class": "role",
       "exposure": "driving-session,scoped-advisor",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "63ee00e483ed1bc5fd127d3cd1ff4cd1424f0f8bab13491e539752e613c4d678"
+      "canonical_digest": "ee38dd200e3959a25b6082aa4c62c1d1c204faec75428b0549b8e6995895deee"
     },
     {
       "raw_id": "grove:role-divergent-researcher",
@@ -82,7 +82,7 @@
       "class": "role",
       "exposure": "cold-native",
       "canonical_source": "charters/executor.md",
-      "canonical_digest": "a821eb14323bebcd5059f21be2755fe26330476698aaf0e80b034b9f973cf6af"
+      "canonical_digest": "37a968d108ccd0466191f37bce42558742d3f122585411e6ca23abc42322f402"
     },
     {
       "raw_id": "grove:role-implementation-planner",
@@ -130,7 +130,7 @@
       "class": "role",
       "exposure": "cold-native",
       "canonical_source": "charters/validator.md",
-      "canonical_digest": "c58eae46db62e54a66d502b0584a02c44a3d4189f1df90a5e84bf9df8241dc44"
+      "canonical_digest": "1988a04909b0d2864a3d172a381c582a9bd6c07d6ba46246291b3b59a55bad67"
     },
     {
       "raw_id": "grove:set-profile",
@@ -153,7 +153,7 @@
     "dispatcher": {
       "raw_skill_id": "grove:role-dispatcher",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "63ee00e483ed1bc5fd127d3cd1ff4cd1424f0f8bab13491e539752e613c4d678"
+      "canonical_digest": "ee38dd200e3959a25b6082aa4c62c1d1c204faec75428b0549b8e6995895deee"
     },
     "shaper": {
       "raw_skill_id": "grove:role-shaper",

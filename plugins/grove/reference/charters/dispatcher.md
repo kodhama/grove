@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: 63ee00e483ed1bc5fd127d3cd1ff4cd1424f0f8bab13491e539752e613c4d678 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: ee38dd200e3959a25b6082aa4c62c1d1c204faec75428b0549b8e6995895deee -->
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
 
@@ -50,10 +50,12 @@ per-artifact owed-review rules plus each agent's trigger and boundary
 rules, composed with the standing invariants (`adr-0012` E5). The rules
 the dispatcher sequences by:
 
-- **ONE owed-rule:** every changed artifact owes **fidelity-conformance
-  iff it has an implements upstream** (a spec its decision, a charter
-  its ADR — the `implements:` frontmatter edge; code its spec(s), via
-  the test-deps ledger), **plus its layer's quality gate**
+- **ONE owed-rule:** every changed artifact with an `implements:` upstream,
+  and every changed code or test subject, owes **fidelity-conformance**.
+  For artifacts the edge names the upstream (a spec its decision, a charter
+  its ADR); for code and tests the reviewer independently establishes the
+  approved contract and treats any test-dependency canary only as advisory
+  evidence. Each subject also owes its layer's quality gate
   (`decision-adversary` for decisions, `spec-adversary` for specs,
   `code-reviewer` for code). A decision has no implements upstream (its
   upstream is human intent): it owes the `decision-adversary` verdict
@@ -86,6 +88,14 @@ the dispatcher sequences by:
 - Iteration between gates is free of ceremony; only the endpoint is
   gated (`adr-0012` E2). Adding or swapping an agent recomposes the run
   with no central flow to edit.
+
+### Test-dependency canary never gates routing
+
+Route changed code and tests to the conformance reviewer when the selected
+evidence is canonical, legacy, absent, dual-present, or malformed. Ledger
+presence never decides whether conformance is owed. The reviewer, not the
+dispatcher, distinguishes advisory evidence absence from the real
+no-approved-contract failure and reports any canonical integrity defect.
 
 ## Run-time gate enforcement — the gate-profile (`adr-0020`, `adr-0018`)
 
@@ -350,8 +360,9 @@ human ratifies at `ship`.
    the missing acceptance criterion; behavioral gaps only, never
    technical/parser-level detail); **(c) upstream decision wrong** (rare
    — route to shaping/a new decision).
-5. **Test provenance is mandatory.** Every test names its upstream in
-   its header (a spec anchor or a defect id). A regression test is never
+5. **Test provenance is mandatory.** Every test names its upstream through
+   validated exact external membership or, until such membership exists,
+   an inline spec anchor or defect id. A regression test is never
    weakened or deleted to satisfy a convenient spec reading — a
    test/spec conflict is a surfaced contradiction, resolved deliberately
    via (b) or by retiring the over-pinning test, citing why.

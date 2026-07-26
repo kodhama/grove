@@ -1,0 +1,24 @@
+schema: 2
+groups:
+  "legacy-package":
+    precision: coarse
+    tests:
+      - file: "test/probe-boundary-v4.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v6"
+    decisions:
+      - "adr-0031-multi-host-distribution"
+      - "adr-0035-plugin-and-consumer-boundary"
+      - "adr-0036-remove-retired-review-bookkeeping"
+      - "adr-0037-pre-execution-planning"
+    covers:
+      - "INV20"
+      - "INV23"
+      - "INV26–INV27"
+      - "INV32"
+      - "INV37"
+      - "S18"
+      - "S22–S23"
+      - "S30"
+      - "S35"
+    notes: "This package owns isolated support-probe preparation, hash-bound non-interactive preflight, static package-composition smoke, and the release-blocking external clean-install discovery contract."

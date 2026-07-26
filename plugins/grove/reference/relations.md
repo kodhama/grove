@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: d37d7242fd0445471c5f18139d9907345800acd8eb004b61adb3c0e16a3fe9d5 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: e6990039f5807fa34954c1358bae71387859cea64602a3bd777bd5b99d9804cc -->
 
 # relations — the artifact edge taxonomy, stated once
 
@@ -34,6 +34,17 @@ may point across it at a `draft`), and does it **bear drift** (does an
 upstream change obligate a downstream re-check, the `validator`'s
 triggered-audit graph)?
 
+### Test-dependency manifest entries — advisory provenance, not artifact edges
+
+A schema-2 `test-deps.yaml` group's `specs`, `decisions`, and `defects`
+entries are advisory provenance and canary data for selected test
+declarations. They are not an artifact's scalar `implements:` edge or a
+general `depends_on` edge, and they do not join the lifecycle artifact graph.
+The group's `covers` and `notes` fields are navigation and orientation only;
+they are not upstreams. This keeps test provenance available to executor,
+reviewer, and validator judgment without reviving a machine-computed graph or
+retyping code as a lifecycle artifact (`adr-0043`).
+
 ### `depends_on` — coupling. Flow: yes. Drift-bearing: yes.
 
 Genuine coupling: a source the artifact's correctness is or was
@@ -47,14 +58,14 @@ artifact).
 
 ### `implements:` — the realized contract / fidelity upstream. Flow: yes. Drift-bearing: yes.
 
-The one contract an artifact realizes — a spec its decision, a charter
-its ADR; **code** names its spec(s) via the `adr-0006` per-package
-test-deps ledger. A **scalar** (one `id`), and the **single fidelity
-upstream** the `conformance-reviewer` and the bookkeeping check read
-(`adr-0012` F5: *"`U` is the implements edge, not `depends_on`"*).
-Distinct from `depends_on`: that edge is general *builds-on* coupling;
-`implements:` is the *one realized contract* fidelity is judged against.
-Neither substitutes for the other (`adr-0016`).
+The one contract a lifecycle artifact realizes — a spec its decision, a
+charter its ADR. It is a frontmatter scalar (one `id`) and the artifact's
+single fidelity upstream (`adr-0012` F5: *"`U` is the implements edge, not
+`depends_on`"*). Distinct from `depends_on`: that edge is general *builds-on*
+coupling; `implements:` is the one realized contract fidelity is judged
+against. Test-dependency manifest entries remain the advisory non-edges
+described above and never substitute for this scalar artifact relation
+(`adr-0016`, as superseded in part by `adr-0043`).
 
 - **Flow** — directional-flow is walked over it: no `gated`/`approved`
   artifact `implements:` a `draft` upstream. (The conformance gate is

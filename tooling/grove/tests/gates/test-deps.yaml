@@ -1,0 +1,18 @@
+schema: 2
+groups:
+  "legacy-package":
+    precision: coarse
+    tests:
+      - file: "test/profile.test.mjs"
+      - file: "test/resolve-profile.test.mjs"
+    decisions:
+      - "adr-0018-gate-profile-and-trigger-split"
+      - "adr-0021-gate-profile-self-adoption"
+    covers:
+      - "adr-0018 D3"
+      - "adr-0018 D4"
+      - "adr-0018 D7"
+      - "adr-0018 D8"
+      - "adr-0018 Floor F1"
+      - "adr-0021 D2"
+    notes: "This package under tooling/grove/tests/gates/ verifies the gate-profile machinery shipped at plugins/grove/runtime/gates/: preset expansion, the intent-locus floor validator, the gates.toml reader, the load-time guardian fallback, and runtime_dir behavior. Every lib/*.mjs and bin/*.mjs under this root belongs to this package."

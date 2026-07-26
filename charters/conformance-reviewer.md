@@ -3,9 +3,9 @@ id: charter-conformance-reviewer
 type: charter
 status: gated
 implements: adr-0012-methodology-delivery-machinery  # the realized contract for the every-layer fidelity remit (adr-0012); machine-readable fidelity selector
-depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0012-methodology-delivery-machinery, charter-versioning, charter-relations, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now]
+depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0012-methodology-delivery-machinery, charter-versioning, charter-relations, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0043-structured-test-dependency-canary]
 owner: agent
-updated: 2026-07-21
+updated: 2026-07-26
 ---
 
 # conformance-reviewer — the fidelity instrument, at every layer
@@ -38,14 +38,17 @@ reports, it does not fix. Verdict grammar:
 
 ## Method
 
-1. **Find the upstream via the implements edge.** The subject's
-   `implements:` frontmatter field names the one contract it realizes
-   (a spec its decision, a charter its ADR); code names its spec(s) via
-   the per-package test-deps ledger (`adr-0006`; config token:
-   `<TEST_DEPS_LEDGER>`). Mere `depends_on` citations are builds-on,
-   never the fidelity upstream. Read the upstream; it must be
-   `approved` — a draft, `gated`, or `superseded` upstream is a gap to
-   surface, never something to review against silently.
+1. **Find the upstream independently.** An artifact's `implements:`
+   frontmatter field names the one contract it realizes (a spec its
+   decision, a charter its ADR). For changed code or tests, establish the
+   approved fidelity contract from the dispatch artifact, changed tests,
+   repository structure, optional source anchors, producer hand-off, and
+   impact analysis; the per-package test-dependency canary is advisory
+   evidence, not an `implements:` edge and not the source of whether review
+   is owed (`adr-0043`; config token: `<TEST_DEPS_LEDGER>`). Mere
+   `depends_on` citations are builds-on, never the fidelity upstream. Read
+   the upstream; it must be `approved` — a draft, `gated`, or `superseded`
+   upstream is a gap to surface, never something to review against silently.
 2. **Derive a ground-truth checklist** from the upstream yourself — every
    load-bearing invariant, acceptance criterion, and named-interface
    obligation becomes one checklist item. Do not reuse the builder's
@@ -104,6 +107,97 @@ reports, it does not fix. Verdict grammar:
    to surface, never a silently exempted edge. Triggered by a
    `corpus-reviewer` flag (`informed_by → draft`), or found directly, at
    build time, against an `approved` upstream.
+
+## Test-dependency evidence modes (adr-0043)
+
+Remain read-only: never repair a manifest, advance a pin, or turn evidence
+classification into the fidelity verdict.
+
+For each changed code or test subject, walk from its directory toward the
+repository root, deepest ancestor first. At the same directory, select
+`test-deps.yaml` before `test-deps.md`, and stop at the first directory
+containing either carrier. Thus same-directory canonical YAML wins, but a
+nearer legacy carrier beats farther canonical YAML. Same-root dual presence
+uses canonical as the read basis, is never unioned, and is a migration defect.
+
+Before using canonical evidence, validate strict schema 2. The top-level has
+exactly `schema`, the integer `2`, and `groups`, a non-empty mapping with
+unique non-empty string keys. Each group has only `precision`, `tests`,
+`specs`, `decisions`, `defects`, `covers`, and `notes`; `precision` is
+required and exactly `exact` or `coarse`; `tests` is a required non-empty
+list; `specs`, `decisions`, `defects`, and `covers` are lists of non-empty
+strings when present; `notes` is a string when present; and at least one of
+`specs`, `decisions`, or `defects` is non-empty. A test selector has exactly
+required `file` plus optional `cases`; `cases`, when present, is non-empty,
+and `file` is an existing exact package-relative test-source path. A case
+selector has exactly `title`, a
+non-empty array of non-empty strings that resolves uniquely to one static
+declaration. Coarse groups use file-only selectors and never contain `cases`.
+Every discovered declaration is covered by exact or coarse scope, and every
+new or touched declaration has exact coverage.
+
+Only `specs` entries carry version canaries: a local spec entry includes its
+version and resolves locally. Decisions are append-only references without
+`@version`, defects are tracker references, and cross-repository pins are not
+fetched. A malformed, unresolved, or ahead-of-current local spec pin is
+invalid. Every schema string is a Unicode scalar sequence; U+FFFE, U+FFFF,
+and an unpaired UTF-16 surrogate are invalid.
+
+Unknown fields, duplicate mapping keys, unsupported schema,
+empty required collections, malformed or unresolved required local references, absolute
+paths, globs, partial-title matches, nonexistent test files or declarations,
+ambiguous exact selectors, invalid Unicode scalars, and uncovered discovered
+declarations make canonical data malformed.
+
+After selection and validation, report one evidence mode:
+
+- `canonical/exact` when every relevant selected canonical group is exact;
+- `canonical/coarse` when at least one relevant selected canonical group is
+  coarse, even if other relevant groups are exact;
+- `legacy/coarse` when the selected usable evidence is the first well-formed
+  fenced legacy aggregate; or
+- `inferred` when no relevant usable ledger evidence exists.
+
+For changed tests, relevant groups are those whose selectors contain each new
+or touched declaration. For changed code, independently establish affected
+test declarations first from the approved upstream, repository structure,
+observed test execution, and impact analysis; only then consult the groups
+selecting those declarations. Ledger membership does not decide which tests
+the code affects. If no relevant canonical group can be established, report
+`inferred`; if canonical coverage omits a discovered affected declaration,
+report malformed canonical data.
+
+Canonical absence may accompany substantive `PASS` with an absence advisory.
+Usable legacy evidence may accompany `PASS` with a legacy advisory. Valid
+coarse canonical evidence may accompany `PASS` with a coarse-scope advisory.
+A present legacy file with no well-formed dependency block is unusable, not
+malformed canonical data: report `inferred`, advise that legacy was present
+but unusable, and continue when the approved upstream can be established.
+If you cannot independently establish an approved upstream, return `FAIL`
+for no reviewable contract; missing canary evidence and missing authority are
+different findings.
+
+Malformed canonical data is a blocking ledger-integrity `FAIL`, while the
+substantive assessment still runs through independently established legacy
+or inferred evidence. Report the two dimensions explicitly:
+
+```text
+Fidelity: PASS | FAIL | UPSTREAM-INDICTED
+Ledger integrity: PASS | FAIL — reason
+Overall: PASS | FAIL | UPSTREAM-INDICTED
+```
+
+Any integrity failure makes Overall `FAIL` until repaired even if Fidelity is
+`PASS`. At one package root, dual presence is a migration defect: canonical
+is the read basis, canonical and legacy are never unioned, and usable legacy
+may orient the substantive review without validating or curing malformed
+canonical data.
+
+For every candidate pin, derive obligations from the current approved spec
+rather than trusting equality or the executor's re-derivation. A
+manifest-only candidate still requires inspection and exercise of the current
+implementation and tests. Only an independent substantive `PASS` makes a
+candidate eligible to land.
 
 ## Output
 
