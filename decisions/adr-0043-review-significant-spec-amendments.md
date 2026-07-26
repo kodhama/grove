@@ -44,6 +44,17 @@ updated: 2026-07-26
   decision and every still-active, reciprocally linked amendment through its
   current version; a prior whole-spec verdict is not reused after the spec
   changes.
+- A live spec identity may partially supersede obligations from its original
+  `implements:` decision, but may not fully supersede that decision. If no
+  original obligation remains, route to shaping for a replacement spec and
+  new original contract identity.
+- Do not backfill operative `changes:` pointers into approved historical
+  decisions. If a touched spec's active historical amendment lineage is
+  incomplete before its first post-approval behavioral version, shape a
+  prospective consolidation/amendment decision for the new version instead.
+- Add scoped forward reconciliation to ADR-0010 and the versioning companion:
+  the historical missing-`changes:` cross-check remains soft, while this
+  decision adds a distinct prospective conformance-selection obligation.
 
 ### Open
 
@@ -142,6 +153,15 @@ forward-pointer lineage resolves to the replacement decision the spec now
 depends on. Partial supersession retains the earlier approved decision and
 reviews only its still-active clauses.
 
+The original decision named by scalar `implements:` is different: while the
+spec identity remains live, that decision must remain approved and at least
+one of its obligations must remain active. Partial supersession is allowed and
+narrows the original-contract review to the still-active clauses. Full
+retirement of the original contract makes the existing spec identity
+inaccurate, so the work routes to shaping for a replacement spec with a new
+original contract identity; the reviewer never follows a terminally
+superseded `implements:` target as though it were approved.
+
 The conformance-reviewer resolves the original fidelity upstream through
 `implements:` exactly as today. Against the current spec, it derives the
 accumulated active contract set and confirms that every still-active
@@ -172,11 +192,13 @@ relation into another fidelity edge.
 
 When a new amendment changes or retires an obligation from the original
 decision or an earlier amendment decision, ordinary append-only lineage
-remains mandatory: the outgrown decision stays approved for partial
-supersession or becomes superseded for full retirement, and carries the
-appropriate forward pointer to the new decision. Conformance applies the
-still-active clauses after following those explicit pointers; a reviewer does
-not infer supersession merely because newer text differs.
+remains mandatory. An earlier amendment decision stays approved for partial
+supersession or becomes superseded for full retirement and carries the
+appropriate forward pointer to the new decision. The original decision may
+only be superseded in part while the current spec identity remains live; its
+full retirement uses the replacement-spec route above. Conformance applies
+the still-active clauses after following explicit pointers and never infers
+supersession merely because newer text differs.
 
 The prospective cutoff controls obligation, not evidence usability. Every
 behavioral version first created after this decision's approval must carry the
@@ -188,13 +210,24 @@ ADR-0041 pairing without retroactively requiring reconstruction of unrelated
 historical gaps.
 
 Before a spec creates its first post-approval behavioral version, the
-contract-author shall materialize that spec's own still-active historical
-amendment lineage: use its existing amendment notes and approved decision
-dependencies to identify each significant amendment, add any missing exact
-`changes: [X@vK]` accounting pointer, and retain the reciprocal dependency. If
-the historical version or active scope cannot be established honestly, route
-that spec to shaping rather than guessing. This is a touched-spec migration,
-not a family-wide retroactive rewrite or re-review.
+contract-author shall inspect that spec's own still-active historical
+amendment lineage. Complete existing reciprocal records remain usable and
+their dependencies are retained. If any active historical amendment lacks an
+exact reciprocal record, do not edit its approved decision or pretend a new
+decision caused an old version. Route the new change to shaping for a
+prospective consolidation/amendment decision that explicitly carries forward
+the established active obligations, uses normal supersession lineage where
+needed, and declares `changes: [X@vN]` only for the new version it causes.
+This is touched-spec reconciliation, not historical backfill, family-wide
+migration, or retroactive re-review.
+
+ADR-0010 and the versioning companion receive a scoped forward note. Their
+low-level cross-check remains unchanged: a historical bump without an
+accounting `changes:` decision is soft. Separately, for a behavioral version
+first created after this decision is approved, this decision's conformance
+selector requires at least one approved exact reciprocal amendment contract
+and fails its absence closed. The prospective review obligation does not
+retroactively turn historical missing pointers into versioning failures.
 
 ## Rejected options
 
@@ -226,7 +259,11 @@ not a family-wide retroactive rewrite or re-review.
 - `charters/contract-author.md` and `specs/README.md` point significant
   revisions to the paired-record requirement they already partially follow
   and require retention of the still-active amendment lineage, including the
-  bounded touched-spec materialization before its first post-approval bump.
+  bounded touched-spec reconciliation before its first post-approval bump.
+- ADR-0010 and the versioning companion receive a scoped forward note that
+  preserves the soft historical cross-check while pointing post-approval
+  behavioral versions to this decision's distinct conformance-selection
+  obligation.
 - ADR-0012 and ADR-0016 receive scoped append-only forward annotations to this
   decision where they state that only scalar `implements:` selects fidelity;
   their original-fidelity edge and all other clauses stand.
@@ -263,14 +300,20 @@ not a family-wide retroactive rewrite or re-review.
 7. Spec 0004 v7 can name ADR-0041 as its amendment contract while retaining
    ADR-0031 as its original scalar `implements:` contract.
 8. ADR-0012 and ADR-0016 carry scoped forward annotations to this extension,
-   and any decision obligation actually retired by a later amendment follows
-   the existing partial/full supersession pointer discipline.
+   ADR-0010/versioning distinguishes its soft historical cross-check from this
+   prospective conformance obligation, and any decision obligation actually
+   retired by a later amendment follows the existing partial/full
+   supersession pointer discipline.
 9. A post-approval spec version retains every still-active reciprocally linked
    amendment through its current version; a previous whole-spec verdict is
    never reused after content changes, and historical missing records remain
-   a soft condition unless a new behavioral version is created, at which point
-   that touched spec's active historical lineage is materialized or the work
-   routes to shaping.
+   a soft condition. Before a new behavioral version is created, incomplete
+   active historical lineage routes to shaping for a prospective
+   consolidation/amendment decision rather than mutating an approved
+   historical decision.
+10. A live spec's original scalar `implements:` decision remains approved with
+    at least one active obligation; fully retiring that original contract
+    requires a replacement spec and new original contract identity.
 
 ## Open questions
 
@@ -285,8 +328,11 @@ carrier, and fails closed on absent approval, reciprocity, or exact version
 matching. Multiple matches now receive attributed subdeltas whose union covers
 the full behavioral change; conflicting approved inputs route upstream
 instead of being silently ordered. The prospective cutoff and required
-append-only reconciliation with ADR-0012/0016 and superseded obligations are
-explicit. The maintainer selected accumulated active contracts over stale
-whole-spec verdict reuse, closing the final question. The first adversary's
-four findings are folded; the decision is ready for a fresh soundness review.
-No implementation is authorized by this decision-only PR.
+append-only reconciliation with ADR-0010/0012/0016 and superseded obligations
+are explicit. A live spec cannot retain a terminally superseded original
+fidelity upstream, and incomplete historical pairs cause prospective
+consolidation rather than illegal backfill. The maintainer selected
+accumulated active contracts over stale whole-spec verdict reuse, closing the
+final question. Both adversary rounds' findings are folded; the decision is
+ready for a fresh soundness review. No implementation is authorized by this
+decision-only PR.
