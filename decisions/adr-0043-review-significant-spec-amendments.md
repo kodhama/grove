@@ -9,7 +9,7 @@ updated: 2026-07-26
 ---
 
 > **Proposed cutoff portability refinement
-> (`adr-0044-portable-amendment-review-cutoff`, draft):** if approved, that
+> (`adr-0044-portable-amendment-review-cutoff`, gated):** if approved, that
 > decision keeps this approval landing as Grove-self's local `A` and defines a
 > consumer-local managed-stamp anchor. Until its intent gate completes, the
 > cutoff below remains operative and no partial supersession is claimed.

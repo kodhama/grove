@@ -1,7 +1,7 @@
 ---
 id: adr-0044-portable-amendment-review-cutoff
 type: adr
-status: draft
+status: gated
 depends_on: [adr-0026-thin-vendor-boundary, adr-0043-review-significant-spec-amendments]
 owner: agent
 updated: 2026-07-26
@@ -31,11 +31,14 @@ updated: 2026-07-26
 - **Maintainer, 2026-07-26:** require two-step consumer activation. The
   rule-bearing Grove stamp lands on the canonical target branch before a
   separate behavioral-spec amendment change request begins terminal review.
+- **Maintainer, 2026-07-26:** make activation repository-wide across the
+  complete set of present Claude and Codex carriers. Versions may differ, but
+  every present carrier must be valid and its immutable release must ship the
+  rule.
 
 ### Open
 
-- Whether consumer activation is repository-wide across every present Grove
-  stamp carrier or scoped to the host invoking the reviewer.
+*(none)*
 
 ### Parked
 
@@ -94,8 +97,7 @@ The consumer rule uses existing authoritative repository stamps; it does not
 infer adoption from a developer's global plugin cache, current session,
 wall-clock installation time, or conversation.
 
-**Recommended carrier policy, pending the maintainer:** activation is
-repository-wide, not per invoking host.
+Activation is repository-wide, not per invoking host:
 
 1. At candidate activation commit `A`, inventory every managed Grove
    instruction block present in the canonical target tree. At least one
@@ -113,8 +115,8 @@ repository-wide, not per invoking host.
 5. A host carrier that is wholly absent is not an invalid sibling. Zero
    present carriers means no consumer anchor and fails closed.
 
-This avoids one spec receiving different amendment-fidelity treatment merely
-because Claude or Codex performed the review, while preserving Grove's
+This prevents one spec from receiving different amendment-fidelity treatment
+merely because Claude or Codex performed the review, while preserving Grove's
 existing permission for independently versioned valid host carriers.
 
 `B` remains the exact target-branch tip OID captured at conformance-review
@@ -145,13 +147,13 @@ This decision changes only how a repository obtains `A`. It does not change:
 ### 3. Fail closed when the local anchor is not trustworthy
 
 A consumer review cannot silently manufacture or guess `A`. Under the
-recommended repository-wide policy, zero present carriers, any malformed or
-duplicated present carrier, any unresolved or non-rule-bearing stamped
-release, or an ambiguous canonical target branch prevents terminal amendment
-conformance review and routes to the existing Grove setup/refresh or shaping
-path as appropriate. One valid rule-bearing carrier is sufficient when it is
-the only present carrier. Two present carriers may use the same or different
-versions, but both releases must ship the rule.
+repository-wide policy, zero present carriers, any malformed or duplicated
+present carrier, any unresolved or non-rule-bearing stamped release, or an
+ambiguous canonical target branch prevents terminal amendment conformance
+review and routes to the existing Grove setup/refresh or shaping path as
+appropriate. One valid rule-bearing carrier is sufficient when it is the only
+present carrier. Two present carriers may use the same or different versions,
+but both releases must ship the rule.
 
 The reviewer never treats “no usable local anchor” as proof that all current
 content is historical.
@@ -177,6 +179,9 @@ unmerged source content, and makes concurrent reviews deterministic.
   session-local and mutable, not repository evidence.
 - **Use wall-clock setup time.** Rejected because it is not reproducible from
   the artifact or change-request record.
+- **Activate independently per invoking host.** Rejected by the maintainer:
+  one current spec must not receive different amendment-fidelity treatment
+  merely because Claude or Codex performs its review.
 - **Require every present carrier to use the same Grove version.** Rejected:
   Grove deliberately permits valid host carriers to advance independently;
   the needed invariant is that every present host can apply this rule, not
@@ -229,10 +234,7 @@ unmerged source content, and makes concurrent reviews deterministic.
 
 ## Open questions
 
-1. Should activation be **repository-wide**—every present Claude/Codex carrier
-   must be valid and rule-bearing, versions may differ—or **per invoking
-   host**, allowing the same spec to receive different amendment-fidelity
-   treatment until both hosts are upgraded?
+None.
 
 ## Self-check
 
@@ -243,7 +245,9 @@ grammar, runtime state, or historical migration. The maintainer selected
 two-step activation, closing the activation-order question: no change request
 derives authority from its own unmerged stamp. The first independent adversary
 found the legitimate multi-carrier state was underspecified and the old
-decision's operative pointer premature. The pointer is now provisional, and
-the complete repository-wide carrier policy is drafted as the recommendation;
-the maintainer must still choose it over per-host activation. The decision
-returns to `draft` until that question closes and the self-check is rerun.
+decision's operative pointer premature. The pointer is now provisional. The
+maintainer selected the complete repository-wide carrier policy over per-host
+activation, closing the remaining question. Required sections are present,
+dependencies are approved, the acceptance criteria cover every carrier state,
+and the append-only pointer remains non-operative until approval. The decision
+is `gated` and ready for a focused independent re-review.
