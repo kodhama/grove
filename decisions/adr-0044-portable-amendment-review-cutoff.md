@@ -109,9 +109,10 @@ Activation is repository-wide, not per invoking host:
 3. `A` is the first target-branch commit where the complete then-present
    carrier set satisfies those conditions. Once established, `A` is stable.
 4. At each later review base `B`, inventory the complete carrier set again.
-   A newly added, downgraded, malformed, duplicated, unresolved, or
-   non-rule-bearing present carrier suspends terminal amendment review until
-   corrected; correction does not move `A`.
+   Adding, removing, upgrading, or downgrading a carrier does not itself
+   suspend review. The resulting state suspends terminal amendment review
+   only when a present carrier is malformed, duplicated, unresolved, or
+   non-rule-bearing, or when no carrier remains. Correction does not move `A`.
 5. A host carrier that is wholly absent is not an invalid sibling. Zero
    present carriers means no consumer anchor and fails closed.
 
@@ -249,5 +250,8 @@ decision's operative pointer premature. The pointer is now provisional. The
 maintainer selected the complete repository-wide carrier policy over per-host
 activation, closing the remaining question. Required sections are present,
 dependencies are approved, the acceptance criteria cover every carrier state,
-and the append-only pointer remains non-operative until approval. The decision
-is `gated` and ready for a focused independent re-review.
+and the append-only pointer remains non-operative until approval. A focused
+re-review found one transition-wording contradiction; suspension now depends
+on the resulting invalid/non-bearing state rather than addition, removal,
+upgrade, or downgrade itself. The decision is `gated` and ready for another
+focused independent re-review.
