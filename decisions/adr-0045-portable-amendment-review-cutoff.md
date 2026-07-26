@@ -188,7 +188,7 @@ unmerged source content, and makes concurrent reviews deterministic.
   the needed invariant is that every present host can apply this rule, not
   byte-identical package versions.
 - **Add a new cutoff field or receipt file.** Rejected because the managed
-  instruction block already commits the exact Grove version and ADR-0043
+  instruction block already commits the exact Grove version and ADR-0044
   forbids unnecessary new schema.
 - **Make all existing consumer content governed immediately.** Rejected
   because it silently removes the approved historical exception and creates a
