@@ -32,13 +32,15 @@ updated: 2026-07-26
   decision rather than requiring either decision to explain the other's
   scope.
 - Define one exact prospective cutoff from Git ancestry and durable review
-  evidence. `A` is the commit that first records this decision as approved;
-  `B` is the target branch's tip commit OID captured when conformance review
-  starts. The selector applies when `A` is an ancestor of `B`, except that an
-  unchanged `X@vN` already present with the same behavioral content in `A`'s
-  tree remains historical. The first terminal review is the first durably
-  posted conformance closing report for the exact subject fingerprint after
-  its last behavioral edit; that report records `B`.
+  evidence. `A` is the first commit on the canonical target-branch history
+  whose tree records this decision as approved—the durable landing OID after
+  any squash or rebase. `B` is the target branch's tip commit OID captured
+  when conformance review starts. The selector applies when `A` is an ancestor
+  of `B`, except that an unchanged `X@vN` already present with the same
+  behavioral content in `A`'s tree remains historical. The first terminal
+  review is the first durably posted conformance closing report for the exact
+  subject fingerprint after its last behavioral edit; that report records
+  `B`.
 - **Maintainer, 2026-07-26:** allow multiple exact matching amendment
   decisions for one spec version. Review every match; do not force artificial
   version bumps merely to serialize independent approved decisions.
@@ -224,15 +226,16 @@ the still-active clauses after following explicit pointers and never infers
 supersession merely because newer text differs.
 
 The prospective cutoff controls obligation, not evidence usability. Let `A`
-be the exact commit that first records this decision as approved. At
-conformance-review start, capture `B` as the exact commit OID at the tip of the
-change request's target branch—not the source branch's merge-base or a moving
-branch name. The first durably posted conformance closing report for the exact
-subject fingerprint after its last behavioral edit is that subject's first
-terminal review, whether its verdict is `PASS`, `FAIL`, or
-`UPSTREAM-INDICTED`; advisory prose and session-only output do not count. The
-closing report records `B` as judgment evidence, not a new artifact field or
-deterministic schema.
+be the first commit on the canonical target-branch history whose tree records
+this decision as approved—the durable landing OID, not a source-branch commit
+that a squash or rebase may rewrite. At conformance-review start, capture `B`
+as the exact commit OID at the tip of the change request's target branch—not
+the source branch's merge-base or a moving branch name. The first durably
+posted conformance closing report for the exact subject fingerprint after its
+last behavioral edit is that subject's first terminal review, whether its
+verdict is `PASS`, `FAIL`, or `UPSTREAM-INDICTED`; advisory prose and
+session-only output do not count. The closing report records `B` as judgment
+evidence, not a new artifact field or deterministic schema.
 
 The selector is mandatory when `A` is an ancestor of `B`. This monotonic rule
 governs concurrent branches: a version authored before approval but first
@@ -321,9 +324,10 @@ into versioning failures.
 1. The methodology defines one prospective amendment-contract-set selector
    using only `X depends_on D` plus approved `D changes X@vN`, with exact
    subject-version matching, deterministic decision-id order, and an exact
-   cutoff where approval commit `A` is an ancestor of captured target-branch
-   tip OID `B`; the first durable closing report for the exact post-edit
-   subject records `B`, and unchanged content already present in `A` remains
+   cutoff where durable target-branch landing commit `A` first records this
+   decision as approved and is an ancestor of captured target-branch tip OID
+   `B`; the first durable closing report for the exact post-edit subject
+   records `B`, and unchanged content already present in `A` remains
    historical.
 2. Scalar `implements:` remains the original realized-contract fidelity
    upstream and is never silently retargeted by a later amendment.
@@ -383,7 +387,8 @@ fidelity upstream, and incomplete historical pairs cause prospective
 consolidation rather than illegal backfill. The maintainer selected
 accumulated active contracts over stale whole-spec verdict reuse, closing the
 final question. The active set follows explicit amendment supersession lineage
-to approved current holders, and the prospective cutoff uses the approval
-commit's ancestry to an exact target-branch tip OID recorded by terminal
-review. All adversary findings are folded; the decision is ready for a fresh
-soundness review. No implementation is authorized by this decision-only PR.
+to approved current holders, and the prospective cutoff uses the durable
+approval landing commit's ancestry to an exact target-branch tip OID recorded
+by terminal review. All adversary findings are folded; the decision is ready
+for a fresh soundness review. No implementation is authorized by this
+decision-only PR.
