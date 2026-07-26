@@ -4,17 +4,15 @@ type: adr
 status: approved  # maintainer explicitly ratified exact commit 2d89c860d9ea8d82455631bf6356a65532f4869c in conversation, 2026-07-26
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0010-versioning-is-operational, adr-0012-methodology-delivery-machinery, adr-0016-implements-edge-taxonomy]
 informed_by: [adr-0037-pre-execution-planning, adr-0041-separate-support-from-operational-availability]
-superseded_in_part_by: [adr-0044-portable-amendment-review-cutoff]
 owner: agent
 updated: 2026-07-26
 ---
 
-> **Cutoff portability refined by
-> `adr-0044-portable-amendment-review-cutoff`:** this decision's approval
-> landing commit remains Grove-self's local `A`; consumer repositories derive
-> local `A` from their canonical target-branch landing of a valid
-> rule-bearing `grove plugin@<version>` managed-block stamp. Every selector,
-> lineage, and historical-exception rule below stands.
+> **Proposed cutoff portability refinement
+> (`adr-0044-portable-amendment-review-cutoff`, draft):** if approved, that
+> decision keeps this approval landing as Grove-self's local `A` and defines a
+> consumer-local managed-stamp anchor. Until its intent gate completes, the
+> cutoff below remains operative and no partial supersession is claimed.
 
 # ADR-0043: review significant revise-in-place spec amendments
 

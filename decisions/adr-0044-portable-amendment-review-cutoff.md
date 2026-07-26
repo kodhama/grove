@@ -1,7 +1,7 @@
 ---
 id: adr-0044-portable-amendment-review-cutoff
 type: adr
-status: gated
+status: draft
 depends_on: [adr-0026-thin-vendor-boundary, adr-0043-review-significant-spec-amendments]
 owner: agent
 updated: 2026-07-26
@@ -34,7 +34,8 @@ updated: 2026-07-26
 
 ### Open
 
-*(none)*
+- Whether consumer activation is repository-wide across every present Grove
+  stamp carrier or scoped to the host invoking the reviewer.
 
 ### Parked
 
@@ -67,12 +68,13 @@ ancestor of a consumer's history. Applying the literal rule there makes the
 selector permanently false; substituting an unrecorded installation time
 makes it irreproducible.
 
-Grove already has a consumer-local, versioned, durable carrier. Setup and
-refresh write exactly one `grove plugin@<version>` line inside the managed
-instruction block. The version is schema-validated and identifies the
-immutable Grove package whose role projections the repository adopted.
-Grove-self intentionally has no such stamp because it loads the package from
-its own tree.
+Grove already has consumer-local, versioned, durable carriers. Setup and
+refresh write exactly one `grove plugin@<version>` line inside each managed
+host instruction block. A repository may legitimately carry a Claude block, a
+Codex block, or both; when both exist their independently valid versions may
+differ. Each version identifies the immutable Grove package whose role
+projection that host adopted. Grove-self intentionally has no such stamp
+because it loads the package from its own tree.
 
 ## Proposed decision
 
@@ -84,13 +86,36 @@ target-branch history:
 - **Grove-self:** `A` is
   `947d9bdc702798b960a67a9a465e61beebe44fa7`.
 - **Consumer repository:** `A` is the first commit on the canonical target
-  branch whose managed Grove instruction block carries a valid
-  `grove plugin@V` stamp and immutable release `V` ships the portable
-  amendment-review rule.
+  branch where the selected carrier policy first establishes repository
+  activation from valid `grove plugin@V` stamp evidence and every selected
+  immutable release `V` ships the portable amendment-review rule.
 
-The consumer rule uses the existing authoritative repository stamp; it does
-not infer adoption from a developer's global plugin cache, current session,
+The consumer rule uses existing authoritative repository stamps; it does not
+infer adoption from a developer's global plugin cache, current session,
 wall-clock installation time, or conversation.
+
+**Recommended carrier policy, pending the maintainer:** activation is
+repository-wide, not per invoking host.
+
+1. At candidate activation commit `A`, inventory every managed Grove
+   instruction block present in the canonical target tree. At least one
+   carrier must be present.
+2. Every present carrier must contain exactly one schema-valid stamp and every
+   stamped immutable release must ship this rule. The releases may have
+   different versions; content capability, not version equality, is the
+   requirement.
+3. `A` is the first target-branch commit where the complete then-present
+   carrier set satisfies those conditions. Once established, `A` is stable.
+4. At each later review base `B`, inventory the complete carrier set again.
+   A newly added, downgraded, malformed, duplicated, unresolved, or
+   non-rule-bearing present carrier suspends terminal amendment review until
+   corrected; correction does not move `A`.
+5. A host carrier that is wholly absent is not an invalid sibling. Zero
+   present carriers means no consumer anchor and fails closed.
+
+This avoids one spec receiving different amendment-fidelity treatment merely
+because Claude or Codex performed the review, while preserving Grove's
+existing permission for independently versioned valid host carriers.
 
 `B` remains the exact target-branch tip OID captured at conformance-review
 start. The reviewer records both the selected local `A` and captured `B` in
@@ -119,11 +144,14 @@ This decision changes only how a repository obtains `A`. It does not change:
 
 ### 3. Fail closed when the local anchor is not trustworthy
 
-A consumer review cannot silently manufacture or guess `A`. An absent,
-malformed, duplicated, or non-rule-bearing managed stamp, an unresolved Grove
+A consumer review cannot silently manufacture or guess `A`. Under the
+recommended repository-wide policy, zero present carriers, any malformed or
+duplicated present carrier, any unresolved or non-rule-bearing stamped
 release, or an ambiguous canonical target branch prevents terminal amendment
 conformance review and routes to the existing Grove setup/refresh or shaping
-path as appropriate.
+path as appropriate. One valid rule-bearing carrier is sufficient when it is
+the only present carrier. Two present carriers may use the same or different
+versions, but both releases must ship the rule.
 
 The reviewer never treats “no usable local anchor” as proof that all current
 content is historical.
@@ -149,6 +177,10 @@ unmerged source content, and makes concurrent reviews deterministic.
   session-local and mutable, not repository evidence.
 - **Use wall-clock setup time.** Rejected because it is not reproducible from
   the artifact or change-request record.
+- **Require every present carrier to use the same Grove version.** Rejected:
+  Grove deliberately permits valid host carriers to advance independently;
+  the needed invariant is that every present host can apply this rule, not
+  byte-identical package versions.
 - **Add a new cutoff field or receipt file.** Rejected because the managed
   instruction block already commits the exact Grove version and ADR-0043
   forbids unnecessary new schema.
@@ -175,8 +207,9 @@ unmerged source content, and makes concurrent reviews deterministic.
 1. Grove-self uses
    `947d9bdc702798b960a67a9a465e61beebe44fa7` as local `A`.
 2. A consumer derives local `A` only from the first canonical target-branch
-   commit carrying a valid `grove plugin@V` stamp whose immutable release
-   ships this rule.
+   commit where the selected complete carrier set has at least one present
+   carrier, every present carrier is valid, and every stamped immutable
+   release ships this rule.
 3. `B` remains the captured target-branch tip OID, and the closing report
    records local `A` and `B`.
 4. Missing, invalid, ambiguous, or unverifiable anchor evidence cannot produce
@@ -190,10 +223,16 @@ unmerged source content, and makes concurrent reviews deterministic.
 8. Consumer activation is two-step: the rule-bearing stamp lands first, and a
    separate behavioral-spec amendment is reviewed only against a target tip
    descended from that landing.
+9. The selected policy defines zero, one, and multiple present carriers;
+   same-version and divergent-version valid carriers; and later
+   added/downgraded/invalid carriers without host-dependent conformance.
 
 ## Open questions
 
-None.
+1. Should activation be **repository-wide**—every present Claude/Codex carrier
+   must be valid and rule-bearing, versions may differ—or **per invoking
+   host**, allowing the same spec to receive different amendment-fidelity
+   treatment until both hosts are upgraded?
 
 ## Self-check
 
@@ -201,8 +240,10 @@ The draft depends only on approved decisions, corrects one concrete
 cross-repository contradiction, preserves the approved selector, and reuses
 an existing consumer-authoritative carrier. It does not broaden relation
 grammar, runtime state, or historical migration. The maintainer selected
-two-step activation, closing the only question: no change request derives
-authority from its own unmerged stamp. Required sections are present,
-dependencies are approved, the append-only forward pointer is scoped, and the
-acceptance criteria are testable. The decision is ready for independent
-soundness review and remains `gated` pending the profile's human intent gate.
+two-step activation, closing the activation-order question: no change request
+derives authority from its own unmerged stamp. The first independent adversary
+found the legitimate multi-carrier state was underspecified and the old
+decision's operative pointer premature. The pointer is now provisional, and
+the complete repository-wide carrier policy is drafted as the recommendation;
+the maintainer must still choose it over per-host activation. The decision
+returns to `draft` until that question closes and the self-check is rerun.
