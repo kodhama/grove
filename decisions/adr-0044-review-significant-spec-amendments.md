@@ -1,5 +1,5 @@
 ---
-id: adr-0043-review-significant-spec-amendments
+id: adr-0044-review-significant-spec-amendments
 type: adr
 status: approved  # maintainer explicitly ratified exact commit 2d89c860d9ea8d82455631bf6356a65532f4869c in conversation, 2026-07-26
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0010-versioning-is-operational, adr-0012-methodology-delivery-machinery, adr-0016-implements-edge-taxonomy]
@@ -8,7 +8,13 @@ owner: agent
 updated: 2026-07-26
 ---
 
-# ADR-0043: review significant revise-in-place spec amendments
+# ADR-0044: review significant revise-in-place spec amendments
+
+> **Identity correction (2026-07-26):** this artifact originally landed as
+> `adr-0043-review-significant-spec-amendments`, after
+> `adr-0043-structured-test-dependency-canary` had already claimed that
+> sequence number. The later artifact was renumbered to ADR-0044 without
+> changing its decision content.
 
 ## Decision state
 
