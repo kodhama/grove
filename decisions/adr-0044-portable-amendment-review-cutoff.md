@@ -1,7 +1,7 @@
 ---
 id: adr-0044-portable-amendment-review-cutoff
 type: adr
-status: draft
+status: gated
 depends_on: [adr-0026-thin-vendor-boundary, adr-0043-review-significant-spec-amendments]
 owner: agent
 updated: 2026-07-26
@@ -28,12 +28,13 @@ updated: 2026-07-26
 - Use full artifact ids in prose and relations. The two approved
   `adr-0043-*` ids are structurally unique even though their shared numeric
   shorthand is ambiguous.
+- **Maintainer, 2026-07-26:** require two-step consumer activation. The
+  rule-bearing Grove stamp lands on the canonical target branch before a
+  separate behavioral-spec amendment change request begins terminal review.
 
 ### Open
 
-- May a consumer activate the selector and amend a behavioral spec in the
-  same change request, or must the rule-bearing Grove stamp already be present
-  on the target branch before that spec amendment is reviewed?
+*(none)*
 
 ### Parked
 
@@ -129,16 +130,16 @@ content is historical.
 
 ### 4. Activation ordering
 
-The remaining shaping choice is whether the target base must already contain
-the rule-bearing stamp before a behavioral amendment change request begins
-terminal review.
+Consumer activation is two-step. A Grove setup or refresh change lands the
+rule-bearing managed stamp on the canonical target branch first. A separate
+behavioral-spec amendment change request then begins terminal review against a
+captured target tip `B` descended from that local `A`.
 
-**Recommendation:** require the stamp to have landed first. A change request
-that introduces or refreshes Grove may carry lifecycle changes, but a
-behavioral spec amendment in that same request waits until the stamp is on the
-canonical target branch and then receives review against a descended `B`.
-This keeps `A` a real ancestor, avoids self-activation from unmerged source
-content, and makes concurrent reviews deterministic.
+A single change request cannot introduce or refresh the rule-bearing stamp and
+self-activate the selector for a behavioral spec amendment. If both scopes
+arrive together, split or sequence them and review the spec amendment after
+the stamp lands. This keeps `A` a real ancestor, avoids authority from
+unmerged source content, and makes concurrent reviews deterministic.
 
 ## Rejected options
 
@@ -186,18 +187,22 @@ content, and makes concurrent reviews deterministic.
    or deterministic corpus mechanism is introduced.
 7. The generated consumer projections never require a Grove repository commit
    to be an ancestor of consumer history.
+8. Consumer activation is two-step: the rule-bearing stamp lands first, and a
+   separate behavioral-spec amendment is reviewed only against a target tip
+   descended from that landing.
 
 ## Open questions
 
-1. Must the rule-bearing stamp land on the canonical target branch before a
-   separate behavioral-amendment change request can be governed, or may one
-   change request both introduce the stamp and self-activate the selector?
+None.
 
 ## Self-check
 
 The draft depends only on approved decisions, corrects one concrete
 cross-repository contradiction, preserves the approved selector, and reuses
 an existing consumer-authoritative carrier. It does not broaden relation
-grammar, runtime state, or historical migration. One activation-order choice
-remains explicitly open. The decision stays `draft` until that question is
-resolved and the self-check is rerun.
+grammar, runtime state, or historical migration. The maintainer selected
+two-step activation, closing the only question: no change request derives
+authority from its own unmerged stamp. Required sections are present,
+dependencies are approved, the append-only forward pointer is scoped, and the
+acceptance criteria are testable. The decision is ready for independent
+soundness review and remains `gated` pending the profile's human intent gate.
