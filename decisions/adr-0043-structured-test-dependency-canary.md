@@ -1,7 +1,7 @@
 ---
 id: adr-0043-structured-test-dependency-canary
 type: adr
-status: gated  # round-2 findings revised 2026-07-26; awaiting fresh independent decision-adversary review and the steward-profile human intent gate
+status: approved  # maintainer intent act 2026-07-26 ("Approved.") after decision-adversary round-3 SOUND; this in-conversation flip records the human act
 depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0010-versioning-is-operational, adr-0012-methodology-delivery-machinery, adr-0016-implements-edge-taxonomy, adr-0026-thin-vendor-boundary, adr-0036-remove-retired-review-bookkeeping]
 owner: agent
 updated: 2026-07-26
@@ -464,6 +464,12 @@ unchanged.
   a uniqueness constraint and an explicit canonical `coarse` precision for
   legacy migration. This revision also removes the review's non-blocking stale
   statement about ADR-0027.
+- **Decision-adversary round 3** reviewed exact commit
+  `487718e53417ba547f8416ef206a754c9d4f70c1` and returned `SOUND`, with
+  every direct dependency resolved and approved. The maintainer then
+  performed the steward-profile human intent act with the explicit
+  conversation response **"Approved."** on 2026-07-26; the frontmatter status
+  records that act.
 
 ## Self-check
 
@@ -493,5 +499,6 @@ unchanged.
   validate precision, exact file/static-title membership, and strict fields,
   and separate signal from verdict.
 
-The self-check passes. The author moves the artifact to `gated` for
-independent decision-adversary review. No approval is claimed.
+The self-check passes. Independent decision-adversary round 3 returned
+`SOUND`; the maintainer's explicit human intent act ratifies the decision as
+`approved`.

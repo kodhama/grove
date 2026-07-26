@@ -9,7 +9,7 @@ updated: 2026-07-16  # forward pointer to adr-0012 added at the dec-5 conformanc
 ---
 
 > **Partially superseded by
-> `adr-0043-structured-test-dependency-canary` (gated, 2026-07-26):** the
+> `adr-0043-structured-test-dependency-canary` (approved, 2026-07-26):** the
 > package-ledger carrier, granularity, local role duties, and absence behavior
 > move to an optional structured YAML canary, and the self-describing-graph
 > rule no longer applies to code/test provenance when that canary is absent.
