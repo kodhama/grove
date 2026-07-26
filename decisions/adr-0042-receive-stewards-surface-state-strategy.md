@@ -1,7 +1,7 @@
 ---
 id: adr-0042-receive-stewards-surface-state-strategy
 type: adr
-status: gated
+status: approved
 depends_on: [adr-0040-receive-stewards-adoption-posture-strategy, stewards/kodhama-0023-separate-operational-availability-from-support]
 owner: agent
 updated: 2026-07-26
@@ -47,6 +47,9 @@ is not summarized or redefined; local applicability and follow-up are explicit.
 
 ## Lifecycle record
 
-The maintainer ratified Stewards decision 0023 and authorized its thin receipt
-rollout on 2026-07-26. This receipt remains `gated` pending independent
-soundness review of the exact commit.
+The maintainer ratified Stewards decision 0023 and explicitly directed its
+thin receipt memos to roll out on 2026-07-26. An independent decision
+adversary returned `SOUND` for exact commit `74ad240`. The advance
+authorization covers this exact bounded receipt: it adds only the required
+cross-link and local applicability statement, with product work left to
+PR #146. `approved` records that human intent act.
