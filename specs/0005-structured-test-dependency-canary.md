@@ -48,7 +48,8 @@ review-bookkeeping system.
 | **complete title** | The ordered array of enclosing static suite titles, outermost first, followed by the static test title. |
 | **canonical** | A `test-deps.yaml` manifest satisfying schema 2. |
 | **legacy** | A `test-deps.md` whose first well-formed fenced `grove-test-deps` block supplies the old aggregate. |
-| **exact group** | A schema-2 group whose selectors identify the declarations that share its declared upstreams. |
+| **group upstreams** | The entries in one group's `specs`, `decisions`, and `defects` lists. `covers` and `notes` are navigation/orientation and are not upstreams. |
+| **exact group** | A schema-2 group whose selectors identify declarations that each have all of that group's upstreams. Membership does not assert that the group contains each declaration's complete upstream set. |
 | **coarse group** | A schema-2 group created only by legacy migration; its file scope says which declarations may relate to the preserved aggregate without claiming that every declaration has every upstream. |
 | **whole coarse scope** | All discovered static test declarations within every file-only selector of one coarse group. |
 | **candidate pin** | A spec pin advanced in an unmerged change by the executor, pending independent conformance review. |
@@ -83,24 +84,23 @@ A canonical manifest has exactly these top-level fields:
 ```yaml
 schema: 2
 groups:
-  group-name:
+  "group-name":
     precision: exact
     tests:
-      - file: test/example.test.mjs
+      - file: "test/example.test.mjs"
         cases:
           - title:
-              - outer suite
-              - guarded behavior
+              - "outer suite"
+              - "guarded behavior"
     specs:
-      - spec-example@v2
+      - "spec-example@v2"
     decisions:
-      - adr-example
+      - "adr-example"
     defects:
-      - project#123
+      - "project#123"
     covers:
-      - INV4
-    notes: |
-      Optional reviewer orientation.
+      - "INV4"
+    notes: "Optional reviewer orientation."
 ```
 
 `schema` is the integer `2`. `groups` is a non-empty mapping whose keys are
@@ -133,6 +133,10 @@ Group value shapes are:
 This shape contract does not add identifier grammar beyond the reference
 semantics stated below.
 
+A group's upstreams are exactly its `specs`, `decisions`, and `defects`
+entries. `covers` and `notes` provide navigation or orientation only and do
+not participate in selector provenance.
+
 A test selector has exactly:
 
 - required `file`: an existing test-source file expressed as an exact,
@@ -158,11 +162,58 @@ The manifest is an operational YAML document, not a lifecycle artifact.
 Legacy `id`, `type`, `status`, `implements`, `depends_on`, `owner`, and
 `updated` frontmatter fields do not become top-level schema-2 fields.
 
+## Canonical serialization
+
+Every executor write uses one byte-observable serialization:
+
+- UTF-8 without a byte-order mark;
+- LF line endings, no tabs, two spaces per indentation level, no trailing
+  whitespace, and exactly one final newline;
+- block mappings and block lists only;
+- top-level fields in order: `schema`, `groups`;
+- group names ordered lexicographically by Unicode scalar value;
+- group fields in order: `precision`, `tests`, `specs`, `decisions`,
+  `defects`, `covers`, `notes`, with absent optional fields omitted;
+- test selectors ordered first by `file`, then by their canonical case-list
+  representation, with absent `cases` represented by the empty sequence and
+  sorting before a non-empty case list; `file` precedes `cases` within a
+  selector;
+- case selectors ordered lexicographically by their complete title arrays;
+  `title` segment order within each array remains outermost-to-innermost and
+  is never sorted;
+- `specs`, `decisions`, `defects`, and `covers` entries ordered
+  lexicographically by their complete string values;
+- fixed schema field names emitted as the plain spellings shown in this
+  specification, `schema` emitted as plain integer `2`, and `precision`
+  emitted as plain `exact` or `coarse`; and
+- every other string scalar, including group names, paths, references,
+  title segments, covers, and notes, emitted as a double-quoted,
+  JSON-compatible string: `"` is `\"`, `\` is `\\`, solidus is not escaped,
+  U+0008/U+0009/U+000A/U+000C/U+000D use `\b`/`\t`/`\n`/`\f`/`\r`,
+  respectively, any other U+0000–U+001F control uses `\u00XX` with uppercase
+  hex digits, and every other Unicode scalar value is emitted directly as
+  UTF-8.
+
+Every lexicographic comparison above compares Unicode scalar values in order;
+when one sequence is an exact prefix of another, the shorter sequence sorts
+first.
+
+Lists use one item per line. Empty optional lists are omitted. An explicitly
+present empty `notes` string is serialized as `notes: ""`. The policy
+preserves semantic title-array order while removing map, field, list, scalar,
+encoding, indentation, and newline degrees of freedom. Rewriting an unchanged
+semantic manifest therefore produces identical bytes.
+
+This serialization policy is a writer contract applied by the executor. It
+does not add a general parser, audit command, or runtime.
+
 ## Exact selector semantics
 
 An exact selector without `cases` selects every static test declaration in
-the named file. This shorthand is valid only when all of those declarations
-share the group's upstreams.
+the named file. This shorthand asserts that every selected declaration has
+all of the group's upstreams. It does not assert that those are the
+declaration's complete upstream set; a declaration may gain additional
+upstreams through narrower exact groups.
 
 An exact selector with `cases` selects only the declarations named by its
 complete title arrays:
@@ -195,10 +246,13 @@ declaration cannot be matched confidently across the basis because of an
 ambiguous dynamic construction, the executor surfaces the ambiguity and
 establishes exact coverage before declaring the package ready.
 
-If a new or touched declaration in a file-only exact selector has different
-upstreams from the existing declarations, the executor replaces the
-whole-file shorthand with title selectors in the same change. It does not
-silently inherit the new declaration into the old group.
+If a new declaration in a file-only exact selector retains every upstream
+asserted by that group and has additional upstreams, the executor keeps the
+whole-file shorthand and adds narrower exact group membership for the
+additional upstreams. It splits the whole-file selector into title selectors
+only when at least one selected declaration lacks an upstream asserted by the
+whole-file group. No selector may overstate an upstream while additive group
+membership remains composable.
 
 ## Coarse selector semantics
 
@@ -233,9 +287,12 @@ as having been re-derived.
 - An append-only decision carries no version pin.
 
 The executor advances a candidate pin in the same change as the tests and any
-implementation needed for the target version. The candidate does not become a
-landed assertion of review until a separate conformance reviewer passes the
-finished change.
+implementation needed for the target version. When the executor's own
+re-derivation finds that current implementation and tests require no change,
+it may instead propose a manifest-only candidate-pin change. In either form,
+the candidate does not become a landed assertion of review until a separate
+conformance reviewer independently checks the current implementation and
+tests against the current approved upstream and passes the finished change.
 
 A successful conformance review may advance a candidate even when
 re-derivation finds that no test or implementation change is required. A
@@ -284,10 +341,13 @@ declarations.
 
 When a present legacy file contains no well-formed `grove-test-deps` block, it
 supplies no aggregate from which a coarse group can be derived. The executor
-does not pretend otherwise: it independently derives exact coverage for new
-or touched declarations and preserves any unique usable prose as `notes`.
-Legacy deletion remains contingent on validation that no semantic aggregate
-or guidance was lost.
+does not pretend otherwise. Before writing canonical or removing legacy, it
+independently derives exact coverage for every discovered static declaration
+in the package and preserves any unique usable prose as `notes`. If complete
+exact derivation or preservation cannot be established, the executor leaves
+the legacy file untouched, writes no partial canonical file, and surfaces a
+blocking migration defect. Legacy deletion remains contingent on complete
+exact coverage and validation that no semantic guidance was lost.
 
 When canonical and legacy carriers coexist at the same root, the executor
 uses canonical as the update basis, reconciles the legacy semantic content,
@@ -346,6 +406,9 @@ A present legacy file with no well-formed `grove-test-deps` block is unusable
 legacy evidence rather than malformed canonical data. The reviewer falls to
 `inferred` mode, advises that the legacy carrier was present but unusable, and
 continues if it can independently establish the approved upstream.
+This is read-only behavior for an untouched review. It does not authorize the
+executor to write partial canonical data: a write invokes the package-wide
+exact migration gate in the writer contract.
 
 If the reviewer cannot independently establish an approved upstream, the
 change fails for having no reviewable contract. Missing ledger data and
@@ -380,6 +443,12 @@ For a candidate pin, the reviewer derives the obligations from the current
 approved upstream rather than trusting pin equality or the executor's
 checklist. A passing review validates the candidate for landing; any other
 fidelity verdict does not.
+
+For a manifest-only candidate, the reviewer inspects and exercises the current
+landed implementation and tests against those independently derived
+obligations. The absence of a code/test diff is evidence only that the
+executor proposed no behavioral change; it does not reduce review scope or
+turn the executor's re-derivation into a verdict.
 
 ## Trigger and routing contracts
 
@@ -509,8 +578,10 @@ implementation.
   member, glob, partial title, or ambiguous exact title, the reader shall
   classify the canonical file as malformed.
 - **INV8 — exact whole-file shorthand.** When an exact selector omits
-  `cases`, every static test declaration in that file shall share the group's
-  upstreams.
+  `cases`, every static test declaration in that file shall have every
+  `specs`, `decisions`, and `defects` upstream asserted by the group; the
+  selector shall not claim those are each declaration's complete upstream
+  set.
 - **INV9 — collision-safe case identity.** An exact case title shall record
   nested static suite-title segments followed by the literal static test
   title and shall resolve to exactly one declaration in its file.
@@ -525,7 +596,8 @@ implementation.
   every discovered static test declaration shall be within exact selector or
   coarse file scope; while no ledger exists, absence shall remain advisory.
 - **INV13 — multiple contracts.** When a declaration covers several
-  contracts, schema 2 shall permit it to belong to several exact groups.
+  contracts, schema 2 shall permit it to belong to several exact groups;
+  `covers` and `notes` shall not count as group upstreams.
 - **INV14 — truthful coarse scope.** A coarse group shall originate only
   from legacy conversion, contain file-only selectors, and shall not assert
   per-declaration provenance.
@@ -539,8 +611,11 @@ implementation.
   re-derivation, while an equal-current pin shall remain quiet without being
   treated as proof.
 - **INV18 — candidate independence.** When the executor advances a spec pin,
-  it shall write the candidate in the same change and a separate conformance
-  reviewer shall validate it before landing.
+  it shall write the candidate in the same change as any required code/tests
+  or as a manifest-only proposal after executor re-derivation finds no such
+  change; a separate conformance reviewer shall validate current
+  implementation and tests against the current approved upstream before
+  landing.
 - **INV19 — invalid pins.** A pin ahead of current, malformed, or unresolved
   locally shall make canonical data invalid; decisions shall carry no
   `@version`.
@@ -549,7 +624,9 @@ implementation.
   that coarse group, never after review of only one overlapping exact
   declaration.
 - **INV21 — sole ordinary writer.** The executor shall be the sole ordinary
-  writer and shall emit deterministic schema-2 YAML on every write.
+  writer and shall emit schema-2 YAML on every write using the canonical
+  encoding, indentation, newline, scalar, map, field, selector, and list
+  ordering policy.
 - **INV22 — lossless migration.** When migrating legacy Markdown, the
   executor shall preserve aggregate dependencies, semantic frontmatter
   relations, unique prose, coverage anchors, and technical notes before
@@ -630,6 +707,25 @@ implementation.
   same-root legacy evidence used for independent fidelity orientation shall
   not be unioned with canonical data, validate it, or cure its blocking
   integrity failure.
+- **INV45 — canonical bytes.** For the same semantic manifest, executor
+  writes shall produce identical UTF-8 bytes by applying the canonical
+  serialization policy and shall add no parser, audit command, or runtime.
+- **INV46 — unusable-legacy write gate.** When a present legacy file has no
+  well-formed dependency block, the executor shall write canonical and remove
+  legacy only after deriving exact coverage for every discovered declaration
+  and preserving usable guidance; if it cannot, it shall leave legacy
+  untouched, write no partial canonical, and surface a blocking migration
+  defect.
+- **INV47 — additive upstream composition.** Group upstreams shall be exactly
+  `specs`, `decisions`, and `defects`; when a declaration in a whole-file
+  exact group retains all group upstreams and gains additional upstreams, the
+  executor shall retain shorthand and add narrower exact groups; it shall
+  split shorthand only when a selected declaration lacks a group upstream.
+- **INV48 — manifest-only pin review.** When executor re-derivation finds no
+  code/test change is required, it may propose a manifest-only candidate pin,
+  but only a separate conformance `PASS` after independent assessment of the
+  current implementation and tests shall make that candidate eligible to
+  land.
 
 ## Scenarios
 
@@ -701,14 +797,18 @@ static test declaration in the package and creates no coarse group.
 
 ### S9 — uniform whole-file exact coverage
 
-**Given** every static declaration in one test file shares the same upstreams
+**Given** every static declaration in one test file has every upstream
+asserted by one exact group, while some declarations may also have additional
+upstreams
 **When** the executor describes that file in an exact group
 **Then** it may use a file-only selector and that selector covers every static
-declaration in the file.
+declaration in the file without claiming each declaration's complete upstream
+set.
 
 ### S10 — mixed-provenance file
 
-**Given** declarations in one test file have different upstreams
+**Given** no one proposed upstream set is held by every declaration in a test
+file
 **When** the executor writes exact coverage
 **Then** it uses complete nested title arrays to assign each declaration to
 the appropriate group rather than using whole-file shorthand.
@@ -728,13 +828,14 @@ renames a declaration before selecting it.
 **Then** one selector names the generator's complete static title, including
 literal placeholders, and does not enumerate runtime expansions.
 
-### S13 — a differently governed test enters whole-file shorthand
+### S13 — additive upstream enters whole-file shorthand
 
 **Given** a file is covered by a file-only exact selector and a new
-declaration has different upstreams
+declaration retains all upstreams asserted by that group while adding another
+upstream
 **When** the executor adds the declaration
-**Then** it replaces shorthand with title selectors in the same change and
-does not let the new declaration inherit the old group silently.
+**Then** it retains the whole-file selector and adds narrower exact membership
+for the new declaration's additional upstream.
 
 ### S14 — selector rename or move
 
@@ -921,17 +1022,70 @@ of those lists, or a non-string `notes` value
 **Then** it classifies the manifest as malformed without inventing additional
 identifier grammar.
 
+### S37 — canonical byte stability
+
+**Given** two executor writes represent the same semantic manifest but receive
+groups, selectors, cases, or reference lists in different input orders
+**When** the executor serializes each write
+**Then** both outputs have identical UTF-8 bytes, fixed field/list ordering,
+two-space block indentation, JSON-compatible double-quoted free strings, LF
+line endings, and exactly one final newline.
+
+### S38 — unusable legacy can be replaced completely
+
+**Given** a present legacy file has no well-formed dependency block
+**When** the executor can independently derive exact coverage for every
+discovered declaration and preserve all usable guidance
+**Then** it writes complete canonical YAML, validates it, and removes legacy
+without creating a coarse group.
+
+### S39 — unusable legacy cannot be replaced partially
+
+**Given** a present legacy file has no well-formed dependency block
+**When** the executor cannot derive exact coverage for every discovered
+declaration or cannot preserve usable guidance
+**Then** it leaves legacy untouched, writes no partial canonical file, and
+surfaces a blocking migration defect.
+
+### S40 — a declaration loses a whole-file group upstream
+
+**Given** a file-only exact group asserts upstreams A and B for every
+declaration and one selected declaration no longer has B
+**When** the executor updates canonical coverage
+**Then** it splits the whole-file shorthand into exact title selectors so no
+selector continues to assert B for that declaration.
+
+### S41 — manifest-only candidate pin passes
+
+**Given** executor re-derivation against a newer approved spec finds current
+implementation and tests require no change
+**When** the executor proposes only the candidate-pin manifest change and a
+separate conformance reviewer independently checks the current implementation
+and tests against that spec
+**Then** a conformance `PASS` makes the candidate eligible to land as the
+last-reviewed target.
+
+### S42 — manifest-only candidate pin does not self-validate
+
+**Given** the executor proposes a manifest-only candidate pin after its own
+re-derivation
+**When** independent conformance returns `FAIL` or `UPSTREAM-INDICTED`
+**Then** the candidate is not eligible to land and the executor's
+re-derivation supplies no substitute verdict.
+
 ## Acceptance criteria
 
 1. INV1–INV7 and S1–S6 pass: carrier lookup and every canonical grammar level
    are strict, and canonical, legacy, absent, dual-present, and malformed
    states remain distinguishable.
-2. INV8–INV16 and S7–S14 pass: exact selectors resolve static declarations
-   collision-safely, coarse migration remains truthful, and inline provenance
+2. INV8–INV16 plus INV47 and S7–S14 plus S40 pass: exact selectors resolve
+   static declarations collision-safely, additive upstreams compose without
+   overclaiming, coarse migration remains truthful, and inline provenance
    becomes optional only after exact coverage.
-3. INV17–INV20 and S15–S19 pass: pin lag triggers review, equality proves
-   nothing, candidates require independent review, and coarse pins cannot
-   advance on partial evidence.
+3. INV17–INV20 plus INV48 and S15–S19 plus S41–S42 pass: pin lag triggers
+   review, equality proves nothing, code/test and manifest-only candidates
+   require independent review, and coarse pins cannot advance on partial
+   evidence.
 4. INV21–INV25 and S7–S8 pass: executor writes are deterministic, migration is
    lossless, legacy deletion is gated by validation, and absent packages
    receive exact coverage for every discovered declaration rather than
@@ -960,10 +1114,27 @@ identifier grammar.
     unions with nor cures malformed canonical data.
 12. INV5 and S36 pass: group names and every group value have observable
     schema shapes without adding identifier grammar.
+13. INV45 and S37 pass: every executor write follows one byte-observable
+    canonical serialization without adding parser or audit machinery.
+14. INV46 and S38–S39 pass: an unusable legacy carrier is replaced only by
+    complete package-wide exact coverage and is never converted partially.
 
 ## Open questions
 
 *(none)*
+
+## Review history
+
+- **Conformance review at `3e5bad5`.** Independent review returned `PASS`:
+  the specification faithfully derived from approved ADR-0043.
+- **Spec-adversary round 1 at `3e5bad5`.** Independent intrinsic review
+  returned `NEEDS-REVISION` with four blocking findings: deterministic YAML
+  lacked a canonical byte policy; unusable legacy input permitted partial
+  canonical migration; whole-file exact semantics mishandled additive
+  upstreams; and pin-only successful re-derivation lacked an observable
+  independent-review path. This revision fixes each finding in canonical
+  serialization, writer migration, exact selector composition, pin semantics,
+  INV45–INV48, and S37–S42. A fresh independent review is required.
 
 ## Rubric check
 
@@ -978,9 +1149,9 @@ without inventing substitute criteria.
 | Artifact contract | PASS | Frontmatter includes the required identity, lifecycle, dependency, owner, date, and initial behavioral version; Acceptance criteria and Open questions are present. |
 | Decision fidelity | PASS | D1–D8 are covered by carrier/schema, selector, provenance, writer, reader, pin, strictness, and retired-machinery sections. |
 | Propagation fidelity | PASS | The four role charters, two companions, config/setup convention, five stock ledgers, projections, affected tests, and inline-transition ordering are explicit in Grove propagation and INV35–INV38. |
-| Testable grammars | PASS | INV1–INV44 use shall-form requirements; S1–S36 use Given/When/Then; acceptance criteria map both forms. |
+| Testable grammars | PASS | INV1–INV48 use shall-form requirements; S1–S42 use Given/When/Then; acceptance criteria map both forms. |
 | Boundaries | PASS | Deterministic tooling, CI enforcement, and review-bookkeeping revival remain forbidden and require later authority. |
-| Ambiguity | PASS | Package roots without carriers are bound to existing repository conventions; new/touched declarations are compared with the landed basis; relevant groups are defined for changed tests and code; unusable legacy fallback is explicit. Repository-specific test discovery and serialization strategy remain implementation choices, while observable declaration identity, coverage, and byte-stability outcomes are fixed. No load-bearing decision is guessed. |
+| Ambiguity | PASS | Canonical serialization fixes every byte-affecting policy named by the adversary; unusable legacy migration is all-exact-or-no-write; additive group upstreams and split conditions are distinct; manifest-only pins have an independent success path. Repository-specific test discovery remains an implementation choice within observable declaration and coverage outcomes. No load-bearing decision is guessed. |
 | Open questions | PASS | ADR-0043 has no open decisions; its empirical experiment, cross-repository fetching, and future tooling remain parked upstream and add no requirement here. |
 
 The self-check passes. The spec is promoted from `draft` to `gated` and is
