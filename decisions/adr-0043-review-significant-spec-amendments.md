@@ -1,7 +1,7 @@
 ---
 id: adr-0043-review-significant-spec-amendments
 type: adr
-status: draft
+status: gated
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0010-versioning-is-operational, adr-0012-methodology-delivery-machinery, adr-0016-implements-edge-taxonomy]
 informed_by: [adr-0037-pre-execution-planning, adr-0041-separate-support-from-operational-availability]
 owner: agent
@@ -34,12 +34,13 @@ updated: 2026-07-26
 - Apply the selector prospectively to significant spec revisions reviewed
   after this decision. Historical missing `changes:` pointers remain the
   versioning companion's existing soft condition, not a retroactive failure.
+- **Maintainer, 2026-07-26:** allow multiple exact matching amendment
+  decisions for one spec version. Review every match; do not force artificial
+  version bumps merely to serialize independent approved decisions.
 
 ### Open
 
-- May one spec version have multiple exact matching amendment decisions, all
-  of which must pass, or must exactly one decision cause each significant
-  version bump?
+*(none)*
 
 ### Parked
 
@@ -102,6 +103,15 @@ only when all of these hold:
 4. `D` declares `changes: [X@vN]`.
 5. The reviewed subject is exactly `X@vN`, not a later or earlier version.
 
+The amendment-contract set contains every `D` satisfying all five conditions,
+ordered by decision id for deterministic reporting. The set must be nonempty.
+Multiple matches are valid and each is reviewed independently against the
+same bounded version delta. A failure against any match fails conformance; if
+two approved amendment decisions prescribe incompatible behavior, the
+reviewer returns `UPSTREAM-INDICTED` and names the conflict rather than
+choosing one. An absent match, duplicate id, unresolved decision, unapproved
+decision, missing reciprocal dependency, or version mismatch fails closed.
+
 The conformance-reviewer resolves the original fidelity upstream through
 `implements:` exactly as today. Against the current spec, it confirms that
 every original-contract obligation remains satisfied unless an approved
@@ -163,9 +173,9 @@ relation into another fidelity edge.
 
 ## Acceptance criteria
 
-1. The methodology defines one prospective amendment-contract selector using
-   only `X depends_on D` plus approved `D changes X@vN`, with exact subject
-   version matching.
+1. The methodology defines one prospective amendment-contract-set selector
+   using only `X depends_on D` plus approved `D changes X@vN`, with exact
+   subject-version matching and deterministic decision-id order.
 2. Scalar `implements:` remains the original realized-contract fidelity
    upstream and is never silently retargeted by a later amendment.
 3. A bare dependency, bare `changes:` pointer, draft/gated decision, or
@@ -174,8 +184,9 @@ relation into another fidelity edge.
    the selector is explicitly not a new edge.
 5. Conformance review reports original-contract fidelity separately from
    delta-scoped amendment fidelity, does not make either decision explain the
-   other's scope, and returns one ordinary `PASS`, `FAIL`, or
-   `UPSTREAM-INDICTED` verdict for the reviewed spec version.
+   other's scope, reviews every exact match, fails when any match fails, and
+   returns one ordinary `PASS`, `FAIL`, or `UPSTREAM-INDICTED` verdict for the
+   reviewed spec version.
 6. No new schema, field, registry, deterministic check, or retroactive corpus
    migration is introduced.
 7. Spec 0004 v7 can name ADR-0041 as its amendment contract while retaining
@@ -183,9 +194,7 @@ relation into another fidelity edge.
 
 ## Open questions
 
-One question remains: whether a single spec version may match multiple
-amendment decisions that all receive delta-scoped review, or must match
-exactly one.
+None.
 
 ## Self-check
 
@@ -193,6 +202,8 @@ The decision consumes only approved dependencies. It preserves the canonical
 meaning and edge class of all existing relations, resolves the concrete
 revise-in-place/scalar-fidelity contradiction without inventing another
 carrier, and fails closed on absent approval, reciprocity, or exact version
-matching. The remaining amendment-contract cardinality choice is explicit and
-must close before promotion to `gated`; no implementation is authorized from
-this draft.
+matching. Multiple matches form a deterministic complete review set, while
+conflicting approved inputs route upstream instead of being silently ordered.
+No open question remains, so the author promotes the decision from `draft` to
+`gated` for independent soundness review. No implementation is authorized by
+this decision-only PR.
