@@ -1,7 +1,7 @@
 ---
 id: spec-0005-structured-test-dependency-canary
 type: spec
-status: gated  # contract-author self-check passed 2026-07-26; awaiting independent spec convergence
+status: gated  # agent-owned spec gate satisfied at 732f82e on 2026-07-26; gated remains the valid downstream-consumable state
 implements: adr-0043-structured-test-dependency-canary
 depends_on: [adr-0043-structured-test-dependency-canary]
 owner: agent
@@ -1241,8 +1241,15 @@ canonical file containing that value.
   strings did not fully reconcile YAML's printable-scalar boundary. This
   revision fixes the exact physical line grammar, forbids every unselected
   presentation feature, defines DEL/C1/line-separator escaping and
-  unrepresentable scalar rejection, and adds INV49–INV50 plus S43–S45. A
-  fresh independent review is required.
+  unrepresentable scalar rejection, and adds INV49–INV50 plus S43–S45.
+- **Conformance review at `732f82e`.** Independent focused-deep review
+  returned `PASS`: the complete physical YAML grammar and scalar domain
+  faithfully concretize ADR-0043 without authorizing runtime machinery.
+- **Spec-adversary round 3 at `732f82e`.** Independent intrinsic review
+  returned `APPROVE-READY`: the serialization, Unicode, migration, additive
+  upstream, and manifest-only pin contracts have no remaining load-bearing
+  gap. Under the agent-owned spec gate, this verdict ratifies the gated
+  artifact for downstream consumption.
 
 ## Rubric check
 
@@ -1262,5 +1269,6 @@ without inventing substitute criteria.
 | Ambiguity | PASS | Canonical serialization fixes physical lines, presentation exclusions, spacing, ordering, escaping, encoding, and scalar acceptance; unusable legacy migration is all-exact-or-no-write; additive group upstreams and split conditions are distinct; manifest-only pins have an independent success path. Repository-specific test discovery remains an implementation choice within observable declaration and coverage outcomes. No load-bearing decision is guessed. |
 | Open questions | PASS | ADR-0043 has no open decisions; its empirical experiment, cross-repository fetching, and future tooling remain parked upstream and add no requirement here. |
 
-The self-check passes. The spec is promoted from `draft` to `gated` and is
-ready for independent conformance and spec-quality review.
+The self-check and independent convergence reviews pass. The spec remains
+`gated` and is ratified for downstream consumption under the agent-owned spec
+gate.
