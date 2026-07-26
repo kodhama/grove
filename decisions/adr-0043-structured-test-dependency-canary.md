@@ -1,7 +1,7 @@
 ---
 id: adr-0043-structured-test-dependency-canary
 type: adr
-status: draft
+status: gated  # author self-check complete 2026-07-26; awaiting independent decision-adversary and the steward-profile human intent gate
 depends_on: [adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0010-versioning-is-operational, adr-0012-methodology-delivery-machinery, adr-0016-implements-edge-taxonomy, adr-0026-thin-vendor-boundary, adr-0036-remove-retired-review-bookkeeping]
 owner: agent
 updated: 2026-07-26
@@ -360,6 +360,5 @@ unchanged.
   validate exact membership and strict fields, and separate signal from
   verdict.
 
-The self-check passes. The artifact remains `draft` until the initial canvas
-is committed; the author may then move it to `gated` for independent
-decision-adversary review. No approval is claimed.
+The self-check passes. The author moves the artifact to `gated` for
+independent decision-adversary review. No approval is claimed.

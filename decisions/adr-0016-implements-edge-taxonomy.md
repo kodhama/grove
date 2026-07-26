@@ -8,7 +8,7 @@ updated: 2026-07-18
 ---
 
 > **Partially superseded by
-> `adr-0043-structured-test-dependency-canary` (draft, 2026-07-26):** the
+> `adr-0043-structured-test-dependency-canary` (gated, 2026-07-26):** the
 > structured test ledger is optional advisory/canary evidence, not code's
 > authoritative `implements:` carrier. The `implements:` edge remains flow +
 > drift-bearing for artifacts that declare it.

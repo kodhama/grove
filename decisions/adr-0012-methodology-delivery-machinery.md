@@ -9,7 +9,7 @@ updated: 2026-07-16
 ---
 
 > **Partially superseded by
-> `adr-0043-structured-test-dependency-canary` (draft, 2026-07-26):** ledger
+> `adr-0043-structured-test-dependency-canary` (gated, 2026-07-26):** ledger
 > presence no longer selects whether changed code/tests owe conformance, and
 > the ledger becomes optional orientation/canary evidence rather than code's
 > authoritative `implements:` carrier. The independent-review rule and this
