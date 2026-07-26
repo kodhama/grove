@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/conformance-reviewer.md; sha256: ce078f97ccbf4c75aae8cb6bbbd480aa5c156cbbc7ffaf0d258a79bb529221a0 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/conformance-reviewer.md; sha256: d2bf50e0615b92f1394f3afbe730fd6bcecb45aa3b6186b9376dd03eda3523fe -->
 
 # conformance-reviewer — the fidelity instrument, at every layer
 
@@ -103,7 +103,45 @@ reports, it does not fix. Verdict grammar:
 ## Test-dependency evidence modes (adr-0043)
 
 Remain read-only: never repair a manifest, advance a pin, or turn evidence
-classification into the fidelity verdict. Report one evidence mode:
+classification into the fidelity verdict.
+
+For each changed code or test subject, walk from its directory toward the
+repository root, deepest ancestor first. At the same directory, select
+`test-deps.yaml` before `test-deps.md`, and stop at the first directory
+containing either carrier. Thus same-directory canonical YAML wins, but a
+nearer legacy carrier beats farther canonical YAML. Same-root dual presence
+uses canonical as the read basis, is never unioned, and is a migration defect.
+
+Before using canonical evidence, validate strict schema 2. The top-level has
+exactly `schema`, the integer `2`, and `groups`, a non-empty mapping with
+unique non-empty string keys. Each group has only `precision`, `tests`,
+`specs`, `decisions`, `defects`, `covers`, and `notes`; `precision` is
+required and exactly `exact` or `coarse`; `tests` is a required non-empty
+list; `specs`, `decisions`, `defects`, and `covers` are lists of non-empty
+strings when present; `notes` is a string when present; and at least one of
+`specs`, `decisions`, or `defects` is non-empty. A test selector has exactly
+required `file` plus optional `cases`; `cases`, when present, is non-empty,
+and `file` is an existing exact package-relative test-source path. A case
+selector has exactly `title`, a
+non-empty array of non-empty strings that resolves uniquely to one static
+declaration. Coarse groups use file-only selectors and never contain `cases`.
+Every discovered declaration is covered by exact or coarse scope, and every
+new or touched declaration has exact coverage.
+
+Only `specs` entries carry version canaries: a local spec entry includes its
+version and resolves locally. Decisions are append-only references without
+`@version`, defects are tracker references, and cross-repository pins are not
+fetched. A malformed, unresolved, or ahead-of-current local spec pin is
+invalid. Every schema string is a Unicode scalar sequence; U+FFFE, U+FFFF,
+and an unpaired UTF-16 surrogate are invalid.
+
+Unknown fields, duplicate mapping keys, unsupported schema,
+empty required collections, malformed or unresolved required local references, absolute
+paths, globs, partial-title matches, nonexistent test files or declarations,
+ambiguous exact selectors, invalid Unicode scalars, and uncovered discovered
+declarations make canonical data malformed.
+
+After selection and validation, report one evidence mode:
 
 - `canonical/exact` when every relevant selected canonical group is exact;
 - `canonical/coarse` when at least one relevant selected canonical group is

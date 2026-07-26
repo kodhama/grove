@@ -13,7 +13,7 @@
 TEST_CMD = "npm test --prefix tooling/grove/build && npm test --prefix tooling/grove/tests/lifecycle && npm test --prefix tooling/grove/release && npm test --prefix tooling/grove/tests/gates && npm test --prefix tooling/grove/probes"
 TYPECHECK_CMD = "npm run typecheck --prefix tooling/grove/build && npm run typecheck --prefix tooling/grove/tests/lifecycle && npm run typecheck --prefix tooling/grove/release && npm run typecheck --prefix tooling/grove/tests/gates && npm run typecheck --prefix tooling/grove/probes"
 LINT_CMD = "none — no linter or formatter configured"
-TEST_DEPS_LEDGER = "per-package nearest-ancestor test-deps.yaml; read nearest-ancestor test-deps.md only as legacy fallback; verify the selected carrier on use"
+TEST_DEPS_LEDGER = "walk deepest ancestor first; at each directory select test-deps.yaml before test-deps.md; stop at the first directory containing either, so nearer legacy beats farther canonical; treat test-deps.md as read-only legacy fallback; verify the selected carrier on use"
 PR_CONTRACT_SECTIONS = "none committed — no PR template or CI-enforced PR-body contract exists; check by hand until one does"
 PARKED_ITEM_STORE = "a decision's '### Parked' section, or a tracked issue on kodhama/grove"
 CONVENTIONS_PATH = "CLAUDE.md"

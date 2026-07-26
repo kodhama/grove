@@ -153,6 +153,7 @@ groups:
       - "INV23–INV28"
       - "INV33"
       - "INV37–INV41"
+      - "INV5–INV7"
       - "S1"
       - "S15"
       - "S18"
@@ -290,7 +291,7 @@ groups:
   const config = await readFile(join(REPOSITORY_ROOT, '.grove/config.toml'), 'utf8');
   assert.match(
     config,
-    /TEST_DEPS_LEDGER = "per-package nearest-ancestor test-deps\.yaml; read nearest-ancestor test-deps\.md only as legacy fallback; verify the selected carrier on use"/,
+    /TEST_DEPS_LEDGER = "walk deepest ancestor first; at each directory select test-deps\.yaml before test-deps\.md; stop at the first directory containing either, so nearer legacy beats farther canonical; treat test-deps\.md as read-only legacy fallback; verify the selected carrier on use"/,
   );
 });
 
@@ -301,6 +302,23 @@ test('spec-0005 AC1–AC4/AC9/AC12–AC16 — writer, selectors, pins, and seria
         readFile(join(REPOSITORY_ROOT, 'charters', `${name}.md`), 'utf8')),
     )
   ).map((text) => text.replace(/\s+/g, ' '));
+
+  assert.doesNotMatch(
+    executor,
+    /Every test names its upstream.*header\/describe block/i,
+  );
+  assert.doesNotMatch(
+    executor,
+    /keep a per-package test-deps ledger/i,
+  );
+  assert.match(
+    executor,
+    /inline provenance.*fallback.*validated exact external membership/i,
+  );
+  assert.match(
+    executor,
+    /canary absence.*valid advisory state/i,
+  );
 
   for (const required of [
     /deepest|nearest/i,
@@ -323,6 +341,25 @@ test('spec-0005 AC1–AC4/AC9/AC12–AC16 — writer, selectors, pins, and seria
     /split.*whole-file.*lacks an upstream/i,
     /deterministic.*byte-stable/i,
     /UTF-8.*byte-order mark/i,
+    /top-level fields.*`schema`.*`groups`.*in that order/i,
+    /group names.*Unicode scalar/i,
+    /group fields.*`precision`.*`tests`.*`specs`.*`decisions`.*`defects`.*`covers`.*`notes`.*in that order/i,
+    /test selectors.*`file`.*canonical case-list representation.*absent `cases`.*empty sequence.*sorts before/i,
+    /`file` precedes `cases`/i,
+    /case selectors.*complete title arrays/i,
+    /title segment order.*outermost-to-innermost.*never sorted/i,
+    /`specs`, `decisions`, `defects`, and `covers`.*lexicographically/i,
+    /first physical line.*`schema: 2`.*second.*`groups:`.*first group.*third/i,
+    /nested collection.*`:`.*LF.*scalar.*`: `.*LF/i,
+    /sequence entry.*`-`.*one ASCII space/i,
+    /`file` and `title`.*same physical line.*sequence dash/i,
+    /following group.*immediately after.*preceding group/i,
+    /file ends immediately after.*LF/i,
+    /`"` is `\\"`.*`\\` is `\\\\`.*solidus is not escaped/i,
+    /U\+0008.*`\\b`.*U\+0009.*`\\t`.*U\+000A.*`\\n`.*U\+000C.*`\\f`.*U\+000D.*`\\r`/i,
+    /U\+0000–U\+001F.*`\\u00XX`.*uppercase/i,
+    /U\+007F–U\+009F.*`\\u00XX`.*uppercase/i,
+    /U\+2028.*`\\u2028`.*U\+2029.*`\\u2029`/i,
     /Unicode scalar/i,
     /U\+FFFE.*U\+FFFF.*unpaired/i,
   ]) {
@@ -333,6 +370,10 @@ test('spec-0005 AC1–AC4/AC9/AC12–AC16 — writer, selectors, pins, and seria
   assert.match(relations, /not.*scalar `implements:`.*general `depends_on`/i);
   assert.match(relations, /`specs`, `decisions`, and `defects`/i);
   assert.match(relations, /`covers` and `notes`.*not.*upstream/i);
+  assert.doesNotMatch(
+    relations,
+    /code.*names its spec.*test-deps ledger/i,
+  );
 
   for (const required of [
     /last-reviewed target/i,
@@ -366,6 +407,26 @@ test('spec-0005 AC5/AC6/AC10/AC11 — reader modes, routing, and drift precision
     assert.match(reviewer, new RegExp(mode.replace('/', '\\/')));
   }
   for (const required of [
+    /subject.*walk.*repository root.*deepest.*first/i,
+    /same directory.*`test-deps\.yaml`.*before.*`test-deps\.md`/i,
+    /nearer legacy.*farther canonical/i,
+    /top-level.*exactly.*`schema`.*`groups`/i,
+    /`schema`.*integer `2`/i,
+    /`groups`.*non-empty mapping.*unique.*non-empty/i,
+    /group.*only.*`precision`.*`tests`.*`specs`.*`decisions`.*`defects`.*`covers`.*`notes`/i,
+    /at least one of `specs`, `decisions`, or `defects`.*non-empty/i,
+    /test selector.*exactly.*`file`.*optional `cases`/i,
+    /case selector.*exactly.*`title`.*non-empty array.*non-empty strings/i,
+    /coarse.*file-only.*never.*`cases`/i,
+    /every discovered.*exact.*coarse/i,
+    /new or touched.*exact/i,
+    /only `specs`.*version canar/i,
+    /decisions.*without `@version`/i,
+    /ahead-of-current.*invalid/i,
+    /U\+FFFE.*U\+FFFF.*unpaired/i,
+    /unknown fields.*duplicate.*malformed/i,
+    /absolute paths.*globs.*partial-title.*malformed/i,
+    /nonexistent test files.*ambiguous exact.*malformed/i,
     /changed tests?.*new or touched.*select/i,
     /changed code.*independently.*affected test/i,
     /ledger membership.*does not decide/i,

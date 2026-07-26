@@ -2,10 +2,10 @@
 name: role-executor
 description: "Stage-4 strict test-first implementation from approved or ratified-gated artifacts, cold-started from the artifact dependency graph."
 ---
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 5bc7bc6ecd7af9b7f065a4ea16bd1919eef20454bff2a2d4f0d498335a6b6989 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: a0f9a63c5cea77041a948f251a2ee8ec5a91d56440f4dfc6e740c134e3dcd1e7 -->
 
 Canonical source: `charters/executor.md`
-Canonical digest: `5bc7bc6ecd7af9b7f065a4ea16bd1919eef20454bff2a2d4f0d498335a6b6989`
+Canonical digest: `a0f9a63c5cea77041a948f251a2ee8ec5a91d56440f4dfc6e740c134e3dcd1e7`
 Exposure: `cold-native`
 
 Read [the canonical role projection](../../../../reference/charters/executor.md) and follow it as the complete role contract in the cold-native exposure.
