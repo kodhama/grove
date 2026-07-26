@@ -32,7 +32,8 @@ async function main(argv) {
     request.repoRoot = resolve(request.repoRoot ?? process.cwd());
     request.packageRoot = resolve(
       request.packageRoot
-        ?? dirname(dirname(dirname(fileURLToPath(import.meta.url)))),
+        // bin -> lifecycle -> runtime -> the package root that holds metadata/.
+        ?? resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..'),
     );
     const plan = await planner(request);
     process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
