@@ -19,21 +19,27 @@ updated: 2026-07-26
   making a support claim.
 - **Maintainer, 2026-07-26:** audit the current `candidate` / `unsupported`
   model for simplification rather than merely adding a one-off bypass.
+- **Maintainer, 2026-07-26:** select the independent-state architecture:
+  replace `release_state` with a support-only state, retire `candidate` as a
+  durable surface value, and add an exact-surface setup-eligibility state.
+- The initial Grove behavior will make only `claude-interactive` and
+  `codex-exec-non-ephemeral` setup-eligible; every other declared surface
+  remains setup-ineligible.
 - Stewards decision 0021 remains authoritative for adoption-posture language;
   this decision will not turn dogfood, preview, or supported into a Grove
   posture registry.
 
 ### Open
 
-- Whether to retire `candidate`, rename `release_state` to `support_state`,
-  and add an independent exact-surface setup-eligibility state.
+- Whether the state names and invariants are collective plugin grammar owned
+  by Stewards, leaving this ADR to receive them and decide Grove's row values
+  and lifecycle behavior.
 - Whether the no-promise support value should remain `unsupported` or use a
   less ambiguous name.
 - Whether normal plan disclosure plus exact-action confirmation is sufficient,
   or non-supported setup needs a separate acknowledgement.
 - Which lifecycle operations should be available on a technically loadable but
   non-supported surface.
-- Which exact Claude and Codex rows qualify initially.
 
 ### Parked
 
@@ -64,9 +70,9 @@ three models. Its advisory recommendation is to make support and setup
 eligibility independent authored facts and retire `candidate` as a durable
 surface state.
 
-## Working proposal
+## Selected architecture
 
-The smallest coherent direction appears to be:
+The selected architecture is:
 
 1. Keep support an exact-host, exact-surface, evidence-backed public claim.
 2. Replace `release_state` with a support-only state and add one independent
@@ -79,12 +85,17 @@ The smallest coherent direction appears to be:
 6. Continue to fail closed for unknown, documentation-only, and partial load
    mechanisms.
 
-This is a working proposal, not yet a decision. The open state-model question
-must settle before the rest can converge.
+The ownership, naming, confirmation, and operation-scope questions remain open
+before this decision can converge.
 
 ## Rejected options
 
-*(none yet)*
+- **Special-case `candidate` for dogfood.** Rejected by the maintainer on
+  2026-07-26: it would retain the support/setup coupling and would not cover
+  host-native-but-not-supported Claude interactive.
+- **Derive setup eligibility only from bridge state and load path.** Rejected:
+  all five Claude rows are host-native and name load paths, so derivation would
+  over-authorize surfaces beyond the bounded first dogfood step.
 
 ## Consequences
 
