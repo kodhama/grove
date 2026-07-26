@@ -1,7 +1,8 @@
 ---
 id: adr-0027-retire-ci-for-now
 type: adr
-status: superseded in part  # ADR-0036 removes the retained runtime, templates, and revival route; D2's prose hand-off and the retirement of the record medium remain in force
+status: approved  # partially superseded by ADR-0036; the lifecycle companion requires partially superseded artifacts to remain approved
+superseded_in_part_by: [adr-0036-remove-retired-review-bookkeeping]
 depends_on: [adr-0026-thin-vendor-boundary, adr-0012-methodology-delivery-machinery]
 informed_by: [adr-0013-check-scope-mode, adr-0022-strict-mode-review-friction, adr-0024-enforced-gate-under-ship-agent, adr-0025-decline-review-waiver, adr-0023-review-triage-blackboard, spec-0002-review-bookkeeping-check, spec-0003-review-asks-and-audit]
 owner: agent
