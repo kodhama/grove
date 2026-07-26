@@ -1,7 +1,8 @@
 ---
 id: adr-0035-plugin-and-consumer-boundary
 type: adr
-status: superseded in part  # ADR-0036 removes the retained review-bookkeeping code; the plugin/consumer boundary otherwise stands
+status: approved  # partially superseded by ADR-0036; the lifecycle companion requires partially superseded artifacts to remain approved
+superseded_in_part_by: [adr-0036-remove-retired-review-bookkeeping]
 depends_on: [adr-0018-gate-profile-and-trigger-split, adr-0020-dispatcher-honors-gate-profile, adr-0021-gate-profile-self-adoption, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0031-multi-host-distribution, adr-0034-narrow-stewards-marketplace-provisioning]
 owner: agent
 updated: 2026-07-25

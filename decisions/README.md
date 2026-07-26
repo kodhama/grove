@@ -26,10 +26,11 @@ the lifecycle companion (`adr-0008`) — not restated here.
 
 ## Decisions are append-only
 
-**Never edit a ratified (`approved`) decision in place.** To change one:
-write a new decision, mark the old one `status: superseded` (or
-`superseded in part` for a partial change), and add a one-line forward
-pointer at the top of the superseded text naming the new decision's `id`.
-No reader should ever land on stale text without a link forward. This is
-how "why is it this way?" stays answerable later — the history is the
-record, not just the current state.
+**Never edit a ratified (`approved`) decision's substance in place.** To
+change one, write a new decision and add a one-line forward pointer at the top
+of the old text naming the new decision's `id`. A fully retired decision moves
+to `status: superseded` and declares `superseded_by`; for partial supersession
+its status remains `approved` and it declares `superseded_in_part_by`, as
+defined by the lifecycle companion. No reader should ever land on stale text
+without a link forward. This is how "why is it this way?" stays answerable
+later — the history is the record, not just the current state.

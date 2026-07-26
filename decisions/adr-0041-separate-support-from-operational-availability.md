@@ -89,7 +89,8 @@ The selected architecture is:
    existing disclosed-plan and exact-action confirmation flow.
 7. Lead every `support_claim: none` plan with the non-support disclosure; do
    not add a second acknowledgement or adoption-posture input.
-8. Continue to fail closed for every `unavailable` row and for unknown,
+8. Except for the confirmation-bound Remove cleanup path below, continue to
+   fail closed for every `unavailable` row and for unknown,
    documentation-only, or partial load mechanisms.
 
 Remove remains available for confirmation-bound cleanup on every known
@@ -120,8 +121,11 @@ surface, preserving the existing escape path.
 - Grove's release validator stops treating incomplete qualification as a
   durable support state.
 - Existing support evidence remains exact-snapshot and product-owned.
-- Metadata, runtime, generated documentation, and focused tests require a
-  product implementation after this decision is ratified.
+- Before implementation, `spec-0004-dual-host-distribution` is revised in
+  place, version-bumped, gated, and independently reviewed to replace its
+  `release_state` grammar and supported-only operation table.
+- Metadata, runtime, generated documentation, and focused tests then implement
+  that revised contract after this decision is ratified.
 
 ## Acceptance criteria
 
@@ -133,17 +137,21 @@ surface, preserving the existing escape path.
    terminology and never authorizes lifecycle writes or blocks a release.
 4. `support_claim: claimed` requires Grove's existing exact-surface support
    record; `none` makes no support claim.
-5. Lifecycle writes require `availability_state: available`, a host-valid load
-   mechanism, and a load path; unavailable or contradictory rows fail before
-   mutation.
+5. Setup, refresh, and set-profile require
+   `availability_state: available`, a host-valid load mechanism, and a load
+   path; unavailable or contradictory rows fail before mutation.
 6. `available` permits setup, refresh, and set-profile; `unavailable` permits
-   none of those writes. Remove retains its confirmation-bound cleanup
-   behavior for any known row.
+   none of those three writes. As the explicit cleanup exception, Remove
+   retains its confirmation-bound behavior for any known row regardless of
+   availability.
 7. Every `support_claim: none` plan leads with the non-support disclosure, and
    the existing exact-action confirmation is sufficient without another
    acknowledgement or posture input.
 8. Adoption posture, support promotion, and the planner experiment remain
    unchanged.
+9. Before implementation, Spec 0004 replaces its `release_state` model and
+   supported-only operation table with this decision's grammar and behavior,
+   receives a version bump, and passes its independent spec gate.
 
 ## Open questions
 
