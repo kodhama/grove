@@ -39,12 +39,15 @@ updated: 2026-07-26
 - **Maintainer, 2026-07-26:** allow multiple exact matching amendment
   decisions for one spec version. Review every match; do not force artificial
   version bumps merely to serialize independent approved decisions.
+- **Maintainer, 2026-07-26:** preserve fidelity through an accumulated active
+  contract set. A current spec is checked against its original `implements:`
+  decision and every still-active, reciprocally linked amendment through its
+  current version; a prior whole-spec verdict is not reused after the spec
+  changes.
 
 ### Open
 
-- For a later `X@vN`, should original-contract preservation accumulate every
-  still-active earlier amendment decision, or may it trust the previously
-  reviewed spec version as the unchanged baseline?
+*(none)*
 
 ### Parked
 
@@ -126,11 +129,26 @@ match for a newly created post-approval version, duplicate id, unresolved
 decision, unapproved decision, missing reciprocal dependency, version
 mismatch, or uncovered behavioral clause fails closed.
 
+For current `X@vN`, the **active contract set** is:
+
+1. the approved original decision named by scalar `implements:`; plus
+2. every approved decision `D` for which `X depends_on D` and
+   `D changes X@vK`, where `vK ≤ vN`, limited to clauses not explicitly
+   retired through full or partial supersession.
+
+The spec shall retain every still-active amendment decision in `depends_on`.
+It may remove a fully superseded amendment dependency only when the ordinary
+forward-pointer lineage resolves to the replacement decision the spec now
+depends on. Partial supersession retains the earlier approved decision and
+reviews only its still-active clauses.
+
 The conformance-reviewer resolves the original fidelity upstream through
-`implements:` exactly as today. Against the current spec, it confirms that
-every original-contract obligation remains satisfied unless an approved
-amendment explicitly supersedes that obligation; matched later additions are
-not scope creep against the original decision.
+`implements:` exactly as today. Against the current spec, it derives the
+accumulated active contract set and confirms that every still-active
+obligation remains satisfied. Matched later additions are not scope creep
+against the original decision, and an earlier obligation stops applying only
+through explicit supersession lineage. A previous whole-spec conformance
+verdict is stale once the spec changes and is never reused as the baseline.
 
 It additionally resolves the amendment contract through the five-part
 conjunction above. Using the change-request diff and the spec's required
@@ -160,6 +178,24 @@ appropriate forward pointer to the new decision. Conformance applies the
 still-active clauses after following those explicit pointers; a reviewer does
 not infer supersession merely because newer text differs.
 
+The prospective cutoff controls obligation, not evidence usability. Every
+behavioral version first created after this decision's approval must carry the
+complete reciprocal records and accumulated active lineage. A historical
+version re-reviewed without a behavioral edit does not fail for missing legacy
+records; when complete reciprocal records do exist, the reviewer may use them
+as amendment contracts. This permits Spec 0004 v7's existing complete
+ADR-0041 pairing without retroactively requiring reconstruction of unrelated
+historical gaps.
+
+Before a spec creates its first post-approval behavioral version, the
+contract-author shall materialize that spec's own still-active historical
+amendment lineage: use its existing amendment notes and approved decision
+dependencies to identify each significant amendment, add any missing exact
+`changes: [X@vK]` accounting pointer, and retain the reciprocal dependency. If
+the historical version or active scope cannot be established honestly, route
+that spec to shaping rather than guessing. This is a touched-spec migration,
+not a family-wide retroactive rewrite or re-review.
+
 ## Rejected options
 
 - **Retarget `implements:` to the latest amendment decision.** Rejected:
@@ -177,6 +213,10 @@ not infer supersession merely because newer text differs.
 - **Accept an informal PR comment as the amendment link.** Rejected: the
   relation must be recoverable from durable artifacts rather than session or
   review prose.
+- **Reuse the prior whole-spec verdict for unchanged content.** Rejected:
+  Grove's freshness rule invalidates a verdict when its reviewed artifact
+  changes; safe partial-verdict reuse would require new clause-level
+  fingerprint machinery outside this decision's scope.
 
 ## Consequences
 
@@ -184,7 +224,9 @@ not infer supersession merely because newer text differs.
   significant spec amendment while preserving the original `implements:`
   fidelity check.
 - `charters/contract-author.md` and `specs/README.md` point significant
-  revisions to the paired-record requirement they already partially follow.
+  revisions to the paired-record requirement they already partially follow
+  and require retention of the still-active amendment lineage, including the
+  bounded touched-spec materialization before its first post-approval bump.
 - ADR-0012 and ADR-0016 receive scoped append-only forward annotations to this
   decision where they state that only scalar `implements:` selects fidelity;
   their original-fidelity edge and all other clauses stand.
@@ -212,9 +254,10 @@ not infer supersession merely because newer text differs.
 5. Conformance review reports original-contract fidelity separately from
    delta-scoped amendment fidelity, does not make either decision explain the
    other's attributed scope, covers every behavior-changing clause in the
-   version diff, reviews every exact match, fails when any match fails, and
-   returns one ordinary `PASS`, `FAIL`, or `UPSTREAM-INDICTED` verdict for the
-   reviewed spec version.
+   version diff, verifies every obligation in the accumulated active contract
+   set, reviews every exact current-version match, fails when any required
+   match or active obligation fails, and returns one ordinary `PASS`, `FAIL`,
+   or `UPSTREAM-INDICTED` verdict for the reviewed spec version.
 6. No new schema, field, registry, deterministic check, or retroactive corpus
    migration is introduced.
 7. Spec 0004 v7 can name ADR-0041 as its amendment contract while retaining
@@ -222,12 +265,16 @@ not infer supersession merely because newer text differs.
 8. ADR-0012 and ADR-0016 carry scoped forward annotations to this extension,
    and any decision obligation actually retired by a later amendment follows
    the existing partial/full supersession pointer discipline.
+9. A post-approval spec version retains every still-active reciprocally linked
+   amendment through its current version; a previous whole-spec verdict is
+   never reused after content changes, and historical missing records remain
+   a soft condition unless a new behavioral version is created, at which point
+   that touched spec's active historical lineage is materialized or the work
+   routes to shaping.
 
 ## Open questions
 
-One question remains: whether preservation at a later version accumulates all
-still-active earlier amendment contracts or may reuse the previously reviewed
-spec version as its unchanged baseline.
+None.
 
 ## Self-check
 
@@ -239,6 +286,7 @@ matching. Multiple matches now receive attributed subdeltas whose union covers
 the full behavioral change; conflicting approved inputs route upstream
 instead of being silently ordered. The prospective cutoff and required
 append-only reconciliation with ADR-0012/0016 and superseded obligations are
-explicit. The remaining baseline-preservation question is open, so a fresh
-soundness review is not yet requested. No implementation is authorized by
-this decision-only PR.
+explicit. The maintainer selected accumulated active contracts over stale
+whole-spec verdict reuse, closing the final question. The first adversary's
+four findings are folded; the decision is ready for a fresh soundness review.
+No implementation is authorized by this decision-only PR.
