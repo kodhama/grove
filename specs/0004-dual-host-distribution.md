@@ -1323,9 +1323,10 @@ missing, extra, reordered, stale, or semantically inconsistent row.
 - **INV44 — non-support disclosure:** For every valid
   `support_claim: none` invocation, the operation plan shall lead with the
   missing-support disclosure and then use the existing exact-action
-  confirmation; it shall require no second acknowledgement or
-  adoption-posture input, and the support field shall never expand or contract
-  the availability-selected operation cell.
+  confirmation; it shall require no additional non-support-specific
+  acknowledgement or adoption-posture input, shall preserve every existing
+  operation-specific safety confirmation, and the support field shall never
+  expand or contract the availability-selected operation cell.
 
 ### GWT scenarios
 
