@@ -147,6 +147,14 @@ A minimal form would:
   remove-on-any-known-surface behavior; and
 - leave every unknown, documentation-only, or partial primitive fail-closed.
 
+## Subsequent shared decision
+
+After this discovery, approved Stewards decision 0023 made the two dimensions
+common plugin grammar: `availability_state: available | unavailable` and
+`support_claim: claimed | none`. Its names and invariants supersede this
+discovery's illustrative `setup_state` / `support_state` spellings; Grove
+still owns exact row values and lifecycle behavior.
+
 ## Research-quality self-check
 
 `RESEARCH_RUBRIC_PATH` is explicitly configured as `none exists yet`, so no
