@@ -14,7 +14,10 @@ updated: 2026-07-26
 > `adr-0043-review-significant-spec-amendments`, after
 > `adr-0043-structured-test-dependency-canary` had already claimed that
 > sequence number. The later artifact was renumbered to ADR-0044 without
-> changing its decision content.
+> changing its decision content. For this decision's ancestry cutoff, both
+> names are one identity lineage: `A` remains the original approved landing
+> commit `947d9bdc702798b960a67a9a465e61beebe44fa7`. The identity-correction
+> commit is not a new approval landing and must not be selected as `A`.
 
 ## Decision state
 
