@@ -7,6 +7,12 @@ owner: agent
 updated: 2026-07-16  # forward pointer to adr-0012 added at the dec-5 conformance-reviewer bullet (adr-0012 AC11) — annotation only, no content edit
 ---
 
+> **Partially superseded by
+> `adr-0043-structured-test-dependency-canary` (draft, 2026-07-26):** the
+> package-ledger carrier, granularity, local role duties, and absence behavior
+> move to an optional structured YAML canary. The version-as-trigger principle
+> and the rest of this decision remain unchanged.
+
 > Shaped interactively with the maintainer (2026-07-11), resolving
 > kodhama/grove#34 — the *operational* piece of the artifact-conformance
 > program (kodhama#31). Applies `trellis/decision-0045`'s versioning

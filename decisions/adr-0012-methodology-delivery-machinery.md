@@ -8,6 +8,13 @@ owner: agent
 updated: 2026-07-16
 ---
 
+> **Partially superseded by
+> `adr-0043-structured-test-dependency-canary` (draft, 2026-07-26):** ledger
+> presence no longer selects whether changed code/tests owe conformance, and
+> the ledger becomes optional orientation/canary evidence rather than code's
+> authoritative `implements:` carrier. The independent-review rule and this
+> decision's historical machinery record remain unchanged.
+
 > **Provenance.** Opened from grove#59: an agent with the full grove roster +
 > trellis overlay loaded still, unprompted, (1) combined spec-author and
 > builder in one pass, (2) ran only the conformance gate when the work owed
