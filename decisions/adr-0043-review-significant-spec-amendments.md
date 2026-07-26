@@ -31,16 +31,20 @@ updated: 2026-07-26
   then checks the clauses changed for `vN` against the matching amendment
   decision rather than requiring either decision to explain the other's
   scope.
-- Apply the selector prospectively to significant spec revisions reviewed
-  after this decision. Historical missing `changes:` pointers remain the
-  versioning companion's existing soft condition, not a retroactive failure.
+- Apply the selector to every behavioral spec version first created after this
+  decision is approved. A historical version re-reviewed without a new
+  behavioral edit remains under the versioning companion's existing soft
+  `changes:` condition; any post-approval behavioral edit requires a new
+  version and the complete selector.
 - **Maintainer, 2026-07-26:** allow multiple exact matching amendment
   decisions for one spec version. Review every match; do not force artificial
   version bumps merely to serialize independent approved decisions.
 
 ### Open
 
-*(none)*
+- For a later `X@vN`, should original-contract preservation accumulate every
+  still-active earlier amendment decision, or may it trust the previously
+  reviewed spec version as the unchanged baseline?
 
 ### Parked
 
@@ -105,12 +109,22 @@ only when all of these hold:
 
 The amendment-contract set contains every `D` satisfying all five conditions,
 ordered by decision id for deterministic reporting. The set must be nonempty.
-Multiple matches are valid and each is reviewed independently against the
-same bounded version delta. A failure against any match fails conformance; if
-two approved amendment decisions prescribe incompatible behavior, the
-reviewer returns `UPSTREAM-INDICTED` and names the conflict rather than
-choosing one. An absent match, duplicate id, unresolved decision, unapproved
-decision, missing reciprocal dependency, or version mismatch fails closed.
+Multiple matches are valid.
+
+The reviewer constructs a judgment evidence table mapping each matching
+decision to the behavior-changing normative clauses in the `vN` diff that
+derive from it. Each decision is reviewed only against its attributed
+subdelta; overlap is allowed when one clause implements more than one
+decision. The union of attributed clauses shall cover the complete behavioral
+delta, so an unowned changed clause fails conformance. This table is review
+evidence, not a new artifact field or persisted schema.
+
+A failure against any match fails conformance; if two approved amendment
+decisions prescribe incompatible behavior, the reviewer returns
+`UPSTREAM-INDICTED` and names the conflict rather than choosing one. An absent
+match for a newly created post-approval version, duplicate id, unresolved
+decision, unapproved decision, missing reciprocal dependency, version
+mismatch, or uncovered behavioral clause fails closed.
 
 The conformance-reviewer resolves the original fidelity upstream through
 `implements:` exactly as today. Against the current spec, it confirms that
@@ -121,10 +135,11 @@ not scope creep against the original decision.
 It additionally resolves the amendment contract through the five-part
 conjunction above. Using the change-request diff and the spec's required
 amendment note as locators—not as a second durable artifact—it checks the
-current clauses changed for `vN` against the matching decision's bounded
-scope. It shall not require the amendment decision to explain untouched
-historical behavior, and shall not treat any unmatched dependency or
-unmatched `changes:` pointer as a fidelity contract.
+attributed current clauses changed for `vN` against each matching decision's
+bounded scope. It shall not require one amendment decision to explain another
+decision's attributed clauses or untouched historical behavior, and shall not
+treat any unmatched dependency or unmatched `changes:` pointer as a fidelity
+contract.
 
 This is a review-selection rule over existing relations, not a sixth edge.
 Directional flow and drift remain carried by `depends_on`; version accounting
@@ -136,6 +151,14 @@ upstream” rule, not a contradiction or replacement. `implements:` remains the
 single original fidelity edge. The reciprocal pair selects a bounded
 amendment contract for one version review; it does not turn either component
 relation into another fidelity edge.
+
+When a new amendment changes or retires an obligation from the original
+decision or an earlier amendment decision, ordinary append-only lineage
+remains mandatory: the outgrown decision stays approved for partial
+supersession or becomes superseded for full retirement, and carries the
+appropriate forward pointer to the new decision. Conformance applies the
+still-active clauses after following those explicit pointers; a reviewer does
+not infer supersession merely because newer text differs.
 
 ## Rejected options
 
@@ -162,6 +185,9 @@ relation into another fidelity edge.
   fidelity check.
 - `charters/contract-author.md` and `specs/README.md` point significant
   revisions to the paired-record requirement they already partially follow.
+- ADR-0012 and ADR-0016 receive scoped append-only forward annotations to this
+  decision where they state that only scalar `implements:` selects fidelity;
+  their original-fidelity edge and all other clauses stand.
 - `charters/relations.md` and `charters/versioning.md` retain their existing
   edge classes and version mechanics unchanged; reviewer selection remains a
   role duty rather than a new relation definition.
@@ -175,7 +201,8 @@ relation into another fidelity edge.
 
 1. The methodology defines one prospective amendment-contract-set selector
    using only `X depends_on D` plus approved `D changes X@vN`, with exact
-   subject-version matching and deterministic decision-id order.
+   subject-version matching, deterministic decision-id order, and an exact
+   cutoff at behavioral versions first created after this decision's approval.
 2. Scalar `implements:` remains the original realized-contract fidelity
    upstream and is never silently retargeted by a later amendment.
 3. A bare dependency, bare `changes:` pointer, draft/gated decision, or
@@ -184,17 +211,23 @@ relation into another fidelity edge.
    the selector is explicitly not a new edge.
 5. Conformance review reports original-contract fidelity separately from
    delta-scoped amendment fidelity, does not make either decision explain the
-   other's scope, reviews every exact match, fails when any match fails, and
+   other's attributed scope, covers every behavior-changing clause in the
+   version diff, reviews every exact match, fails when any match fails, and
    returns one ordinary `PASS`, `FAIL`, or `UPSTREAM-INDICTED` verdict for the
    reviewed spec version.
 6. No new schema, field, registry, deterministic check, or retroactive corpus
    migration is introduced.
 7. Spec 0004 v7 can name ADR-0041 as its amendment contract while retaining
    ADR-0031 as its original scalar `implements:` contract.
+8. ADR-0012 and ADR-0016 carry scoped forward annotations to this extension,
+   and any decision obligation actually retired by a later amendment follows
+   the existing partial/full supersession pointer discipline.
 
 ## Open questions
 
-None.
+One question remains: whether preservation at a later version accumulates all
+still-active earlier amendment contracts or may reuse the previously reviewed
+spec version as its unchanged baseline.
 
 ## Self-check
 
@@ -202,8 +235,10 @@ The decision consumes only approved dependencies. It preserves the canonical
 meaning and edge class of all existing relations, resolves the concrete
 revise-in-place/scalar-fidelity contradiction without inventing another
 carrier, and fails closed on absent approval, reciprocity, or exact version
-matching. Multiple matches form a deterministic complete review set, while
-conflicting approved inputs route upstream instead of being silently ordered.
-No open question remains, so the author promotes the decision from `draft` to
-`gated` for independent soundness review. No implementation is authorized by
+matching. Multiple matches now receive attributed subdeltas whose union covers
+the full behavioral change; conflicting approved inputs route upstream
+instead of being silently ordered. The prospective cutoff and required
+append-only reconciliation with ADR-0012/0016 and superseded obligations are
+explicit. The remaining baseline-preservation question is open, so a fresh
+soundness review is not yet requested. No implementation is authorized by
 this decision-only PR.
