@@ -149,8 +149,9 @@ of non-empty strings.
 Unknown fields, duplicate mapping keys, unsupported schema values, empty
 required collections, malformed references, unresolved required local
 references, absolute paths, globs, partial-title matches, nonexistent test
-files, nonexistent selected declarations, and ambiguous exact case selectors
-make canonical data malformed.
+files, nonexistent selected declarations, ambiguous exact case selectors,
+non-scalar Unicode input, and U+FFFE/U+FFFF in a schema string make canonical
+data malformed.
 
 Only `specs` entries carry version canaries. A local spec entry includes its
 version, for example `spec-example@v2`, and resolves to a versioned local
@@ -169,6 +170,8 @@ Every executor write uses one byte-observable serialization:
 - UTF-8 without a byte-order mark;
 - LF line endings, no tabs, two spaces per indentation level, no trailing
   whitespace, and exactly one final newline;
+- no YAML directives, document-start (`---`) or document-end (`...`) markers,
+  comments, blank lines, explicit tags, anchors, or aliases;
 - block mappings and block lists only;
 - top-level fields in order: `schema`, `groups`;
 - group names ordered lexicographically by Unicode scalar value;
@@ -191,8 +194,16 @@ Every executor write uses one byte-observable serialization:
   JSON-compatible string: `"` is `\"`, `\` is `\\`, solidus is not escaped,
   U+0008/U+0009/U+000A/U+000C/U+000D use `\b`/`\t`/`\n`/`\f`/`\r`,
   respectively, any other U+0000–U+001F control uses `\u00XX` with uppercase
-  hex digits, and every other Unicode scalar value is emitted directly as
-  UTF-8.
+  hex digits, U+007F–U+009F use `\u00XX` with uppercase hex digits,
+  U+2028/U+2029 use `\u2028`/`\u2029`, and every other accepted Unicode
+  scalar value is emitted directly as UTF-8.
+
+Every schema string is a sequence of Unicode scalar values. U+FFFE and U+FFFF
+are rejected as not representable by this YAML contract, even through an
+escape. An input containing an unpaired UTF-16 surrogate is not a Unicode
+scalar sequence and is likewise rejected before serialization. Other accepted
+strings, including U+0000–U+001F and U+007F–U+009F, are representable through
+the escapes fixed above.
 
 Every lexicographic comparison above compares Unicode scalar values in order;
 when one sequence is an exact prefix of another, the shorter sequence sorts
@@ -203,6 +214,52 @@ present empty `notes` string is serialized as `notes: ""`. The policy
 preserves semantic title-array order while removing map, field, list, scalar,
 encoding, indentation, and newline degrees of freedom. Rewriting an unchanged
 semantic manifest therefore produces identical bytes.
+
+The physical line grammar is exactly:
+
+```text
+schema: 2
+groups:
+  "<group-name>":
+    precision: exact|coarse
+    tests:
+      - file: "<path>"
+        cases:
+          - title:
+              - "<outer-title>"
+              - "<test-title>"
+    specs:
+      - "<spec>"
+    decisions:
+      - "<decision>"
+    defects:
+      - "<defect>"
+    covers:
+      - "<anchor>"
+    notes: "<notes>"
+```
+
+The metavariables above stand for the canonical double-quoted scalars; the
+literal `exact|coarse` means exactly one chosen enum value, not the pipe
+characters. Optional group fields and a selector's optional `cases` block are
+omitted completely when absent. Repeated groups, selectors, cases, title
+segments, and scalar-list items repeat their corresponding shown lines
+consecutively with no intervening blank line.
+
+Each mapping key whose value is a nested collection is followed immediately
+by `:` and LF. Each mapping key whose value is a scalar is followed by `:`,
+one ASCII space, the scalar, and LF. Each sequence entry begins at the shown
+indent with `-` followed by one ASCII space. `file` and `title` are written on
+the same physical line as their sequence dash exactly as shown; every scalar
+list item is written on the same physical line as its dash. No other spaces
+occur except the shown indentation, the single post-colon/post-dash spaces,
+and spaces encoded inside double-quoted string values.
+
+The first physical line is `schema: 2`; the second is `groups:`. The first
+group begins on the third line. Each following group begins on the physical
+line immediately after the preceding group's last field or list item. The
+file ends immediately after the LF terminating the last group's last field or
+list item.
 
 This serialization policy is a writer contract applied by the executor. It
 does not add a general parser, audit command, or runtime.
@@ -726,6 +783,16 @@ implementation.
   but only a separate conformance `PASS` after independent assessment of the
   current implementation and tests shall make that candidate eligible to
   land.
+- **INV49 — canonical physical grammar.** Canonical output shall use exactly
+  the specified mapping/sequence lines, indentation, colon/dash spacing, and
+  terminal LF, and shall contain no BOM, directives, document markers,
+  comments, blank lines, tags, anchors, aliases, tabs, trailing whitespace, or
+  unprescribed spaces.
+- **INV50 — serializable scalar domain.** Every accepted schema string shall
+  be a Unicode scalar sequence excluding U+FFFE/U+FFFF; serialization shall
+  escape U+0000–U+001F, U+007F–U+009F, U+2028, and U+2029 exactly as
+  specified so every accepted string produces valid one-line YAML scalar
+  bytes.
 
 ## Scenarios
 
@@ -1073,6 +1140,32 @@ re-derivation
 **Then** the candidate is not eligible to land and the executor's
 re-derivation supplies no substitute verdict.
 
+### S43 — forbidden YAML presentation features
+
+**Given** a semantic manifest is ready to write
+**When** the executor emits canonical YAML
+**Then** the output begins with `schema: 2` followed by `groups:`, follows the
+specified physical mapping/sequence lines and spacing, ends with exactly one
+LF, and contains no directive, document marker, comment, blank line, tag,
+anchor, alias, tab, trailing whitespace, or unprescribed space.
+
+### S44 — escaped YAML scalar boundaries
+
+**Given** accepted schema strings contain U+0000, U+000A, U+007F, U+0085,
+U+009F, U+2028, and U+2029
+**When** the executor serializes canonical YAML
+**Then** those values remain on one physical scalar line and are emitted,
+respectively, with the specified control escapes including `\u007F`,
+`\u0085`, `\u009F`, `\u2028`, and `\u2029`, producing valid YAML bytes.
+
+### S45 — unrepresentable scalar input
+
+**Given** a schema string contains U+FFFE, U+FFFF, or an unpaired UTF-16
+surrogate rather than a Unicode scalar sequence
+**When** an agent validates it for canonical writing
+**Then** canonical data is rejected as malformed and the executor emits no
+canonical file containing that value.
+
 ## Acceptance criteria
 
 1. INV1–INV7 and S1–S6 pass: carrier lookup and every canonical grammar level
@@ -1118,6 +1211,11 @@ re-derivation supplies no substitute verdict.
     canonical serialization without adding parser or audit machinery.
 14. INV46 and S38–S39 pass: an unusable legacy carrier is replaced only by
     complete package-wide exact coverage and is never converted partially.
+15. INV49 and S43 pass: canonical output has one fully fixed physical YAML
+    grammar with no presentation or whitespace degrees of freedom.
+16. INV50 and S44–S45 pass: every accepted schema string is serializable as
+    valid one-line YAML, DEL/C1/line separators are escaped, and
+    unrepresentable scalar input is rejected.
 
 ## Open questions
 
@@ -1135,6 +1233,16 @@ re-derivation supplies no substitute verdict.
   independent-review path. This revision fixes each finding in canonical
   serialization, writer migration, exact selector composition, pin semantics,
   INV45–INV48, and S37–S42. A fresh independent review is required.
+- **Conformance review at `99f889b`.** Independent review again returned
+  `PASS`: the round-1 revisions preserved fidelity to approved ADR-0043.
+- **Spec-adversary round 2 at `99f889b`.** Independent intrinsic review
+  returned `NEEDS-REVISION` only on canonical serialization: YAML structural
+  presentation and whitespace still had degrees of freedom, and accepted
+  strings did not fully reconcile YAML's printable-scalar boundary. This
+  revision fixes the exact physical line grammar, forbids every unselected
+  presentation feature, defines DEL/C1/line-separator escaping and
+  unrepresentable scalar rejection, and adds INV49–INV50 plus S43–S45. A
+  fresh independent review is required.
 
 ## Rubric check
 
@@ -1149,9 +1257,9 @@ without inventing substitute criteria.
 | Artifact contract | PASS | Frontmatter includes the required identity, lifecycle, dependency, owner, date, and initial behavioral version; Acceptance criteria and Open questions are present. |
 | Decision fidelity | PASS | D1–D8 are covered by carrier/schema, selector, provenance, writer, reader, pin, strictness, and retired-machinery sections. |
 | Propagation fidelity | PASS | The four role charters, two companions, config/setup convention, five stock ledgers, projections, affected tests, and inline-transition ordering are explicit in Grove propagation and INV35–INV38. |
-| Testable grammars | PASS | INV1–INV48 use shall-form requirements; S1–S42 use Given/When/Then; acceptance criteria map both forms. |
+| Testable grammars | PASS | INV1–INV50 use shall-form requirements; S1–S45 use Given/When/Then; acceptance criteria map both forms. |
 | Boundaries | PASS | Deterministic tooling, CI enforcement, and review-bookkeeping revival remain forbidden and require later authority. |
-| Ambiguity | PASS | Canonical serialization fixes every byte-affecting policy named by the adversary; unusable legacy migration is all-exact-or-no-write; additive group upstreams and split conditions are distinct; manifest-only pins have an independent success path. Repository-specific test discovery remains an implementation choice within observable declaration and coverage outcomes. No load-bearing decision is guessed. |
+| Ambiguity | PASS | Canonical serialization fixes physical lines, presentation exclusions, spacing, ordering, escaping, encoding, and scalar acceptance; unusable legacy migration is all-exact-or-no-write; additive group upstreams and split conditions are distinct; manifest-only pins have an independent success path. Repository-specific test discovery remains an implementation choice within observable declaration and coverage outcomes. No load-bearing decision is guessed. |
 | Open questions | PASS | ADR-0043 has no open decisions; its empirical experiment, cross-repository fetching, and future tooling remain parked upstream and add no requirement here. |
 
 The self-check passes. The spec is promoted from `draft` to `gated` and is
