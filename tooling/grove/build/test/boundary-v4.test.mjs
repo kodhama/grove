@@ -458,6 +458,8 @@ test('spec-0005 AC5/AC6/AC10/AC11 — reader modes, routing, and drift precision
     /nearer legacy.*farther canonical/i,
     /dual presence.*canonical.*never.*union/i,
     /strict schema-2.*group.*selector.*pin/i,
+    /before any precision claim.*every discovered static test declaration.*at least one exact or coarse group.*new or touched.*exact coverage/i,
+    /uncovered declarations.*malformed.*unobservable.*no fallback.*precision claim/i,
     /malformed canonical.*integrity.*unobservable/i,
     /malformed canonical.*(?:never|not).*fall(?:s|ing)? back.*precision/i,
     /exact canonical.*precisely/i,

@@ -72,6 +72,13 @@ rather than gating every merge.
    unresolved required references, absolute paths, globs, and invalid pins
    invalidate canonical data for this use.
 
+   Before any precision claim, verify that every discovered static test
+   declaration in the selected package is covered by at least one exact or
+   coarse group. Where new or touched status is relevant to the triggered
+   audit, those declarations require exact coverage. Uncovered declarations
+   make canonical data malformed and scope unobservable: there is no fallback
+   and no precision claim.
+
    Malformed canonical data produces a canary-integrity and unobservable-scope
    finding. Malformed canonical data never falls back to same-root legacy or a
    farther carrier and never produces exact or coarse precision claims. Keep

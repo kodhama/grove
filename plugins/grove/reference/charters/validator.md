@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/validator.md; sha256: e50d60019ed0d339ab163d51dcf316d8b23970649d849a3bc64382975a2f224b -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/validator.md; sha256: 1988a04909b0d2864a3d172a381c582a9bd6c07d6ba46246291b3b59a55bad67 -->
 
 # validator — stage 5: per-PR critique + triggered drift audits
 
@@ -64,6 +64,13 @@ rather than gating every merge.
    unversioned. Unknown or duplicate fields, malformed selector shapes,
    unresolved required references, absolute paths, globs, and invalid pins
    invalidate canonical data for this use.
+
+   Before any precision claim, verify that every discovered static test
+   declaration in the selected package is covered by at least one exact or
+   coarse group. Where new or touched status is relevant to the triggered
+   audit, those declarations require exact coverage. Uncovered declarations
+   make canonical data malformed and scope unobservable: there is no fallback
+   and no precision claim.
 
    Malformed canonical data produces a canary-integrity and unobservable-scope
    finding. Malformed canonical data never falls back to same-root legacy or a
