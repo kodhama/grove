@@ -31,11 +31,12 @@ updated: 2026-07-26
   then checks the clauses changed for `vN` against the matching amendment
   decision rather than requiring either decision to explain the other's
   scope.
-- Apply the selector to every behavioral spec version first created after this
-  decision is approved. A historical version re-reviewed without a new
+- Apply the selector when a behavioral spec version's first terminal
+  conformance review uses an exact target-base revision containing this
+  decision as approved. A historical version re-reviewed without a new
   behavioral edit remains under the versioning companion's existing soft
-  `changes:` condition; any post-approval behavioral edit requires a new
-  version and the complete selector.
+  `changes:` condition; any later behavioral edit requires a new version and
+  a fresh terminal review against its then-current target base.
 - **Maintainer, 2026-07-26:** allow multiple exact matching amendment
   decisions for one spec version. Review every match; do not force artificial
   version bumps merely to serialize independent approved decisions.
@@ -55,6 +56,10 @@ updated: 2026-07-26
 - Add scoped forward reconciliation to ADR-0010 and the versioning companion:
   the historical missing-`changes:` cross-check remains soft, while this
   decision adds a distinct prospective conformance-selection obligation.
+- Make the accumulated active set lineage-closed. A historical exact
+  reciprocal amendment remains the seed; explicit scoped supersession
+  pointers carry its obligations to the approved terminal successor that the
+  current spec depends on, even when that successor caused no spec version.
 
 ### Open
 
@@ -143,15 +148,27 @@ mismatch, or uncovered behavioral clause fails closed.
 For current `X@vN`, the **active contract set** is:
 
 1. the approved original decision named by scalar `implements:`; plus
-2. every approved decision `D` for which `X depends_on D` and
-   `D changes X@vK`, where `vK ≤ vN`, limited to clauses not explicitly
-   retired through full or partial supersession.
+2. every still-current obligation seeded by a historical decision `D` for
+   which the then-current `X depends_on D` and `D changes X@vK`, where
+   `vK ≤ vN`.
 
-The spec shall retain every still-active amendment decision in `depends_on`.
-It may remove a fully superseded amendment dependency only when the ordinary
-forward-pointer lineage resolves to the replacement decision the spec now
-depends on. Partial supersession retains the earlier approved decision and
-reviews only its still-active clauses.
+The second member is lineage-closed. For each reciprocal historical seed, the
+reviewer follows explicit clause-scoped `superseded_by` or
+`superseded_in_part_by` forward pointers. An obligation is selected from its
+approved current holder: the seed itself when still active, or the approved
+terminal successor reached through that lineage. The current spec must depend
+on every selected holder. A terminal superseded holder, missing or ambiguous
+pointer, unresolved successor, unapproved terminal successor, or absent
+current dependency fails closed. A successor need not falsely declare that it
+changed an older spec version merely to carry forward an obligation it now
+owns.
+
+The spec shall retain every approved current obligation holder in
+`depends_on`. It may remove a fully superseded amendment seed only when the
+ordinary forward-pointer lineage resolves unambiguously to the approved
+terminal successor the spec now depends on. Partial supersession retains the
+earlier approved decision for its still-active clauses and adds the approved
+successor for the clauses it now owns.
 
 The original decision named by scalar `implements:` is different: while the
 spec identity remains live, that decision must remain approved and at least
@@ -200,9 +217,12 @@ full retirement uses the replacement-spec route above. Conformance applies
 the still-active clauses after following explicit pointers and never infers
 supersession merely because newer text differs.
 
-The prospective cutoff controls obligation, not evidence usability. Every
-behavioral version first created after this decision's approval must carry the
-complete reciprocal records and accumulated active lineage. A historical
+The prospective cutoff controls obligation, not evidence usability. The
+selector is mandatory when a behavioral version's first terminal conformance
+review records an exact target-base revision whose history contains this
+decision as approved. This durable review-base event governs concurrent
+branches: a version authored before approval but first terminally reviewed
+against a base containing approved ADR-0043 uses the selector. A historical
 version re-reviewed without a behavioral edit does not fail for missing legacy
 records; when complete reciprocal records do exist, the reviewer may use them
 as amendment contracts. This permits Spec 0004 v7's existing complete
@@ -223,11 +243,12 @@ migration, or retroactive re-review.
 
 ADR-0010 and the versioning companion receive a scoped forward note. Their
 low-level cross-check remains unchanged: a historical bump without an
-accounting `changes:` decision is soft. Separately, for a behavioral version
-first created after this decision is approved, this decision's conformance
-selector requires at least one approved exact reciprocal amendment contract
-and fails its absence closed. The prospective review obligation does not
-retroactively turn historical missing pointers into versioning failures.
+accounting `changes:` decision is soft. Separately, when a behavioral
+version's first terminal conformance review uses a target-base revision
+containing approved ADR-0043, this decision's selector requires at least one
+approved exact reciprocal amendment contract and fails its absence closed.
+The prospective review obligation does not retroactively turn historical
+missing pointers into versioning failures.
 
 ## Rejected options
 
@@ -255,7 +276,8 @@ retroactively turn historical missing pointers into versioning failures.
 
 - `charters/conformance-reviewer.md` learns how to select and review a
   significant spec amendment while preserving the original `implements:`
-  fidelity check.
+  fidelity check, including lineage closure from a historical reciprocal seed
+  to its approved current obligation holder.
 - `charters/contract-author.md` and `specs/README.md` point significant
   revisions to the paired-record requirement they already partially follow
   and require retention of the still-active amendment lineage, including the
@@ -281,7 +303,8 @@ retroactively turn historical missing pointers into versioning failures.
 1. The methodology defines one prospective amendment-contract-set selector
    using only `X depends_on D` plus approved `D changes X@vN`, with exact
    subject-version matching, deterministic decision-id order, and an exact
-   cutoff at behavioral versions first created after this decision's approval.
+   cutoff at the first terminal review whose recorded target-base revision
+   contains this decision as approved.
 2. Scalar `implements:` remains the original realized-contract fidelity
    upstream and is never silently retargeted by a later amendment.
 3. A bare dependency, bare `changes:` pointer, draft/gated decision, or
@@ -292,9 +315,10 @@ retroactively turn historical missing pointers into versioning failures.
    delta-scoped amendment fidelity, does not make either decision explain the
    other's attributed scope, covers every behavior-changing clause in the
    version diff, verifies every obligation in the accumulated active contract
-   set, reviews every exact current-version match, fails when any required
-   match or active obligation fails, and returns one ordinary `PASS`, `FAIL`,
-   or `UPSTREAM-INDICTED` verdict for the reviewed spec version.
+   set after resolving explicit supersession lineage, reviews every exact
+   current-version match, fails when any required match, lineage link, current
+   dependency, or active obligation fails, and returns one ordinary `PASS`,
+   `FAIL`, or `UPSTREAM-INDICTED` verdict for the reviewed spec version.
 6. No new schema, field, registry, deterministic check, or retroactive corpus
    migration is introduced.
 7. Spec 0004 v7 can name ADR-0041 as its amendment contract while retaining
@@ -314,6 +338,11 @@ retroactively turn historical missing pointers into versioning failures.
 10. A live spec's original scalar `implements:` decision remains approved with
     at least one active obligation; fully retiring that original contract
     requires a replacement spec and new original contract identity.
+11. A fully superseded amendment seed may leave the current spec's
+    `depends_on` only after explicit scoped lineage reaches an approved
+    terminal successor that the spec depends on; the successor carries the
+    inherited obligation without falsely claiming it changed the seed's
+    historical spec version.
 
 ## Open questions
 
@@ -333,6 +362,8 @@ are explicit. A live spec cannot retain a terminally superseded original
 fidelity upstream, and incomplete historical pairs cause prospective
 consolidation rather than illegal backfill. The maintainer selected
 accumulated active contracts over stale whole-spec verdict reuse, closing the
-final question. Both adversary rounds' findings are folded; the decision is
-ready for a fresh soundness review. No implementation is authorized by this
-decision-only PR.
+final question. The active set follows explicit amendment supersession lineage
+to approved current holders, and the prospective cutoff is bound to the exact
+target-base revision recorded by terminal review. All adversary findings are
+folded; the decision is ready for a fresh soundness review. No implementation
+is authorized by this decision-only PR.
