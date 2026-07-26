@@ -4,6 +4,7 @@ type: adr
 status: approved  # maintainer explicitly ratified exact commit 2d89c860d9ea8d82455631bf6356a65532f4869c in conversation, 2026-07-26
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0010-versioning-is-operational, adr-0012-methodology-delivery-machinery, adr-0016-implements-edge-taxonomy]
 informed_by: [adr-0037-pre-execution-planning, adr-0041-separate-support-from-operational-availability]
+superseded_in_part_by: [adr-0045-portable-amendment-review-cutoff]
 owner: agent
 updated: 2026-07-26
 ---
@@ -18,6 +19,13 @@ updated: 2026-07-26
 > names are one identity lineage: `A` remains the original approved landing
 > commit `947d9bdc702798b960a67a9a465e61beebe44fa7`. The identity-correction
 > commit is not a new approval landing and must not be selected as `A`.
+
+> **Cutoff portability refined by
+> `adr-0045-portable-amendment-review-cutoff`:** this decision's approval
+> landing remains Grove-self's local `A`; consumer repositories derive local
+> `A` from the canonical target-branch landing of valid, rule-bearing
+> `grove plugin@<version>` managed-block stamp evidence. Every selector,
+> lineage, and historical-exception rule below stands.
 
 ## Decision state
 
