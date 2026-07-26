@@ -770,10 +770,13 @@ For every valid row with `support_claim: none`, the disclosed plan shall lead
 with a plain statement that Grove makes no support claim for the selected
 surface. The operation then follows the existing
 plan → disclose → confirm-exact-action-ids → apply sequence. That exact-action
-confirmation is the only acknowledgement required: no second non-support
-confirmation or adoption-posture input is accepted. `support_claim: claimed`
-changes only the public support statement and evidence requirement; it does
-not expand the row's operation cell.
+confirmation is sufficient for the no-support fact: no additional
+non-support-specific confirmation or adoption-posture input is accepted.
+This does not remove or combine any pre-existing operation-specific safety
+confirmation, including config migration, restart acknowledgement, target
+deletion, overwrite, or cleanup confirmation. `support_claim: claimed` changes
+only the public support statement and evidence requirement; it does not expand
+the row's operation cell.
 
 ### Setup
 
@@ -956,11 +959,19 @@ shall, before creating a tag:
 6. run package-level installation and exact host-discovery smoke tests from
    the snapshot for every automatable surface carrying
    `support_claim: claimed`;
-7. verify that unavailable rows and every `support_claim: none` row receive
-   their required generated install disclosure;
-8. resolve the intended release commit as the workflow event commit for the
+7. verify that the matrix-derived tables between the single
+   `grove-surface-matrix:begin` / `grove-surface-matrix:end` marker pair in
+   repository-root `README.md` and `plugins/grove/README.md` contain exactly
+   the matrix rows in matrix order, render both shared field values and
+   the row's disclosure, and render a literal `No support claim` statement for
+   every `support_claim: none` row;
+8. run read-only lifecycle-plan fixtures for setup, refresh, set-profile, and
+   remove on every valid row, requiring the first disclosure item for each
+   `support_claim: none` plan to state that Grove makes no support claim for
+   the selected surface without adding a non-support-specific confirmation;
+9. resolve the intended release commit as the workflow event commit for the
    merged version-authority change; and
-9. create the tag only if it does not already exist; if it exists, peel it to
+10. create the tag only if it does not already exist; if it exists, peel it to
    a commit and no-op only when that commit equals the intended release commit,
    otherwise fail and report both commit ids without moving or replacing the
    tag.
@@ -996,7 +1007,7 @@ release.
 
 ## Surface matrix
 
-The matrix shall contain at least these rows:
+At v7 the matrix shall contain exactly these twelve rows:
 
 | Surface id | Load-mechanism evidence at v7 | `availability_state` | `support_claim` |
 |---|---|---|---|
@@ -1029,6 +1040,18 @@ no-claim row carries the leading non-support disclosure. Generated
 documentation and manifest capability/support statements shall be derived
 from, or mechanically validated against, both fields in this matrix.
 
+The two generated documentation carriers are the managed surface tables in
+repository-root `README.md` and `plugins/grove/README.md`. Each file shall
+contain exactly one ordered `grove-surface-matrix:begin` /
+`grove-surface-matrix:end` marker pair. Between those markers the generator
+shall render exactly one row per matrix entry in matrix order, including
+the exact `availability_state`, `support_claim`, load-mechanism state, and
+disclosure. A `support_claim: none` row shall render the literal statement
+`No support claim`; an unavailable row shall also render its nonempty missing
+capability or product-owned availability boundary. Generation check and
+release validation shall fail and name the carrier and surface id for any
+missing, extra, reordered, stale, or semantically inconsistent row.
+
 ## Failure behavior
 
 - A missing or stale generated output is a build failure.
@@ -1049,9 +1072,11 @@ from, or mechanically validated against, both fields in this matrix.
   failure.
 - A valid-unavailable surface is not invalid input; it follows the exact
   no-write or Remove-only cell and shall not be promoted by bridge viability.
-- A role-discovery failure on a claimed surface is a support failure and
-  removes that support claim until reverified; it does not silently change
-  availability.
+- A role-discovery failure on a claimed surface is a support failure: release
+  validation exits non-zero and leaves the authored matrix byte-identical. It
+  does not mutate availability or the support field. A later release can
+  proceed only after the support evidence passes again or a separately
+  authorized metadata change sets that exact row to `support_claim: none`.
 - A Grove entrypoint on an unavailable surface shall state that Grove roles
   are unavailable there and shall not silently continue under generic-agent
   identities.
@@ -1287,10 +1312,10 @@ from, or mechanically validated against, both fields in this matrix.
 - **INV42 — independent surface fields:** Every exact surface row shall carry
   exactly one `availability_state: available | unavailable` and one
   `support_claim: claimed | none`; validation shall accept only
-  `available + claimed`, `available + none`, and `unavailable + none`, assign
-  `available + none` initially only to `claude-interactive` and
-  `codex-exec-non-ephemeral`, and assign `unavailable + none` to every other
-  declared row.
+  `available + claimed`, `available + none`, and `unavailable + none`; the v7
+  matrix shall contain exactly the twelve declared rows, assign
+  `available + none` only to `claude-interactive` and
+  `codex-exec-non-ephemeral`, and assign `unavailable + none` to the other ten.
 - **INV43 — qualification is not release state:** `candidate` shall occur only
   in transient qualification or release-candidate evidence, shall never be a
   durable surface value or authorize a lifecycle write, and shall not by
@@ -1468,6 +1493,10 @@ enumerated and returns matching source identity independently, the one native
 dispatcher selects and returns `scoped-advisor`, shaper has no native id, no
 native identity claims driving-session, and any missing, duplicate, extra,
 wrong-class, wrong-source, or wrong-digest result fails the surface record.
+**Given** any such failure on a claimed row,
+**When** release validation evaluates the support record,
+**Then** it exits non-zero, leaves the surface matrix byte-identical, and does
+not change that row's availability.
 
 #### S19 — an existing release tag is either identical or conflicting
 
@@ -1721,9 +1750,10 @@ product-owned assignment.
 refresh, or set-profile diff,
 **When** the lifecycle operation constructs its plan,
 **Then** the first disclosure states that Grove makes no support claim for
-that surface, the existing exact-action confirmation alone authorizes the
-bounded cell, declining it produces no mutation, and no second
-acknowledgement or adoption-posture input is requested.
+that surface, no additional non-support-specific acknowledgement or
+adoption-posture input is requested, declining a required confirmation
+produces no corresponding mutation, and every pre-existing operation-specific
+safety confirmation remains mandatory.
 
 #### S42 — qualification evidence neither authorizes nor blocks release
 
@@ -1733,8 +1763,10 @@ acknowledgement or adoption-posture input is requested.
 **When** release validation runs,
 **Then** it treats `candidate` as evidence terminology rather than a durable
 matrix value, accepts both valid rows, requires the record only for the
-claimed row, and derives lifecycle authorization only from
-`availability_state`.
+claimed row, derives lifecycle authorization only from
+`availability_state`, validates both marked README tables and every no-claim
+lifecycle-plan fixture against the matrix, and names the exact carrier and
+surface id for a disclosure mismatch.
 
 ## Open questions
 
@@ -1802,8 +1834,10 @@ against the contract-author charter:
   v4 criterion or requiring canonical serialization or a plan gate; exact
   two-field combinations and initial assignments, technical-state
   contradictions, claimed-evidence requirements, transient `candidate`
-  handling, valid-unavailable Remove behavior, and leading no-support
-  disclosure have explicit positive and negative checks.
+  handling, claimed-probe failure without metadata mutation,
+  valid-unavailable Remove behavior, both exact README disclosure carriers,
+  and leading no-support lifecycle-plan disclosure have explicit positive and
+  negative checks.
 - **Lifecycle:** PASS — these significant revise-in-place amendments have
   durable approved decision inputs through ADR-0036, ADR-0037, and ADR-0041
   and bump `v6 → v7`; the
