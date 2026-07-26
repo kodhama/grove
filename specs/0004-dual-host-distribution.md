@@ -517,11 +517,12 @@ Two facts constrain the implementation:
    prose unchanged.
 
 The bridge is therefore project-scoped
-`.codex/agents/<native_id>.toml`, composed by setup on bridge-viable surfaces.
-Each launcher points to its plugin-carried role skill/reference and contains
-only Codex-required metadata, a Grove source reference, and loading
-instructions; it contains no charter body. The plugin package itself shall
-contain no custom-agent TOML.
+`.codex/agents/<native_id>.toml`, composed by setup only when the selected
+surface has `availability_state: available` and declares the complete bridge
+load mechanism and path. Each launcher points to its plugin-carried role
+skill/reference and contains only Codex-required metadata, a Grove source
+reference, and loading instructions; it contains no charter body. The plugin
+package itself shall contain no custom-agent TOML.
 
 Codex lifecycle operations shall receive a surface invocation record in
 addition to the host id. A host adapter may populate `surface_id`
