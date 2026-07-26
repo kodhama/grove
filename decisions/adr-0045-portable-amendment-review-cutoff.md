@@ -1,13 +1,13 @@
 ---
-id: adr-0044-portable-amendment-review-cutoff
+id: adr-0045-portable-amendment-review-cutoff
 type: adr
 status: gated
-depends_on: [adr-0026-thin-vendor-boundary, adr-0043-review-significant-spec-amendments]
+depends_on: [adr-0026-thin-vendor-boundary, adr-0044-review-significant-spec-amendments]
 owner: agent
 updated: 2026-07-26
 ---
 
-# ADR-0044: make the amendment-review cutoff portable
+# ADR-0045: make the amendment-review cutoff portable
 
 ## Decision state
 
@@ -18,16 +18,16 @@ updated: 2026-07-26
   projections.
 - Preserve the approved amendment selector, accumulated active-contract
   model, historical exception, and captured target-tip review evidence from
-  `adr-0043-review-significant-spec-amendments`.
+  `adr-0044-review-significant-spec-amendments`.
 - Grove itself retains its durable local anchor:
   `947d9bdc702798b960a67a9a465e61beebe44fa7`, the canonical-main landing that
   first records the amendment-review decision as approved.
 - A consumer repository derives its local anchor from the existing managed
   instruction-block stamp, `grove plugin@<version>`; introduce no new field,
   receipt, registry, or runtime mutation.
-- Use full artifact ids in prose and relations. The two approved
-  `adr-0043-*` ids are structurally unique even though their shared numeric
-  shorthand is ambiguous.
+- Follow the merged corpus identity correction: the amendment-review decision
+  is `adr-0044-review-significant-spec-amendments`, and this still-gated
+  portability decision is ADR-0045.
 - **Maintainer, 2026-07-26:** require two-step consumer activation. The
   rule-bearing Grove stamp lands on the canonical target branch before a
   separate behavioral-spec amendment change request begins terminal review.
@@ -42,16 +42,16 @@ updated: 2026-07-26
 
 ### Parked
 
-- Renumbering either approved `adr-0043-*` decision. Full ids are unique and
-  operative; rewriting approved identity to repair human shorthand needs a
-  separate corpus-history decision, if it is worth doing at all.
+- Further renumbering of approved decisions. The merged corpus identity
+  correction already resolved the collision without changing decision
+  content.
 - Adding an adoption receipt, cutoff registry, or deterministic corpus check.
   The existing managed stamp and review evidence are sufficient for the
   portability correction.
 
 ## Context
 
-`adr-0043-review-significant-spec-amendments` defines a prospective
+`adr-0044-review-significant-spec-amendments` defines a prospective
 conformance selector. Its cutoff uses:
 
 - `A`: the first canonical target-branch commit whose tree records that
@@ -129,7 +129,7 @@ frontmatter or a persisted schema.
 
 When local `A` is an ancestor of `B`, the amendment selector and touched-spec
 reconciliation apply exactly as approved in
-`adr-0043-review-significant-spec-amendments`.
+`adr-0044-review-significant-spec-amendments`.
 
 An `X@vN` already present with identical behavioral content in local `A` is
 historical and remains exempt when re-reviewed unchanged. A later behavioral
@@ -196,7 +196,7 @@ unmerged source content, and makes concurrent reviews deterministic.
 
 ## Consequences
 
-- `adr-0043-review-significant-spec-amendments` receives a scoped append-only
+- `adr-0044-review-significant-spec-amendments` receives a scoped append-only
   forward pointer: its original `A` definition remains the Grove-self case;
   this decision supplies the consumer-local case.
 - The conformance-reviewer and contract-author use the repo-local anchor and
