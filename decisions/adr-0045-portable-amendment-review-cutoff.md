@@ -1,7 +1,7 @@
 ---
 id: adr-0045-portable-amendment-review-cutoff
 type: adr
-status: gated
+status: approved  # maintainer explicitly ratified exact reviewed commit 98588bc1eddacef2110e7149e351bef39beed0d6 in conversation, 2026-07-26
 depends_on: [adr-0026-thin-vendor-boundary, adr-0044-review-significant-spec-amendments]
 owner: agent
 updated: 2026-07-26
@@ -26,8 +26,8 @@ updated: 2026-07-26
   instruction-block stamp, `grove plugin@<version>`; introduce no new field,
   receipt, registry, or runtime mutation.
 - Follow the merged corpus identity correction: the amendment-review decision
-  is `adr-0044-review-significant-spec-amendments`, and this still-gated
-  portability decision is ADR-0045.
+  is `adr-0044-review-significant-spec-amendments`, and this portability
+  decision is ADR-0045.
 - **Maintainer, 2026-07-26:** require two-step consumer activation. The
   rule-bearing Grove stamp lands on the canonical target branch before a
   separate behavioral-spec amendment change request begins terminal review.
@@ -35,6 +35,9 @@ updated: 2026-07-26
   complete set of present Claude and Codex carriers. Versions may differ, but
   every present carrier must be valid and its immutable release must ship the
   rule.
+- **Maintainer, 2026-07-26:** explicitly ratified exact reviewed commit
+  `98588bc1eddacef2110e7149e351bef39beed0d6`; `approved` records that human
+  intent act.
 
 ### Open
 
@@ -253,5 +256,5 @@ dependencies are approved, the acceptance criteria cover every carrier state,
 and the append-only pointer remains non-operative until approval. A focused
 re-review found one transition-wording contradiction; suspension now depends
 on the resulting invalid/non-bearing state rather than addition, removal,
-upgrade, or downgrade itself. The decision is `gated` and ready for another
-focused independent re-review.
+upgrade, or downgrade itself. The final independent review at `98588bc`
+returned SOUND, and the maintainer ratified that exact reviewed commit.
