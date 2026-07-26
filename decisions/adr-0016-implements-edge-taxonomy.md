@@ -3,9 +3,16 @@ id: adr-0016-implements-edge-taxonomy
 type: adr
 status: approved  # maintainer intent act 2026-07-18 ("approved") after decision-adversary round-1 SOUND; in-conversation flip, adr-0015/adr-0011 precedent
 depends_on: [adr-0011-relations-companion, adr-0012-methodology-delivery-machinery, adr-0006-operational-conformance-mechanism]
+superseded_in_part_by: [adr-0043-structured-test-dependency-canary]
 owner: agent
 updated: 2026-07-18
 ---
+
+> **Partially superseded by
+> `adr-0043-structured-test-dependency-canary` (approved, 2026-07-26):** the
+> structured test ledger is optional advisory/canary evidence, not code's
+> authoritative `implements:` carrier. The `implements:` edge remains flow +
+> drift-bearing for artifacts that declare it.
 
 # ADR-0016: `implements:` joins the edge taxonomy — the fidelity upstream is flow + drift-bearing
 
