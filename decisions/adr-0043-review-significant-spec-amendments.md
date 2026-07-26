@@ -1,7 +1,7 @@
 ---
 id: adr-0043-review-significant-spec-amendments
 type: adr
-status: gated
+status: approved  # maintainer explicitly ratified exact commit 2d89c860d9ea8d82455631bf6356a65532f4869c in conversation, 2026-07-26
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0010-versioning-is-operational, adr-0012-methodology-delivery-machinery, adr-0016-implements-edge-taxonomy]
 informed_by: [adr-0037-pre-execution-planning, adr-0041-separate-support-from-operational-availability]
 owner: agent
@@ -68,6 +68,9 @@ updated: 2026-07-26
 - Run touched-spec reconciliation before the first terminal review of every
   selector-governed version. The reconciliation trigger uses the same `A`
   ancestor-of-`B` test, never the version's authoring or creation time.
+- **Maintainer, 2026-07-26:** explicitly ratified exact reviewed commit
+  `2d89c860d9ea8d82455631bf6356a65532f4869c`; `approved` records that human
+  intent act.
 
 ### Open
 
@@ -389,6 +392,7 @@ accumulated active contracts over stale whole-spec verdict reuse, closing the
 final question. The active set follows explicit amendment supersession lineage
 to approved current holders, and the prospective cutoff uses the durable
 approval landing commit's ancestry to an exact target-branch tip OID recorded
-by terminal review. All adversary findings are folded; the decision is ready
-for a fresh soundness review. No implementation is authorized by this
+by terminal review. The final independent verdict was `SOUND` at exact commit
+`2d89c860d9ea8d82455631bf6356a65532f4869c`, and the maintainer explicitly
+ratified that revision on 2026-07-26. No implementation is authorized by this
 decision-only PR.
