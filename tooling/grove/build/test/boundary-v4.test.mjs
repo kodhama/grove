@@ -336,6 +336,7 @@ test('spec-0005 AC1–AC4/AC9/AC12–AC16 — writer, selectors, pins, and seria
     /neither carrier.*every discovered/i,
     /same package root.*reconcile/i,
     /file-only exact/i,
+    /coarse groups? use (?:only )?file-only (?:test )?selectors and never contain `cases`/i,
     /complete title/i,
     /more than one exact group/i,
     /split.*whole-file.*lacks an upstream/i,
@@ -452,6 +453,13 @@ test('spec-0005 AC5/AC6/AC10/AC11 — reader modes, routing, and drift precision
 
   for (const required of [
     /read-only/i,
+    /subject.*walk.*repository root.*deepest.*first/i,
+    /same (?:package )?root.*`test-deps\.yaml`.*before.*`test-deps\.md`/i,
+    /nearer legacy.*farther canonical/i,
+    /dual presence.*canonical.*never.*union/i,
+    /strict schema-2.*group.*selector.*pin/i,
+    /malformed canonical.*integrity.*unobservable/i,
+    /malformed canonical.*(?:never|not).*fall(?:s|ing)? back.*precision/i,
     /exact canonical.*precisely/i,
     /coarse canonical.*legacy.*coarse/i,
     /no ledger.*unobservable/i,

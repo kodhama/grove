@@ -82,7 +82,7 @@
       "class": "role",
       "exposure": "cold-native",
       "canonical_source": "charters/executor.md",
-      "canonical_digest": "a0f9a63c5cea77041a948f251a2ee8ec5a91d56440f4dfc6e740c134e3dcd1e7"
+      "canonical_digest": "37a968d108ccd0466191f37bce42558742d3f122585411e6ca23abc42322f402"
     },
     {
       "raw_id": "grove:role-implementation-planner",
@@ -130,7 +130,7 @@
       "class": "role",
       "exposure": "cold-native",
       "canonical_source": "charters/validator.md",
-      "canonical_digest": "55aab0b8b627981614161e2da4e09a47c4ff9ab68ee79f9ca790becb7f0ad475"
+      "canonical_digest": "e50d60019ed0d339ab163d51dcf316d8b23970649d849a3bc64382975a2f224b"
     },
     {
       "raw_id": "grove:set-profile",

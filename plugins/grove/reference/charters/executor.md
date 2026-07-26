@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: a0f9a63c5cea77041a948f251a2ee8ec5a91d56440f4dfc6e740c134e3dcd1e7 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 37a968d108ccd0466191f37bce42558742d3f122585411e6ca23abc42322f402 -->
 
 # executor — stage 4: test-first implementation from artifacts only
 
@@ -92,12 +92,13 @@ present; and at least one of `specs`, `decisions`, or `defects` is non-empty.
 A test selector has exactly required `file` and optional non-empty `cases`;
 `file` is an exact package-relative existing test-source path. A case selector
 has exactly `title`, a non-empty array of non-empty strings resolving uniquely
-to one static test declaration. Validate these shapes without inventing extra
-identifier grammar, plus required local references and spec pins. Unknown
-fields, duplicate keys, unsupported schemas, empty required collections,
-globs, absolute or nonexistent paths, partial or ambiguous titles, unresolved
-required local references, invalid Unicode, and uncovered discovered
-declarations are malformed.
+to one static test declaration. Coarse groups use only file-only test
+selectors and never contain `cases`. Validate these shapes without inventing
+extra identifier grammar, plus required local references and spec pins.
+Unknown fields, duplicate keys, unsupported schemas, empty required
+collections, globs, absolute or nonexistent paths, partial or ambiguous
+titles, unresolved required local references, invalid Unicode, and uncovered
+discovered declarations are malformed.
 
 Exact membership is additive: a declaration may belong to more than one exact
 group, and each group asserts all of that group's upstreams without claiming
