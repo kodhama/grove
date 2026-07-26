@@ -1,7 +1,7 @@
 ---
 id: adr-0041-separate-support-from-operational-availability
 type: adr
-status: draft
+status: gated
 depends_on: [adr-0031-multi-host-distribution, adr-0035-plugin-and-consumer-boundary, adr-0039-dogfood-implementation-planner, adr-0042-receive-stewards-surface-state-strategy, stewards/kodhama-0023-separate-operational-availability-from-support]
 informed_by: [discovery-surface-support-and-setup-eligibility]
 owner: agent
@@ -33,13 +33,16 @@ updated: 2026-07-26
   required only for `support_claim: claimed`; neither `available` nor package
   release implies support.
 - Adoption posture remains outside the surface matrix.
+- **Maintainer, 2026-07-26:** `available + none` authorizes setup, refresh, and
+  set-profile. Remove retains its existing cleanup behavior for every known
+  surface.
+- The existing plan → disclose → confirm-exact-action-ids → apply flow is the
+  acknowledgement. The plan must lead with the missing-support disclosure;
+  Grove adds no second acknowledgement or request-level posture flag.
 
 ### Open
 
-- Whether normal plan disclosure plus exact-action confirmation is sufficient,
-  or `available + none` needs a separate non-support acknowledgement.
-- Whether `available + none` authorizes setup, refresh, and set-profile
-  together, or only initial setup.
+*(none)*
 
 ### Parked
 
@@ -82,12 +85,15 @@ The selected architecture is:
 5. Require an `available` row to retain its complete host-native or
    bridge-viable load mechanism and load path; contradictory metadata fails
    validation.
-6. Disclose `support_claim: none` before the user confirms exact actions.
-7. Continue to fail closed for every `unavailable` row and for unknown,
+6. On an `available` row, permit setup, refresh, and set-profile through the
+   existing disclosed-plan and exact-action confirmation flow.
+7. Lead every `support_claim: none` plan with the non-support disclosure; do
+   not add a second acknowledgement or adoption-posture input.
+8. Continue to fail closed for every `unavailable` row and for unknown,
    documentation-only, or partial load mechanisms.
 
-The confirmation and operation-scope questions remain open before this
-decision can converge.
+Remove remains available for confirmation-bound cleanup on every known
+surface, preserving the existing escape path.
 
 ## Rejected options
 
@@ -100,6 +106,12 @@ decision can converge.
 - **Keep Grove-only field names.** Rejected after Stewards decision 0023:
   active plugins use the shared field grammar while retaining product-owned
   values and behavior.
+- **Require a second non-support acknowledgement.** Rejected by the maintainer:
+  the existing flow already discloses the plan and requires confirmation of
+  every exact action; another flag adds ceremony without distinct authority.
+- **Permit setup but block refresh and set-profile.** Rejected by the
+  maintainer: an operationally available dogfood installation must remain
+  maintainable without first manufacturing a support claim.
 
 ## Consequences
 
@@ -124,14 +136,29 @@ decision can converge.
 5. Lifecycle writes require `availability_state: available`, a host-valid load
    mechanism, and a load path; unavailable or contradictory rows fail before
    mutation.
-6. The final operation and confirmation policy matches the remaining decision
-   state.
-7. Adoption posture, support promotion, and the planner experiment remain
+6. `available` permits setup, refresh, and set-profile; `unavailable` permits
+   none of those writes. Remove retains its confirmation-bound cleanup
+   behavior for any known row.
+7. Every `support_claim: none` plan leads with the non-support disclosure, and
+   the existing exact-action confirmation is sufficient without another
+   acknowledgement or posture input.
+8. Adoption posture, support promotion, and the planner experiment remain
    unchanged.
 
 ## Open questions
 
-The live questions are maintained in `## Decision state`.
+None.
+
+## Self-check
+
+All dependencies are approved. Shared field names, values, and combination
+invariants come from Stewards decision 0023; Grove supplies only product row
+assignments and lifecycle behavior. The selected rows have declared complete
+load paths, while every partial, unknown, or documentation-only row remains
+unavailable. The operation table is closed, cleanup remains possible, and
+support evidence, adoption posture, and experiment outcomes are neither
+inferred nor weakened. No open question remains, so the author promotes the
+decision from `draft` to `gated` for independent soundness review.
 
 ## Lifecycle record
 
@@ -139,5 +166,7 @@ This canvas opened after the official setup workflow demonstrated that neither
 the candidate Codex row nor the host-native-but-unsupported Claude row could
 plan any write. Shaping then moved upstream: Stewards decision 0023 established
 the common fields, and ADR-0042 received that strategy locally. This canvas
-now resumes as the separate Grove product decision. It remains decision-only;
-no runtime, metadata, generated output, or support claim changes in this PR.
+then resumed as the separate Grove product decision. On 2026-07-26 the
+maintainer accepted the recommended operation and confirmation policy,
+closing the remaining questions. It remains decision-only; no runtime,
+metadata, generated output, or support claim changes in this PR.
