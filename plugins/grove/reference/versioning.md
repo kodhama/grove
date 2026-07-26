@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/versioning.md; sha256: 68bdf6c6f491e55c0e48e2589c0271ae25e53f576375d4aaef735faa55113fc6 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/versioning.md; sha256: 73676aeeffab01972120b75ff64021b3de3b6bf22768a82212bf0644c3354bd0 -->
 
 # versioning — conformance-detection semantics, stated once
 
@@ -99,6 +99,28 @@ referent existence** — strip `@version`, resolve the bare id. The
 pinned-version-vs-current **sync comparison** is the conformance
 chain's (`adr-0006`: `validator` flags pin lag on a version-bump
 trigger; `conformance-reviewer` re-derives against current).
+
+## Test-dependency canary pins
+
+A schema-2 test-dependency group's local spec entry is a last-reviewed target:
+the landed `spec-id@vN` records the target version against which that group
+last passed independent conformance review. It is a canary, never a verdict.
+A lagging pin triggers re-derivation; an equal-current pin is quiet but proves
+no conformance; an ahead-of-current, malformed, or unresolved local spec pin
+is invalid. An append-only decision is named without a version.
+
+The executor advances a candidate pin in the same change as the tests and any
+implementation needed for the target. If executor re-derivation finds no
+behavioral change is needed, it may instead propose a manifest-only candidate
+pin. Neither kind self-validates: a separate independent conformance review
+must derive obligations from the current approved spec, inspect and exercise
+the implementation and tests, and return `PASS` before the candidate is
+eligible to land. `FAIL` or `UPSTREAM-INDICTED` earns no pin.
+
+A migrated coarse group's pin advances only after independent review of the
+whole coarse scope — every discovered static declaration within all of its
+file-only selectors. Reviewing and advancing an overlapping exact group does
+not advance the coarse pin.
 
 ## The `changes:` relation and its cross-check
 

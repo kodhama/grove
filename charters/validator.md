@@ -2,9 +2,9 @@
 id: charter-validator
 type: charter
 status: gated
-depends_on: [adr-0006-operational-conformance-mechanism, charter-versioning, charter-relations, adr-0016-implements-edge-taxonomy]
+depends_on: [adr-0006-operational-conformance-mechanism, charter-versioning, charter-relations, adr-0016-implements-edge-taxonomy, adr-0043-structured-test-dependency-canary]
 owner: agent
-updated: 2026-07-21
+updated: 2026-07-26
 ---
 
 # validator — stage 5: per-PR critique + triggered drift audits
@@ -35,20 +35,26 @@ rather than gating every merge.
    **drift-bearing** graph — `depends_on` **and `implements:`** (edge
    taxonomy: `relations.md`, `adr-0011`/`adr-0016`) — from the changed
    artifact outward, scoped to genuine dependents (not the whole
-   archive). `implements:` is the **fidelity upstream** (a spec's
-   decision, a charter's ADR, code's ledger spec); a change to it most
-   obligates a re-check, so an artifact reached by `implements:` **alone**
-   is inside the blast radius (`adr-0016`, closing grove#68).
+   archive). `implements:` is the **fidelity upstream** for lifecycle
+   artifacts (a spec's decision, a charter's ADR); test-dependency canary
+   entries are advisory and do not join this graph. A change to an
+   `implements:` upstream most obligates a re-check, so an artifact reached
+   by `implements:` **alone** is inside the blast radius (`adr-0016`,
+   closing grove#68).
    `informed_by`, `superseded_by`, and `changes:` are **non-drift** and
    never walked here — a version bump upstream never obligates re-checking
    a provenance citation reached via `informed_by`. For each
    dependent: does it still hold given the change, or has it silently
-   drifted? When the trigger is an **upstream version bump**, the drift
-   to check is a *pin lag* — flag every consumer whose recorded pin
-   (`repo/id@vN`) now trails the upstream's current version
-   (`versioning.md`, the versioning companion — `adr-0010`); the flag
-   fires the `conformance-reviewer`'s re-check, it is not itself a
-   verdict.
+   drifted? When the trigger is an **upstream version bump**, use any
+   selected test-dependency canary with its declared precision: identify
+   stale declarations from exact canonical groups precisely; report
+   coarse canonical and usable legacy file scope explicitly as coarse;
+   when no ledger exists, report the canary as unobservable. A lagging
+   pin fires the `conformance-reviewer`'s re-check; never advance a pin
+   and never convert comparison into a conformance verdict. Without a
+   ledger, traversal cannot discover an absent consumer from the
+   upstream-only change — disclose that accepted advisory-model blind
+   spot rather than claiming a self-describing graph edge (`adr-0043`).
 3. **Calibrate scope honestly.** If a triggered audit's blast radius
    turns out too big or too small for the trigger that fired it, say so
    — that's a finding about the trigger definition, not just the audit.

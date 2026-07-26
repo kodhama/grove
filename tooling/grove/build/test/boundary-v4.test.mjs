@@ -113,8 +113,8 @@ test('repository checks retain the five live suites and exclude retired bookkeep
     await Promise.all([
       readFile(join(REPOSITORY_ROOT, '.github/workflows/grove-tests.yml'), 'utf8'),
       readFile(join(REPOSITORY_ROOT, '.grove/config.toml'), 'utf8'),
-      readFile(join(REPOSITORY_ROOT, 'tooling/grove/tests/gates/test-deps.md'), 'utf8'),
-      readFile(join(REPOSITORY_ROOT, 'tooling/grove/probes/test-deps.md'), 'utf8'),
+      readFile(join(REPOSITORY_ROOT, 'tooling/grove/tests/gates/test-deps.yaml'), 'utf8'),
+      readFile(join(REPOSITORY_ROOT, 'tooling/grove/probes/test-deps.yaml'), 'utf8'),
     ]);
   for (const text of [workflow, config]) {
     assert.match(text, /tooling\/grove\/probes/);
@@ -126,6 +126,280 @@ test('repository checks retain the five live suites and exclude retired bookkeep
   assert.match(probesLedger, /spec-0004-dual-host-distribution@v6/);
   assert.match(probesLedger, /adr-0037-pre-execution-planning/);
   await assert.rejects(access(join(REPOSITORY_ROOT, 'retired', 'review-bookkeeping')));
+});
+
+test('spec-0005 AC7/AC13/AC15 — stock ledgers and config use canonical schema-2 bytes', async () => {
+  const expected = new Map([
+    ['tooling/grove/build/test-deps.yaml', `schema: 2
+groups:
+  "legacy-package":
+    precision: coarse
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+      - file: "test/generate.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v6"
+    decisions:
+      - "adr-0031-multi-host-distribution"
+      - "adr-0032-status-emission-belongs-to-wisp"
+      - "adr-0035-plugin-and-consumer-boundary"
+      - "adr-0036-remove-retired-review-bookkeeping"
+      - "adr-0037-pre-execution-planning"
+    covers:
+      - "INV1"
+      - "INV17"
+      - "INV2"
+      - "INV20"
+      - "INV23–INV28"
+      - "INV33"
+      - "INV37–INV41"
+      - "S1"
+      - "S15"
+      - "S18"
+      - "S2"
+      - "S21–S24"
+      - "S31"
+      - "S35–S39"
+    notes: "This package owns the metadata-only role inventory and deterministic Claude/Codex projections generated from canonical charters."
+  "spec-0005-canary":
+    precision: exact
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+        cases:
+          - title:
+              - "lifecycle ledger carries the required schema row and release CLI consumes the discovery contract"
+          - title:
+              - "repository checks retain the five live suites and exclude retired bookkeeping"
+          - title:
+              - "spec-0005 AC1–AC4/AC9/AC12–AC16 — writer, selectors, pins, and serialization stay explicit"
+          - title:
+              - "spec-0005 AC5/AC6/AC10/AC11 — reader modes, routing, and drift precision stay explicit"
+          - title:
+              - "spec-0005 AC7/AC13/AC15 — stock ledgers and config use canonical schema-2 bytes"
+      - file: "test/generate.test.mjs"
+        cases:
+          - title:
+              - "spec-0005 AC7/S24 — structured canary contracts propagate from all six authored sources"
+    specs:
+      - "spec-0005-structured-test-dependency-canary@v1"
+    decisions:
+      - "adr-0043-structured-test-dependency-canary"
+    covers:
+      - "AC13"
+      - "AC15"
+      - "AC7"
+      - "S23"
+      - "S25"
+      - "S26"
+`],
+    ['tooling/grove/probes/test-deps.yaml', `schema: 2
+groups:
+  "legacy-package":
+    precision: coarse
+    tests:
+      - file: "test/probe-boundary-v4.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v6"
+    decisions:
+      - "adr-0031-multi-host-distribution"
+      - "adr-0035-plugin-and-consumer-boundary"
+      - "adr-0036-remove-retired-review-bookkeeping"
+      - "adr-0037-pre-execution-planning"
+    covers:
+      - "INV20"
+      - "INV23"
+      - "INV26–INV27"
+      - "INV32"
+      - "INV37"
+      - "S18"
+      - "S22–S23"
+      - "S30"
+      - "S35"
+    notes: "This package owns isolated support-probe preparation, hash-bound non-interactive preflight, static package-composition smoke, and the release-blocking external clean-install discovery contract."
+`],
+    ['tooling/grove/release/test-deps.yaml', `schema: 2
+groups:
+  "legacy-package":
+    precision: coarse
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+      - file: "test/release.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v6"
+    decisions:
+      - "adr-0031-multi-host-distribution"
+      - "adr-0032-status-emission-belongs-to-wisp"
+      - "adr-0035-plugin-and-consumer-boundary"
+      - "adr-0036-remove-retired-review-bookkeeping"
+      - "adr-0037-pre-execution-planning"
+    notes: "This package validates Grove's shared release identity, dual-host manifests, surface-support claims, generated support documentation, and immutable-tag behavior."
+`],
+    ['tooling/grove/tests/gates/test-deps.yaml', `schema: 2
+groups:
+  "legacy-package":
+    precision: coarse
+    tests:
+      - file: "test/profile.test.mjs"
+      - file: "test/resolve-profile.test.mjs"
+    decisions:
+      - "adr-0018-gate-profile-and-trigger-split"
+      - "adr-0021-gate-profile-self-adoption"
+    covers:
+      - "adr-0018 D3"
+      - "adr-0018 D4"
+      - "adr-0018 D7"
+      - "adr-0018 D8"
+      - "adr-0018 Floor F1"
+      - "adr-0021 D2"
+    notes: "This package under tooling/grove/tests/gates/ verifies the gate-profile machinery shipped at plugins/grove/runtime/gates/: preset expansion, the intent-locus floor validator, the gates.toml reader, the load-time guardian fallback, and runtime_dir behavior. Every lib/*.mjs and bin/*.mjs under this root belongs to this package."
+`],
+    ['tooling/grove/tests/lifecycle/test-deps.yaml', `schema: 2
+groups:
+  "legacy-package":
+    precision: coarse
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+      - file: "test/entrypoint.test.mjs"
+      - file: "test/refresh-profile-remove.test.mjs"
+      - file: "test/surface-and-setup.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v6"
+    decisions:
+      - "adr-0031-multi-host-distribution"
+      - "adr-0032-status-emission-belongs-to-wisp"
+      - "adr-0035-plugin-and-consumer-boundary"
+      - "adr-0036-remove-retired-review-bookkeeping"
+      - "adr-0037-pre-execution-planning"
+    notes: "Technical orientation: these tests use the Node.js built-in test runner and filesystem APIs."
+`],
+  ]);
+
+  for (const [relativePath, bytes] of expected) {
+    assert.equal(
+      await readFile(join(REPOSITORY_ROOT, relativePath), 'utf8'),
+      bytes,
+      relativePath,
+    );
+    await assert.rejects(
+      access(join(REPOSITORY_ROOT, relativePath.replace(/\.yaml$/, '.md'))),
+      undefined,
+      `${relativePath} has no legacy peer`,
+    );
+  }
+
+  const config = await readFile(join(REPOSITORY_ROOT, '.grove/config.toml'), 'utf8');
+  assert.match(
+    config,
+    /TEST_DEPS_LEDGER = "per-package nearest-ancestor test-deps\.yaml; read nearest-ancestor test-deps\.md only as legacy fallback; verify the selected carrier on use"/,
+  );
+});
+
+test('spec-0005 AC1–AC4/AC9/AC12–AC16 — writer, selectors, pins, and serialization stay explicit', async () => {
+  const [executor, relations, versioning] = (
+    await Promise.all(
+      ['executor', 'relations', 'versioning'].map((name) =>
+        readFile(join(REPOSITORY_ROOT, 'charters', `${name}.md`), 'utf8')),
+    )
+  ).map((text) => text.replace(/\s+/g, ' '));
+
+  for (const required of [
+    /deepest|nearest/i,
+    /canonical.*same directory|same directory.*canonical/i,
+    /schema 2/i,
+    /unknown fields/i,
+    /package root.*existing.*convention/i,
+    /landed basis/i,
+    /new or touched declaration.*exact/i,
+    /legacy-package.*coarse/i,
+    /technical.*decision.*defect.*note/i,
+    /semantic.*frontmatter/i,
+    /deletes? `?test-deps\.md`?.*after.*valid/i,
+    /no well-formed.*all.*exact|all.*exact.*no well-formed/i,
+    /neither carrier.*every discovered/i,
+    /same package root.*reconcile/i,
+    /file-only exact/i,
+    /complete title/i,
+    /more than one exact group/i,
+    /split.*whole-file.*lacks an upstream/i,
+    /deterministic.*byte-stable/i,
+    /UTF-8.*byte-order mark/i,
+    /Unicode scalar/i,
+    /U\+FFFE.*U\+FFFF.*unpaired/i,
+  ]) {
+    assert.match(executor, required);
+  }
+
+  assert.match(relations, /advisory provenance and canary data/i);
+  assert.match(relations, /not.*scalar `implements:`.*general `depends_on`/i);
+  assert.match(relations, /`specs`, `decisions`, and `defects`/i);
+  assert.match(relations, /`covers` and `notes`.*not.*upstream/i);
+
+  for (const required of [
+    /last-reviewed target/i,
+    /candidate pin/i,
+    /lagging.*re-derivation/i,
+    /equal.*proves no conformance/i,
+    /ahead.*invalid/i,
+    /manifest-only/i,
+    /independent conformance review/i,
+    /whole coarse scope/i,
+    /append-only decision.*without.*version/i,
+  ]) {
+    assert.match(versioning, required);
+  }
+});
+
+test('spec-0005 AC5/AC6/AC10/AC11 — reader modes, routing, and drift precision stay explicit', async () => {
+  const [reviewer, dispatcher, validator] = (
+    await Promise.all(
+      ['conformance-reviewer', 'dispatcher', 'validator'].map((name) =>
+        readFile(join(REPOSITORY_ROOT, 'charters', `${name}.md`), 'utf8')),
+    )
+  ).map((text) => text.replace(/\s+/g, ' '));
+
+  for (const mode of [
+    'canonical/exact',
+    'canonical/coarse',
+    'legacy/coarse',
+    'inferred',
+  ]) {
+    assert.match(reviewer, new RegExp(mode.replace('/', '\\/')));
+  }
+  for (const required of [
+    /changed tests?.*new or touched.*select/i,
+    /changed code.*independently.*affected test/i,
+    /ledger membership.*does not decide/i,
+    /absence.*may.*PASS/i,
+    /legacy.*may.*PASS/i,
+    /coarse.*may.*PASS/i,
+    /no well-formed.*inferred/i,
+    /cannot independently establish an approved upstream.*FAIL/i,
+    /malformed canonical.*ledger integrity.*FAIL/i,
+    /Fidelity:.*Ledger integrity:.*Overall:/i,
+    /dual presence.*canonical.*read basis/i,
+    /never.*union/i,
+    /manifest-only.*implementation and tests/i,
+  ]) {
+    assert.match(reviewer, required);
+  }
+
+  assert.match(
+    dispatcher,
+    /routes? changed code and tests.*canonical.*legacy.*absent.*dual.*malformed/i,
+  );
+  assert.match(dispatcher, /ledger presence never decides.*conformance/i);
+
+  for (const required of [
+    /read-only/i,
+    /exact canonical.*precisely/i,
+    /coarse canonical.*legacy.*coarse/i,
+    /no ledger.*unobservable/i,
+    /never advances? (?:a )?pin/i,
+    /never.*conformance verdict/i,
+    /cannot discover.*absent consumer/i,
+  ]) {
+    assert.match(validator, required);
+  }
 });
 
 test('S22/S23 remain an explicit external live-host release gate, not a manifest-only pass claim', async () => {
@@ -145,12 +419,11 @@ test('S22/S23 remain an explicit external live-host release gate, not a manifest
 
 test('lifecycle ledger carries the required schema row and release CLI consumes the discovery contract', async () => {
   const [ledger, releaseCli, workflow] = await Promise.all([
-    readFile(join(REPOSITORY_ROOT, 'tooling/grove/tests/lifecycle/test-deps.md'), 'utf8'),
+    readFile(join(REPOSITORY_ROOT, 'tooling/grove/tests/lifecycle/test-deps.yaml'), 'utf8'),
     readFile(join(REPOSITORY_ROOT, 'tooling/grove/release/bin/validate-release.mjs'), 'utf8'),
     readFile(join(REPOSITORY_ROOT, '.github/workflows/release-tag.yml'), 'utf8'),
   ]);
-  const block = ledger.match(/```grove-test-deps\n([\s\S]*?)```/)?.[1] ?? '';
-  assert.match(block, /^schema:\s*1$/m);
+  assert.match(ledger, /^schema: 2$/m);
   assert.match(releaseCli, /host-discovery-contract\.json/);
   assert.match(workflow, /check:release/);
 });

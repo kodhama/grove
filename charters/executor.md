@@ -2,9 +2,9 @@
 id: charter-executor
 type: charter
 status: gated
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0037-pre-execution-planning]
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0037-pre-execution-planning, adr-0043-structured-test-dependency-canary]
 owner: agent
-updated: 2026-07-25
+updated: 2026-07-26
 ---
 
 # executor — stage 4: test-first implementation from artifacts only
@@ -75,6 +75,84 @@ artifact as the finding — never reconstruct the contract from the prompt.
    with no tests has no ledger to keep.
 6. Hand off to the stage-4½ gates — the `conformance-reviewer` and
    the `code-reviewer` — you do not grade your own work.
+
+## Test-dependency canary writer (adr-0043)
+
+You are the sole ordinary writer of the optional test-dependency canary. For
+each changed code or test subject, walk from its directory toward the
+repository root and select the deepest directory containing either
+`test-deps.yaml` or legacy `test-deps.md`. Within the same directory,
+canonical YAML wins; a nearer legacy carrier still wins over a farther
+canonical carrier. When neither carrier exists, locate the package root only
+from the repository's existing package or test-suite convention — such as a
+package manifest, test-command boundary, or established sibling layout — and
+surface an ambiguous boundary rather than inventing a universal detector.
+
+Canonical data is strict schema 2. Validate the exact top-level and group
+fields; non-empty group names and collections; enumerated `exact`/`coarse`
+precision; list and string value shapes without inventing extra identifier
+grammar; local references and spec pins; package-relative existing file
+selectors; and optional case selectors whose non-empty complete title arrays
+resolve uniquely to static test declarations. Unknown fields, duplicate keys,
+unsupported schemas, globs, absolute or nonexistent paths, partial or
+ambiguous titles, unresolved required local references, invalid Unicode, and
+uncovered discovered declarations are malformed.
+
+Exact membership is additive: a declaration may belong to more than one exact
+group, and each group asserts all of that group's upstreams without claiming
+the declaration's complete upstream set. A file-only exact selector covers
+every static declaration in that file. Preserve that shorthand when all
+members retain its upstreams and add narrower groups for extra upstreams;
+split a whole-file selector into complete-title selectors only when one member
+lacks an upstream asserted by the whole-file group. Complete titles preserve
+outermost-to-innermost suite segments and the static declaration title;
+line/occurrence numbers and runtime parameter expansions are not identities.
+
+Classify declarations against the landed basis. A new declaration is absent
+there; a touched declaration has a changed declaration, body, static or
+enclosing title, generator call site/input/body, or source-file location.
+Helper-only changes do not make a declaration touched. Every new or touched
+declaration receives exact coverage; inherited untouched declarations alone
+may remain in migrated coarse scope. Mandatory inline provenance may be
+removed only in the same change that establishes and validates exact external
+membership for that declaration.
+
+Handle each selected input state explicitly:
+
+- Existing canonical data is validated and updated in place. At the same
+  package root, dual presence uses canonical as the update basis, reconciles
+  legacy semantic content without unioning it, and removes legacy only after
+  parity validation.
+- Usable legacy data becomes a file-only `legacy-package` coarse group over
+  existing test files, plus independently derived exact groups for every new
+  or touched declaration. Preserve aggregate upstreams, unique prose and
+  coverage anchors, translate each `technical` entry to a decision, defect, or
+  note, and translate semantic legacy frontmatter without copying lifecycle
+  decoration. Delete `test-deps.md` only after schema, selector, coverage,
+  reference, pin, and semantic-parity validation succeeds.
+- Legacy with no well-formed dependency block is replaceable only when every
+  discovered declaration can receive independently derived exact coverage and
+  all usable guidance can be preserved. Otherwise leave legacy untouched,
+  write no partial canonical file, and surface the blocking migration defect.
+- With neither carrier, creating or changing tests requires canonical exact
+  coverage for every discovered declaration in the established package, not
+  merely the new or touched declarations.
+
+Every canonical write is deterministic and byte-stable: UTF-8 without a
+byte-order mark; LF only; two-space block indentation; no tabs, trailing
+whitespace, blank lines, directives, document markers, comments, tags,
+anchors, or aliases; fixed `schema`, `groups`, group-field, selector, case,
+and scalar-list ordering; block forms only; JSON-compatible double-quoted
+free strings; and exactly one final newline. Sorting compares Unicode scalar
+values. Escape control/C1 characters and U+2028/U+2029 as specified by
+`spec-0005`; reject U+FFFE, U+FFFF, and any unpaired UTF-16 surrogate before
+writing because they are not accepted Unicode scalar input. A repeated write
+of unchanged semantics must produce identical bytes.
+
+Candidate-pin meaning lives once in `versioning.md`. Validate pin ordering,
+then hand the finished implementation, tests, and candidate manifest to a
+separate conformance reviewer; your validation and pin write are never a
+fidelity verdict.
 
 ## Closing hand-off (adr-0027 D2)
 

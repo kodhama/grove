@@ -276,6 +276,29 @@ test("runtime references strip artifact front matter and preserve canonical pros
   }
 });
 
+test("spec-0005 AC7/S24 — structured canary contracts propagate from all six authored sources", async () => {
+  const outputs = await buildProjectionSet({ repoRoot: REPO_ROOT });
+  const result = await checkProjectionSet({ repoRoot: REPO_ROOT, outputs });
+  assert.deepEqual(result, {
+    ok: true,
+    stale: [],
+    missing: [],
+    unexpected: [],
+  });
+
+  const expectedContracts = new Map([
+    ["plugins/grove/reference/charters/executor.md", /sole ordinary writer/],
+    ["plugins/grove/reference/charters/conformance-reviewer.md", /canonical\/exact/],
+    ["plugins/grove/reference/charters/dispatcher.md", /Ledger\s+presence never decides/],
+    ["plugins/grove/reference/charters/validator.md", /canary as unobservable/],
+    ["plugins/grove/reference/relations.md", /advisory provenance, not artifact edges/],
+    ["plugins/grove/reference/versioning.md", /manifest-only candidate\s+pin/],
+  ]);
+  for (const [output, pattern] of expectedContracts) {
+    assert.match(outputs.get(output), pattern, output);
+  }
+});
+
 test("artifact-only metadata changes the source digest but not runtime prose", async () =>
   withFixture(async (root) => {
     const before = await buildProjectionSet({ repoRoot: root });

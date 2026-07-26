@@ -1,0 +1,61 @@
+schema: 2
+groups:
+  "legacy-package":
+    precision: coarse
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+      - file: "test/generate.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v6"
+    decisions:
+      - "adr-0031-multi-host-distribution"
+      - "adr-0032-status-emission-belongs-to-wisp"
+      - "adr-0035-plugin-and-consumer-boundary"
+      - "adr-0036-remove-retired-review-bookkeeping"
+      - "adr-0037-pre-execution-planning"
+    covers:
+      - "INV1"
+      - "INV17"
+      - "INV2"
+      - "INV20"
+      - "INV23–INV28"
+      - "INV33"
+      - "INV37–INV41"
+      - "S1"
+      - "S15"
+      - "S18"
+      - "S2"
+      - "S21–S24"
+      - "S31"
+      - "S35–S39"
+    notes: "This package owns the metadata-only role inventory and deterministic Claude/Codex projections generated from canonical charters."
+  "spec-0005-canary":
+    precision: exact
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+        cases:
+          - title:
+              - "lifecycle ledger carries the required schema row and release CLI consumes the discovery contract"
+          - title:
+              - "repository checks retain the five live suites and exclude retired bookkeeping"
+          - title:
+              - "spec-0005 AC1–AC4/AC9/AC12–AC16 — writer, selectors, pins, and serialization stay explicit"
+          - title:
+              - "spec-0005 AC5/AC6/AC10/AC11 — reader modes, routing, and drift precision stay explicit"
+          - title:
+              - "spec-0005 AC7/AC13/AC15 — stock ledgers and config use canonical schema-2 bytes"
+      - file: "test/generate.test.mjs"
+        cases:
+          - title:
+              - "spec-0005 AC7/S24 — structured canary contracts propagate from all six authored sources"
+    specs:
+      - "spec-0005-structured-test-dependency-canary@v1"
+    decisions:
+      - "adr-0043-structured-test-dependency-canary"
+    covers:
+      - "AC13"
+      - "AC15"
+      - "AC7"
+      - "S23"
+      - "S25"
+      - "S26"

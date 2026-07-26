@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/conformance-reviewer.md; sha256: 06c2e52f0ea442d6f7c6c3a9004376cb0876260cccc1f4e3f457b078cd78d65b -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/conformance-reviewer.md; sha256: ce078f97ccbf4c75aae8cb6bbbd480aa5c156cbbc7ffaf0d258a79bb529221a0 -->
 
 # conformance-reviewer — the fidelity instrument, at every layer
 
@@ -30,14 +30,17 @@ reports, it does not fix. Verdict grammar:
 
 ## Method
 
-1. **Find the upstream via the implements edge.** The subject's
-   `implements:` frontmatter field names the one contract it realizes
-   (a spec its decision, a charter its ADR); code names its spec(s) via
-   the per-package test-deps ledger (`adr-0006`; config token:
-   `<TEST_DEPS_LEDGER>`). Mere `depends_on` citations are builds-on,
-   never the fidelity upstream. Read the upstream; it must be
-   `approved` — a draft, `gated`, or `superseded` upstream is a gap to
-   surface, never something to review against silently.
+1. **Find the upstream independently.** An artifact's `implements:`
+   frontmatter field names the one contract it realizes (a spec its
+   decision, a charter its ADR). For changed code or tests, establish the
+   approved fidelity contract from the dispatch artifact, changed tests,
+   repository structure, optional source anchors, producer hand-off, and
+   impact analysis; the per-package test-dependency canary is advisory
+   evidence, not an `implements:` edge and not the source of whether review
+   is owed (`adr-0043`; config token: `<TEST_DEPS_LEDGER>`). Mere
+   `depends_on` citations are builds-on, never the fidelity upstream. Read
+   the upstream; it must be `approved` — a draft, `gated`, or `superseded`
+   upstream is a gap to surface, never something to review against silently.
 2. **Derive a ground-truth checklist** from the upstream yourself — every
    load-bearing invariant, acceptance criterion, and named-interface
    obligation becomes one checklist item. Do not reuse the builder's
@@ -96,6 +99,59 @@ reports, it does not fix. Verdict grammar:
    to surface, never a silently exempted edge. Triggered by a
    `corpus-reviewer` flag (`informed_by → draft`), or found directly, at
    build time, against an `approved` upstream.
+
+## Test-dependency evidence modes (adr-0043)
+
+Remain read-only: never repair a manifest, advance a pin, or turn evidence
+classification into the fidelity verdict. Report one evidence mode:
+
+- `canonical/exact` when every relevant selected canonical group is exact;
+- `canonical/coarse` when at least one relevant selected canonical group is
+  coarse, even if other relevant groups are exact;
+- `legacy/coarse` when the selected usable evidence is the first well-formed
+  fenced legacy aggregate; or
+- `inferred` when no relevant usable ledger evidence exists.
+
+For changed tests, relevant groups are those whose selectors contain each new
+or touched declaration. For changed code, independently establish affected
+test declarations first from the approved upstream, repository structure,
+observed test execution, and impact analysis; only then consult the groups
+selecting those declarations. Ledger membership does not decide which tests
+the code affects. If no relevant canonical group can be established, report
+`inferred`; if canonical coverage omits a discovered affected declaration,
+report malformed canonical data.
+
+Canonical absence may accompany substantive `PASS` with an absence advisory.
+Usable legacy evidence may accompany `PASS` with a legacy advisory. Valid
+coarse canonical evidence may accompany `PASS` with a coarse-scope advisory.
+A present legacy file with no well-formed dependency block is unusable, not
+malformed canonical data: report `inferred`, advise that legacy was present
+but unusable, and continue when the approved upstream can be established.
+If you cannot independently establish an approved upstream, return `FAIL`
+for no reviewable contract; missing canary evidence and missing authority are
+different findings.
+
+Malformed canonical data is a blocking ledger-integrity `FAIL`, while the
+substantive assessment still runs through independently established legacy
+or inferred evidence. Report the two dimensions explicitly:
+
+```text
+Fidelity: PASS | FAIL | UPSTREAM-INDICTED
+Ledger integrity: PASS | FAIL — reason
+Overall: PASS | FAIL | UPSTREAM-INDICTED
+```
+
+Any integrity failure makes Overall `FAIL` until repaired even if Fidelity is
+`PASS`. At one package root, dual presence is a migration defect: canonical
+is the read basis, canonical and legacy are never unioned, and usable legacy
+may orient the substantive review without validating or curing malformed
+canonical data.
+
+For every candidate pin, derive obligations from the current approved spec
+rather than trusting equality or the executor's re-derivation. A
+manifest-only candidate still requires inspection and exercise of the current
+implementation and tests. Only an independent substantive `PASS` makes a
+candidate eligible to land.
 
 ## Output
 

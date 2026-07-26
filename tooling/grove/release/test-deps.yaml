@@ -1,0 +1,16 @@
+schema: 2
+groups:
+  "legacy-package":
+    precision: coarse
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+      - file: "test/release.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v6"
+    decisions:
+      - "adr-0031-multi-host-distribution"
+      - "adr-0032-status-emission-belongs-to-wisp"
+      - "adr-0035-plugin-and-consumer-boundary"
+      - "adr-0036-remove-retired-review-bookkeeping"
+      - "adr-0037-pre-execution-planning"
+    notes: "This package validates Grove's shared release identity, dual-host manifests, surface-support claims, generated support documentation, and immutable-tag behavior."

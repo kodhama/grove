@@ -17,10 +17,10 @@
       "native_id": "grove_conformance_reviewer",
       "exposure": "cold-native",
       "source": "charters/conformance-reviewer.md",
-      "digest": "06c2e52f0ea442d6f7c6c3a9004376cb0876260cccc1f4e3f457b078cd78d65b",
+      "digest": "ce078f97ccbf4c75aae8cb6bbbd480aa5c156cbbc7ffaf0d258a79bb529221a0",
       "output": ".codex/agents/grove_conformance_reviewer.toml",
       "skill": "grove:role-conformance-reviewer",
-      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/conformance-reviewer.md; sha256: 06c2e52f0ea442d6f7c6c3a9004376cb0876260cccc1f4e3f457b078cd78d65b\nname = \"grove_conformance_reviewer\"\ndescription = \"Independent fidelity review of an artifact against its approved upstream contract; read-only, with PASS, FAIL, or UPSTREAM-INDICTED verdicts.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-conformance-reviewer. Canonical Grove role id: conformance-reviewer. Codex native agent id: grove_conformance_reviewer. Verify canonical source charters/conformance-reviewer.md at sha256 06c2e52f0ea442d6f7c6c3a9004376cb0876260cccc1f4e3f457b078cd78d65b. Grove exposure selector: cold-native. Use only its declared cold-native exposure.\"\n"
+      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/conformance-reviewer.md; sha256: ce078f97ccbf4c75aae8cb6bbbd480aa5c156cbbc7ffaf0d258a79bb529221a0\nname = \"grove_conformance_reviewer\"\ndescription = \"Independent fidelity review of an artifact against its approved upstream contract; read-only, with PASS, FAIL, or UPSTREAM-INDICTED verdicts.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-conformance-reviewer. Canonical Grove role id: conformance-reviewer. Codex native agent id: grove_conformance_reviewer. Verify canonical source charters/conformance-reviewer.md at sha256 ce078f97ccbf4c75aae8cb6bbbd480aa5c156cbbc7ffaf0d258a79bb529221a0. Grove exposure selector: cold-native. Use only its declared cold-native exposure.\"\n"
     },
     {
       "canonical_id": "contract-author",
@@ -57,10 +57,10 @@
       "native_id": "grove_dispatcher",
       "exposure": "scoped-advisor",
       "source": "charters/dispatcher.md",
-      "digest": "63ee00e483ed1bc5fd127d3cd1ff4cd1424f0f8bab13491e539752e613c4d678",
+      "digest": "ee38dd200e3959a25b6082aa4c62c1d1c204faec75428b0549b8e6995895deee",
       "output": ".codex/agents/grove_dispatcher.toml",
       "skill": "grove:role-dispatcher",
-      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: 63ee00e483ed1bc5fd127d3cd1ff4cd1424f0f8bab13491e539752e613c4d678\nname = \"grove_dispatcher\"\ndescription = \"One-shot dispatch advisor for a bounded workflow classification or next-dispatch recommendation; the full dispatcher remains in the driving session.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-dispatcher. Canonical Grove role id: dispatcher. Codex native agent id: grove_dispatcher. Verify canonical source charters/dispatcher.md at sha256 63ee00e483ed1bc5fd127d3cd1ff4cd1424f0f8bab13491e539752e613c4d678. Grove exposure selector: scoped-advisor. Use only its declared scoped-advisor exposure.\"\n"
+      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: ee38dd200e3959a25b6082aa4c62c1d1c204faec75428b0549b8e6995895deee\nname = \"grove_dispatcher\"\ndescription = \"One-shot dispatch advisor for a bounded workflow classification or next-dispatch recommendation; the full dispatcher remains in the driving session.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-dispatcher. Canonical Grove role id: dispatcher. Codex native agent id: grove_dispatcher. Verify canonical source charters/dispatcher.md at sha256 ee38dd200e3959a25b6082aa4c62c1d1c204faec75428b0549b8e6995895deee. Grove exposure selector: scoped-advisor. Use only its declared scoped-advisor exposure.\"\n"
     },
     {
       "canonical_id": "divergent-researcher",
@@ -77,10 +77,10 @@
       "native_id": "grove_executor",
       "exposure": "cold-native",
       "source": "charters/executor.md",
-      "digest": "a821eb14323bebcd5059f21be2755fe26330476698aaf0e80b034b9f973cf6af",
+      "digest": "5bc7bc6ecd7af9b7f065a4ea16bd1919eef20454bff2a2d4f0d498335a6b6989",
       "output": ".codex/agents/grove_executor.toml",
       "skill": "grove:role-executor",
-      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: a821eb14323bebcd5059f21be2755fe26330476698aaf0e80b034b9f973cf6af\nname = \"grove_executor\"\ndescription = \"Stage-4 strict test-first implementation from approved or ratified-gated artifacts, cold-started from the artifact dependency graph.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-executor. Canonical Grove role id: executor. Codex native agent id: grove_executor. Verify canonical source charters/executor.md at sha256 a821eb14323bebcd5059f21be2755fe26330476698aaf0e80b034b9f973cf6af. Grove exposure selector: cold-native. Use only its declared cold-native exposure.\"\n"
+      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 5bc7bc6ecd7af9b7f065a4ea16bd1919eef20454bff2a2d4f0d498335a6b6989\nname = \"grove_executor\"\ndescription = \"Stage-4 strict test-first implementation from approved or ratified-gated artifacts, cold-started from the artifact dependency graph.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-executor. Canonical Grove role id: executor. Codex native agent id: grove_executor. Verify canonical source charters/executor.md at sha256 5bc7bc6ecd7af9b7f065a4ea16bd1919eef20454bff2a2d4f0d498335a6b6989. Grove exposure selector: cold-native. Use only its declared cold-native exposure.\"\n"
     },
     {
       "canonical_id": "implementation-planner",
@@ -127,10 +127,10 @@
       "native_id": "grove_validator",
       "exposure": "cold-native",
       "source": "charters/validator.md",
-      "digest": "c58eae46db62e54a66d502b0584a02c44a3d4189f1df90a5e84bf9df8241dc44",
+      "digest": "55aab0b8b627981614161e2da4e09a47c4ff9ab68ee79f9ca790becb7f0ad475",
       "output": ".codex/agents/grove_validator.toml",
       "skill": "grove:role-validator",
-      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/validator.md; sha256: c58eae46db62e54a66d502b0584a02c44a3d4189f1df90a5e84bf9df8241dc44\nname = \"grove_validator\"\ndescription = \"Stage-5 per-change critique and triggered spec-drift audit of one artifact's blast radius; report-only.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-validator. Canonical Grove role id: validator. Codex native agent id: grove_validator. Verify canonical source charters/validator.md at sha256 c58eae46db62e54a66d502b0584a02c44a3d4189f1df90a5e84bf9df8241dc44. Grove exposure selector: cold-native. Use only its declared cold-native exposure.\"\n"
+      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/validator.md; sha256: 55aab0b8b627981614161e2da4e09a47c4ff9ab68ee79f9ca790becb7f0ad475\nname = \"grove_validator\"\ndescription = \"Stage-5 per-change critique and triggered spec-drift audit of one artifact's blast radius; report-only.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-validator. Canonical Grove role id: validator. Codex native agent id: grove_validator. Verify canonical source charters/validator.md at sha256 55aab0b8b627981614161e2da4e09a47c4ff9ab68ee79f9ca790becb7f0ad475. Grove exposure selector: cold-native. Use only its declared cold-native exposure.\"\n"
     }
   ]
 }

@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: d37d7242fd0445471c5f18139d9907345800acd8eb004b61adb3c0e16a3fe9d5 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: 0e25cd783908dbd16bb6badd198da43aeeac5551547ebb711fef758c73aca057 -->
 
 # relations — the artifact edge taxonomy, stated once
 
@@ -33,6 +33,17 @@ one of the following five. Each is stated with its **edge class**: is it
 may point across it at a `draft`), and does it **bear drift** (does an
 upstream change obligate a downstream re-check, the `validator`'s
 triggered-audit graph)?
+
+### Test-dependency manifest entries — advisory provenance, not artifact edges
+
+A schema-2 `test-deps.yaml` group's `specs`, `decisions`, and `defects`
+entries are advisory provenance and canary data for selected test
+declarations. They are not an artifact's scalar `implements:` edge or a
+general `depends_on` edge, and they do not join the lifecycle artifact graph.
+The group's `covers` and `notes` fields are navigation and orientation only;
+they are not upstreams. This keeps test provenance available to executor,
+reviewer, and validator judgment without reviving a machine-computed graph or
+retyping code as a lifecycle artifact (`adr-0043`).
 
 ### `depends_on` — coupling. Flow: yes. Drift-bearing: yes.
 
