@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { after } from 'node:test';
 
@@ -209,4 +209,58 @@ test('a failure after classification still leads with the disclosure', async () 
     /^Grove claims no support/,
     `a post-classification failure dropped the disclosure: ${plan.summary.slice(0, 90)}`,
   );
+});
+
+test('EVERY plan on a no-support row leads with the disclosure, across every repo state', async () => {
+  // The sweep, not another single case. Four review rounds each found one more
+  // path that dropped the disclosure — available rows, unavailable rows, failed
+  // plans, then the malformed-carrier check in prepare() that intercepts before
+  // the branch round four actually patched. Testing one path at a time is what
+  // let each fix miss its siblings, so this asserts the invariant over the
+  // cross product instead: every shipped row, every operation, every repo state
+  // that changes which branch returns.
+  const rows = await shippedRows();
+  const states = {
+    empty: async () => {},
+    'duplicate markers': async (dir) => {
+      await writeFile(join(dir, 'CLAUDE.md'),
+        '<!-- grove:begin (managed by grove) -->\na\n<!-- grove:end -->\n' +
+        '<!-- grove:begin (managed by grove) -->\nb\n<!-- grove:end -->\n');
+    },
+    'malformed block': async (dir) => {
+      await writeFile(join(dir, 'CLAUDE.md'), '<!-- grove:begin (managed by grove) -->\nno end marker\n');
+    },
+    'other host malformed': async (dir) => {
+      await writeFile(join(dir, 'AGENTS.md'), '<!-- grove:begin (managed by grove) -->\ndangling\n');
+    },
+  };
+
+  const misses = [];
+  for (const row of rows) {
+    if (row.support_claim === 'claimed') continue;
+    for (const [stateName, seed] of Object.entries(states)) {
+      for (const operation of ['setup', 'refresh', 'set-profile', 'remove']) {
+        const dir = await repo();
+        await seed(dir);
+        const common = {
+          packageRoot,
+          repoRoot: dir,
+          host: row.host,
+          surface: { surface_id: row.surface_id, provenance: 'user-explicit' },
+        };
+        const plan = operation === 'setup'
+          ? await planSetup({ ...common, choices: { preset: 'steward', config: {} } })
+          : operation === 'refresh'
+            ? await planRefresh(common)
+            : operation === 'set-profile'
+              ? await planSetProfile({ ...common, preset: 'guardian' })
+              : await planRemove(common);
+        const text = `${plan.summary ?? ''} ${(plan.notices ?? []).join(' ')}`;
+        if (!text.includes('Grove claims no support')) {
+          misses.push(`${row.surface_id}/${operation}/${stateName}: ${String(plan.summary).slice(0, 70)}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(misses, [], `plans reached the user with no support disclosure:\n  ${misses.join('\n  ')}`);
 });

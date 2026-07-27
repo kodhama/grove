@@ -1260,3 +1260,44 @@ test('INV21/S19 — an existing tag no-ops only at the intended peeled commit', 
     tagCommit: 'b'.repeat(40),
   });
 });
+
+// Every rule added to validateSurfaceMatrix during PR #158's review rounds.
+// A regression review found ALL SIX deletable with the suite green: the rules
+// were added defect-by-defect and never got assertions of their own. One case
+// each, asserting the rule fires — mutation-tested, not assumed.
+test('adr-0041 matrix invariants each reject their own violation', async (t) => {
+  const { validateSurfaceMatrix } = await import('../lib/release.mjs');
+  const base = {
+    surface_id: 'claude-interactive',
+    host: 'claude',
+    bridge_state: 'host-native',
+    availability_state: 'available',
+    support_claim: 'none',
+    load_path: 'plugin-agents',
+    evidence: [],
+  };
+  const only = (row) => validateSurfaceMatrix({ schema_version: 1, rows: [{ ...base, ...row }] }, {});
+  const fires = (row, needle, label) => {
+    const errs = only(row);
+    assert.ok(
+      errs.some((e) => e.includes(needle)),
+      `${label}: expected an error containing ${JSON.stringify(needle)}, got ${JSON.stringify(errs)}`,
+    );
+  };
+
+  fires({ availability_state: 'BOGUS' }, 'availability_state must be', 'closed availability set');
+  fires({ support_claim: 'BOGUS' }, 'support_claim must be', 'closed support set');
+  fires({ availability_state: 'unavailable', support_claim: 'claimed' },
+        'cannot claim support while unavailable', 'kodhama-0023 combination invariant');
+  fires({ load_path: '' }, 'require a load_path', 'AC5 load path');
+  fires({ bridge_state: 'unknown' }, 'host-valid load mechanism', 'AC5 load mechanism');
+  fires({ support_claim: 'claimed', support_record: '' },
+        'requires a support_record', 'AC4 evidence follows the claim');
+
+  // And the shipped matrix must satisfy all of them.
+  const shipped = JSON.parse(
+    await (await import('node:fs/promises')).readFile(
+      new URL('../../../../plugins/grove/metadata/surfaces.json', import.meta.url), 'utf8'),
+  );
+  assert.deepEqual(validateSurfaceMatrix(shipped, {}), [], 'the shipped matrix violates its own invariants');
+});

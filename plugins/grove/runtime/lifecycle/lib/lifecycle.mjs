@@ -115,21 +115,21 @@ export async function planSetup(input) {
   if (!context.ok) return context.plan;
   const { plan, adapter, choices = {}, repoRoot, packageRoot } = context;
   if (!PRESETS[choices.preset]) {
-    return fail(plan, `setup requires one preset: ${Object.keys(PRESETS).join(', ')}`, context.unsupportedDisclosure);
+    return fail(plan, `setup requires one preset: ${Object.keys(PRESETS).join(', ')}`);
   }
   if (choices.config == null || typeof choices.config !== 'object' || Array.isArray(choices.config)) {
-    return fail(plan, 'setup requires an explicit config object (an empty object is allowed)', context.unsupportedDisclosure);
+    return fail(plan, 'setup requires an explicit config object (an empty object is allowed)');
   }
   let serializedConfig;
   try {
     const tokenConfig = JSON.parse(await readRequired(join(packageRoot, context.config.config_tokens)));
     serializedConfig = serializeConfig(choices.config, tokenConfig);
   } catch (error) {
-    return fail(plan, `invalid setup config tokens: ${error.message}`, context.unsupportedDisclosure);
+    return fail(plan, `invalid setup config tokens: ${error.message}`);
   }
 
   const blockResult = await planManagedBlock(context);
-  if (!blockResult.ok) return fail(plan, blockResult.reason, context.unsupportedDisclosure);
+  if (!blockResult.ok) return fail(plan, blockResult.reason);
 
   await planManagedFloor(context, { mode: 'setup' });
   await planConsumerSeed(
@@ -156,7 +156,7 @@ export async function planRefresh(input) {
   if (!context.ok) return context.plan;
   const { plan, adapter } = context;
   const blockResult = await planManagedBlock(context);
-  if (!blockResult.ok) return fail(plan, blockResult.reason, context.unsupportedDisclosure);
+  if (!blockResult.ok) return fail(plan, blockResult.reason);
 
   await planManagedFloor(context, { mode: 'refresh' });
   addWriteIfChanged(plan, adapter.instruction_file, blockResult.content);
@@ -173,10 +173,10 @@ export async function planSetProfile(input) {
   if (!context.ok) return context.plan;
   const { plan, packageRoot, preset } = context;
   if (!PRESETS[preset]) {
-    return fail(plan, `unknown preset "${preset}" — known presets: ${Object.keys(PRESETS).join(', ')}`, context.unsupportedDisclosure);
+    return fail(plan, `unknown preset "${preset}" — known presets: ${Object.keys(PRESETS).join(', ')}`);
   }
   if (!(await repoPathExists(context, '.grove'))) {
-    return fail(plan, `Grove is not composed here; run ${context.adapter.setup_command} first`, context.unsupportedDisclosure);
+    return fail(plan, `Grove is not composed here; run ${context.adapter.setup_command} first`);
   }
 
   const original = await readRepoOptional(context, '.grove/gates.toml')
@@ -185,11 +185,11 @@ export async function planSetProfile(input) {
   try {
     parsed = parseProfile(original);
   } catch (error) {
-    return fail(plan, `cannot switch an unreadable gates.toml: ${error.message}`, context.unsupportedDisclosure);
+    return fail(plan, `cannot switch an unreadable gates.toml: ${error.message}`);
   }
   const next = seedPreset(original, preset);
   const verified = parseProfile(next);
-  if (!verified.floor) return fail(plan, 'generated preset violates the Grove human intent floor', context.unsupportedDisclosure);
+  if (!verified.floor) return fail(plan, 'generated preset violates the Grove human intent floor');
   plan.changes = GATES
     .filter((gate) => parsed.gates[gate] !== PRESETS[preset][gate])
     .map((gate) => ({ gate, from: parsed.gates[gate] ?? null, to: PRESETS[preset][gate] }));
@@ -470,6 +470,10 @@ async function prepare(input, operation) {
     return { ok: false, plan: fail(plan, `cannot load declared surface matrix: ${error.message}`) };
   }
   const validation = validateSurface({ host, surface: input.surface, matrix, operation });
+  // Attach before any other failure can return. Four review rounds found four
+  // separate paths that dropped this by forgetting an argument; carrying it on
+  // the plan means `fail()` and `summary()` pick it up without being told.
+  if (validation.unsupportedDisclosure) plan.unsupportedDisclosure = validation.unsupportedDisclosure;
   if (!validation.ok) {
     return { ok: false, plan: fail(plan, `${validation.reason}; valid ${host} surface ids: ${validation.valid.join(', ')}`) };
   }
@@ -549,9 +553,11 @@ function validateSurface({ host, surface, matrix, operation }) {
   // without saying so is the conflation this decision exists to undo. An
   // earlier revision built the disclosure inside the unavailable branch, so
   // the two enabled rows produced plans that mentioned support nowhere.
+  // Worded to hold on both branches. "Availability means Grove will write
+  // here" read as a contradiction on a row that refuses to write.
   const unsupportedDisclosure = row.support_claim === 'claimed'
     ? null
-    : `Grove claims no support for "${row.surface_id}". Availability means Grove will write here, not that it promises the result.`;
+    : `Grove claims no support for "${row.surface_id}"; a support claim is separate from whether Grove writes here.`;
 
   if (row.availability_state !== 'available') {
     // Both disclosures, in that order. An earlier revision returned only the
@@ -568,7 +574,7 @@ function validateSurface({ host, surface, matrix, operation }) {
     if (operation === 'remove') {
       return { ok: true, row, valid, unsupportedDisclosure: disclosure };
     }
-    return { ok: false, reason: disclosure, valid };
+    return { ok: false, reason: disclosure, valid, unsupportedDisclosure };
   }
   // adr-0041 AC5: setup, refresh and set-profile require availability, a
   // host-valid load mechanism, AND a load path. Availability alone was a
@@ -579,13 +585,14 @@ function validateSurface({ host, surface, matrix, operation }) {
       ok: false,
       reason: `surface "${row.surface_id}" declares no load path; Grove will not write where its roles cannot load`,
       valid,
+      unsupportedDisclosure,
     };
   }
   // `set-profile` was exempt from this check. That exemption was unreachable
   // while nothing was ever writable, and it wrote .grove/gates.toml on a
   // documentation-constraint surface once availability made it live.
   if (host === 'codex' && operation !== 'remove' && row.bridge_state !== 'bridge-viable') {
-    return { ok: false, reason: `Codex surface "${row.surface_id}" is not bridge-viable`, valid };
+    return { ok: false, reason: `Codex surface "${row.surface_id}" is not bridge-viable`, valid, unsupportedDisclosure };
   }
   return { ok: true, row, valid, unsupportedDisclosure };
 }
@@ -1295,8 +1302,9 @@ function newPlan(repoRoot, operation) {
 // disclosure was attached to the successful context and prepended by summary(),
 // so reachable failures — an invalid preset, a missing composition, a malformed
 // managed block — replaced it with their own text and dropped it entirely.
-function fail(plan, reason, disclosure = null) {
+function fail(plan, reason) {
   plan.ok = false;
+  const disclosure = plan.unsupportedDisclosure ?? null;
   plan.summary = disclosure ? `${disclosure} ${reason}` : reason;
   plan.actions = [];
   return plan;
