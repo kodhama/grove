@@ -31,6 +31,8 @@ export const REQUIRED_SURFACE_IDS = Object.freeze([
 
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const RELEASE_STATES = new Set(['supported', 'unsupported', 'candidate']);
+const AVAILABILITY_STATES = new Set(['available', 'unavailable']);
+const SUPPORT_CLAIMS = new Set(['claimed', 'none']);
 const BRIDGE_STATES = new Set(['host-native', 'bridge-viable', 'partial-primitive', 'unknown', 'documentation-constraint']);
 const DISCOVERY_ARTIFACTS = Object.freeze([
   'host-version.txt',
@@ -79,6 +81,38 @@ export function validateSurfaceMatrix(matrix, { release = false } = {}) {
     if (!RELEASE_STATES.has(item?.release_state)) errors.push(`${String(id)} has unclassified release_state ${String(item?.release_state)}`);
     if (!Array.isArray(item?.evidence)) errors.push(`${String(id)} evidence must be an array`);
 
+    if (!AVAILABILITY_STATES.has(item?.availability_state)) {
+      errors.push(`${String(id)} availability_state must be available or unavailable`);
+    }
+    if (!SUPPORT_CLAIMS.has(item?.support_claim)) {
+      errors.push(`${String(id)} support_claim must be claimed or none`);
+    }
+    // kodhama-0023: a product cannot honestly promise support while offering no
+    // operational path. adr-0041 clause 5 requires contradictory metadata to fail.
+    if (item?.availability_state === 'unavailable' && item?.support_claim === 'claimed') {
+      errors.push(`${String(id)} cannot claim support while unavailable`);
+    }
+    // adr-0041 AC4: a support claim is evidence-backed, so the record follows
+    // the claim. Keying it on `release_state === 'supported'` alone let an
+    // `available + claimed` row with no record pass while generated docs
+    // published the claim.
+    if (item?.support_claim === 'claimed' && !nonEmpty(item?.support_record)) {
+      errors.push(`${String(id)} support_claim claimed requires a support_record path`);
+    }
+    // adr-0041 AC5: an available row retains a load path AND a host-valid load
+    // mechanism. Checking the path alone let an available Codex row with
+    // `partial-primitive` publish as writable while the runtime refused it —
+    // contradictory metadata, which AC5 requires to fail validation.
+    if (item?.availability_state === 'available') {
+      if (!nonEmpty(item?.load_path)) {
+        errors.push(`${String(id)} available rows require a load_path`);
+      }
+      const mechanism = item?.bridge_state;
+      const ok = item?.host === 'codex' ? mechanism === 'bridge-viable' : mechanism === 'host-native';
+      if (!ok) {
+        errors.push(`${String(id)} available rows require a host-valid load mechanism, got ${String(mechanism)}`);
+      }
+    }
     if (item?.release_state === 'candidate') {
       if (item?.bridge_state !== 'bridge-viable') errors.push(`${String(id)} candidate state requires bridge-viable`);
       if (release) errors.push(`${String(id)} remains candidate; release requires supported or unsupported`);
@@ -114,12 +148,19 @@ export function renderSurfaceDocumentation(matrix) {
   const rows = [...matrix.rows].sort((a, b) => REQUIRED_SURFACE_IDS.indexOf(a.surface_id) - REQUIRED_SURFACE_IDS.indexOf(b.surface_id));
   const lines = [
     '<!-- grove-surface-matrix:begin (generated from plugins/grove/metadata/surfaces.json) -->',
-    '| Surface | Release state | Load/bridge state | Disclosure |',
-    '|---|---|---|---|',
+    // Availability leads, because it is the column that answers the question a
+    // reader has: will Grove work here? Before adr-0041 the table showed only
+    // release state, so the two surfaces setup actually writes to were both
+    // published as "Unsupported" — true about the promise, actively misleading
+    // about the product.
+    '| Surface | Grove writes here | Support | Release state | Load/bridge state | Disclosure |',
+    '|---|---|---|---|---|---|',
   ];
   for (const row of rows) {
     const disclosure = String(row.disclosure).replaceAll('|', '\\|').replaceAll('\n', ' ');
-    lines.push(`| \`${row.surface_id}\` | ${displayState(row)} | ${row.bridge_state} | ${disclosure} |`);
+    const writes = row.availability_state === 'available' ? 'Yes' : 'No';
+    const support = row.support_claim === 'claimed' ? 'Claimed' : 'Not claimed';
+    lines.push(`| \`${row.surface_id}\` | ${writes} | ${support} | ${displayState(row)} | ${row.bridge_state} | ${disclosure} |`);
   }
   lines.push('<!-- grove-surface-matrix:end -->');
   return `${lines.join('\n')}\n`;
@@ -1210,7 +1251,13 @@ export async function validateReleaseTree(root, {
     if (version && surfaces.version !== version) {
       errors.push(`metadata/surfaces.json version ${String(surfaces.version)} differs from VERSION ${version}`);
     }
-    const supportedRows = (surfaces.rows ?? []).filter((row) => row.release_state === 'supported');
+    // adr-0041 AC4: the record follows the CLAIM. Keyed on release_state, a row
+    // with support_claim: 'claimed' and release_state: 'unsupported' had its
+    // record neither loaded nor validated — so a nonexistent or malformed path
+    // passed release validation while generated docs published the claim.
+    const supportedRows = (surfaces.rows ?? []).filter(
+      (row) => row.release_state === 'supported' || row.support_claim === 'claimed',
+    );
     const recordContext = supportedRows.length > 0
       ? await supportContext(root, errors)
       : { inventory: null, sourceDigests: null };
@@ -1218,7 +1265,7 @@ export async function validateReleaseTree(root, {
       for (const evidence of row.evidence ?? []) {
         if (!await exists(join(root, evidence))) errors.push(`${row.surface_id} evidence does not exist: ${evidence}`);
       }
-      if (row.release_state === 'supported' && nonEmpty(row.support_record)) {
+      if ((row.release_state === 'supported' || row.support_claim === 'claimed') && nonEmpty(row.support_record)) {
         const record = await readJson(join(root, row.support_record), `${row.surface_id} support_record`, errors);
         if (record && version) errors.push(...validateSupportRecord(record, row, version, recordContext));
       }

@@ -6,6 +6,8 @@
       "surface_id": "claude-interactive",
       "host": "claude",
       "bridge_state": "host-native",
+      "availability_state": "available",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": "kodhama/stewards marketplace -> grove@kodhama -> fresh interactive session",
       "evidence": [],
@@ -16,56 +18,72 @@
       "surface_id": "claude-cloud",
       "host": "claude",
       "bridge_state": "host-native",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": "environment setup script marketplace add + plugin install before launch",
       "evidence": [],
       "missing_capability": "The fresh cloud-session role load required by ADR-0029 AC2 is not retained as a complete support record.",
-      "disclosure": "Unsupported until a fresh cloud session proves the full role-discovery contract."
+      "disclosure": "Not enabled: a fresh cloud session has not yet proven the role-discovery contract."
     },
     {
       "surface_id": "claude-github-action",
       "host": "claude",
       "bridge_state": "host-native",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": "Claude action plugin_marketplaces + plugins inputs",
       "evidence": [],
       "missing_capability": "No complete action-run support record exists.",
-      "disclosure": "Unsupported until the action load path passes the full role-discovery contract."
+      "disclosure": "Not enabled: runner role discovery is unverified on this surface."
     },
     {
       "surface_id": "claude-headless",
       "host": "claude",
       "bridge_state": "host-native",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": "claude -p with explicit --plugin-dir or --plugin-url",
-      "evidence": ["reference/surfaces/claude-headless-attempt-2026-07-23.json"],
+      "evidence": [
+        "reference/surfaces/claude-headless-attempt-2026-07-23.json"
+      ],
       "missing_capability": "The fresh 0.3.0 probe reached Claude Code 2.1.199 but inference was refused with account HTTP 429 before any role could run.",
-      "disclosure": "Unsupported in 0.3.0; the local plugin load command is known, but no role-discovery claim is inferred from a probe blocked before inference."
+      "disclosure": "Not enabled: headless role discovery is unverified on this surface."
     },
     {
       "surface_id": "claude-agent-sdk",
       "host": "claude",
       "bridge_state": "host-native",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": "Agent SDK local plugin path",
       "evidence": [],
       "missing_capability": "No complete Agent SDK support record exists.",
-      "disclosure": "Unsupported until the local-plugin SDK load passes the full role-discovery contract."
+      "disclosure": "Not enabled: SDK role discovery is unverified on this surface."
     },
     {
       "surface_id": "codex-cli-interactive",
       "host": "codex",
       "bridge_state": "unknown",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": null,
-      "evidence": ["reference/surfaces/codex-bridge-spike-2026-07-23.json"],
+      "evidence": [
+        "reference/surfaces/codex-bridge-spike-2026-07-23.json"
+      ],
       "missing_capability": "No interactive TTY bridge test was performed.",
-      "disclosure": "Unsupported; Grove will not infer parity from codex exec."
+      "disclosure": "Not enabled: Grove will not infer interactive parity from codex exec."
     },
     {
       "surface_id": "codex-exec-non-ephemeral",
       "host": "codex",
       "bridge_state": "bridge-viable",
+      "availability_state": "available",
+      "support_claim": "none",
       "release_state": "candidate",
       "load_path": "project .codex/agents/<native_id>.toml -> installed Grove plugin skill/reference",
       "evidence": [
@@ -79,51 +97,67 @@
       "surface_id": "codex-exec-ephemeral",
       "host": "codex",
       "bridge_state": "partial-primitive",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": null,
-      "evidence": ["reference/surfaces/codex-bridge-spike-2026-07-23.json"],
+      "evidence": [
+        "reference/surfaces/codex-bridge-spike-2026-07-23.json"
+      ],
       "missing_capability": "Only skill loading was observed; the plugin-relative role reference and full role contract were not tested.",
-      "disclosure": "Unsupported; partial skill loading is not a Grove role bridge."
+      "disclosure": "Not enabled: an ephemeral session cannot retain the launcher state Grove writes."
     },
     {
       "surface_id": "codex-desktop-local",
       "host": "codex",
       "bridge_state": "unknown",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": null,
-      "evidence": ["reference/surfaces/codex-bridge-spike-2026-07-23.json"],
+      "evidence": [
+        "reference/surfaces/codex-bridge-spike-2026-07-23.json"
+      ],
       "missing_capability": "No fresh desktop session smoke test was performed.",
-      "disclosure": "Unsupported until a desktop-local bridge and full support record pass."
+      "disclosure": "Not enabled: desktop launcher behaviour is unverified."
     },
     {
       "surface_id": "codex-cloud-web",
       "host": "codex",
       "bridge_state": "unknown",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": null,
       "evidence": [],
       "missing_capability": "No plugin-backed project-launcher path was verified.",
-      "disclosure": "Unsupported; no Grove role-loading claim is made for cloud/web."
+      "disclosure": "Not enabled: cloud-web launcher behaviour is unverified."
     },
     {
       "surface_id": "codex-ide",
       "host": "codex",
       "bridge_state": "documentation-constraint",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": null,
-      "evidence": ["reference/surfaces/codex-bridge-spike-2026-07-23.json"],
+      "evidence": [
+        "reference/surfaces/codex-bridge-spike-2026-07-23.json"
+      ],
       "missing_capability": "The constraint is documentation-derived and no explicit supported load path was tested.",
-      "disclosure": "Unsupported until an IDE-specific load path is verified."
+      "disclosure": "Not enabled: the IDE surface has a documented constraint on launcher exposure."
     },
     {
       "surface_id": "codex-sdk",
       "host": "codex",
       "bridge_state": "unknown",
+      "availability_state": "unavailable",
+      "support_claim": "none",
       "release_state": "unsupported",
       "load_path": null,
       "evidence": [],
       "missing_capability": "No plugin-backed project-launcher path was verified.",
-      "disclosure": "Unsupported; no Grove role-loading claim is made for the SDK."
+      "disclosure": "Not enabled: SDK launcher behaviour is unverified."
     }
   ]
 }

@@ -272,6 +272,8 @@ test('INV36/S34 — valid-unsupported surfaces permit only confirmed Remove dele
             host: 'claude',
             bridge_state: 'host-native',
             release_state: 'unsupported',
+            availability_state: 'unavailable',
+            support_claim: 'none',
             missing_capability: 'fixture missing capability',
             disclosure: 'fixture unsupported surface',
           });
@@ -591,15 +593,15 @@ test('INV30/INV31 — Remove refuses a selection that would delete and rewrite g
   assert.ok(plan.refusals.some((item) => /conflict|rewrite.*delete|delete.*rewrite/i.test(item.reason)));
 });
 
-test('INV36/S34 — candidate surfaces plan no setup, refresh, or set-profile writes', async (t) => {
+test('INV36/S34 — unavailable surfaces plan no setup, refresh, or set-profile writes', async (t) => {
   for (const operation of ['setup', 'refresh', 'set-profile']) {
     await t.test(operation, async () => {
       const { packageRoot, repoRoot } = await fixture();
       const surfacePath = join(packageRoot, 'metadata', 'surfaces.json');
       const surfaces = JSON.parse(await readFile(surfacePath, 'utf8'));
       const row = surfaces.rows.find((item) => item.surface_id === 'codex-exec-non-ephemeral');
-      row.release_state = 'candidate';
-      row.disclosure = 'Candidate fixture is not write-authorized.';
+      row.availability_state = 'unavailable';
+      row.disclosure = 'Fixture surface is not enabled for writes.';
       await writeFile(surfacePath, `${JSON.stringify(surfaces, null, 2)}\n`);
       const common = { packageRoot, repoRoot, ...codexInvocation };
       const plan = operation === 'setup'
@@ -610,7 +612,7 @@ test('INV36/S34 — candidate surfaces plan no setup, refresh, or set-profile wr
 
       assert.equal(plan.ok, false);
       assert.deepEqual(plan.actions, []);
-      assert.match(plan.summary, /candidate|not write-authorized/i);
+      assert.match(plan.summary, /not enabled for writes/i);
     });
   }
 });

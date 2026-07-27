@@ -470,6 +470,10 @@ async function prepare(input, operation) {
     return { ok: false, plan: fail(plan, `cannot load declared surface matrix: ${error.message}`) };
   }
   const validation = validateSurface({ host, surface: input.surface, matrix, operation });
+  // Attach before any other failure can return. Four review rounds found four
+  // separate paths that dropped this by forgetting an argument; carrying it on
+  // the plan means `fail()` and `summary()` pick it up without being told.
+  if (validation.unsupportedDisclosure) plan.unsupportedDisclosure = validation.unsupportedDisclosure;
   if (!validation.ok) {
     return { ok: false, plan: fail(plan, `${validation.reason}; valid ${host} surface ids: ${validation.valid.join(', ')}`) };
   }
@@ -530,27 +534,67 @@ function validateSurface({ host, surface, matrix, operation }) {
   } else if (surface.runtime_discriminator != null) {
     return { ok: false, reason: 'user-explicit provenance contradicts a runtime discriminator', valid };
   }
-  if (row.release_state !== 'supported') {
-    const disclosure = `${row.disclosure ?? `${row.release_state} surface "${row.surface_id}" is not write-authorized`}` +
+  // adr-0041. What stood here gated on `release_state` — whether Grove had
+  // published a support *claim* for the surface. No row ever carried one, so
+  // `/grove:setup` wrote nothing on any surface, on either host, for its whole
+  // life. A support promise is not what setup needs to know.
+  //
+  // `availability_state` replaces it: whether this surface is one Grove has
+  // chosen to write to. It is deliberately narrower than the technical fact —
+  // all five Claude rows are `host-native`, but only `claude-interactive` is
+  // verified, and writing a `${CLAUDE_PLUGIN_ROOT}` pointer onto a surface
+  // where it may not expand leaves a consumer with a dangling reference.
+  //
+  // `remove` stays permitted everywhere: cleanup must reach a project set up
+  // before a row's availability changed.
+  // adr-0041 clause 7: every `support_claim: none` plan leads with the
+  // non-support disclosure. That is independent of availability — an enabled
+  // surface still carries no support promise, and a plan that writes files
+  // without saying so is the conflation this decision exists to undo. An
+  // earlier revision built the disclosure inside the unavailable branch, so
+  // the two enabled rows produced plans that mentioned support nowhere.
+  // Worded to hold on both branches. "Availability means Grove will write
+  // here" read as a contradiction on a row that refuses to write.
+  const unsupportedDisclosure = row.support_claim === 'claimed'
+    ? null
+    : `Grove claims no support for "${row.surface_id}"; a support claim is separate from whether Grove writes here.`;
+
+  if (row.availability_state !== 'available') {
+    // Both disclosures, in that order. An earlier revision returned only the
+    // availability text and discarded the support one built just above, so the
+    // ten unavailable rows produced plans that never said Grove claims no
+    // support — the same omission that had already been fixed for available
+    // rows, reintroduced on the other branch. adr-0041 clause 7 says *every*
+    // `support_claim: none` plan leads with it, not every available one.
+    const availability = `${row.disclosure ?? `surface "${row.surface_id}" is not enabled for writes`}` +
       `${row.missing_capability ? ` Missing capability: ${row.missing_capability}.` : ''}`;
+    const disclosure = unsupportedDisclosure
+      ? `${unsupportedDisclosure} ${availability}`
+      : availability;
     if (operation === 'remove') {
       return { ok: true, row, valid, unsupportedDisclosure: disclosure };
     }
+    return { ok: false, reason: disclosure, valid, unsupportedDisclosure };
+  }
+  // adr-0041 AC5: setup, refresh and set-profile require availability, a
+  // host-valid load mechanism, AND a load path. Availability alone was a
+  // thinner guard than the decision specifies — an available row with a null
+  // load_path planned four writes.
+  if (operation !== 'remove' && !(typeof row.load_path === 'string' && row.load_path.trim())) {
     return {
       ok: false,
-      reason: disclosure,
+      reason: `surface "${row.surface_id}" declares no load path; Grove will not write where its roles cannot load`,
       valid,
+      unsupportedDisclosure,
     };
   }
-  if (
-    host === 'codex'
-    && operation !== 'set-profile'
-    && operation !== 'remove'
-    && row.bridge_state !== 'bridge-viable'
-  ) {
-    return { ok: false, reason: `Codex surface "${row.surface_id}" is not bridge-viable`, valid };
+  // `set-profile` was exempt from this check. That exemption was unreachable
+  // while nothing was ever writable, and it wrote .grove/gates.toml on a
+  // documentation-constraint surface once availability made it live.
+  if (host === 'codex' && operation !== 'remove' && row.bridge_state !== 'bridge-viable') {
+    return { ok: false, reason: `Codex surface "${row.surface_id}" is not bridge-viable`, valid, unsupportedDisclosure };
   }
-  return { ok: true, row, valid };
+  return { ok: true, row, valid, unsupportedDisclosure };
 }
 
 async function loadHostConfig(packageRoot) {
@@ -1253,9 +1297,15 @@ function newPlan(repoRoot, operation) {
   };
 }
 
+// A plan that fails AFTER surface classification still concerns a surface with
+// no support claim, and adr-0041 clause 7 admits no exception for failures. The
+// disclosure was attached to the successful context and prepended by summary(),
+// so reachable failures — an invalid preset, a missing composition, a malformed
+// managed block — replaced it with their own text and dropped it entirely.
 function fail(plan, reason) {
   plan.ok = false;
-  plan.summary = reason;
+  const disclosure = plan.unsupportedDisclosure ?? null;
+  plan.summary = disclosure ? `${disclosure} ${reason}` : reason;
   plan.actions = [];
   return plan;
 }

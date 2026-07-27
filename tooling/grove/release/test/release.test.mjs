@@ -74,6 +74,8 @@ function row(surfaceId, overrides = {}) {
     host,
     bridge_state: host === 'claude' ? 'host-native' : 'unknown',
     release_state: 'unsupported',
+    availability_state: 'unavailable',
+    support_claim: 'none',
     load_path: null,
     evidence: [],
     missing_capability: 'No complete fresh-release support record exists.',
@@ -103,6 +105,8 @@ test('INV6/S3 — bridge viability remains a candidate until full support eviden
     ? row(item.surface_id, {
       bridge_state: 'bridge-viable',
       release_state: 'candidate',
+      availability_state: 'unavailable',
+      support_claim: 'none',
       load_path: 'project .codex/agents/<native_id>.toml -> plugin skill/reference',
       evidence: ['reference/surfaces/codex-bridge-spike-2026-07-23.json'],
       missing_capability: 'The full fourteen-role fresh-release support record is incomplete.',
@@ -118,6 +122,8 @@ test('INV12 — supported claims require an explicit load path and complete supp
   const value = matrix();
   value.rows[0] = row('claude-interactive', {
     release_state: 'supported',
+    availability_state: 'available',
+    support_claim: 'none',
     load_path: 'Claude marketplace install and fresh interactive session',
     missing_capability: null,
     disclosure: 'Supported.',
@@ -128,6 +134,8 @@ test('INV12 — supported claims require an explicit load path and complete supp
 test('INV20/S18 — support records reject false identity and separation claims', () => {
   const supportedRow = row('codex-exec-non-ephemeral', {
     release_state: 'supported',
+    availability_state: 'available',
+    support_claim: 'none',
     bridge_state: 'bridge-viable',
     load_path: 'project launchers',
     support_record: 'record.json',
@@ -198,6 +206,8 @@ test('INV20/S18 — support records reject false identity and separation claims'
 test('INV20/S18 — each discovered role requires a distinct invocation token', () => {
   const supportedRow = row('codex-exec-non-ephemeral', {
     release_state: 'supported',
+    availability_state: 'available',
+    support_claim: 'none',
     bridge_state: 'bridge-viable',
     load_path: 'project launchers',
     support_record: 'record.json',
@@ -1249,4 +1259,45 @@ test('INV21/S19 — an existing tag no-ops only at the intended peeled commit', 
     intendedCommit: 'a'.repeat(40),
     tagCommit: 'b'.repeat(40),
   });
+});
+
+// Every rule added to validateSurfaceMatrix during PR #158's review rounds.
+// A regression review found ALL SIX deletable with the suite green: the rules
+// were added defect-by-defect and never got assertions of their own. One case
+// each, asserting the rule fires — mutation-tested, not assumed.
+test('adr-0041 matrix invariants each reject their own violation', async (t) => {
+  const { validateSurfaceMatrix } = await import('../lib/release.mjs');
+  const base = {
+    surface_id: 'claude-interactive',
+    host: 'claude',
+    bridge_state: 'host-native',
+    availability_state: 'available',
+    support_claim: 'none',
+    load_path: 'plugin-agents',
+    evidence: [],
+  };
+  const only = (row) => validateSurfaceMatrix({ schema_version: 1, rows: [{ ...base, ...row }] }, {});
+  const fires = (row, needle, label) => {
+    const errs = only(row);
+    assert.ok(
+      errs.some((e) => e.includes(needle)),
+      `${label}: expected an error containing ${JSON.stringify(needle)}, got ${JSON.stringify(errs)}`,
+    );
+  };
+
+  fires({ availability_state: 'BOGUS' }, 'availability_state must be', 'closed availability set');
+  fires({ support_claim: 'BOGUS' }, 'support_claim must be', 'closed support set');
+  fires({ availability_state: 'unavailable', support_claim: 'claimed' },
+        'cannot claim support while unavailable', 'kodhama-0023 combination invariant');
+  fires({ load_path: '' }, 'require a load_path', 'AC5 load path');
+  fires({ bridge_state: 'unknown' }, 'host-valid load mechanism', 'AC5 load mechanism');
+  fires({ support_claim: 'claimed', support_record: '' },
+        'requires a support_record', 'AC4 evidence follows the claim');
+
+  // And the shipped matrix must satisfy all of them.
+  const shipped = JSON.parse(
+    await (await import('node:fs/promises')).readFile(
+      new URL('../../../../plugins/grove/metadata/surfaces.json', import.meta.url), 'utf8'),
+  );
+  assert.deepEqual(validateSurfaceMatrix(shipped, {}), [], 'the shipped matrix violates its own invariants');
 });

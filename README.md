@@ -132,20 +132,20 @@ a candidate is
 available for integration evidence but is not release-supported.
 
 <!-- grove-surface-matrix:begin (generated from plugins/grove/metadata/surfaces.json) -->
-| Surface | Release state | Load/bridge state | Disclosure |
-|---|---|---|---|
-| `claude-interactive` | Unsupported | host-native | The package has an established interactive load path, but Grove does not claim 0.3.0 support until the complete release record passes. |
-| `claude-cloud` | Unsupported | host-native | Unsupported until a fresh cloud session proves the full role-discovery contract. |
-| `claude-github-action` | Unsupported | host-native | Unsupported until the action load path passes the full role-discovery contract. |
-| `claude-headless` | Unsupported | host-native | Unsupported in 0.3.0; the local plugin load command is known, but no role-discovery claim is inferred from a probe blocked before inference. |
-| `claude-agent-sdk` | Unsupported | host-native | Unsupported until the local-plugin SDK load passes the full role-discovery contract. |
-| `codex-cli-interactive` | Unsupported | unknown | Unsupported; Grove will not infer parity from codex exec. |
-| `codex-exec-non-ephemeral` | Candidate — not supported | bridge-viable | Bridge-viable after the v4 package split; candidate only until a fresh non-ephemeral Codex support record passes against the exact package snapshot. |
-| `codex-exec-ephemeral` | Unsupported | partial-primitive | Unsupported; partial skill loading is not a Grove role bridge. |
-| `codex-desktop-local` | Unsupported | unknown | Unsupported until a desktop-local bridge and full support record pass. |
-| `codex-cloud-web` | Unsupported | unknown | Unsupported; no Grove role-loading claim is made for cloud/web. |
-| `codex-ide` | Unsupported | documentation-constraint | Unsupported until an IDE-specific load path is verified. |
-| `codex-sdk` | Unsupported | unknown | Unsupported; no Grove role-loading claim is made for the SDK. |
+| Surface | Grove writes here | Support | Release state | Load/bridge state | Disclosure |
+|---|---|---|---|---|---|
+| `claude-interactive` | Yes | Not claimed | Unsupported | host-native | The package has an established interactive load path, but Grove does not claim 0.3.0 support until the complete release record passes. |
+| `claude-cloud` | No | Not claimed | Unsupported | host-native | Not enabled: a fresh cloud session has not yet proven the role-discovery contract. |
+| `claude-github-action` | No | Not claimed | Unsupported | host-native | Not enabled: runner role discovery is unverified on this surface. |
+| `claude-headless` | No | Not claimed | Unsupported | host-native | Not enabled: headless role discovery is unverified on this surface. |
+| `claude-agent-sdk` | No | Not claimed | Unsupported | host-native | Not enabled: SDK role discovery is unverified on this surface. |
+| `codex-cli-interactive` | No | Not claimed | Unsupported | unknown | Not enabled: Grove will not infer interactive parity from codex exec. |
+| `codex-exec-non-ephemeral` | Yes | Not claimed | Candidate — not supported | bridge-viable | Bridge-viable after the v4 package split; candidate only until a fresh non-ephemeral Codex support record passes against the exact package snapshot. |
+| `codex-exec-ephemeral` | No | Not claimed | Unsupported | partial-primitive | Not enabled: an ephemeral session cannot retain the launcher state Grove writes. |
+| `codex-desktop-local` | No | Not claimed | Unsupported | unknown | Not enabled: desktop launcher behaviour is unverified. |
+| `codex-cloud-web` | No | Not claimed | Unsupported | unknown | Not enabled: cloud-web launcher behaviour is unverified. |
+| `codex-ide` | No | Not claimed | Unsupported | documentation-constraint | Not enabled: the IDE surface has a documented constraint on launcher exposure. |
+| `codex-sdk` | No | Not claimed | Unsupported | unknown | Not enabled: SDK launcher behaviour is unverified. |
 <!-- grove-surface-matrix:end -->
 
 ### Manual path

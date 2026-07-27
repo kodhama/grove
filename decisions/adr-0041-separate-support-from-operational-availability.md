@@ -10,6 +10,12 @@ updated: 2026-07-26
 
 # ADR-0041: separate support from operational availability
 
+> **Implementation pointer.** AC2 and AC5-AC9 are implemented by PR #158. AC1
+> (retire `release_state`) and AC3 (`candidate` never blocks a release) are
+> deferred to the ceremony sweep and tracked at
+> https://github.com/kodhama/grove/issues/159 — recorded here so the deferral
+> is a pointer rather than prose.
+
 ## Decision state
 
 ### Decided
