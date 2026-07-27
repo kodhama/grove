@@ -530,17 +530,26 @@ function validateSurface({ host, surface, matrix, operation }) {
   } else if (surface.runtime_discriminator != null) {
     return { ok: false, reason: 'user-explicit provenance contradicts a runtime discriminator', valid };
   }
-  if (row.release_state !== 'supported') {
-    const disclosure = `${row.disclosure ?? `${row.release_state} surface "${row.surface_id}" is not write-authorized`}` +
+  // adr-0041. What stood here gated on `release_state` — whether Grove had
+  // published a support *claim* for the surface. No row ever carried one, so
+  // `/grove:setup` wrote nothing on any surface, on either host, for its whole
+  // life. A support promise is not what setup needs to know.
+  //
+  // `availability_state` replaces it: whether this surface is one Grove has
+  // chosen to write to. It is deliberately narrower than the technical fact —
+  // all five Claude rows are `host-native`, but only `claude-interactive` is
+  // verified, and writing a `${CLAUDE_PLUGIN_ROOT}` pointer onto a surface
+  // where it may not expand leaves a consumer with a dangling reference.
+  //
+  // `remove` stays permitted everywhere: cleanup must reach a project set up
+  // before a row's availability changed.
+  if (row.availability_state !== 'available') {
+    const disclosure = `${row.disclosure ?? `surface "${row.surface_id}" is not enabled for writes`}` +
       `${row.missing_capability ? ` Missing capability: ${row.missing_capability}.` : ''}`;
     if (operation === 'remove') {
       return { ok: true, row, valid, unsupportedDisclosure: disclosure };
     }
-    return {
-      ok: false,
-      reason: disclosure,
-      valid,
-    };
+    return { ok: false, reason: disclosure, valid };
   }
   if (
     host === 'codex'
