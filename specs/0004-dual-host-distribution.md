@@ -968,9 +968,20 @@ version-bump change is the human release act.
 
 ## Surface matrix
 
+Availability is a product assignment, not a restatement of technical capability
+(`adr-0041` AC2). At v7 exactly two rows are `available` — `claude-interactive`
+and `codex-exec-non-ephemeral` — and every other declared row is `unavailable`.
+All five Claude rows are `host-native`, so gating on the load mechanism alone
+would enable four surfaces on which nobody has verified that plugin-root
+expansion resolves inside the instruction file.
+
+An `available` row shall declare a load path and a host-valid load mechanism:
+`host-native` for Claude, `bridge-viable` for Codex. Contradictory metadata
+fails validation.
+
 The matrix shall contain at least these rows:
 
-| Surface id | Bridge state at v6 | Release state at v6 |
+| Surface id | Bridge state | Availability at v7 |
 |---|---|---|
 | `claude-interactive` | Host-native agents; not a Codex bridge row. | Evidence required. |
 | `claude-cloud` | Host-native agents; not a Codex bridge row. | Evidence required. |
@@ -1010,7 +1021,7 @@ derived from, or mechanically validated against, this matrix.
   Codex release failure.
 - A missing or invalid surface invocation record is a pre-write lifecycle
   failure.
-- A unavailable surface is not invalid input; it follows the exact
+- An unavailable surface is not invalid input; it follows the exact
   no-write or Remove-only cell and shall not be promoted by bridge viability.
 - A role-discovery failure on a claimed-supported surface is a surface failure
   and removes that support claim until reverified.
@@ -1343,12 +1354,21 @@ session, and runs setup,
 **Then** each installs the same Grove version and passes the discovery contract
 for its supported surface.
 
-#### S13 — unsupported surface invocation
+#### S12b — every no-support plan leads with its disclosure
 
-**Given** a surface matrix row marked unsupported,
-**When** a user invokes an available Grove entrypoint on that surface,
-**Then** the entrypoint reports the unsupported surface and missing capability
-and does not silently substitute generic agents.
+**Given** a surface matrix row whose `support_claim` is `none`,
+**When** any operation produces a plan for that row — succeeding or failing, on
+an available row or an unavailable one,
+**Then** the text the user reads begins with Grove's non-support disclosure
+before any other summary, and no failure path may replace or omit it.
+
+#### S13 — unavailable surface invocation
+
+**Given** a surface matrix row whose `availability_state` is `unavailable`,
+**When** a user invokes a Grove entrypoint on that surface,
+**Then** the entrypoint reports the row and either its missing capability or the
+product-owned availability boundary, leads with the non-support disclosure when
+`support_claim` is `none`, and does not silently substitute generic agents.
 
 #### S14 — marketplace contents stay thin
 
@@ -1378,10 +1398,10 @@ makes no Wisp change.
 #### S17 — Codex surface input fails closed
 
 **Given** a Codex lifecycle invocation with no surface id, an unknown id, a
-Claude id, contradictory provenance, or a v6 unsupported Codex id,
+Claude id, contradictory provenance, or an unavailable Codex id,
 **When** setup or refresh validates its surface invocation record,
 **Then** invalid input reports the valid Codex ids and reason and makes no
-repository mutation, while a unavailable id reports its missing
+repository mutation, while an unavailable id reports its missing
 capability and follows the operation's no-write cell; neither infers a mode
 from the environment;
 and **given** an explicit `codex-exec-non-ephemeral` record, **when** setup
@@ -1568,7 +1588,7 @@ carrier and writes nothing.
 **Given** one available record, one host-matched unavailable record, and
 one invalid record for each host,
 **When** setup, refresh, set-profile, and remove each plan against all three,
-**Then** supported input permits only that operation's bounded writes,
+**Then** available input permits only that operation's bounded writes,
 unavailable input permits no mutation for setup, refresh, or set-profile
 and only individually confirmed Remove deletions, invalid input permits no
 mutation for any operation, and read-only disclosure in no case becomes a
