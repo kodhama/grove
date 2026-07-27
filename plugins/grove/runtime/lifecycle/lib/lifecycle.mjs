@@ -543,6 +543,16 @@ function validateSurface({ host, surface, matrix, operation }) {
   //
   // `remove` stays permitted everywhere: cleanup must reach a project set up
   // before a row's availability changed.
+  // adr-0041 clause 7: every `support_claim: none` plan leads with the
+  // non-support disclosure. That is independent of availability — an enabled
+  // surface still carries no support promise, and a plan that writes files
+  // without saying so is the conflation this decision exists to undo. An
+  // earlier revision built the disclosure inside the unavailable branch, so
+  // the two enabled rows produced plans that mentioned support nowhere.
+  const unsupportedDisclosure = row.support_claim === 'claimed'
+    ? null
+    : `Grove claims no support for "${row.surface_id}". Availability means Grove will write here, not that it promises the result.`;
+
   if (row.availability_state !== 'available') {
     const disclosure = `${row.disclosure ?? `surface "${row.surface_id}" is not enabled for writes`}` +
       `${row.missing_capability ? ` Missing capability: ${row.missing_capability}.` : ''}`;
@@ -559,7 +569,7 @@ function validateSurface({ host, surface, matrix, operation }) {
   ) {
     return { ok: false, reason: `Codex surface "${row.surface_id}" is not bridge-viable`, valid };
   }
-  return { ok: true, row, valid };
+  return { ok: true, row, valid, unsupportedDisclosure };
 }
 
 async function loadHostConfig(packageRoot) {

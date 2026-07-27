@@ -273,6 +273,7 @@ test('INV36/S34 — valid-unsupported surfaces permit only confirmed Remove dele
             bridge_state: 'host-native',
             release_state: 'unsupported',
             availability_state: 'unavailable',
+            support_claim: 'none',
             missing_capability: 'fixture missing capability',
             disclosure: 'fixture unsupported surface',
           });

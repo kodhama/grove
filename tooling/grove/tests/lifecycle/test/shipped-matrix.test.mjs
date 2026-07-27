@@ -86,3 +86,41 @@ test('every shipped row carries an availability decision', async () => {
     );
   }
 });
+
+test('every plan on a no-support row leads with the non-support disclosure', async () => {
+  // adr-0041 clause 7 and AC7. This is independent of availability: an enabled
+  // surface still carries no support promise, and a plan that writes files
+  // without saying so is the exact conflation adr-0041 exists to undo. An
+  // earlier revision of this change built the disclosure inside the
+  // unavailable branch, so the two enabled rows wrote files while mentioning
+  // support nowhere — caught in review, guarded here.
+  const rows = await shippedRows();
+  const available = rows.filter((r) => r.availability_state === 'available');
+  assert.ok(available.length > 0);
+
+  for (const row of available) {
+    assert.equal(row.support_claim, 'none', `${row.surface_id}: fixture assumption`);
+    const plan = await planSetup({
+      packageRoot,
+      repoRoot: await repo(),
+      host: row.host,
+      surface: { surface_id: row.surface_id, provenance: 'user-explicit' },
+      choices: { preset: 'steward', config: {} },
+    });
+    assert.equal(plan.ok, true, `${row.surface_id}: ${plan.summary}`);
+    assert.match(
+      plan.summary,
+      /^Grove claims no support/,
+      `${row.surface_id}: the plan must LEAD with the disclosure, got: ${plan.summary.slice(0, 90)}`,
+    );
+  }
+});
+
+test('every shipped row carries a support decision', async () => {
+  for (const row of await shippedRows()) {
+    assert.ok(
+      ['claimed', 'none'].includes(row.support_claim),
+      `${row.surface_id}: support_claim is ${JSON.stringify(row.support_claim)}`,
+    );
+  }
+});
