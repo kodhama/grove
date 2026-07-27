@@ -534,7 +534,7 @@ table uses. *(v7: this clause still said `supported`, which would have made a
 conforming implementation recreate the very refusal this revision removes.)*
 Selecting
 `codex-exec-ephemeral`, `codex-desktop-local`, `codex-cloud-web`,
-`codex-ide`, or `codex-sdk` at v6 therefore produces the row's unsupported
+`codex-ide`, or `codex-sdk` therefore produces the row's availability
 disclosure and the per-operation unavailable behavior. A future runtime
 detector or newly supported row changes the matrix/adapter metadata and its
 tests, not this precedence rule.
