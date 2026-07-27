@@ -115,21 +115,21 @@ export async function planSetup(input) {
   if (!context.ok) return context.plan;
   const { plan, adapter, choices = {}, repoRoot, packageRoot } = context;
   if (!PRESETS[choices.preset]) {
-    return fail(plan, `setup requires one preset: ${Object.keys(PRESETS).join(', ')}`);
+    return fail(plan, `setup requires one preset: ${Object.keys(PRESETS).join(', ')}`, context.unsupportedDisclosure);
   }
   if (choices.config == null || typeof choices.config !== 'object' || Array.isArray(choices.config)) {
-    return fail(plan, 'setup requires an explicit config object (an empty object is allowed)');
+    return fail(plan, 'setup requires an explicit config object (an empty object is allowed)', context.unsupportedDisclosure);
   }
   let serializedConfig;
   try {
     const tokenConfig = JSON.parse(await readRequired(join(packageRoot, context.config.config_tokens)));
     serializedConfig = serializeConfig(choices.config, tokenConfig);
   } catch (error) {
-    return fail(plan, `invalid setup config tokens: ${error.message}`);
+    return fail(plan, `invalid setup config tokens: ${error.message}`, context.unsupportedDisclosure);
   }
 
   const blockResult = await planManagedBlock(context);
-  if (!blockResult.ok) return fail(plan, blockResult.reason);
+  if (!blockResult.ok) return fail(plan, blockResult.reason, context.unsupportedDisclosure);
 
   await planManagedFloor(context, { mode: 'setup' });
   await planConsumerSeed(
@@ -156,7 +156,7 @@ export async function planRefresh(input) {
   if (!context.ok) return context.plan;
   const { plan, adapter } = context;
   const blockResult = await planManagedBlock(context);
-  if (!blockResult.ok) return fail(plan, blockResult.reason);
+  if (!blockResult.ok) return fail(plan, blockResult.reason, context.unsupportedDisclosure);
 
   await planManagedFloor(context, { mode: 'refresh' });
   addWriteIfChanged(plan, adapter.instruction_file, blockResult.content);
@@ -173,10 +173,10 @@ export async function planSetProfile(input) {
   if (!context.ok) return context.plan;
   const { plan, packageRoot, preset } = context;
   if (!PRESETS[preset]) {
-    return fail(plan, `unknown preset "${preset}" — known presets: ${Object.keys(PRESETS).join(', ')}`);
+    return fail(plan, `unknown preset "${preset}" — known presets: ${Object.keys(PRESETS).join(', ')}`, context.unsupportedDisclosure);
   }
   if (!(await repoPathExists(context, '.grove'))) {
-    return fail(plan, `Grove is not composed here; run ${context.adapter.setup_command} first`);
+    return fail(plan, `Grove is not composed here; run ${context.adapter.setup_command} first`, context.unsupportedDisclosure);
   }
 
   const original = await readRepoOptional(context, '.grove/gates.toml')
@@ -185,11 +185,11 @@ export async function planSetProfile(input) {
   try {
     parsed = parseProfile(original);
   } catch (error) {
-    return fail(plan, `cannot switch an unreadable gates.toml: ${error.message}`);
+    return fail(plan, `cannot switch an unreadable gates.toml: ${error.message}`, context.unsupportedDisclosure);
   }
   const next = seedPreset(original, preset);
   const verified = parseProfile(next);
-  if (!verified.floor) return fail(plan, 'generated preset violates the Grove human intent floor');
+  if (!verified.floor) return fail(plan, 'generated preset violates the Grove human intent floor', context.unsupportedDisclosure);
   plan.changes = GATES
     .filter((gate) => parsed.gates[gate] !== PRESETS[preset][gate])
     .map((gate) => ({ gate, from: parsed.gates[gate] ?? null, to: PRESETS[preset][gate] }));
@@ -1290,9 +1290,14 @@ function newPlan(repoRoot, operation) {
   };
 }
 
-function fail(plan, reason) {
+// A plan that fails AFTER surface classification still concerns a surface with
+// no support claim, and adr-0041 clause 7 admits no exception for failures. The
+// disclosure was attached to the successful context and prepended by summary(),
+// so reachable failures — an invalid preset, a missing composition, a malformed
+// managed block — replaced it with their own text and dropped it entirely.
+function fail(plan, reason, disclosure = null) {
   plan.ok = false;
-  plan.summary = reason;
+  plan.summary = disclosure ? `${disclosure} ${reason}` : reason;
   plan.actions = [];
   return plan;
 }

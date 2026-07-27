@@ -188,3 +188,25 @@ test('unavailable rows disclose no-support too, not just availability', async ()
     );
   }
 });
+
+test('a failure after classification still leads with the disclosure', async () => {
+  // adr-0041 clause 7 admits no exception for failed plans. The disclosure was
+  // attached to the successful context and prepended by summary(), so any
+  // reachable failure after classification — an invalid preset here — replaced
+  // the summary with its own text and dropped it.
+  const rows = await shippedRows();
+  const row = rows.find((r) => r.availability_state === 'available');
+  const plan = await planSetup({
+    packageRoot,
+    repoRoot: await repo(),
+    host: row.host,
+    surface: { surface_id: row.surface_id, provenance: 'user-explicit' },
+    choices: { config: {} },          // no preset: fails after classification
+  });
+  assert.equal(plan.ok, false);
+  assert.match(
+    plan.summary,
+    /^Grove claims no support/,
+    `a post-classification failure dropped the disclosure: ${plan.summary.slice(0, 90)}`,
+  );
+});

@@ -1251,7 +1251,13 @@ export async function validateReleaseTree(root, {
     if (version && surfaces.version !== version) {
       errors.push(`metadata/surfaces.json version ${String(surfaces.version)} differs from VERSION ${version}`);
     }
-    const supportedRows = (surfaces.rows ?? []).filter((row) => row.release_state === 'supported');
+    // adr-0041 AC4: the record follows the CLAIM. Keyed on release_state, a row
+    // with support_claim: 'claimed' and release_state: 'unsupported' had its
+    // record neither loaded nor validated — so a nonexistent or malformed path
+    // passed release validation while generated docs published the claim.
+    const supportedRows = (surfaces.rows ?? []).filter(
+      (row) => row.release_state === 'supported' || row.support_claim === 'claimed',
+    );
     const recordContext = supportedRows.length > 0
       ? await supportContext(root, errors)
       : { inventory: null, sourceDigests: null };
@@ -1259,7 +1265,7 @@ export async function validateReleaseTree(root, {
       for (const evidence of row.evidence ?? []) {
         if (!await exists(join(root, evidence))) errors.push(`${row.surface_id} evidence does not exist: ${evidence}`);
       }
-      if (row.release_state === 'supported' && nonEmpty(row.support_record)) {
+      if ((row.release_state === 'supported' || row.support_claim === 'claimed') && nonEmpty(row.support_record)) {
         const record = await readJson(join(root, row.support_record), `${row.surface_id} support_record`, errors);
         if (record && version) errors.push(...validateSupportRecord(record, row, version, recordContext));
       }
