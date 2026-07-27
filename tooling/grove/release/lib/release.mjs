@@ -92,9 +92,26 @@ export function validateSurfaceMatrix(matrix, { release = false } = {}) {
     if (item?.availability_state === 'unavailable' && item?.support_claim === 'claimed') {
       errors.push(`${String(id)} cannot claim support while unavailable`);
     }
-    // adr-0041 AC5: an available row must retain a load path.
-    if (item?.availability_state === 'available' && !nonEmpty(item?.load_path)) {
-      errors.push(`${String(id)} available rows require a load_path`);
+    // adr-0041 AC4: a support claim is evidence-backed, so the record follows
+    // the claim. Keying it on `release_state === 'supported'` alone let an
+    // `available + claimed` row with no record pass while generated docs
+    // published the claim.
+    if (item?.support_claim === 'claimed' && !nonEmpty(item?.support_record)) {
+      errors.push(`${String(id)} support_claim claimed requires a support_record path`);
+    }
+    // adr-0041 AC5: an available row retains a load path AND a host-valid load
+    // mechanism. Checking the path alone let an available Codex row with
+    // `partial-primitive` publish as writable while the runtime refused it —
+    // contradictory metadata, which AC5 requires to fail validation.
+    if (item?.availability_state === 'available') {
+      if (!nonEmpty(item?.load_path)) {
+        errors.push(`${String(id)} available rows require a load_path`);
+      }
+      const mechanism = item?.bridge_state;
+      const ok = item?.host === 'codex' ? mechanism === 'bridge-viable' : mechanism === 'host-native';
+      if (!ok) {
+        errors.push(`${String(id)} available rows require a host-valid load mechanism, got ${String(mechanism)}`);
+      }
     }
     if (item?.release_state === 'candidate') {
       if (item?.bridge_state !== 'bridge-viable') errors.push(`${String(id)} candidate state requires bridge-viable`);

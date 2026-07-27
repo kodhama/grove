@@ -554,8 +554,17 @@ function validateSurface({ host, surface, matrix, operation }) {
     : `Grove claims no support for "${row.surface_id}". Availability means Grove will write here, not that it promises the result.`;
 
   if (row.availability_state !== 'available') {
-    const disclosure = `${row.disclosure ?? `surface "${row.surface_id}" is not enabled for writes`}` +
+    // Both disclosures, in that order. An earlier revision returned only the
+    // availability text and discarded the support one built just above, so the
+    // ten unavailable rows produced plans that never said Grove claims no
+    // support — the same omission that had already been fixed for available
+    // rows, reintroduced on the other branch. adr-0041 clause 7 says *every*
+    // `support_claim: none` plan leads with it, not every available one.
+    const availability = `${row.disclosure ?? `surface "${row.surface_id}" is not enabled for writes`}` +
       `${row.missing_capability ? ` Missing capability: ${row.missing_capability}.` : ''}`;
+    const disclosure = unsupportedDisclosure
+      ? `${unsupportedDisclosure} ${availability}`
+      : availability;
     if (operation === 'remove') {
       return { ok: true, row, valid, unsupportedDisclosure: disclosure };
     }

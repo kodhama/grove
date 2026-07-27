@@ -528,8 +528,11 @@ ancestry, or the fact that a launcher file can be written.
 An absent, malformed, multiply selected, unknown, contradictory, or
 host-mismatched surface id is invalid input: the operation lists the valid ids
 for that host and changes no repository path. Setup and refresh may emit Codex
-launchers only when the selected row is classified `supported` and declares
-the bridge load path. Selecting
+launchers only when the selected row is classified `available`, declares a load
+path, and is `bridge-viable` — the same classification the write-permission
+table uses. *(v7: this clause still said `supported`, which would have made a
+conforming implementation recreate the very refusal this revision removes.)*
+Selecting
 `codex-exec-ephemeral`, `codex-desktop-local`, `codex-cloud-web`,
 `codex-ide`, or `codex-sdk` at v6 therefore produces the row's unsupported
 disclosure and the per-operation unavailable behavior. A future runtime

@@ -165,3 +165,26 @@ test('an unavailable shipped surface is refused — the gate itself, not just th
     }
   }
 });
+
+test('unavailable rows disclose no-support too, not just availability', async () => {
+  // adr-0041 clause 7 says EVERY support_claim:none plan leads with the
+  // disclosure. A revision of this branch fixed that for available rows and
+  // reintroduced it on the unavailable branch, which returned only the
+  // availability text and discarded the support one built immediately above.
+  const rows = await shippedRows();
+  for (const row of rows.filter((r) => r.availability_state !== 'available')) {
+    const plan = await planSetup({
+      packageRoot,
+      repoRoot: await repo(),
+      host: row.host,
+      surface: { surface_id: row.surface_id, provenance: 'user-explicit' },
+      choices: { preset: 'steward', config: {} },
+    });
+    assert.equal(plan.ok, false);
+    assert.match(
+      plan.summary,
+      /^Grove claims no support/,
+      `${row.surface_id}: refusal dropped the no-support disclosure — ${plan.summary.slice(0, 80)}`,
+    );
+  }
+});
