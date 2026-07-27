@@ -561,12 +561,21 @@ function validateSurface({ host, surface, matrix, operation }) {
     }
     return { ok: false, reason: disclosure, valid };
   }
-  if (
-    host === 'codex'
-    && operation !== 'set-profile'
-    && operation !== 'remove'
-    && row.bridge_state !== 'bridge-viable'
-  ) {
+  // adr-0041 AC5: setup, refresh and set-profile require availability, a
+  // host-valid load mechanism, AND a load path. Availability alone was a
+  // thinner guard than the decision specifies — an available row with a null
+  // load_path planned four writes.
+  if (operation !== 'remove' && !(typeof row.load_path === 'string' && row.load_path.trim())) {
+    return {
+      ok: false,
+      reason: `surface "${row.surface_id}" declares no load path; Grove will not write where its roles cannot load`,
+      valid,
+    };
+  }
+  // `set-profile` was exempt from this check. That exemption was unreachable
+  // while nothing was ever writable, and it wrote .grove/gates.toml on a
+  // documentation-constraint surface once availability made it live.
+  if (host === 'codex' && operation !== 'remove' && row.bridge_state !== 'bridge-viable') {
     return { ok: false, reason: `Codex surface "${row.surface_id}" is not bridge-viable`, valid };
   }
   return { ok: true, row, valid, unsupportedDisclosure };

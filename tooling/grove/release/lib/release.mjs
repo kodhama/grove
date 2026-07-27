@@ -31,6 +31,8 @@ export const REQUIRED_SURFACE_IDS = Object.freeze([
 
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const RELEASE_STATES = new Set(['supported', 'unsupported', 'candidate']);
+const AVAILABILITY_STATES = new Set(['available', 'unavailable']);
+const SUPPORT_CLAIMS = new Set(['claimed', 'none']);
 const BRIDGE_STATES = new Set(['host-native', 'bridge-viable', 'partial-primitive', 'unknown', 'documentation-constraint']);
 const DISCOVERY_ARTIFACTS = Object.freeze([
   'host-version.txt',
@@ -79,6 +81,21 @@ export function validateSurfaceMatrix(matrix, { release = false } = {}) {
     if (!RELEASE_STATES.has(item?.release_state)) errors.push(`${String(id)} has unclassified release_state ${String(item?.release_state)}`);
     if (!Array.isArray(item?.evidence)) errors.push(`${String(id)} evidence must be an array`);
 
+    if (!AVAILABILITY_STATES.has(item?.availability_state)) {
+      errors.push(`${String(id)} availability_state must be available or unavailable`);
+    }
+    if (!SUPPORT_CLAIMS.has(item?.support_claim)) {
+      errors.push(`${String(id)} support_claim must be claimed or none`);
+    }
+    // kodhama-0023: a product cannot honestly promise support while offering no
+    // operational path. adr-0041 clause 5 requires contradictory metadata to fail.
+    if (item?.availability_state === 'unavailable' && item?.support_claim === 'claimed') {
+      errors.push(`${String(id)} cannot claim support while unavailable`);
+    }
+    // adr-0041 AC5: an available row must retain a load path.
+    if (item?.availability_state === 'available' && !nonEmpty(item?.load_path)) {
+      errors.push(`${String(id)} available rows require a load_path`);
+    }
     if (item?.release_state === 'candidate') {
       if (item?.bridge_state !== 'bridge-viable') errors.push(`${String(id)} candidate state requires bridge-viable`);
       if (release) errors.push(`${String(id)} remains candidate; release requires supported or unsupported`);
@@ -114,12 +131,19 @@ export function renderSurfaceDocumentation(matrix) {
   const rows = [...matrix.rows].sort((a, b) => REQUIRED_SURFACE_IDS.indexOf(a.surface_id) - REQUIRED_SURFACE_IDS.indexOf(b.surface_id));
   const lines = [
     '<!-- grove-surface-matrix:begin (generated from plugins/grove/metadata/surfaces.json) -->',
-    '| Surface | Release state | Load/bridge state | Disclosure |',
-    '|---|---|---|---|',
+    // Availability leads, because it is the column that answers the question a
+    // reader has: will Grove work here? Before adr-0041 the table showed only
+    // release state, so the two surfaces setup actually writes to were both
+    // published as "Unsupported" — true about the promise, actively misleading
+    // about the product.
+    '| Surface | Grove writes here | Support | Release state | Load/bridge state | Disclosure |',
+    '|---|---|---|---|---|---|',
   ];
   for (const row of rows) {
     const disclosure = String(row.disclosure).replaceAll('|', '\\|').replaceAll('\n', ' ');
-    lines.push(`| \`${row.surface_id}\` | ${displayState(row)} | ${row.bridge_state} | ${disclosure} |`);
+    const writes = row.availability_state === 'available' ? 'Yes' : 'No';
+    const support = row.support_claim === 'claimed' ? 'Claimed' : 'Not claimed';
+    lines.push(`| \`${row.surface_id}\` | ${writes} | ${support} | ${displayState(row)} | ${row.bridge_state} | ${disclosure} |`);
   }
   lines.push('<!-- grove-surface-matrix:end -->');
   return `${lines.join('\n')}\n`;

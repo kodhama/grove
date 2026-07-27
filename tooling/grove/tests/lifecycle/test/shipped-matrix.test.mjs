@@ -13,10 +13,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { after } from 'node:test';
 
-import { planRemove, planSetup } from '../../../../../plugins/grove/runtime/lifecycle/lib/lifecycle.mjs';
+import { planRefresh, planRemove, planSetProfile, planSetup } from '../../../../../plugins/grove/runtime/lifecycle/lib/lifecycle.mjs';
 
 const packageRoot = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -28,7 +29,15 @@ async function shippedRows() {
   return JSON.parse(raw).rows;
 }
 
-const repo = () => mkdtemp(join(tmpdir(), 'grove-shipped-'));
+const scratch = [];
+const repo = async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-shipped-'));
+  scratch.push(dir);
+  return dir;
+};
+after(async () => {
+  await Promise.all(scratch.map((d) => rm(d, { recursive: true, force: true })));
+});
 
 test('the shipped matrix enables at least one surface per host', async () => {
   const rows = await shippedRows();
@@ -122,5 +131,37 @@ test('every shipped row carries a support decision', async () => {
       ['claimed', 'none'].includes(row.support_claim),
       `${row.surface_id}: support_claim is ${JSON.stringify(row.support_claim)}`,
     );
+  }
+});
+
+test('an unavailable shipped surface is refused — the gate itself, not just the data', async () => {
+  // Every other test here asserts something SUCCEEDS, which is a liveness
+  // guard: it fails when the product stops working. None of them fail if the
+  // gate is deleted outright, because deleting a gate only makes more things
+  // succeed. Measured: replacing the availability check with `if (false)` left
+  // all of them green. This is the safety half.
+  const rows = await shippedRows();
+  const blocked = rows.filter((r) => r.availability_state !== 'available');
+  assert.ok(blocked.length > 0, 'the shipped matrix enables everything — nothing to guard');
+
+  for (const row of blocked) {
+    for (const operation of ['setup', 'refresh', 'set-profile']) {
+      const common = {
+        packageRoot,
+        repoRoot: await repo(),
+        host: row.host,
+        surface: { surface_id: row.surface_id, provenance: 'user-explicit' },
+      };
+      const plan = operation === 'setup'
+        ? await planSetup({ ...common, choices: { preset: 'steward', config: {} } })
+        : operation === 'refresh'
+          ? await planRefresh(common)
+          : await planSetProfile({ ...common, preset: 'guardian' });
+      assert.equal(
+        plan.ok, false,
+        `${row.surface_id}/${operation}: an unavailable surface planned writes`,
+      );
+      assert.deepEqual(plan.actions, [], `${row.surface_id}/${operation}: planned actions anyway`);
+    }
   }
 });

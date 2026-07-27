@@ -1,15 +1,35 @@
 ---
 id: spec-0004-dual-host-distribution
 type: spec
-status: gated  # v6 adds the independently reviewed planner amendment after v5 removed retired bookkeeping
+status: gated  # v7 replaces the release_state operation model per adr-0041 AC9; awaiting its independent spec gate
 implements: adr-0031-multi-host-distribution
-depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0037-pre-execution-planning, adr-0036-remove-retired-review-bookkeeping]
+depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0037-pre-execution-planning, adr-0036-remove-retired-review-bookkeeping, adr-0041-separate-support-from-operational-availability]
 owner: agent
-updated: 2026-07-25
-version: 6
+updated: 2026-07-27
+version: 7
 ---
 
 # spec-0004 — dual-host distribution
+
+> **AMENDED 2026-07-27 — v6 → v7 (`adr-0041` AC9)**
+>
+> **WHAT:** Replaced the `release_state` operation model. Writes are now
+> authorized by `availability_state`, not by a published support claim. The
+> `valid-unsupported surface` term becomes `unavailable surface`, the
+> write-permission table's `Supported` column becomes `Available`, and the
+> pre-release rule no longer couples availability to qualification.
+>
+> **WHY:** The v6 model gated every write on `release_state: supported`, and no
+> row has ever carried it — so `/grove:setup` wrote nothing on any surface, on
+> either host, for its whole life. `adr-0041` separates operational availability
+> from a support promise; AC9 requires this spec to carry that grammar **before**
+> the runtime implements it.
+>
+> **SCOPE:** The operation model only. `release_state` survives as a
+> release-time qualification field and is unchanged here; retiring it is
+> `adr-0041` AC1, tracked separately. Support remains an exact-host,
+> exact-surface, evidence-backed claim: availability never implies it, and every
+> `support_claim: none` plan leads with the non-support disclosure.
 
 This contract realizes `adr-0031-multi-host-distribution`: one authored Grove
 methodology, generated Claude and Codex adapters, and an installable marketplace
@@ -150,7 +170,7 @@ decision reserves for a later intent gate.
 | **package allowlist** | The declared exact set of installable paths under `plugins/grove/`; validation rejects every path not in the set and every missing declared path. |
 | **legacy internal state** | The known prior Grove-managed paths `.grove/internal/gates/` and `.grove/internal/enforcement.toml`, plus a `runtime_dir` whose repository-relative normalized target is `.grove/internal/gates`. |
 | **repository stamp** | The exact `grove plugin@<MAJOR.MINOR.PATCH>` line inside a valid Grove-managed host instruction block; it records the package version that last successfully wrote that block and is not release authority. |
-| **valid-unsupported surface** | A known, host-matched surface-matrix row with valid provenance whose release state is `unsupported`; its identity is valid input even though Grove role loading is unavailable there. |
+| **unavailable surface** | A known, host-matched surface-matrix row with valid provenance whose `availability_state` is `unavailable`; its identity is valid input even though Grove will not write there. *(v7: was `valid-unsupported surface`, keyed on release state.)* |
 | **invalid surface input** | An absent, malformed, unknown, host-mismatched, multiply selected, or provenance-contradictory surface invocation record. |
 
 ## Deliverables and ownership
@@ -512,7 +532,7 @@ launchers only when the selected row is classified `supported` and declares
 the bridge load path. Selecting
 `codex-exec-ephemeral`, `codex-desktop-local`, `codex-cloud-web`,
 `codex-ide`, or `codex-sdk` at v6 therefore produces the row's unsupported
-disclosure and the per-operation valid-unsupported behavior. A future runtime
+disclosure and the per-operation unavailable behavior. A future runtime
 detector or newly supported row changes the matrix/adapter metadata and its
 tests, not this precedence rule.
 
@@ -717,12 +737,14 @@ host's stamp permits changing the other host's block.
 ### Surface classification and write permissions
 
 Every operation shall classify the invocation record before stamp or
-repository writes as exactly one of: host-matched `supported`,
-host-matched `valid-unsupported`, or `invalid`. “Supported” means the selected
-matrix row's release state is `supported`; bridge viability alone does not
-qualify. The permitted mutations are:
+repository writes as exactly one of: host-matched `available`, host-matched
+`unavailable`, or `invalid`. **“Available” means the selected matrix row's
+`availability_state` is `available`, it declares a load path, and — on Codex —
+its `bridge_state` is `bridge-viable`.** A support claim is not consulted:
+availability decides whether Grove writes, and `support_claim` decides only what
+the plan discloses. The permitted mutations are:
 
-| Operation | Supported | Valid-unsupported | Invalid |
+| Operation | Available | Unavailable | Invalid |
 |---|---|---|---|
 | Setup | The bounded Setup writes below, including Codex launchers only for their declared native exposures. | Report the row and missing capability; create, update, or delete no repository path. | Report valid ids and the input defect; create, update, or delete no repository path. |
 | Refresh | The bounded Refresh writes and confirmation-bound legacy migration below. | Report the row and missing capability; create, update, or delete no repository path, including stamps and legacy state. | Report valid ids and the input defect; create, update, or delete no repository path. |
@@ -960,9 +982,11 @@ The matrix shall contain at least these rows:
 | `codex-ide` | Documentation-derived constraint; not spike-tested. | Unsupported until an explicit path is verified. |
 | `codex-sdk` | Unknown. | Unsupported until verified. |
 
-Before release, every row shall resolve to `supported` or `unsupported`.
+Before release, every row shall carry an `availability_state` of `available` or
+`unavailable` and a `support_claim` of `claimed` or `none`; `unavailable` with
+`claimed` is invalid, and an `available` row shall declare a load path.
 There is no implied support by host family: evidence for one row cannot satisfy
-another, and `bridge-viable` does not satisfy the release state. Every supported
+another, and `bridge-viable` does not satisfy a support claim. Every supported
 row names its explicit install/load path and full support record. Every
 unsupported row names the missing capability and the user-visible failure or
 disclosure. Generated documentation and manifest support claims shall be
@@ -983,7 +1007,7 @@ derived from, or mechanically validated against, this matrix.
   Codex release failure.
 - A missing or invalid surface invocation record is a pre-write lifecycle
   failure.
-- A valid-unsupported surface is not invalid input; it follows the exact
+- A unavailable surface is not invalid input; it follows the exact
   no-write or Remove-only cell and shall not be promoted by bridge viability.
 - A role-discovery failure on a claimed-supported surface is a surface failure
   and removes that support claim until reverified.
@@ -1103,7 +1127,7 @@ derived from, or mechanically validated against, this matrix.
 - **INV19 — explicit surface selection:** Before a Codex lifecycle write, the
   operation shall validate one exact host-matched surface id with declared
   provenance; invalid input shall produce no repository mutation, and a
-  valid-unsupported input shall permit only the operation-specific behavior in
+  unavailable input shall permit only the operation-specific behavior in
   the surface write-permissions table.
 - **INV20 — exposure-specific discovery:** A supported-surface discovery run
   shall derive all expected identities and exposure classes from the
@@ -1181,7 +1205,7 @@ derived from, or mechanically validated against, this matrix.
 - **INV36 — surface-bounded operations:** Each lifecycle operation shall
   classify its surface input before mutation and shall perform no creation,
   replacement, or deletion beyond the exact cell for that operation and
-  `supported`, `valid-unsupported`, or `invalid` class.
+  `available`, `unavailable`, or `invalid` class.
 - **INV37 — planner delivery:** The build system shall derive the
   `implementation-planner` Claude envelope and Codex role skill/reference from
   exactly one canonical `charters/implementation-planner.md` source, expose it
@@ -1354,7 +1378,7 @@ makes no Wisp change.
 Claude id, contradictory provenance, or a v6 unsupported Codex id,
 **When** setup or refresh validates its surface invocation record,
 **Then** invalid input reports the valid Codex ids and reason and makes no
-repository mutation, while a valid-unsupported id reports its missing
+repository mutation, while a unavailable id reports its missing
 capability and follows the operation's no-write cell; neither infers a mode
 from the environment;
 and **given** an explicit `codex-exec-non-ephemeral` record, **when** setup
@@ -1538,11 +1562,11 @@ carrier and writes nothing.
 
 #### S34 — every operation obeys the surface write cell
 
-**Given** one supported record, one host-matched valid-unsupported record, and
+**Given** one available record, one host-matched unavailable record, and
 one invalid record for each host,
 **When** setup, refresh, set-profile, and remove each plan against all three,
 **Then** supported input permits only that operation's bounded writes,
-valid-unsupported input permits no mutation for setup, refresh, or set-profile
+unavailable input permits no mutation for setup, refresh, or set-profile
 and only individually confirmed Remove deletions, invalid input permits no
 mutation for any operation, and read-only disclosure in no case becomes a
 partial write.
