@@ -538,3 +538,36 @@ test('open-run rejects non-canonical relative subject paths (./, /./, //, traili
     );
   }
 });
+
+
+// --- MEDIUM c: the per-field round-trip probe guards abort and close too.
+// Same class as the open-run gate: a reason with \r serializes to an escape
+// the strict parser rejects, so a SUCCESSFULLY aborted cursor would become a
+// standing exit-2 defect. Probe pre-write, naming the field.
+
+test('abort-run rejects a reason the parser cannot round-trip, naming the field', async () => {
+  const dir = await repoFixture();
+  await openedRun(dir);
+  for (const [name, reason] of [
+    ['carriage return', 'dead run\rextra'],
+    ['escape character', 'dead run\u001bcolored'],
+  ]) {
+    const plan = await planAbortRun({
+      repoRoot: dir, runId: RUN_ID, closed: '2026-07-28T19:00:00Z', reason,
+    });
+    assert.equal(plan.ok, false, name);
+    assert.deepEqual(plan.actions, [], name);
+    assert.match(plan.summary, /reason/, `${name}: names the field — got: ${plan.summary}`);
+  }
+});
+
+test('close-run rejects a closed timestamp the parser cannot round-trip, naming the field', async () => {
+  const dir = await repoFixture();
+  await openedRun(dir);
+  const plan = await planCloseRun({
+    repoRoot: dir, runId: RUN_ID, closed: '2026-07-28T18:00:00Z\rZ',
+  });
+  assert.equal(plan.ok, false);
+  assert.deepEqual(plan.actions, []);
+  assert.match(plan.summary, /closed/, `names the field — got: ${plan.summary}`);
+});

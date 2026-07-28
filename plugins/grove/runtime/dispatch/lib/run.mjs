@@ -126,15 +126,25 @@ function roundTripFailure({ runId, opened, intent, subjects }) {
     ...subjects.map((subject, index) => [`subjects[${index}] (${JSON.stringify(subject)})`, subject]),
   ];
   for (const [field, value] of probes) {
-    let parsed;
-    try {
-      parsed = parseToml(`probe = ${JSON.stringify(String(value))}\n`);
-    } catch (error) {
-      return `field ${field}: ${error.message}`;
-    }
-    if (parsed.probe !== String(value)) {
-      return `field ${field}: value changes across serialize/parse`;
-    }
+    const failure = fieldRoundTripFailure(field, value);
+    if (failure) return failure;
+  }
+  return null;
+}
+
+// One serialized value, probed back through the strict parser. Used by every
+// cursor-writing plan (open's whole-cursor gate, abort's reason, close's
+// timestamp): a value the parser cannot round-trip must be rejected
+// pre-write, or the successfully written cursor becomes a standing defect.
+function fieldRoundTripFailure(field, value) {
+  let parsed;
+  try {
+    parsed = parseToml(`probe = ${JSON.stringify(String(value))}\n`);
+  } catch (error) {
+    return `field ${field}: ${error.message}`;
+  }
+  if (parsed.probe !== String(value)) {
+    return `field ${field}: value changes across serialize/parse`;
   }
   return null;
 }
@@ -145,6 +155,10 @@ export async function planCloseRun(input) {
   const { runId, closed } = input;
   if (typeof closed !== 'string' || closed === '') {
     return fail(plan, 'close-run requires the closed RFC 3339 timestamp');
+  }
+  const closedFidelity = fieldRoundTripFailure('closed', closed);
+  if (closedFidelity) {
+    return fail(plan, `close-run refused: planned edit does not round-trip — ${closedFidelity}`);
   }
   const cursor = await readCursor(repoRoot, runId);
   if (!cursor.ok) return fail(plan, cursor.reason);
@@ -187,6 +201,12 @@ export async function planAbortRun(input) {
   }
   if (typeof reason !== 'string' || reason.trim() === '' || reason.includes('\n')) {
     return fail(plan, 'abort-run requires a one-line reason');
+  }
+  for (const [field, value] of [['reason', reason], ['closed', closed]]) {
+    const fidelity = fieldRoundTripFailure(field, value);
+    if (fidelity) {
+      return fail(plan, `abort-run refused: planned edit does not round-trip — ${fidelity}`);
+    }
   }
   const cursor = await readCursor(repoRoot, runId);
   if (!cursor.ok) return fail(plan, cursor.reason);
