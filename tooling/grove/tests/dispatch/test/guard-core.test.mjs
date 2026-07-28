@@ -15,6 +15,7 @@ import { after } from 'node:test';
 
 import {
   EMPTY_SHA256,
+  bindSubject,
   classifyContent,
   collectRecords,
   computeEnabled,
@@ -602,3 +603,106 @@ test('block-style implements lists classify bearing at every YAML-legal indentat
   const terminator = classifyContent('---\nid: x\ntype: spec\nimplements:\n---\nbody\n');
   assert.deepEqual(terminator.classes, ['spec']);
 });
+
+// --- P1-B: the digest binds the subject's ACTUAL bytes (INV11/AC7) ---
+// Entry-type case list DERIVED FROM node:fs lstat's documented types:
+// regular file, symbolic link, directory, and everything else as one
+// fail-closed "other" bucket. The previous readFile(path, "utf8") followed
+// symlinks, lossily replaced invalid UTF-8, and read a dangling symlink as
+// ENOENT — three fail-opens.
+
+test('P1-B — a symlink subject hashes its link target, so retargeting sheds the record', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-symlink-'));
+  scratch.push(dir);
+  const identical = 'byte-identical content\n';
+  await writeFile(join(dir, 'first.md'), identical);
+  await writeFile(join(dir, 'second.md'), identical);
+  const { symlink, rm: rmf } = await import('node:fs/promises');
+  await symlink('first.md', join(dir, 'link.md'));
+  const before = await bindSubject({ repoRoot: dir, path: 'link.md', changeSet: new Set(['link.md']) });
+  assert.equal(before.state, 'present', 'a symlink is present');
+  await rmf(join(dir, 'link.md'));
+  await symlink('second.md', join(dir, 'link.md'));
+  const after = await bindSubject({ repoRoot: dir, path: 'link.md', changeSet: new Set(['link.md']) });
+  assert.notEqual(
+    before.sha256, after.sha256,
+    'retargeting between identical-content files MUST change the digest — the subject IS the link',
+  );
+  assert.equal(
+    recordSatisfies({
+      record: record({ subject: 'link.md', subject_sha256: before.sha256 }),
+      subject: 'link.md',
+      state: after.state,
+      sha256: after.sha256,
+    }),
+    false,
+    'the stale verdict sheds',
+  );
+});
+
+test('P1-B — invalid UTF-8 bytes bind exactly: different invalid bytes, different digests', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-bytes-'));
+  scratch.push(dir);
+  // 0xFF and 0xFE each lossily decode to one U+FFFD — identical under the
+  // old utf8 read, distinct as raw bytes.
+  await writeFile(join(dir, 'bin.md'), Buffer.from([0xff]));
+  const first = await bindSubject({ repoRoot: dir, path: 'bin.md', changeSet: new Set(['bin.md']) });
+  await writeFile(join(dir, 'bin.md'), Buffer.from([0xfe]));
+  const second = await bindSubject({ repoRoot: dir, path: 'bin.md', changeSet: new Set(['bin.md']) });
+  assert.notEqual(first.sha256, second.sha256, 'raw bytes, not lossy replacement chars');
+});
+
+test('P1-B — a dangling symlink is present, never absent; an absence record cannot satisfy it', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-dangling-'));
+  scratch.push(dir);
+  const { symlink } = await import('node:fs/promises');
+  await symlink('never-existed.md', join(dir, 'ghost.md'));
+  const bound = await bindSubject({ repoRoot: dir, path: 'ghost.md', changeSet: new Set(['ghost.md']) });
+  assert.equal(bound.state, 'present', 'a dangling symlink is an existing entry');
+  assert.equal(
+    recordSatisfies({
+      record: record({
+        subject: 'ghost.md',
+        subject_state: 'absent',
+        subject_sha256: EMPTY_SHA256,
+      }),
+      subject: 'ghost.md',
+      state: bound.state,
+      sha256: bound.sha256,
+    }),
+    false,
+  );
+});
+
+test('P1-B — regular-file digests are unchanged by the raw-byte read (no churn of existing records)', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-stable-'));
+  scratch.push(dir);
+  await writeFile(join(dir, 'plain.md'), SPEC_LIKE_BODY);
+  const bound = await bindSubject({ repoRoot: dir, path: 'plain.md', changeSet: new Set() });
+  assert.equal(bound.state, 'present');
+  assert.equal(
+    bound.sha256, sha256(SPEC_LIKE_BODY),
+    'for valid UTF-8 the raw-byte digest equals the string digest every existing record used',
+  );
+  assert.deepEqual(bound.classes, ['spec']);
+});
+
+test('P1-B — entry-type rules are stated: directory stays absent/missing; symlink classifies unclaimed', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-types-'));
+  scratch.push(dir);
+  await mkdir(join(dir, 'a-directory.md'));
+  const asDir = await bindSubject({ repoRoot: dir, path: 'a-directory.md', changeSet: new Set() });
+  assert.equal(asDir.state, 'absent', 'a directory at a FILE subject path: the file is absent (rule as before, now stated)');
+  assert.deepEqual(asDir.classes, ['missing']);
+
+  const { symlink } = await import('node:fs/promises');
+  await writeFile(join(dir, 'target.md'), SPEC_LIKE_BODY);
+  await symlink('target.md', join(dir, 'link.md'));
+  const asLink = await bindSubject({ repoRoot: dir, path: 'link.md', changeSet: new Set() });
+  assert.deepEqual(
+    asLink.classes, ['unclaimed'],
+    'a symlink classifies fail-closed unclaimed (owes the full set) — never code by accident, never by dereferencing',
+  );
+});
+
+const SPEC_LIKE_BODY = '---\nid: s\ntype: spec\nstatus: gated\n---\nbody\n';

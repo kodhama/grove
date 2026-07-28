@@ -5,7 +5,7 @@
 // fs reads only.
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile, readdir, realpath } from 'node:fs/promises';
+import { lstat, readFile, readdir, readlink, realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -308,21 +308,70 @@ export async function collectRecords({ repoRoot }) {
 
 // --- subject binding ---
 
+// Subject binding (INV11/AC7): the digest binds the subject's ACTUAL bytes,
+// and presence is established WITHOUT dereferencing. Entry-type case list
+// derived from node:fs lstat's documented types:
+//   regular file  -> present; digest of the RAW buffer (a lossy utf8 decode
+//                    collapsed distinct invalid byte sequences to one
+//                    digest); classification decodes the buffer for
+//                    frontmatter reading only.
+//   symbolic link -> present; the subject IS the link, so the digest is of
+//                    its readlink target STRING (following it let a retarget
+//                    between identical-content files keep a stale verdict
+//                    alive, and a dangling link masquerade as absent);
+//                    classification is fail-closed `unclaimed` (owes the
+//                    full set) — bytes cannot be read without dereferencing,
+//                    and `code` by accident would owe less.
+//   directory     -> the FILE subject is absent (`missing` class) — the
+//                    prior EISDIR behavior, kept and now stated.
+//   anything else -> (fifo/socket/device) present, fail-closed `unclaimed`,
+//                    digest of a tagged constant naming the entry kind.
 export async function bindSubject({ repoRoot, path, changeSet }) {
-  let content = null;
+  const target = join(repoRoot, path);
+  const changed = changeSet.has(path);
+  let entry = null;
   try {
-    content = await readFile(join(repoRoot, path), 'utf8');
+    entry = await lstat(target);
   } catch (error) {
-    if (error.code !== 'ENOENT' && error.code !== 'EISDIR') throw error;
+    if (error.code !== 'ENOENT') throw error;
   }
-  const classification = classifyContent(content);
+  if (entry == null || entry.isDirectory()) {
+    return { path, state: 'absent', sha256: null, classes: ['missing'], changed };
+  }
+  if (entry.isSymbolicLink()) {
+    return {
+      path,
+      state: 'present',
+      sha256: sha256(await readlink(target)),
+      classes: ['unclaimed'],
+      changed,
+    };
+  }
+  if (entry.isFile()) {
+    const bytes = await readFile(target); // raw Buffer, no decoding
+    return {
+      path,
+      state: 'present',
+      sha256: sha256(bytes),
+      classes: classifyContent(bytes.toString('utf8')).classes,
+      changed,
+    };
+  }
   return {
     path,
-    state: content == null ? 'absent' : 'present',
-    sha256: content == null ? null : sha256(content),
-    classes: classification.classes,
-    changed: changeSet.has(path),
+    state: 'present',
+    sha256: sha256(`grove:non-regular-entry:${entryKind(entry)}`),
+    classes: ['unclaimed'],
+    changed,
   };
+}
+
+function entryKind(entry) {
+  if (entry.isFIFO()) return 'fifo';
+  if (entry.isSocket()) return 'socket';
+  if (entry.isBlockDevice()) return 'block-device';
+  if (entry.isCharacterDevice()) return 'character-device';
+  return 'unknown';
 }
 
 // --- enabled-and-unfired (owed work: computed, stored nowhere) ---
