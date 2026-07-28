@@ -653,8 +653,40 @@ Cited so the trade-offs are not relitigated. Tags are the research note's.
   model from stopping and returns the next slash command, driven off a state
   file. Per-phase rules are never resident; compaction is a non-issue by
   construction. Its `SessionStart` hook emits one line of *state*, not rules.
-- **reported, not verifiable here** — a private reference framework, supplied by
-  the maintainer from direct experience, uses a **state
+- **verified against source (private; primary not citable)** — the maintainer
+  supplied the private reference framework for direct reading, 2026-07-28. Its
+  load-bearing mechanics, confirmed in the charters themselves rather than taken
+  from any summary:
+
+  - **The far cold pole, working in production shape.** The driver is a
+    *read-only orchestrator with no file tools at all* — every read and write is
+    delegated; a dedicated bookkeeping role owns the run-state file; the driver
+    treats its own context as *disposable scratch space*, and any phase boundary
+    may be crossed by a **fresh driver invocation that reconstructs the run from
+    disk**. Cost, visible in the same charters: one extra standing role, a fixed
+    state schema, and a driver that must re-query everything each turn.
+  - **The run-state directory is committed — but the framework never commits.**
+    It is written by the run as a *reviewable audit trail* and enters git only
+    through the human's normal commit flow; aborts set a status field rather
+    than deleting. (Partial answer to Open 8: creation by the run, the commit is
+    the human's act, and a dead run leaves a *marked* cursor, not a mystery.)
+  - **Compact-return discipline.** Every specialist returns 1–3 lines, an
+    artifact path, and a machine verdict; anything longer is summarised to one
+    line and discarded; human checkpoints link artifacts, never inline them.
+    Borrowable at either pole — it is what keeps any driver lean.
+  - **Preflighted disjoint write allowlists** — the disjointness theory this
+    canvas developed, already shipped: every parallel worker gets an exhaustive
+    per-worker write allowlist, shared/generated paths are checked, and **any
+    overlap falls back to sequential**. Assessed per-plan by the planning role.
+  - **Convergences with grove, verified**: retry bounds of 2 then escalate to
+    the human; state from artifacts, never from the driver's memory; accountable
+    human decisions carried as **blocking dependencies owned by named human
+    roles** that no agent may resolve or mark done.
+  - **The divergence NOT to import**: the pipeline is a fixed, centrally
+    scripted phase ladder — precisely the itinerary shape this canvas forbade.
+    The state discipline transfers; the sequencing model does not.
+
+  The framework also confirms the earlier reported claim: a **state
   file per run, committed so it is resumable**; its dispatcher is **cold**, its
   agents only read and write disk, and it **infers everything from artifacts**.
   The maintainer supplied this as evidence and explicitly did not propose
