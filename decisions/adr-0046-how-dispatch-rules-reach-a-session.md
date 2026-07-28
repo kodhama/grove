@@ -54,6 +54,18 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
   the run cursor are **files**, so both hosts get the same rules. The
   deterministic Stop guard is Claude-side until Codex's hook vocabulary is
   measured. Codex is *un-guarded*, not *unsupported*.
+- **The managed block shrinks to a one-line entry pointer plus the stamp.**
+  *(maintainer, 2026-07-28)* It carries no rules — only *"grove `@<version>` is
+  installed; run `/grove:start` to enter dispatch."*
+
+  **The maintainer's reason, which is better than the one this draft offered:**
+  *"even if the line is deleted, it just collapses to option one… this way the
+  whole system is not as susceptible to changing the managed block."* The block
+  becomes **non-load-bearing**, so damaging it degrades gracefully instead of
+  breaking. See §Reframing.
+
+  **Reservation recorded, not smoothed:** *"I'm not sure I want to manage the
+  blocks."* Adopted as the least-bad option, not as an enthusiasm.
 - **The field agrees.** No plugin-class system was found doing always-on
   orchestration injection; Anthropic's own `/deep-research` lost auto-activation
   in v2.1.218; BMAD is migrating off always-on `.clinerules` onto invoked
@@ -71,8 +83,7 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
 3. **What carries the dispatcher-only floors** — the rules no subagent charter
    restates, so no spawned role catches them for us.
 4. ~~Codex parity?~~ **Answered** — see Decided (option C).
-5. **What happens to the existing managed block**, and to the five consumers
-   still running the compliant `0.1.0` text.
+5. ~~What happens to the existing managed block?~~ **Answered** — see Decided.
 6. **How cold does the dispatcher go — and what is lost by going there?**
    **Requires adversarial review of the pros and cons before adoption**
    *(maintainer, 2026-07-28)*. The pro side is drafted in the analysis section;
@@ -259,6 +270,26 @@ deferred, not missed.
   pointed at in #173; resolving it is downstream of this decision, not upstream.
 - **grove#169's version/cache collision.** Must be fixed before any refresh wave,
   but it is independent of which mechanism wins here.
+
+## Reframing — the risk class was load-bearing content, not blocks
+
+Worth stating plainly, because this record spent two turns treating "a consumer
+file" as the thing to avoid, and that was the wrong abstraction.
+
+`#164` (unparseable markers), `#169` (a stamp that stopped identifying its
+content) and `#170` (a refresh wave nobody can safely run) were severe **because
+the block carried the routing rules**. A damaged block meant *no dispatch*, and
+the damage was silent.
+
+A block that carries only *"grove `@<version>` is installed; run `/grove:start`"*
+has no such failure mode. Delete it, mangle its markers, let its stamp rot — the
+worst case is that a reader is not told grove exists, and the system collapses to
+the option where nothing is written at all. **Nothing that matters is downstream
+of it.**
+
+So the ownership fragility is not eliminated; it is made **harmless**, which is
+cheaper and more honest than eliminating it. This also preserves `adr-0026` D4's
+PR review seam and the stamp, which a full retirement would have voided.
 
 ## Evidence carried into this shaping
 
