@@ -1,7 +1,7 @@
 ---
 id: adr-0046-how-dispatch-rules-reach-a-session
 type: adr
-status: draft  # shaping canvas — the shaper drafts, the maintainer decides. Not promoted past `gated` by this role.
+status: gated  # converged after three adversary rounds (NEEDS-REVISION x2, SOUND on the final delta); awaiting the maintainer's intent act. The shaper never promotes past gated.
 depends_on: [adr-0003-managed-block-routing-rule, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution]
 changes: [spec-0004-dual-host-distribution]  # §Driving-session loaders revised under clause 8; reciprocal edge lands with the amendment
 informed_by: [research-rule-delivery-and-activation, research-orchestrator-patterns]
@@ -1002,6 +1002,24 @@ tracked as Open 9.
 
 See `## Decision state` → Open. This section carries anything surfacing
 mid-shaping that is out of scope for this record.
+
+## Self-check (gate)
+
+Run at convergence, recorded honestly. Required sections for a decision —
+Context (the problem statement), Decision, Consequences — present; acceptance
+criteria deliberately absent, argued in the record and grounded in grove#172.
+Frontmatter carries id/type/status/depends_on/changes/owner/updated; the
+`changes:` entry is versionless by design, with its pin carrier named in
+clause 8. Three independent decision-adversary rounds ran on this exact text
+lineage: round one NEEDS-REVISION (4 blocking — all seam honesty, none
+substance), round two NEEDS-REVISION narrowly (all eight fixes verified real;
+4 propagation defects), round three **SOUND** on the closing delta, with every
+edit's provenance checked against the corpus and the act timeline verified
+from git history. Every charter citation was re-verified after the round-two
+line-drift finding. The private-framework attribution has been checked neutral
+in every committed line and message. What the intent act covers, beyond the
+record itself: the dispatcher-charter narrowing rider (with its stated decline
+fallback) and the three marked draft choices.
 
 ## Lifecycle record
 
