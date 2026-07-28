@@ -266,15 +266,22 @@ export async function planAbortRun(input) {
 // file (the CLI reads plan JSON from disk), so nothing in it is trusted:
 // the licensed action is RECONSTRUCTED from the plan's identifying fields
 // (repoRoot + run + closed) through buildCloseAction — the same code
-// planCloseRun used — and only an action matching that reconstruction in
-// id, path, type, AND content, existing exactly once, is ever confirmed.
+// planCloseRun used — and the RECONSTRUCTION is what gets applied. The
+// caller's action array is never handed to applyPlan on this branch: the
+// candidate is compared to the reconstruction (id, path, type, content, and
+// the planned file precondition), and then discarded in favour of it, so no
+// second action in a forged plan file has anything to ride on. The previous
+// revision of this comment (4aebb4f) claimed the comparison alone made the
+// caller's array safe — "only an action matching that reconstruction … is
+// ever confirmed". It did not: an UNFLAGGED second action carrying the
+// licensed id was applied, because `reconstructCloseLicense` only ever sees
+// the `guardLicensed` ones and applyPlan authorized by id string.
 // `guardLicensed` is a hint, never authority; a plan carrying licensed
 // actions that do not reconstruct is itself a defect and is refused.
 export async function applyRunPlan(plan, { confirmedActionIds = [] } = {}) {
   if (!plan?.ok) throw new Error('cannot apply a failed run plan');
-  let ids = [...confirmedActionIds];
   if (plan.operation === 'close-run') {
-    const licensed = await reconstructCloseLicense(plan);
+    const { licensed, discarded } = await reconstructCloseLicense(plan);
     const verdict = runGuard(plan.repoRoot);
     if (verdict.status !== 0) {
       const report = `${verdict.stdout ?? ''}${verdict.stderr ?? ''}`.trim();
@@ -283,9 +290,24 @@ export async function applyRunPlan(plan, { confirmedActionIds = [] } = {}) {
           + `owed work or a defect stands.\n${report}`,
       );
     }
-    ids = [licensed.id];
+    // Narrowed, never trusted — and never silent: a discarded action is
+    // reported as a refusal so a tampered or stale plan file leaves a trace
+    // in the apply result rather than vanishing.
+    const narrowed = {
+      ...plan,
+      actions: [licensed],
+      refusals: [
+        ...(Array.isArray(plan.refusals) ? plan.refusals : []),
+        ...discarded.map((item) => ({
+          path: typeof item?.path === 'string' ? item.path : null,
+          reason: 'close-run applies only the reconstructed guard-licensed cursor write; '
+            + 'this planned action was discarded unapplied',
+        })),
+      ],
+    };
+    return applyPlan(narrowed, { confirmedActionIds: [licensed.id] });
   }
-  return applyPlan(plan, { confirmedActionIds: ids });
+  return applyPlan(plan, { confirmedActionIds: [...confirmedActionIds] });
 }
 
 async function reconstructCloseLicense(plan) {
@@ -300,8 +322,8 @@ async function reconstructCloseLicense(plan) {
       'close-run refused: the plan carries no closed timestamp among its identifying fields; nothing can be licensed',
     );
   }
-  const flagged = (Array.isArray(plan.actions) ? plan.actions : [])
-    .filter((item) => item?.guardLicensed);
+  const actions = Array.isArray(plan.actions) ? plan.actions : [];
+  const flagged = actions.filter((item) => item?.guardLicensed);
   if (flagged.length !== 1) {
     throw new Error(
       `close-run licenses exactly one reconstructed action; this plan flags ${flagged.length} `
@@ -320,6 +342,27 @@ async function reconstructCloseLicense(plan) {
     );
   }
   const candidate = flagged[0];
+  // The planned file precondition is part of the equality set, and it is
+  // checked FIRST — the candidate's `expected` is what applyPlan's post-plan
+  // drift preflight would have compared, and a licensed action that carries
+  // none skips that preflight entirely once the reconstruction is what gets
+  // applied.
+  if (candidate.expected?.kind !== 'file' || typeof candidate.expected.content !== 'string') {
+    throw new Error(
+      `close-run refused: the plan's guardLicensed action carries no file precondition for `
+        + `${expected.path}; the post-plan drift check cannot run and nothing can be licensed`,
+    );
+  }
+  // A cursor edited between plan and apply is drift, not forgery. Both end in
+  // the same refusal, but naming it forgery sent an operator hunting for an
+  // attacker after an ordinary concurrent edit. `expected.expected.content` is
+  // the cursor's CURRENT bytes by construction (buildCloseAction reads them).
+  if (candidate.expected.content !== expected.expected.content) {
+    throw new Error(
+      `close-run refused: ${expected.path} changed after planning; nothing was applied — `
+        + 're-plan the close (the planned action records different cursor bytes than the file now holds)',
+    );
+  }
   if (
     candidate.id !== expected.id
     || candidate.path !== expected.path
@@ -332,7 +375,10 @@ async function reconstructCloseLicense(plan) {
         + 'action; guardLicensed is a hint, never authority)',
     );
   }
-  return expected;
+  return {
+    licensed: expected,
+    discarded: actions.filter((item) => item !== candidate),
+  };
 }
 
 function runGuard(repoRoot) {

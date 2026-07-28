@@ -399,6 +399,45 @@ export async function planRemove(input) {
 
 export async function applyPlan(plan, { confirmedActionIds = [] } = {}) {
   if (!plan?.ok) throw new Error('cannot apply a failed lifecycle plan');
+  // Authorization below is by id-string membership; every mutation below goes
+  // to `action.path`. Ids are computed once, at PLAN time (`addAction`), and
+  // the plan reaches apply as a CALLER-SUPPLIED JSON file on both CLIs — so
+  // until this loop existed, an id could lie about its own path, and a
+  // licensed id could be repeated on a second, undisclosed action pointing
+  // anywhere. Measured on the shipped CLIs: one confirmed cursor-create id
+  // wrote `.github/workflows/pwn.yml` through the human confirm gate, and the
+  // guard-licensed close path wrote `.claude/settings.json`, created
+  // `PWNED.txt` and deleted a file with an EMPTY confirmation file. Recompute
+  // the identity from the action itself and require it to be unique, before
+  // anything reads the confirmation set. This is the whole-plan root guard —
+  // it covers setup/refresh/set-profile/remove and every run operation.
+  const identities = new Set();
+  const duplicates = new Set();
+  for (const action of plan.actions) {
+    if (typeof action?.type !== 'string' || typeof action?.path !== 'string') {
+      throw new Error('every lifecycle action requires a string type and path; no lifecycle write was applied');
+    }
+    if (action.path !== normalizeSlashes(action.path)) {
+      throw new Error(
+        `lifecycle action path is not canonical: ${JSON.stringify(action.path)}; no lifecycle write was applied`,
+      );
+    }
+    const identity = `${action.type}:${action.path}`;
+    if (action.id !== identity) {
+      throw new Error(
+        `lifecycle action id ${JSON.stringify(action.id)} does not match its own type and path `
+          + `(${identity}); an id may never license a write to another path, and no lifecycle write was applied`,
+      );
+    }
+    if (identities.has(identity)) duplicates.add(identity);
+    identities.add(identity);
+  }
+  if (duplicates.size > 0) {
+    throw new Error(
+      `duplicate lifecycle action id(s): ${[...duplicates].join(', ')}; one confirmation must never `
+        + 'license two actions, and no lifecycle write was applied',
+    );
+  }
   const confirmed = new Set(confirmedActionIds);
   const missing = plan.actions
     .filter((action) => !confirmed.has(action.id))

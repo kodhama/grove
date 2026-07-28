@@ -290,6 +290,14 @@ groups:
 `],
     ['tooling/grove/tests/lifecycle/test-deps.yaml', `schema: 2
 groups:
+  "adr-0041-shipped-matrix":
+    precision: exact
+    tests:
+      - file: "test/shipped-matrix.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v8"
+    decisions:
+      - "adr-0041-separate-support-from-operational-availability"
   "legacy-package":
     precision: coarse
     tests:
@@ -306,6 +314,21 @@ groups:
       - "adr-0036-remove-retired-review-bookkeeping"
       - "adr-0037-pre-execution-planning"
     notes: "Technical orientation: these tests use the Node.js built-in test runner and filesystem APIs."
+  "spec-0006-confirm-gate":
+    precision: exact
+    tests:
+      - file: "test/surface-and-setup.test.mjs"
+        cases:
+          - title:
+              - "BLOCK-1 — a duplicated action id is refused: one confirmation never licenses two writes"
+          - title:
+              - "BLOCK-1 — an action id that does not recompute from its own type and path is refused"
+    specs:
+      - "spec-0006-voluntary-dispatch@v2"
+    decisions:
+      - "adr-0046-how-dispatch-rules-reach-a-session"
+    covers:
+      - "INV5"
   "spec-0006-pointer-block":
     precision: exact
     tests:
@@ -326,14 +349,6 @@ groups:
       - "spec-0006-voluntary-dispatch@v2"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
-  "adr-0041-shipped-matrix":
-    precision: exact
-    tests:
-      - file: "test/shipped-matrix.test.mjs"
-    specs:
-      - "spec-0004-dual-host-distribution@v8"
-    decisions:
-      - "adr-0041-separate-support-from-operational-availability"
 `],
   ]);
 

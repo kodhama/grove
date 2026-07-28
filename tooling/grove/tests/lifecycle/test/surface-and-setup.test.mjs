@@ -170,6 +170,83 @@ test('apply revalidates the whole plan before writes and refuses a post-plan lau
   assert.equal(await exists(join(repoRoot, 'AGENTS.md')), false);
 });
 
+// --- BLOCK-1: apply authorizes by action id, but writes to action.path ---
+// Both CLIs read the plan from a caller-supplied JSON file and the ids are
+// computed once, at plan time. So the id must be rechecked against the action
+// it rides on, and no two actions may share one — otherwise one confirmed id
+// licenses a second, undisclosed write anywhere in the repository. Case list
+// DERIVED FROM the authorization mechanism itself (`confirmed.has(action.id)`
+// against `safeTarget(plan.repoRoot, action.path)`), not from the branch a
+// reviewer happened to demonstrate it on: the two ways an id can stop naming
+// its own action are that it lies about type/path, or that it repeats.
+
+test('BLOCK-1 — a duplicated action id is refused: one confirmation never licenses two writes', async () => {
+  const { packageRoot, repoRoot } = await fixture();
+  const plan = await planSetup({
+    packageRoot,
+    repoRoot,
+    ...claudeInvocation,
+    choices: { preset: 'steward', config: {} },
+  });
+  assert.equal(plan.ok, true, plan.summary);
+  const licensed = plan.actions[0];
+  // A second action, same id, DIFFERENT content: identical type and path, so
+  // recomputing the id alone would not catch it.
+  plan.actions.push({
+    type: licensed.type,
+    path: licensed.path,
+    content: 'smuggled second write\n',
+    expected: licensed.expected,
+    id: licensed.id,
+  });
+
+  await assert.rejects(
+    () => applyPlan(plan, { confirmedActionIds: plan.actions.map((action) => action.id) }),
+    (error) => /duplicate lifecycle action id/i.test(error.message)
+      && error.message.includes(licensed.id),
+  );
+  assert.equal(await exists(join(repoRoot, '.grove', 'README.md')), false, 'nothing was applied');
+  assert.equal(await exists(join(repoRoot, 'CLAUDE.md')), false);
+});
+
+test('BLOCK-1 — an action id that does not recompute from its own type and path is refused', async () => {
+  const { packageRoot, repoRoot } = await fixture();
+  const plan = await planSetup({
+    packageRoot,
+    repoRoot,
+    ...claudeInvocation,
+    choices: { preset: 'steward', config: {} },
+  });
+  assert.equal(plan.ok, true, plan.summary);
+  const licensed = plan.actions[0];
+  plan.actions.push({
+    type: 'write',
+    path: '.github/workflows/pwn.yml',
+    content: 'on: push\n',
+    expected: { kind: 'file', content: null },
+    id: licensed.id, // the id names the licensed cursor path, the write does not
+  });
+
+  await assert.rejects(
+    // Confirming ONLY the disclosed id — exactly what a human at the confirm
+    // gate sees and approves.
+    () => applyPlan(plan, { confirmedActionIds: [licensed.id] }),
+    (error) => /does not match its own type and path/i.test(error.message)
+      && error.message.includes('.github/workflows/pwn.yml'),
+  );
+  assert.equal(await exists(join(repoRoot, '.github', 'workflows', 'pwn.yml')), false);
+  assert.equal(await exists(join(repoRoot, '.grove', 'README.md')), false, 'nothing was applied');
+
+  // A non-canonical path cannot smuggle the same lie past normalization.
+  const nonCanonical = { ...plan.actions[1], path: './evil.txt', id: 'write:./evil.txt' };
+  plan.actions[1] = nonCanonical;
+  await assert.rejects(
+    () => applyPlan(plan, { confirmedActionIds: [licensed.id] }),
+    /path is not canonical/i,
+  );
+  assert.equal(await exists(join(repoRoot, 'evil.txt')), false);
+});
+
 test('apply refuses a symlinked managed parent before any write can escape the repository', async () => {
   const { root, packageRoot, repoRoot } = await fixture();
   const plan = await planSetup({
