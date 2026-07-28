@@ -41,6 +41,40 @@ version: 2
 > from the retained convergence verdicts; the v2 re-review is downstream and
 > not claimed here.
 
+> **PROPOSED AMENDMENT 2026-07-28 — awaiting the maintainer's intent act; NOT
+> ratified, and deliberately NOT versioned as `v3`.**
+> **WHAT:** Two clauses, both marked in place: a new §Subject binding by entry
+> kind (symbolic link, directory, fifo/socket/device, and the hard-link case),
+> and INV20's scope clause reconciled with `unclaimed`; INV11 gains a pointer
+> to the first.
+> **WHY:** The implementation binds a symlink subject to its own link target
+> and classifies every non-regular entry fail-closed `unclaimed` (the
+> alternative — dereferencing — let a retarget between identical-content files
+> keep a stale verdict alive, and a dangling link read as `absent`). This spec
+> contains no occurrence of "symlink" or "symbolic", so conformance review
+> ruled the behavior a **widening that needs an amendment** rather than a
+> reading of existing text. Two facts cut in opposite directions and both are
+> recorded: §Verdict-record contract's "`present` iff the path exists"
+> textually licenses the presence half (a dangling link's path *does* exist),
+> while the class table's `unclaimed` requires frontmatter to be present — and
+> a symlink has no frontmatter read at all, so the code's `unclaimed` was not
+> the table's. Measured against `92f68e0`, a symlink subject went from owing 2
+> records to owing 4 in supervisor mode: a close-blocking change, which is why
+> it is stated rather than absorbed.
+> **STATUS — read this before citing the clauses:** the marked clauses are a
+> **draft**. Ratifying them is the maintainer's act, and it decides the
+> version too: this amendment carries **no `version:` bump and no `changes:`
+> pairing**, because `adr-0044` makes a behavioral version bump depend on an
+> approved amendment decision declaring `changes: [spec-0006-...@vN]`, and no
+> such decision exists — an agent-minted `v3` would be a version no approved
+> decision accounts for, and would silently invalidate every `@v2` pin in the
+> test-dependency ledgers. The three unmarked options are the maintainer's:
+> ratify as a clarification at `v2`, shape the paired amendment decision and
+> bump to `v3`, or reject the clauses and send the implementation back.
+> **SCOPE:** No entry verb, cursor field, rule shape, guard mode, exit code,
+> or host behavior changes. Nothing outside the three marked clauses is
+> touched.
+
 This contract realizes approved `adr-0046-how-dispatch-rules-reach-a-session`:
 voluntary session entry through two verbs, a committed per-run cursor,
 transition rules shipped as data, a deterministic zero-model guard with a
@@ -354,6 +388,37 @@ when all its preconditions hold under one binding.
 | `unclaimed` | artifact frontmatter present but `type` absent or outside the known enum — fail-closed, owes the full set |
 | `code` | no artifact frontmatter (code and tests collapse: their owed sets are identical) |
 | `implements-bearing` | any artifact whose frontmatter carries a non-empty `implements` (overlays the classes above) |
+
+**Subject binding by entry kind** *(PROPOSED AMENDMENT — not yet ratified;
+see the amendment note at the head of this spec)*. The table above reads a
+subject's **bytes**, and every row above assumes the path names a regular
+file. A subject path can name an entry that has no readable bytes, and
+presence is established **without dereferencing** (`lstat`, never `stat`), so
+the entry's kind — never its target's — decides:
+
+| Entry at the subject path | `subject_state` | The digest binds | Class |
+|---|---|---|---|
+| regular file (a **hard link** is one: link count is not consulted) | `present` | the file's raw bytes | the byte-derived row of the table above |
+| symbolic link, target present, absent, or a directory | `present` — the link itself exists, whatever it points at | the link's own target **bytes**, domain-tagged | `unclaimed` |
+| directory | `absent` | the absence sentinel | `missing` — the FILE subject is not there |
+| fifo, socket, block or character device | `present` | a domain-tagged constant naming the exact kind | `unclaimed` |
+
+Three consequences, stated rather than left to the implementation:
+
+- The non-regular rows classify `unclaimed` **fail-closed**: no frontmatter
+  can be read at all, so the class table's `unclaimed` ("frontmatter present
+  but `type` absent or outside the enum") is widened by exactly this row set
+  — a subject whose bytes cannot be read owes the full set, and `code` by
+  accident would owe less.
+- The digests are **domain-tagged per kind** so a subject that changes kind
+  sheds its records: an untagged symlink digest equalled the digest of a
+  regular file whose bytes were exactly the target path, which let a verdict
+  on the file survive its replacement by a link. Separation is by digest only
+  — a record carries no entry kind — so it is a strong convention, not a
+  proof.
+- A dangling symlink is `present`, never `absent`: `present` iff the **path**
+  exists is unchanged, and an absence record (which requires the empty-input
+  sentinel) can never satisfy it.
 
 **Initial rule set** (encodes the dispatcher charter's owed-rules; the
 charter wins on any divergence):
@@ -684,7 +749,10 @@ this contract.
   field**, only while its `subject_state` matches that subject's current
   state, and — for `present` — only while its `subject_sha256` matches the
   subject's current bytes. Record lookup shall span every run's records
-  directory in both modes.
+  directory in both modes. *(Proposed amendment, unratified:* for a subject
+  whose entry is not a regular file, "current bytes" is the domain-tagged
+  binding of §Subject binding by entry kind, and the entry's kind is read
+  without dereferencing.*)*
 - **INV12** — The record file shall not substitute for the change-request
   verdict report (adr-0027 D2), which remains owed.
 - **INV13** — `transitions.toml` shall ship at
@@ -723,8 +791,16 @@ this contract.
   stop event — naming the guard, the mode, and each affected subject with
   its missing record types — shall never hold, and shall keep no
   deduplication state; its scope shall be frontmatter-governed artifacts
-  excluding `reviewless` types, over the derived change set defined in
-  §Transition rules.
+  excluding `reviewless` types, **together with every fail-closed
+  `unclaimed` subject** — which includes the non-regular entries of §Subject
+  binding by entry kind, whose bytes cannot be read and which therefore carry
+  no frontmatter to govern them — over the derived change set defined in
+  §Transition rules. *(The `unclaimed` half of that scope clause is the
+  proposed amendment: `OBSERVER_CLASSES` has always carried `unclaimed`, and
+  the class table's `unclaimed` was frontmatter-governed by definition until
+  the non-regular rows widened it. `code` and `missing` remain out of
+  observer scope; supervisor mode covers them through the cursor's subject
+  list.)*
 - **INV21** — The Claude plugin shall register the guard on the `Stop` hook
   event; any hold shall use the documented block decision as single-line
   JSON; any context-injecting output shall use the nested

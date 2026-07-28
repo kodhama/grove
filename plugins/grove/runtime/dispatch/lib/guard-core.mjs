@@ -5,7 +5,8 @@
 // fs reads only.
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { lstat, readFile, readdir, readlink, realpath } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { lstat, open, readFile, readdir, readlink, realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -308,22 +309,52 @@ export async function collectRecords({ repoRoot }) {
 
 // --- subject binding ---
 
+// Every digest an entry kind produces is domain-separated by a tag, so a
+// subject that CHANGES KIND cannot keep a record alive by coincidence: an
+// untagged symlink to `target.txt` digested identically to a regular file
+// whose bytes are exactly `target.txt` (measured: 199b3bad…), which let a
+// code-review record on the file survive its replacement by a symlink.
+// Residual, stated: separation is by digest only. `recordSatisfies` compares
+// subject/state/digest and never the entry kind, so a record cannot express
+// which kind it reviewed, and a regular file whose bytes are literally this
+// tag followed by a path still collides with the symlink to that path.
+//
+// Record churn, stated exactly — an earlier commit message claimed "existing
+// records stay valid" without qualification, which was true only of the case
+// it had measured. Records on regular files whose bytes are valid UTF-8 keep
+// their digests; records on BINARY subjects were already shed when the read
+// became raw-byte, and records on SYMLINK subjects are shed by this tag. All
+// three directions are fail-closed: a shed record re-owes its review.
+const SYMLINK_DIGEST_TAG = Buffer.from('grove:symlink-target:');
+
 // Subject binding (INV11/AC7): the digest binds the subject's ACTUAL bytes,
 // and presence is established WITHOUT dereferencing. Entry-type case list
-// derived from node:fs lstat's documented types:
+// derived from node:fs lstat's documented types — lstat NEVER follows, so
+// the kind below is the kind of the named entry itself:
 //   regular file  -> present; digest of the RAW buffer (a lossy utf8 decode
 //                    collapsed distinct invalid byte sequences to one
 //                    digest); classification decodes the buffer for
-//                    frontmatter reading only.
+//                    frontmatter reading only. A HARD LINK is a regular file
+//                    and is bound as one: link count is not consulted, so two
+//                    names for one inode bind identically and independently —
+//                    stated, not overlooked.
 //   symbolic link -> present; the subject IS the link, so the digest is of
-//                    its readlink target STRING (following it let a retarget
-//                    between identical-content files keep a stale verdict
-//                    alive, and a dangling link masquerade as absent);
-//                    classification is fail-closed `unclaimed` (owes the
-//                    full set) — bytes cannot be read without dereferencing,
-//                    and `code` by accident would owe less.
-//   directory     -> the FILE subject is absent (`missing` class) — the
-//                    prior EISDIR behavior, kept and now stated.
+//                    its readlink target's RAW BYTES, tagged (a utf8 decode
+//                    of the target collapsed distinct invalid byte sequences
+//                    to one digest — the same fault this case list was
+//                    written to remove, reintroduced on the link side).
+//                    Following it let a retarget between identical-content
+//                    files keep a stale verdict alive, and a dangling link
+//                    masquerade as absent. This row covers a symlink to a
+//                    DIRECTORY too: lstat reports the link, never its target,
+//                    so a symlink-to-directory lands here, not in the
+//                    directory row below. Classification is fail-closed
+//                    `unclaimed` (owes the full set) — bytes cannot be read
+//                    without dereferencing, and `code` by accident would owe
+//                    less.
+//   directory     -> a REAL directory at the path: the FILE subject is absent
+//                    (`missing` class) — the prior EISDIR behavior, kept and
+//                    now stated.
 //   anything else -> (fifo/socket/device) present, fail-closed `unclaimed`,
 //                    digest of a tagged constant naming the entry kind.
 export async function bindSubject({ repoRoot, path, changeSet }) {
@@ -342,13 +373,16 @@ export async function bindSubject({ repoRoot, path, changeSet }) {
     return {
       path,
       state: 'present',
-      sha256: sha256(await readlink(target)),
+      sha256: sha256(Buffer.concat([
+        SYMLINK_DIGEST_TAG,
+        await readlink(target, { encoding: 'buffer' }),
+      ])),
       classes: ['unclaimed'],
       changed,
     };
   }
   if (entry.isFile()) {
-    const bytes = await readFile(target); // raw Buffer, no decoding
+    const bytes = await readRegularFile(target); // raw Buffer, no decoding
     return {
       path,
       state: 'present',
@@ -364,6 +398,32 @@ export async function bindSubject({ repoRoot, path, changeSet }) {
     classes: ['unclaimed'],
     changed,
   };
+}
+
+// lstat-then-read looks the same name up twice, and the entry can be swapped
+// between the two. Only one direction of that race fails OPEN — regular file
+// -> symlink, where a path-based read follows the new link and digests bytes
+// that are not the subject's — so the bytes come through ONE handle opened
+// `O_NOFOLLOW`, and that handle's OWN stat is what confirms it is still a
+// regular file. The other direction throws, which is fail-closed everywhere
+// this is called from (the guard maps a throw to exit 1, and close-run
+// requires exit 0). POSIX only: `O_NOFOLLOW` is absent on Windows, where the
+// bitwise OR drops it and the pre-existing behavior stands. `O_NONBLOCK`
+// keeps the open from parking forever on a FIFO swapped in mid-race.
+async function readRegularFile(target) {
+  const handle = await open(
+    target,
+    constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+  );
+  try {
+    const info = await handle.stat();
+    if (!info.isFile()) {
+      throw new Error(`${target} stopped being a regular file while it was being read`);
+    }
+    return await handle.readFile();
+  } finally {
+    await handle.close();
+  }
 }
 
 function entryKind(entry) {

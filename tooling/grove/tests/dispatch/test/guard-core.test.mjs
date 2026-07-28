@@ -75,6 +75,11 @@ function record(overrides = {}) {
   };
 }
 
+// Declared before its uses (it sat below them, TDZ-safe only because
+// node:test defers every callback — one eager top-level use away from a
+// crash).
+const SPEC_LIKE_BODY = '---\nid: s\ntype: spec\nstatus: gated\n---\nbody\n';
+
 // --- subject classification (deterministic, frontmatter-derived) ---
 
 test('classification: every table row, missing before every byte-derived row', () => {
@@ -703,6 +708,121 @@ test('P1-B — entry-type rules are stated: directory stays absent/missing; syml
     asLink.classes, ['unclaimed'],
     'a symlink classifies fail-closed unclaimed (owes the full set) — never code by accident, never by dereferencing',
   );
+
+  // L5: the two entry shapes the case list left unstated. A symlink to a
+  // DIRECTORY is a symlink (lstat never follows), not the directory row; a
+  // hard link IS a regular file and binds exactly like one.
+  await mkdir(join(dir, 'real-directory'));
+  await symlink('real-directory', join(dir, 'link-to-directory.md'));
+  const toDirectory = await bindSubject({
+    repoRoot: dir, path: 'link-to-directory.md', changeSet: new Set(),
+  });
+  assert.equal(toDirectory.state, 'present', 'a symlink to a directory is the LINK, present');
+  assert.deepEqual(toDirectory.classes, ['unclaimed']);
+  assert.notEqual(
+    toDirectory.sha256,
+    (await bindSubject({ repoRoot: dir, path: 'link.md', changeSet: new Set() })).sha256,
+    'its digest is its own target, not a shared directory constant',
+  );
+
+  const { link } = await import('node:fs/promises');
+  await link(join(dir, 'target.md'), join(dir, 'hard-link.md'));
+  const hard = await bindSubject({ repoRoot: dir, path: 'hard-link.md', changeSet: new Set() });
+  assert.equal(hard.state, 'present');
+  assert.equal(hard.sha256, sha256(SPEC_LIKE_BODY), 'a hard link binds as the regular file it is');
+  assert.deepEqual(hard.classes, ['spec']);
 });
 
-const SPEC_LIKE_BODY = '---\nid: s\ntype: spec\nstatus: gated\n---\nbody\n';
+// --- BLOCK-2 / M1 / L4 / L1: the digest of every entry kind ---
+
+test('BLOCK-2 — a symlink target binds its RAW bytes: distinct invalid UTF-8 targets never collide', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-linkbytes-'));
+  scratch.push(dir);
+  const { symlink } = await import('node:fs/promises');
+  // 0xFF and 0xFE each lossily decode to one U+FFFD, so a utf8 readlink gave
+  // these two links ONE digest (measured on APFS:
+  // 0b37743370331e33808c0dd0167563798a3c324504cf0055d2b0ac81578d2c58 for both)
+  // — verbatim the fault the raw-buffer file read was introduced to remove.
+  await symlink(Buffer.from([0x78, 0xff, 0x79]), join(dir, 'first.md'));
+  await symlink(Buffer.from([0x78, 0xfe, 0x79]), join(dir, 'second.md'));
+  const first = await bindSubject({ repoRoot: dir, path: 'first.md', changeSet: new Set() });
+  const second = await bindSubject({ repoRoot: dir, path: 'second.md', changeSet: new Set() });
+  assert.equal(first.state, 'present');
+  assert.notEqual(
+    first.sha256, second.sha256,
+    'retargeting between byte-distinct targets MUST change the digest, invalid UTF-8 included',
+  );
+});
+
+test('M1 — a symlink digest is domain-separated from a regular file holding the same bytes', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-domain-'));
+  scratch.push(dir);
+  const { symlink } = await import('node:fs/promises');
+  await writeFile(join(dir, 'target.txt'), 'target.txt'); // no trailing newline
+  await writeFile(join(dir, 'twin.md'), 'target.txt');
+  await symlink('target.txt', join(dir, 'link.md'));
+
+  const asFile = await bindSubject({ repoRoot: dir, path: 'twin.md', changeSet: new Set() });
+  const asLink = await bindSubject({ repoRoot: dir, path: 'link.md', changeSet: new Set() });
+  assert.notEqual(
+    asLink.sha256, asFile.sha256,
+    'an untagged link digest equalled the file digest (199b3bad…), so a record survived the swap',
+  );
+  assert.equal(
+    recordSatisfies({
+      record: record({
+        subject: 'x.md', record_type: 'code-review', subject_sha256: asFile.sha256,
+      }),
+      subject: 'x.md',
+      state: asLink.state,
+      sha256: asLink.sha256,
+    }),
+    false,
+    'a record taken on the regular file cannot satisfy the symlink that replaced it',
+  );
+});
+
+test('L4 — a non-regular entry digests a constant naming its exact kind', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-kind-'));
+  scratch.push(dir);
+  execFileSync('mkfifo', [join(dir, 'pipe.md')]);
+  const fifo = await bindSubject({ repoRoot: dir, path: 'pipe.md', changeSet: new Set() });
+  assert.equal(fifo.state, 'present');
+  assert.deepEqual(fifo.classes, ['unclaimed'], 'fail-closed: it owes the full set');
+  assert.equal(
+    fifo.sha256, sha256('grove:non-regular-entry:fifo'),
+    'the digest names the kind, so two kinds at one path are never the same subject',
+  );
+
+  const { createServer } = await import('node:net');
+  const server = createServer();
+  await new Promise((done) => server.listen(join(dir, 'socket.md'), done));
+  try {
+    const socket = await bindSubject({ repoRoot: dir, path: 'socket.md', changeSet: new Set() });
+    assert.equal(socket.sha256, sha256('grove:non-regular-entry:socket'));
+    assert.notEqual(socket.sha256, fifo.sha256, 'entryKind discriminates; it is not one constant');
+  } finally {
+    await new Promise((done) => server.close(done));
+  }
+});
+
+// L1 (lstat-then-read TOCTOU): a racing swap of a regular file for a symlink
+// is the one direction that fails OPEN — a path-based read follows the new
+// link and digests bytes that are not the subject's. The measured race landed
+// 429 fail-CLOSED throws in 38,959 iterations and the fail-open direction 0
+// times, so no behavioral test can distinguish the fix; the mechanism is
+// pinned here instead, at the source, and the residual is stated in the
+// commit rather than left implicit.
+test('L1 — the regular-file read goes through one O_NOFOLLOW handle, not a second path lookup', async () => {
+  const source = await readFile(
+    join(REPOSITORY_ROOT, 'plugins/grove/runtime/dispatch/lib/guard-core.mjs'),
+    'utf8',
+  );
+  assert.match(source, /O_NOFOLLOW/, 'the file read refuses to follow a link swapped in mid-race');
+  assert.match(source, /handle\.stat\(\)/, "the handle's own stat decides the kind, not the earlier lstat");
+  assert.doesNotMatch(
+    source,
+    /await readFile\(target\)/,
+    'no second path-based read of the subject may exist beside the lstat',
+  );
+});
