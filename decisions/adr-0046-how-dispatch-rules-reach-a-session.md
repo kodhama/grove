@@ -45,15 +45,6 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
   autonomous and follow the dispatch rules. *(maintainer, 2026-07-28)*
 - **Superseding previous decisions is permitted** where the evidence warrants.
   *(maintainer, 2026-07-28)*
-- **Run state is a committed, per-run file.** *(maintainer, 2026-07-28, from RPI
-  Team practice — internal to CGM, not consultable here)*: *"RPI team uses a state
-  file per run, but commits it so it's resumable."* Committing buys resumption
-  across session, machine and compaction, in git, for free.
-- **Direction: toward a cold, artifact-inferring dispatcher — partially.**
-  *(maintainer, 2026-07-28)*: *"even their dispatcher is cold and all the agents
-  do is read and write to disk. They infer everything from artifacts. I'm not
-  thinking of going ALL the way there, not yet at least, but a bit would be ok."*
-  How far is Open question 6.
 - **The field agrees.** No plugin-class system was found doing always-on
   orchestration injection; Anthropic's own `/deep-research` lost auto-activation
   in v2.1.218; BMAD is migrating off always-on `.clinerules` onto invoked
@@ -74,9 +65,14 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
    Claude-shaped answer needs its Codex twin or an explicit scope limit.
 5. **What happens to the existing managed block**, and to the five consumers
    still running the compliant `0.1.0` text.
-6. **How cold does the dispatcher go?** The maintainer has said *"a bit"* and
-   explicitly not *"all the way"*. Where the line falls decides how much stays
-   resident.
+6. **How cold does the dispatcher go — and what is lost by going there?**
+   **Requires adversarial review of the pros and cons before adoption**
+   *(maintainer, 2026-07-28)*. The pro side is drafted in the analysis section;
+   the con side is not, and the maintainer's stated instinct is that something is
+   lost. Not a shaping turn — this needs its own pass.
+7. **Where does the marking live** — pure artifact derivation, or a committed
+   per-run cursor plus artifact-derived places? Informed by the RPI Team evidence
+   below; **not yet answered.**
 
 ### Constraint — do not foreclose emergent sequencing
 
@@ -111,6 +107,24 @@ something outside its scope: subagents do not self-awake. grove#102
 shaping for that. This decision's obligation is narrower and testable: **encode no
 itinerary anywhere a future fit-based dispatcher would have to unpick.**
 
+### Correction — two items were recorded as Decided that were not
+
+*(maintainer, 2026-07-28: "I'm not saying I want to go there, not without some
+adversarial review of the pros and cons. Just saying they do it that way… I was
+merely pointing out that the state file you proposed had* some *of that aspect
+in.")*
+
+The previous turn moved **committed per-run state** and **a partially cold
+dispatcher** into `Decided`, attributed to the maintainer. **Neither was an intent
+act.** The maintainer reported how another system works and observed that the
+proposed state file shares some of its character. That is evidence informing an
+open question, not a resolution of one. Both are returned to `Open`; the RPI Team
+observation is recorded below as evidence, where it belongs.
+
+Logged rather than silently rewritten because it is the second time in this
+shaping that enthusiasm was read as approval, and the charter forbids exactly
+that: *"never infer approval from enthusiasm or silence."*
+
 ### Correction — committed run state is not the ownership class we removed
 
 An earlier turn of this shaping framed a run-state file as *"reintroducing a small
@@ -124,11 +138,12 @@ disposable on completion.** It does not weaken *"state derived from artifact
 existence, never agent claims"* (`dispatcher.md:421-422`) — **it satisfies it**,
 because the state file *is* an artifact.
 
-### Consequence — a cold dispatcher shrinks the resident payload
+### Analysis (option not taken) — a cold dispatcher would shrink the resident payload
 
-If the marking is inferred from artifacts, much of what this record was budgeting
-as resident prose becomes **mechanically checkable** by the Stop guard, from git
-and disk:
+**Not adopted.** Recorded as the pro side of an option that needs its con side
+argued before it can be considered. If the marking were inferred from artifacts,
+much of what this record budgets as resident prose would become **mechanically
+checkable** by the Stop guard, from git and disk:
 
 | floor | cold-checkable? |
 |---|---|
@@ -142,11 +157,20 @@ and disk:
 | re-resolve the profile at **every** handover, never cached | **partly** — a guard can warn, not compel |
 | fail-closed typing of an unclaimed artifact | **partly** |
 
-**So the resident payload is smaller than this record first assumed.** The skill
-carries orientation and the two-and-a-half non-mechanizable stances; the guard
-carries the rest deterministically. That is the shape Anthropic's own guidance
-points at — *"use hooks to enforce behavior deterministically"* when prose
-degrades.
+That is the **pro** side, and it is the shape Anthropic's guidance points at —
+*"use hooks to enforce behavior deterministically"* when prose degrades.
+
+**The con side is unargued, and the maintainer's instinct is that it exists:**
+*"I'm sure something is lost."* That instinct should be taken seriously rather
+than designed past. Candidates worth an adversary's attention, none of them
+established here: a cold dispatcher re-derives state on every handover, so it
+cannot notice anything a single derivation cannot see — trends, oscillation, a
+repair loop that keeps almost-converging; artifact-inferred state is only as
+honest as the artifacts, so a role that writes a verdict record without doing the
+work is indistinguishable from one that did; and "everything on disk" moves cost
+from context into I/O and into the consumer's diff, which is not free either.
+
+**Nothing here is adopted.** See Open question 6.
 
 ### Constraint — encode transitions as precondition-sets, not event-agent pairs
 
@@ -215,6 +239,12 @@ Cited so the trade-offs are not relitigated. Tags are the research note's.
   model from stopping and returns the next slash command, driven off a state
   file. Per-phase rules are never resident; compaction is a non-issue by
   construction. Its `SessionStart` hook emits one line of *state*, not rules.
+- **reported, not verifiable here** — RPI Team (internal to CGM) uses a **state
+  file per run, committed so it is resumable**; its dispatcher is **cold**, its
+  agents only read and write disk, and it **infers everything from artifacts**.
+  The maintainer supplied this as evidence and explicitly did not propose
+  adopting it. It cannot be consulted from here and must not be cited as
+  verified.
 - **inferred** — trellis's hook declares only `startup|resume`, so its injected
   rules are plausibly lost at compaction and never restored. One-line fix if it
   holds; unmeasured.
