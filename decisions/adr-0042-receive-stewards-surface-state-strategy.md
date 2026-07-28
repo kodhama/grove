@@ -3,11 +3,25 @@ id: adr-0042-receive-stewards-surface-state-strategy
 type: adr
 status: approved
 depends_on: [adr-0040-receive-stewards-adoption-posture-strategy, stewards/kodhama-0023-separate-operational-availability-from-support]
+superseded_in_part_by: [stewards/kodhama-0025-retire-the-surface-matrix]
 owner: agent
-updated: 2026-07-26
+updated: 2026-07-28
 ---
 
 # ADR-0042: receive the Stewards surface-state strategy
+
+> **Superseded in part by
+> [`stewards/kodhama-0025`](https://github.com/kodhama/stewards/blob/main/decisions/0025-retire-the-surface-matrix.md)
+> (2026-07-28).** It supersedes `kodhama-0023` in full, so this receipt's
+> *"Decision 0023 remains the sole authority for the shared strategy"* no
+> longer holds — there is no family surface contract for it to be the
+> authority of. **Grove's own use of the grammar is untouched**, and that is
+> `kodhama-0025`'s explicit intent: Grove has the family's only runtime
+> consumer of these fields, a lifecycle gate deciding whether to write into a
+> consumer repository, which 0025 names as *"a product mechanism answering a
+> product question, not a family contract."* What changes is authority, not
+> behaviour — `adr-0041` now stands on Grove's own feet rather than on an
+> upstream mandate, and no other repository is obliged to match Grove's shape.
 
 ## Decision state
 

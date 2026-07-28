@@ -1288,7 +1288,7 @@ test('adr-0041 matrix invariants each reject their own violation', async (t) => 
   fires({ availability_state: 'BOGUS' }, 'availability_state must be', 'closed availability set');
   fires({ support_claim: 'BOGUS' }, 'support_claim must be', 'closed support set');
   fires({ availability_state: 'unavailable', support_claim: 'claimed' },
-        'cannot claim support while unavailable', 'kodhama-0023 combination invariant');
+        'cannot claim support while unavailable', 'adr-0041 clause 5 combination invariant');
   fires({ load_path: '' }, 'require a load_path', 'AC5 load path');
   fires({ bridge_state: 'unknown' }, 'host-valid load mechanism', 'AC5 load mechanism');
   fires({ support_claim: 'claimed', support_record: '' },

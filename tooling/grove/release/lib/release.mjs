@@ -87,8 +87,12 @@ export function validateSurfaceMatrix(matrix, { release = false } = {}) {
     if (!SUPPORT_CLAIMS.has(item?.support_claim)) {
       errors.push(`${String(id)} support_claim must be claimed or none`);
     }
-    // kodhama-0023: a product cannot honestly promise support while offering no
-    // operational path. adr-0041 clause 5 requires contradictory metadata to fail.
+    // adr-0041 clause 5: a product cannot honestly promise support while
+    // offering no operational path, so contradictory metadata must fail.
+    // Originally motivated by stewards/kodhama-0023, which stewards/kodhama-0025
+    // has since superseded in full — the invariant now stands on Grove's own
+    // decision, which is exactly what 0025 intends for the one repository that
+    // actually consumes these fields at runtime.
     if (item?.availability_state === 'unavailable' && item?.support_claim === 'claimed') {
       errors.push(`${String(id)} cannot claim support while unavailable`);
     }
