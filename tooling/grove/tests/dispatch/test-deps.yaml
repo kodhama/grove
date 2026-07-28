@@ -76,6 +76,14 @@ groups:
           - title:
               - "R4 — the same forgery through the non-regular tag fails too (never demonstrated, same mechanism)"
           - title:
+              - "R5 — a block that opens and is then malformed classifies unclaimed, never code"
+          - title:
+              - "R5 — a complete block still classifies by its type; malformed never outranks it"
+          - title:
+              - "R5 — a file that opens NO block is still genuinely code, not swept into unclaimed"
+          - title:
+              - "R5 — one delimiter grammar at both ends: what closes a block also opens one"
+          - title:
               - "a block-style implements list classifies implements-bearing; an empty key does not"
           - title:
               - "a digest-matched record never satisfies a different subject (sentinel collision)"

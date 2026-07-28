@@ -1018,3 +1018,96 @@ test('R4 — the minimal aborted shape validates all three fields it writes, not
     'a whitespace-only reason is a throw too',
   );
 });
+
+// --- R5: OPENING a frontmatter block is what makes a file bearing ---
+// Found by review against aca3f93. Every malformed-block shape fell through to
+// `code`, contradicting this module's own header rule ("a frontmatter-bearing
+// file whose type is absent or outside the known enum classifies unclaimed …
+// deterministic classification beats charitable coverage"). The cost is not
+// only that `code` owes 2 records where `unclaimed` owes 4: `code` is not in
+// the guard's observer-mode class set at all, so a truncated artifact was
+// never even looked at in observer mode. The table below is the mechanism —
+// every way a block can be opened and then be wrong — not the one shape the
+// reviewer demonstrated.
+
+const R5_BODY = 'id: fixture\ntype: spec\nimplements: adr-0001-x\nstatus: gated';
+
+test('R5 — a block that opens and is then malformed classifies unclaimed, never code', () => {
+  const malformed = {
+    'no closing delimiter': `---\n${R5_BODY}\n\nbody\n`,
+    'no closing delimiter, CRLF': `---\r\n${R5_BODY.split('\n').join('\r\n')}\r\n\r\nbody\r\n`,
+    'closing delimiter is ----': `---\n${R5_BODY}\n----\n\nbody\n`,
+    'closing delimiter is --': `---\n${R5_BODY}\n--\n\nbody\n`,
+    'closing delimiter carries trailing text': `---\n${R5_BODY}\n--- x\n\nbody\n`,
+    'exactly --- and nothing else': '---',
+    '--- then EOF': '---\n',
+    '--- then EOF, CRLF': '---\r\n',
+    '--- then whitespace only': '---\n   \n\t\n',
+    'byte-order mark before a COMPLETE block': `﻿---\n${R5_BODY}\n---\n\nbody\n`,
+    'byte-order mark before an unterminated block': `﻿---\n${R5_BODY}\n`,
+  };
+  for (const [name, text] of Object.entries(malformed)) {
+    const classified = classifyContent(text);
+    assert.deepEqual(
+      classified.classes, ['unclaimed'],
+      `${name}: a malformed block owes the FULL set — got ${JSON.stringify(classified.classes)}`,
+    );
+    assert.equal(classified.implementsBearing, false, `${name}: a broken block bears nothing`);
+  }
+});
+
+test('R5 — a file that opens NO block is still genuinely code, not swept into unclaimed', () => {
+  // The other direction of the same rule: fail-closed must not become
+  // classify-everything-unclaimed, which would owe reviews on ordinary source.
+  const notBearing = {
+    'no delimiter anywhere': 'just prose\n',
+    'empty file': '',
+    'delimiter after a blank first line': `\n---\n${R5_BODY}\n---\n`,
+    'delimiter after text': `intro\n---\n${R5_BODY}\n---\n`,
+    'a horizontal rule mid-document': 'intro\n\n---\n\nmore\n',
+    'opening ---- is not the delimiter': `----\n${R5_BODY}\n---\n`,
+    'byte-order mark on an ordinary source file': '﻿just prose\n',
+  };
+  for (const [name, text] of Object.entries(notBearing)) {
+    assert.deepEqual(
+      classifyContent(text).classes, ['code'],
+      `${name}: no block was opened, so this is genuinely code`,
+    );
+  }
+});
+
+test('R5 — one delimiter grammar at both ends: what closes a block also opens one', () => {
+  // The two ends disagreed: the open was a byte-exact `---\n` prefix while the
+  // close was line.trim() === '---', so `--- ` closed a block it could not
+  // open. Both now derive from one predicate, so the pair below must agree.
+  const opensAndCloses = `--- \n${R5_BODY}\n--- \n\nbody\n`;
+  assert.deepEqual(
+    classifyContent(opensAndCloses).classes, ['spec', 'implements-bearing'],
+    'a trailing-space delimiter is the same delimiter at both ends',
+  );
+  // And the same spelling that fails to close also fails to open.
+  assert.deepEqual(
+    classifyContent(`----\n${R5_BODY}\n---\n`).classes, ['code'],
+    '---- opens no block',
+  );
+  assert.deepEqual(
+    classifyContent(`---\n${R5_BODY}\n----\n`).classes, ['unclaimed'],
+    '---- closes no block, so the opened one is unterminated',
+  );
+});
+
+test('R5 — a complete block still classifies by its type; malformed never outranks it', () => {
+  // Guard against over-correcting: the fix must not make every artifact
+  // unclaimed. The happy paths and the already-correct fail-closed rows stand.
+  assert.deepEqual(classifyContent(`---\n${R5_BODY}\n---\n`).classes, ['spec', 'implements-bearing']);
+  assert.deepEqual(classifyContent('---\nid: x\ntype: adr\n---\n').classes, ['decision']);
+  assert.deepEqual(classifyContent('---\n---\n').classes, ['unclaimed'], 'an empty block is bearing');
+  assert.deepEqual(classifyContent('---\nid: x\n---\n').classes, ['unclaimed'], 'no type key');
+  assert.deepEqual(classifyContent('---\ntype: banana\n---\n').classes, ['unclaimed'], 'type off-enum');
+  // A comment or a blank line inside a complete block is legitimate YAML and
+  // must not make the block malformed.
+  assert.deepEqual(
+    classifyContent('---\n# a comment\n\nid: x\ntype: charter\n---\n').classes, ['charter'],
+    'unparseable-but-legal lines inside a CLOSED block are skipped, not fatal',
+  );
+});

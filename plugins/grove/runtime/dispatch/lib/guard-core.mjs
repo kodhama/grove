@@ -40,21 +40,35 @@ export function sha256(value) {
 // a `---` YAML frontmatter block. A frontmatter-bearing file whose `type` is
 // absent or outside the known enum classifies `unclaimed` and owes the full
 // set — deterministic classification beats charitable coverage.
+//
+// The reading that matters, and the one this code got wrong: OPENING a block
+// is what makes a file frontmatter-bearing. Whether it CLOSES the block is
+// exactly the malformed-input case the fail-closed rule exists for. Every
+// malformed-block shape used to fall through to `code`, which owes 2 records
+// instead of `unclaimed`'s 4 AND is not in the guard's observer-mode class
+// set at all — so in observer mode a truncated artifact was not merely
+// under-reviewed, it was never looked at. readFrontmatter therefore reports
+// THREE outcomes, not two: no block (genuinely code), a malformed block
+// (unclaimed), and a complete block (classified by its `type`).
 export function classifyContent(content) {
   if (content == null) return { classes: ['missing'], base: 'missing', implementsBearing: false };
   const text = String(content);
   const frontmatter = readFrontmatter(text);
-  if (frontmatter == null) {
+  if (frontmatter.kind === 'none') {
     return { classes: ['code'], base: 'code', implementsBearing: false };
   }
-  const type = frontmatter.get('type');
+  if (frontmatter.kind === 'malformed') {
+    // A block was opened and something is wrong with it. Never `code`.
+    return { classes: ['unclaimed'], base: 'unclaimed', implementsBearing: false };
+  }
+  const type = frontmatter.fields.get('type');
   let base;
   if (type === 'adr') base = 'decision';
   else if (type === 'spec') base = 'spec';
   else if (type === 'charter') base = 'charter';
   else if (type === 'research' || type === 'feedback') base = 'reviewless';
   else base = 'unclaimed';
-  const implementsValue = frontmatter.get('implements');
+  const implementsValue = frontmatter.fields.get('implements');
   const implementsBearing = Array.isArray(implementsValue)
     ? implementsValue.some((item) => String(item).trim() !== '')
     : typeof implementsValue === 'string'
@@ -64,13 +78,40 @@ export function classifyContent(content) {
   return { classes, base, implementsBearing };
 }
 
+// ONE delimiter grammar, used at BOTH ends: a line whose trimmed form is
+// exactly `---`. The two ends disagreed before — the open was the byte-exact
+// prefix `---\n`/`---\r\n` while the close was `line.trim() === '---'` — so
+// `--- ` closed a block it could not open, and `---` at EOF with no newline
+// opened nothing at all. Deriving both from one predicate removes the
+// asymmetry by construction instead of patching whichever end a reviewer
+// happened to look at. `----` is not this delimiter in EITHER position: it
+// opens no block (genuinely code) and closes none (the open block stays
+// unterminated, hence unclaimed) — the same strict read, both ends.
+const FRONTMATTER_DELIMITER = /^\s*---\s*$/;
+
+// Three outcomes, never two:
+//   { kind: 'none' }              no block was opened — genuinely code
+//   { kind: 'malformed', reason } a block was opened and is broken — unclaimed
+//   { kind: 'block', fields }     a block was opened AND closed
 function readFrontmatter(text) {
-  if (!text.startsWith('---\n') && !text.startsWith('---\r\n')) return null;
-  const lines = text.split(/\r?\n/);
+  // A BOM matters only when a block is actually present: a byte-order mark on
+  // an ordinary source file is not frontmatter and must stay `code`. When a
+  // block IS present the mark means the block does not begin at byte 0, which
+  // is the same malformed class — and toml.mjs already rules a BOM invalid
+  // rather than silently strippable ("keys start at byte 0"). Stripping it and
+  // reading the real `type` was the other candidate; it was rejected because
+  // it invents a repair the rest of the runtime refuses to make.
+  const hasByteOrderMark = text.charCodeAt(0) === 0xfeff;
+  const body = hasByteOrderMark ? text.slice(1) : text;
+  const lines = body.split(/\r?\n/);
+  if (!FRONTMATTER_DELIMITER.test(lines[0])) return { kind: 'none' };
+  if (hasByteOrderMark) {
+    return { kind: 'malformed', reason: 'a byte-order mark precedes the opening delimiter' };
+  }
   const fields = new Map();
   for (let index = 1; index < lines.length; index += 1) {
     const line = lines[index];
-    if (line.trim() === '---') return fields;
+    if (FRONTMATTER_DELIMITER.test(line)) return { kind: 'block', fields };
     const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
     if (!match) continue;
     let value = match[2].trim();
@@ -94,7 +135,11 @@ function readFrontmatter(text) {
     }
     if (!fields.has(match[1])) fields.set(match[1], value);
   }
-  return null; // unterminated frontmatter is not frontmatter
+  // Unterminated. The previous revision returned "not frontmatter" here and
+  // the caller mapped that to `code` — the charitable read the header comment
+  // forbids. A file that opened a block IS frontmatter-bearing; a block with
+  // no closing delimiter is malformed, and malformed owes the full set.
+  return { kind: 'malformed', reason: 'the frontmatter block has no closing delimiter' };
 }
 
 // --- derived change set (one definition, both modes) ---
