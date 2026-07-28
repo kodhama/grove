@@ -368,3 +368,31 @@ test('hook clean path is silent exit 0', async () => {
   assert.equal(result.stdout.trim(), '');
   assert.equal(result.stderr.trim(), '');
 });
+
+// --- BLOCK-2 regression: non-ASCII subjects reach both guard modes ---
+
+test('observer reports a changed non-ASCII governed artifact by its real path', async () => {
+  const dir = await repoFixture();
+  await mkdir(join(dir, 'specs'), { recursive: true });
+  await writeFile(join(dir, 'specs', 'café-spec.md'), SPEC_BODY);
+  const result = await runGuard(dir, { hook: true, stdin: '{"stop_hook_active": false}' });
+  assert.equal(result.status, 1, `${result.stdout}${result.stderr}`);
+  assert.match(result.stderr, /specs\/café-spec\.md/);
+  assert.doesNotMatch(result.stderr, /\\303|\\251/, 'no octal-escaped mangling');
+});
+
+test('supervisor holds on a changed non-ASCII subject instead of passing over it', async () => {
+  const dir = await repoFixture();
+  await mkdir(join(dir, 'specs'), { recursive: true });
+  await writeFile(join(dir, 'specs', 'café-spec.md'), SPEC_BODY);
+  await writeCursor(dir, '20260728-140000-cafe',
+    openCursor('20260728-140000-cafe', ['specs/café-spec.md']));
+  const direct = await runGuard(dir);
+  assert.equal(direct.status, 3, `an unreviewed non-ASCII change must not exit 0: ${direct.stdout}${direct.stderr}`);
+  assert.match(direct.stdout, /specs\/café-spec\.md/);
+  const hook = await runGuard(dir, { hook: true, stdin: '{"stop_hook_active": false}' });
+  assert.equal(hook.status, 0);
+  const decision = JSON.parse(hook.stdout.trim());
+  assert.equal(decision.decision, 'block');
+  assert.match(decision.reason, /specs\/café-spec\.md/);
+});

@@ -84,19 +84,31 @@ export async function deriveChangeSet({ repoRoot }) {
   const base = await resolveBase(repoRoot);
   const paths = new Set();
   const mergeBase = (await git(repoRoot, ['merge-base', 'HEAD', base])).trim();
-  for (const line of (await git(repoRoot, [
-    'diff', '--name-only', '--no-renames', mergeBase, 'HEAD',
-  ])).split('\n')) {
-    if (line.trim() !== '') paths.add(line.trim());
+  // NUL-separated output on both reads: git's default core.quotePath
+  // C-style-escapes non-ASCII paths ("caf\303\251"), and parsing that quoted
+  // form silently dropped the real path — an unreviewed change both modes
+  // then passed over. With -z every path arrives verbatim, unquoted.
+  for (const token of (await git(repoRoot, [
+    'diff', '--name-only', '--no-renames', '-z', mergeBase, 'HEAD',
+  ])).split('\0')) {
+    if (token !== '') paths.add(token);
   }
-  for (const line of (await git(repoRoot, [
-    'status', '--porcelain', '--untracked-files=all',
-  ])).split('\n')) {
-    if (line.trim() === '') continue;
-    const entry = line.slice(3);
-    for (const half of entry.split(' -> ')) {
-      const path = half.trim().replace(/^"|"$/g, '');
-      if (path !== '') paths.add(path);
+  // status --porcelain -z: entries are "XY <path>" NUL-terminated; a rename
+  // or copy entry is followed by one extra NUL-terminated token carrying the
+  // original path — both halves are changes.
+  const statusTokens = (await git(repoRoot, [
+    'status', '--porcelain', '--untracked-files=all', '-z',
+  ])).split('\0');
+  for (let index = 0; index < statusTokens.length; index += 1) {
+    const token = statusTokens[index];
+    if (token === '') continue;
+    const status = token.slice(0, 2);
+    const path = token.slice(3);
+    if (path !== '') paths.add(path);
+    if (status[0] === 'R' || status[0] === 'C') {
+      index += 1;
+      const original = statusTokens[index];
+      if (original) paths.add(original);
     }
   }
   return paths;

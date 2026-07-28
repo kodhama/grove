@@ -434,3 +434,35 @@ function serializeRecordToml(value) {
       `${key} = ${typeof item === 'number' ? item : JSON.stringify(item)}`)
     .join('\n') + '\n';
 }
+
+// --- BLOCK-2 regression: non-ASCII paths must enter the change set intact.
+// git's default core.quotePath C-style-escapes them ("caf\303\251"); parsing
+// that quoted form dropped the real path, and both guard modes then silently
+// passed over an unreviewed change — the exact fail-open class this spec
+// exists to prevent.
+
+test('a non-ASCII subject path enters the derived change set intact', async () => {
+  const dir = await gitFixture();
+  await writeFile(join(dir, 'base.md'), 'base\n');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'base');
+  git(dir, 'checkout', '-q', '-b', 'work');
+  await mkdir(join(dir, 'specs'), { recursive: true });
+  // Untracked (uncommitted) non-ASCII path…
+  await writeFile(join(dir, 'specs', 'café-spec.md'), 'uncommitted\n');
+  const uncommitted = await deriveChangeSet({ repoRoot: dir });
+  assert.ok(
+    uncommitted.has('specs/café-spec.md'),
+    `expected specs/café-spec.md in ${JSON.stringify([...uncommitted])}`,
+  );
+  // …and a committed one.
+  await writeFile(join(dir, 'specs', 'präzision.md'), 'committed\n');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'non-ascii');
+  const committed = await deriveChangeSet({ repoRoot: dir });
+  assert.ok(
+    committed.has('specs/präzision.md'),
+    `expected specs/präzision.md in ${JSON.stringify([...committed])}`,
+  );
+  assert.ok(committed.has('specs/café-spec.md'));
+});
