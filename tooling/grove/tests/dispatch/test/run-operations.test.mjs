@@ -437,3 +437,71 @@ test('a well-formed non-canonical cursor aborts cleanly through the field edit, 
     });
   }
 });
+
+
+// --- MEDIUM e/g: subject-path validation and the empty subjects list ---
+
+test('open-run rejects traversal, absolute, and backslash subject paths, naming the offender', async () => {
+  const dir = await repoFixture();
+  for (const bad of ['../outside.md', '/etc/passwd', 'specs\\win.md']) {
+    const plan = await planOpenRun(openRequest(dir, { subjects: [bad] }));
+    assert.equal(plan.ok, false, bad);
+    assert.deepEqual(plan.actions, []);
+    assert.ok(
+      plan.summary.includes(bad) || plan.summary.includes(JSON.stringify(bad)),
+      `${bad}: summary names the offending subject — got: ${plan.summary}`,
+    );
+  }
+  const nested = await planOpenRun(openRequest(dir, { subjects: ['specs/a/../../x.md'] }));
+  assert.equal(nested.ok, false, 'embedded .. segment rejected');
+
+  // The open-run site itself validates (not merely the round-trip belt):
+  // with no .grove/ floor at all, a bad subject is still what the plan
+  // names — subject validation precedes the floor check.
+  const bare = await mkdtemp(join(tmpdir(), 'grove-run-nofloor2-'));
+  scratch.push(bare);
+  git(bare, 'init', '-q', '-b', 'main');
+  const early = await planOpenRun(openRequest(bare, { subjects: ['../outside.md'] }));
+  assert.equal(early.ok, false);
+  assert.ok(
+    early.summary.includes('../outside.md') || early.summary.includes(JSON.stringify('../outside.md')),
+    `subject validation fires at the open-run site, before the floor check — got: ${early.summary}`,
+  );
+});
+
+test('a cursor whose subject path traverses or is absolute is schema-invalid', () => {
+  const base = (subject) =>
+    'schema = 1\nrun = "20260728-140322-r"\nopened = "2026-07-28T14:03:22Z"\n'
+      + `intent = "x"\nsubjects = [${JSON.stringify(subject)}]\nstatus = "open"\n`;
+  for (const bad of ['../outside.md', '/etc/passwd']) {
+    const parsed = parseCursor(base(bad), { runId: '20260728-140322-r' });
+    assert.equal(parsed.ok, false, bad);
+    assert.ok(parsed.reason.includes(bad), `${bad}: reason names it — got: ${parsed.reason}`);
+  }
+});
+
+test('open-run rejects an empty subjects list', async () => {
+  const dir = await repoFixture();
+  const plan = await planOpenRun(openRequest(dir, { subjects: [] }));
+  assert.equal(plan.ok, false);
+  assert.match(plan.summary, /subjects/i);
+});
+
+// --- MEDIUM a: the round-trip gate at open ---
+
+test('open-run rejects a planned cursor that does not round-trip, naming the offending field', async () => {
+  const dir = await repoFixture();
+  const carriage = await planOpenRun(openRequest(dir, {
+    intent: 'line one\rline two',
+  }));
+  assert.equal(carriage.ok, false);
+  assert.deepEqual(carriage.actions, []);
+  assert.match(carriage.summary, /intent/, `names the field: ${carriage.summary}`);
+
+  const control = await planOpenRun(openRequest(dir, {
+    subjects: ['specs/ctl\u0001name.md'],
+  }));
+  assert.equal(control.ok, false);
+  assert.deepEqual(control.actions, []);
+  assert.match(control.summary, /subject/i, `names the field: ${control.summary}`);
+});

@@ -14,6 +14,25 @@ const DECLARED_KEYS = Object.freeze([
   'claims',
 ]);
 
+// A cursor subject is a repo-relative file path: never absolute, never a
+// traversal, never backslashed. Enforced at cursor validation AND at
+// open-run planning, always naming the offending subject.
+export function validateSubjectPath(subject) {
+  if (typeof subject !== 'string' || subject === '') {
+    return `subject ${JSON.stringify(subject)} is not a non-empty repo-relative file path`;
+  }
+  if (subject.startsWith('/')) {
+    return `subject ${JSON.stringify(subject)} is absolute; subjects are repo-relative file paths`;
+  }
+  if (subject.includes('\\')) {
+    return `subject ${JSON.stringify(subject)} contains a backslash; subjects use forward slashes`;
+  }
+  if (subject.split('/').some((segment) => segment === '..')) {
+    return `subject ${JSON.stringify(subject)} contains a ".." segment; subjects never traverse`;
+  }
+  return null;
+}
+
 export function parseCursor(text, { runId } = {}) {
   let root;
   try {
@@ -44,11 +63,12 @@ export function parseCursor(text, { runId } = {}) {
         return { ok: false, reason: `open cursor requires ${key}` };
       }
     }
-    if (
-      !Array.isArray(root.subjects)
-      || root.subjects.some((item) => typeof item !== 'string' || item === '')
-    ) {
+    if (!Array.isArray(root.subjects)) {
       return { ok: false, reason: 'open cursor requires subjects as repo-relative file paths' };
+    }
+    for (const item of root.subjects) {
+      const invalid = validateSubjectPath(item);
+      if (invalid) return { ok: false, reason: invalid };
     }
     if (root.closed !== undefined || root.reason !== undefined) {
       return { ok: false, reason: 'closed/reason are present only when status != open' };
@@ -64,11 +84,14 @@ export function parseCursor(text, { runId } = {}) {
     } else if (root.reason !== undefined) {
       return { ok: false, reason: 'reason is present only when status = aborted' };
     }
-    if (root.subjects !== undefined && (
-      !Array.isArray(root.subjects)
-      || root.subjects.some((item) => typeof item !== 'string' || item === '')
-    )) {
-      return { ok: false, reason: 'subjects, when present, must be repo-relative file paths' };
+    if (root.subjects !== undefined) {
+      if (!Array.isArray(root.subjects)) {
+        return { ok: false, reason: 'subjects, when present, must be repo-relative file paths' };
+      }
+      for (const item of root.subjects) {
+        const invalid = validateSubjectPath(item);
+        if (invalid) return { ok: false, reason: invalid };
+      }
     }
   }
   return {

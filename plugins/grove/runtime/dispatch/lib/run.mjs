@@ -18,7 +18,9 @@ import {
   minimalAbortedCursor,
   parseCursor,
   serializeCursor,
+  validateSubjectPath,
 } from './cursor.mjs';
+import { parseToml } from './toml.mjs';
 
 const OPERATIONS = Object.freeze(['open-run', 'close-run', 'abort-run']);
 const GUARD = join(
@@ -62,11 +64,12 @@ export async function planOpenRun(input) {
   if (typeof intent !== 'string' || intent.trim() === '') {
     return fail(plan, 'open-run requires a one-line intent');
   }
-  if (
-    !Array.isArray(subjects)
-    || subjects.some((item) => typeof item !== 'string' || item === '')
-  ) {
-    return fail(plan, 'open-run requires subjects as repo-relative file paths');
+  if (!Array.isArray(subjects) || subjects.length === 0) {
+    return fail(plan, 'open-run requires a non-empty subjects list of repo-relative file paths');
+  }
+  for (const subject of subjects) {
+    const invalid = validateSubjectPath(subject);
+    if (invalid) return fail(plan, `open-run refused: ${invalid}`);
   }
 
   if (!(await pathExists(join(repoRoot, '.grove')))) {
@@ -82,22 +85,56 @@ export async function planOpenRun(input) {
     );
   }
 
+  const content = serializeCursor({
+    schema: 1,
+    run: runId,
+    opened,
+    intent,
+    subjects,
+    status: 'open',
+  });
+  // Round-trip gate: every serialized value must parse back to itself
+  // before anything is written — anything the parser's strict escape set
+  // cannot round-trip (a carriage return in the intent, a control
+  // character in a subject) is rejected pre-write, naming the field.
+  const fidelity = roundTripFailure({ runId, opened, intent, subjects });
+  if (fidelity) {
+    return fail(plan, `open-run refused: planned cursor does not round-trip — ${fidelity}`);
+  }
+  const reparse = parseCursor(content, { runId });
+  if (!reparse.ok) {
+    return fail(plan, `open-run refused: planned cursor does not round-trip (${reparse.reason})`);
+  }
   plan.actions.push(action({
     type: 'write',
     path: `.grove/runs/${runId}/cursor.toml`,
-    content: serializeCursor({
-      schema: 1,
-      run: runId,
-      opened,
-      intent,
-      subjects,
-      status: 'open',
-    }),
+    content,
     expected: { kind: 'file', content: null },
     confirmationRequired: true,
   }));
   plan.summary = `open-run plans the confirm-gated cursor create for ${runId}`;
   return plan;
+}
+
+function roundTripFailure({ runId, opened, intent, subjects }) {
+  const probes = [
+    ['run', runId],
+    ['opened', opened],
+    ['intent', intent],
+    ...subjects.map((subject, index) => [`subjects[${index}] (${JSON.stringify(subject)})`, subject]),
+  ];
+  for (const [field, value] of probes) {
+    let parsed;
+    try {
+      parsed = parseToml(`probe = ${JSON.stringify(String(value))}\n`);
+    } catch (error) {
+      return `field ${field}: ${error.message}`;
+    }
+    if (parsed.probe !== String(value)) {
+      return `field ${field}: value changes across serialize/parse`;
+    }
+  }
+  return null;
 }
 
 export async function planCloseRun(input) {
