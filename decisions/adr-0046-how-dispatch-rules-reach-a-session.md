@@ -59,6 +59,18 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
   "state derived from artifact existence" is a necessity of the architecture,
   not a hygiene rule.
 
+  **The formalism is the semantics, never the engine.** *(maintainer,
+  2026-07-28: "we don't need the engine to be modeled as a petri net or a
+  supervisory control automaton… it's useful to know that our rules degenerate
+  into one theoretically.")* The implementation is activation rules — plain
+  precondition-set → fire → postconditions, evaluated over artifacts, written
+  however suits us. The net/automaton is the *interpretation* of those rules,
+  kept for exactly one purpose: it licenses cheap offline questions a rule set
+  cannot ask of itself — does every run reach a terminal state, is any
+  transition dead, does the intent floor hold in every reachable marking. Those
+  are occasional checks **over** the rules, not a runtime **under** them. No
+  net engine, no FSA library, no marking object in the code.
+
   **The steal-test this identity imposes** *(maintainer: "make sure that
   whatever we steal does not contradict our vision… not port it blindly to a
   system that works under different conditions")*: an import is admissible only
