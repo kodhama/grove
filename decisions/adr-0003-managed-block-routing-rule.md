@@ -3,11 +3,44 @@ id: adr-0003-managed-block-routing-rule
 type: adr
 status: approved  # ratified by PR #17 merge (2026-07-09)
 depends_on: [kodhama/kodhama-0007-one-render-many-copiers]
+superseded_in_part_by: [adr-0026-thin-vendor-boundary]  # 2026-07-21 — D1/D6 only: the role locus. Decision 1's template names "the chartered agent roles in `.claude/agents/` (<ROLES_LIST>)"; the fleet is plugin-carried as `grove:<role>` and never vendored. The routing rule itself is untouched by adr-0026.
 owner: agent
-updated: 2026-07-10
+updated: 2026-07-28
 ---
 
 # ADR-0003: managed block is a conditional W1–W6 routing rule, not an identity claim; the block write is verified; upsert-script trigger armed
+
+> **Forward pointer — role locus (2026-07-21).**
+> [`adr-0026`](adr-0026-thin-vendor-boundary.md) D1/D6 moved the fleet into the
+> plugin: the roles Decision 1's template points at are now `grove:<role>`
+> plugin agents, *"never vendored into consumer repos again"*, not files in
+> `.claude/agents/`. Read the template's `<ROLES_LIST>` parenthetical against
+> that. Nothing else in Decision 1 changes.
+>
+> **Forward pointer — the shipped block diverged, and no decision authorized it
+> (2026-07-28).** This is recorded, not resolved. `specs/0004-dual-host-distribution.md`
+> §"Driving-session loaders" (`:308-334`) specifies a block that *"names an exact
+> generated loader for both `dispatcher` and `shaper`"*, and the shipped
+> `managedBlock()` emits exactly that — **with no W1–W6 routing rule and no quiet
+> default**. So Decision 1's operative text is not what consumers receive.
+>
+> Three things make this a conflict rather than a supersession, and a reader
+> should not mistake it for one:
+>
+> - **`spec-0004` is `gated`**, and a spec implements a decision — it cannot
+>   supersede one. The direction is inverted.
+> - **`spec-0004` never mentions this record.** `grep -rn "adr-0003"` over it
+>   returns nothing, so the replacement was never argued against what it
+>   replaced.
+> - **[`adr-0031`](adr-0031-multi-host-distribution.md) `:157-158`** — `spec-0004`'s
+>   own approved upstream — still requires *"the same semantic conditional-routing
+>   rule"* on `AGENTS.md`. The shipped block carries none, so the spec diverges
+>   from its upstream as well as from this record.
+>
+> **No decision supersedes Decision 1.** Until one does, this record stands and
+> the divergence is a defect in the `adr-0031`/`spec-0004` line. Tracked as
+> [grove#170](https://github.com/kodhama/grove/issues/170); the five consumers
+> still on the `0.1.0` block are the ones running the compliant text.
 
 ## Context
 

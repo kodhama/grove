@@ -307,6 +307,22 @@ wrong-digest entries fail the host.
 
 ### Driving-session loaders
 
+> **Unresolved upstream conflict — recorded 2026-07-28, no requirement changed
+> by this note.** This section replaced the block body mandated by
+> [`adr-0003`](../decisions/adr-0003-managed-block-routing-rule.md) Decision 1 —
+> a conditional W1–W6 routing rule *"not a hope pinned on agent descriptions"* —
+> without naming it. `adr-0003` is `approved` and no decision supersedes its
+> Decision 1, and a `gated` spec cannot supersede a decision in any case.
+> Separately, this spec's own approved upstream
+> [`adr-0031`](../decisions/adr-0031-multi-host-distribution.md) `:157-158` still
+> requires *"the same semantic conditional-routing rule"* on `AGENTS.md`, which
+> the loaders below do not carry.
+>
+> Measured consequence: the five consumers still on the `0.1.0` block carry the
+> routing rule; the one on `0.3.0` does not, and dispatch stopped happening there.
+> Tracked as [grove#170](https://github.com/kodhama/grove/issues/170) and owed a
+> decision — which this note does not attempt to be.
+
 The generated managed instruction block is the routing trigger and names an
 exact generated loader for both `dispatcher` and `shaper`; saying merely that
 the driving task “retains” those roles is insufficient.
