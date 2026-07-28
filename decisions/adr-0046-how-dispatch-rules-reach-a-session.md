@@ -556,13 +556,39 @@ Not adopted; recorded so the next turn starts from a sharper question.
 
 ### Parked
 
-- **Multi-repo fan-out of writers** *(maintainer, 2026-07-28)*. Cognition's
-  *"writes stay single-threaded"* is a blanket heuristic for what is actually a
-  **condition**: writers may fan out iff their write-sets are disjoint. In net
-  terms the token is exclusive write access to an artifact set; competition is
-  modellable when sets overlap and absent when they don't. Acting on grove and
-  wisp from a stewards mandate is the disjoint case by construction. Kept in
-  mind, not designed for — *"if we ever want to tackle multi repo."*
+- **Multi-repo fan-out of writers** *(maintainer, 2026-07-28, refined in three
+  notes)*. Cognition's *"writes stay single-threaded"* is a blanket heuristic for
+  what is actually a **condition**: writers may fan out iff their write-sets are
+  disjoint. Kept in mind, not designed for — *"if we ever want to tackle multi
+  repo."* The refinements:
+
+  1. **Disjointness is over the downstream *closure*, at repo granularity.**
+     Code and a spec in one repo are NOT disjoint even when the files differ —
+     the spec's consequences reach the same code. The closure is assessed
+     **crudely, per repo**, by the maintainer's explicit precision choice:
+     finer-grained analysis (*"do these exact specs influence that exact part of
+     the code base"*) costs more than it buys.
+  2. **Per-ask assessment, by the running agent.** Some safety falls out of
+     artifact typing for free: `research` and `feedback` are the reviewless
+     types *because* they inform and never decide, so their downstream closure
+     is **empty until a consuming task is triggered** — research fans out safely
+     beside epic work. The rest (*"merge this PR after that one"*) is a
+     dispatch-time judgment. Placing it in the **running agent** rather than an
+     encoding is consistent with the emergence constraint: per-ask parallelism
+     assessment is the opposite of an itinerary. The design's obligation is only
+     to *allow* the fan-out the agent judges safe.
+  3. **The upstream wrinkle, and its resolution.** Apparently-disjoint repo sets
+     under one mandate are only *conditionally* disjoint, because
+     `UPSTREAM-INDICTED` findings travel upstream — potentially all the way to
+     the shared trigger point. But W4 already forbids the dangerous form:
+     upstream is never *patched* concurrently, it is **surfaced as a record**.
+     So upstream consequences converge as records, and the maintainer's
+     mechanism — the apex waits for all downstream sets, then decides on the
+     **conjunction of records** — is a **join with the apex as consumer**. Same
+     construct as the merge gate, one level up; no new machinery; marking stays
+     artifact-derived. Honest cost, the same as every join: a mandate-level
+     fan-out is only as parallel as its slowest branch whenever the apex must
+     act.
 
   **One immediate payoff, recorded rather than parked:** the same disjointness
   argument dissolves the research note's join-collision hazard (two reviewers
