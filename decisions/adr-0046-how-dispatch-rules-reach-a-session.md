@@ -176,7 +176,7 @@ The previous turn moved **committed per-run state** and **a partially cold
 dispatcher** into `Decided`, attributed to the maintainer. **Neither was an intent
 act.** The maintainer reported how another system works and observed that the
 proposed state file shares some of its character. That is evidence informing an
-open question, not a resolution of one. Both are returned to `Open`; the RPI Team
+open question, not a resolution of one. Both are returned to `Open`; the
 observation is recorded below as evidence, where it belongs.
 
 Logged rather than silently rewritten because it is the second time in this
@@ -653,7 +653,8 @@ Cited so the trade-offs are not relitigated. Tags are the research note's.
   model from stopping and returns the next slash command, driven off a state
   file. Per-phase rules are never resident; compaction is a non-issue by
   construction. Its `SessionStart` hook emits one line of *state*, not rules.
-- **reported, not verifiable here** — RPI Team (internal to CGM) uses a **state
+- **reported, not verifiable here** — a private reference framework, supplied by
+  the maintainer from direct experience, uses a **state
   file per run, committed so it is resumable**; its dispatcher is **cold**, its
   agents only read and write disk, and it **infers everything from artifacts**.
   The maintainer supplied this as evidence and explicitly did not propose

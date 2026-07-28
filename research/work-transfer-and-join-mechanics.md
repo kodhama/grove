@@ -183,5 +183,5 @@ is stated as 8, 9 and 11 in three places; Continue.dev's status is from a review
 site, not a primary announcement; AgenticFlict's numbers could not be extracted
 from the PDF and are therefore not quoted.
 
-**Not searched again:** RPI-Team / CGM. Internal, and the maintainer is bringing
-the comparison themselves.
+**Not searched:** the maintainer's private reference framework — they are
+bringing the comparison themselves.

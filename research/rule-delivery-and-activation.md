@@ -240,5 +240,5 @@ above. Grove's hook never failed; grove never shipped one.
 - OpenHands microagents, Roo Code Boomerang, Aider chat modes, OpenAI Swarm,
   LangGraph persistence, CrewAI crews — see the survey table
 
-**Not found:** "RPI-Team" / "CGM". The maintainer has confirmed it is internal to
-CGM and will bring the brief back themselves. Recorded so nobody searches again.
+**Not found:** the maintainer's private reference framework. Confirmed internal;
+they will bring the brief back themselves. Recorded so nobody searches again.
