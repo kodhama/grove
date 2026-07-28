@@ -466,3 +466,43 @@ test('a non-ASCII subject path enters the derived change set intact', async () =
   );
   assert.ok(committed.has('specs/café-spec.md'));
 });
+
+// --- MEDIUM d: a repoRoot that is not the repository toplevel is an
+// internal error, never an empty change set that silently passes.
+
+test('a subdirectory repoRoot is an internal error, not an empty-and-passing change set', async () => {
+  const dir = await gitFixture();
+  await writeFile(join(dir, 'base.md'), 'base\n');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'base');
+  await mkdir(join(dir, 'specs'), { recursive: true });
+  await writeFile(join(dir, 'specs', 'inner.md'), 'inner\n');
+  await assert.rejects(
+    deriveChangeSet({ repoRoot: join(dir, 'specs') }),
+    (error) => error.guardInternal === true && /toplevel|repository root/i.test(error.message),
+  );
+  // The toplevel itself still derives normally.
+  const ok = await deriveChangeSet({ repoRoot: dir });
+  assert.ok(ok.has('specs/inner.md'));
+});
+
+// --- MEDIUM f: YAML block-style implements lists classify implements-bearing
+// (a block list read as an empty scalar was a fail-open in the exact
+// direction the spec exists to prevent).
+
+test('a block-style implements list classifies implements-bearing; an empty key does not', () => {
+  const blockList = classifyContent(
+    '---\nid: x\ntype: spec\nimplements:\n  - adr-0046-how-dispatch-rules-reach-a-session\nstatus: gated\n---\nbody\n',
+  );
+  assert.deepEqual([...blockList.classes].sort(), ['implements-bearing', 'spec']);
+
+  const multiItem = classifyContent(
+    '---\nid: x\ntype: spec\nimplements:\n  - adr-0001-a\n  - adr-0002-b\nstatus: gated\n---\nbody\n',
+  );
+  assert.ok(multiItem.classes.includes('implements-bearing'));
+
+  const emptyKey = classifyContent(
+    '---\nid: x\ntype: spec\nimplements:\nstatus: gated\n---\nbody\n',
+  );
+  assert.deepEqual(emptyKey.classes, ['spec'], 'a bare key with no items is not bearing');
+});

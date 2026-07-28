@@ -5,8 +5,8 @@
 // fs reads only.
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, readdir, realpath } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 import { parseToml } from './toml.mjs';
@@ -54,9 +54,11 @@ export function classifyContent(content) {
   else if (type === 'research' || type === 'feedback') base = 'reviewless';
   else base = 'unclaimed';
   const implementsValue = frontmatter.get('implements');
-  const implementsBearing = typeof implementsValue === 'string'
-    && implementsValue.trim() !== ''
-    && implementsValue.trim() !== '[]';
+  const implementsBearing = Array.isArray(implementsValue)
+    ? implementsValue.some((item) => String(item).trim() !== '')
+    : typeof implementsValue === 'string'
+      && implementsValue.trim() !== ''
+      && implementsValue.trim() !== '[]';
   const classes = implementsBearing ? [base, 'implements-bearing'] : [base];
   return { classes, base, implementsBearing };
 }
@@ -69,7 +71,24 @@ function readFrontmatter(text) {
     const line = lines[index];
     if (line.trim() === '---') return fields;
     const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (match && !fields.has(match[1])) fields.set(match[1], match[2].trim());
+    if (!match) continue;
+    let value = match[2].trim();
+    if (value === '') {
+      // YAML block-style list: continuation `- item` lines belong to this
+      // key. Reading them as an empty scalar made a block-style
+      // `implements:` list classify NOT-bearing — a fail-open in the exact
+      // direction the classification exists to prevent.
+      const items = [];
+      while (
+        index + 1 < lines.length
+        && /^\s+-\s+\S/.test(lines[index + 1])
+      ) {
+        index += 1;
+        items.push(lines[index].replace(/^\s+-\s+/, '').trim());
+      }
+      if (items.length > 0) value = items;
+    }
+    if (!fields.has(match[1])) fields.set(match[1], value);
   }
   return null; // unterminated frontmatter is not frontmatter
 }
@@ -81,6 +100,19 @@ function readFrontmatter(text) {
 // neither resolves this throws a guard-internal error (CLI exit 1) rather
 // than guessing.
 export async function deriveChangeSet({ repoRoot }) {
+  // The provided root must BE the repository toplevel: repo-relative subject
+  // paths and the derived change set are meaningless from a subdirectory,
+  // and git happily answers from one — an empty-looking change set that
+  // silently passes. Fail loud instead (guard-internal, CLI exit 1).
+  const toplevel = (await git(repoRoot, ['rev-parse', '--show-toplevel'])).trim();
+  const provided = await realpath(resolve(repoRoot)).catch(() => resolve(repoRoot));
+  const physicalToplevel = await realpath(toplevel).catch(() => toplevel);
+  if (provided !== physicalToplevel) {
+    throw guardInternal(
+      `repoRoot ${provided} is not the repository toplevel (${physicalToplevel}); `
+        + 'run the guard from the repository root',
+    );
+  }
   const base = await resolveBase(repoRoot);
   const paths = new Set();
   const mergeBase = (await git(repoRoot, ['merge-base', 'HEAD', base])).trim();
