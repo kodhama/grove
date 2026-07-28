@@ -84,7 +84,14 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
    restates, so no spawned role catches them for us.
 4. ~~Codex parity?~~ **Answered** — see Decided (option C).
 5. ~~What happens to the existing managed block?~~ **Answered** — see Decided.
-6. **How cold does the dispatcher go — and what is lost by going there?**
+6. **Does the Stop guard have a cursor-less layer?** Maintainer **leans
+   option 3** — two layers, the cursor-less one warns rather than blocks — and
+   asked for a fuller explanation before deciding. **Lean recorded, not the act.**
+   In one line: option 1 cannot see the failure that started this thread; option 2
+   sees it and refuses to let go, conscripting people who never opted in; option 3
+   sees it and tells you, so the strong guarantee lives inside a run and a loud
+   notice lives outside one.
+7. **How cold does the dispatcher go — and what is lost by going there?**
    **Requires adversarial review of the pros and cons before adoption**
    *(maintainer, 2026-07-28)*. The pro side is drafted in the analysis section;
    the con side is not, and the maintainer's stated instinct is that something is
@@ -260,6 +267,45 @@ rather than a rewrite**.
 Explicitly parked, not adopted: coloured tokens, inhibitor arcs, capacities, and
 any reachability analysis. Named so a later reader knows they were considered and
 deferred, not missed.
+
+### Under evaluation — the two-skill entry model (maintainer's proposal)
+
+*Proposed by the maintainer 2026-07-28 and explicitly submitted for adversarial
+evaluation, not for adoption: "I'm not saying this is a hypothesis. I need it
+evaluated."*
+
+- **`/grove:enter`** — sets the rules and nothing else. Writes nothing. *"Enter
+  the grove"*, where grove carries its double meaning: the stand of trees and the
+  company of druids. After entering, **the model is free to choose** whether to
+  use the agents.
+- **`/grove:start`** — **implicitly enters**, then opens a run on whichever agent
+  fits. The deterministic path.
+
+Neither requires the other in sequence: you can *be in the grove*, or *start
+working with the grove of druids*.
+
+**Why this is better than the single-skill model this draft proposed**, stated
+because the draft was wrong and the reason is mechanical rather than aesthetic:
+
+1. **The maintainer's own objection is decisive.** A single `enter`-style skill
+   leaves engagement dependent on the model noticing — *"it's just not
+   deterministic in that it will, for sure, use it."* `start` supplies the
+   deterministic path the single-skill model has no way to express.
+2. **`disable-model-invocation` is set per skill, not per argument** (skills
+   reference: *"Set to `true` to prevent Claude from automatically loading this
+   skill"*). One skill with a flag or an argument cannot hold two invocation
+   policies. Two skills let `enter` stay model-invocable — the conversational
+   discovery the maintainer wants — while `start`, which has side effects, can be
+   user-only. **The seam is the only place that policy can attach.**
+3. **The sequence ambiguity is pre-solved.** `start` implicitly enters, so
+   *"must I enter first?"* never arises. This is the failure still open in
+   BMAD#1618, avoided by construction rather than by documentation.
+
+**Open concerns for the adversary**, not resolved here: whether `start` and
+`enter` share one generated payload or duplicate it; whether three states
+(none / entered / running) is more ambiguity than two; whether `enter` is
+model-matchable enough given that the *description*, not the name, is what the
+model matches on.
 
 ### Parked
 
