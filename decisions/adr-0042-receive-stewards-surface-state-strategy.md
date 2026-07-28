@@ -3,11 +3,33 @@ id: adr-0042-receive-stewards-surface-state-strategy
 type: adr
 status: approved
 depends_on: [adr-0040-receive-stewards-adoption-posture-strategy, stewards/kodhama-0023-separate-operational-availability-from-support]
+superseded_in_part_by: [stewards/kodhama-0025-retire-the-surface-matrix]
 owner: agent
-updated: 2026-07-26
+updated: 2026-07-28
 ---
 
 # ADR-0042: receive the Stewards surface-state strategy
+
+> **Superseded in part by
+> [`stewards/kodhama-0025`](https://github.com/kodhama/stewards/blob/main/decisions/0025-retire-the-surface-matrix.md)
+> (2026-07-28).** It supersedes `kodhama-0023` in full, so this receipt's
+> *"Decision 0023 remains the sole authority for the shared strategy"* no
+> longer holds — there is no family surface contract for it to be the
+> authority of. **Grove's own use of the grammar is untouched**, and that is
+> `kodhama-0025`'s explicit intent: Grove has the family's only runtime
+> consumer of these fields, a lifecycle gate deciding whether to write into a
+> consumer repository, which 0025 names as *"a product mechanism answering a
+> product question, not a family contract."* `0025:123` states the permission
+> exactly — *"Grove may keep the names for its own runtime"* — and no other
+> repository is obliged to match Grove's shape.
+>
+> **Permission is not adoption, and the difference is a live gap.** `adr-0041`
+> twice defers the *combination invariants* to the retired upstream (`:31-34`,
+> `:167-170` — *"combination invariants come from Stewards decision 0023"*), so
+> the `unavailable + claimed` rule enforced in `release.mjs` now has no live
+> decision behind it. Adopting it as Grove-owned is grove#166. Nothing
+> executable changes meanwhile; what is missing is the authority, and naming it
+> is the point of this pointer.
 
 ## Decision state
 
