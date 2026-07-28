@@ -138,20 +138,30 @@ export async function planSetup(input) {
   // as a commented-out default, silently, on a write the user had approved.
   // `set-profile` has always seeded this way (adr-0021 AC5 guarantees it keeps
   // `runtime_dir`); setup's overwrite path did not, and had no test.
-  const gatesReference = await readRequired(join(packageRoot, 'reference/gates/gates.toml'));
-  const gatesBase = await readRepoOptional(context, '.grove/gates.toml') ?? gatesReference;
-  await planConsumerSeed(
-    context,
-    '.grove/gates.toml',
-    seedPreset(gatesBase, choices.preset),
-    new Set(choices.overwritePaths ?? []),
-  );
-  await planConsumerSeed(
-    context,
-    '.grove/config.toml',
-    serializedConfig,
-    new Set(choices.overwritePaths ?? []),
-  );
+  //
+  // Seeded only when a write is actually on the table. Seeding unconditionally
+  // made an empty or hand-broken consumer `gates.toml` throw out of planSetup
+  // even when the file was about to be skipped untouched — a hard crash where
+  // the previous behaviour returned a normal plan, and one that escapes
+  // `fail()` and so drops the adr-0041 clause 7 disclosure. Deleting
+  // `seeded_from` is enough to trigger it, and the shipped template invites
+  // exactly that: "provenance only — non-authoritative".
+  const overwritePaths = new Set(choices.overwritePaths ?? []);
+  const gatesExisting = await readRepoOptional(context, '.grove/gates.toml');
+  let gatesContent = null;
+  if (gatesExisting == null || overwritePaths.has('.grove/gates.toml')) {
+    const gatesBase = gatesExisting
+      ?? await readRequired(join(packageRoot, 'reference/gates/gates.toml'));
+    try {
+      gatesContent = seedPreset(gatesBase, choices.preset);
+    } catch (error) {
+      // spec-0004: on malformed repository state, report the carrier and write
+      // nothing. Reported, never thrown, so the plan still carries the summary.
+      return fail(plan, `cannot apply preset "${choices.preset}" to .grove/gates.toml: ${error.message}`);
+    }
+  }
+  await planConsumerSeed(context, '.grove/gates.toml', gatesContent, overwritePaths);
+  await planConsumerSeed(context, '.grove/config.toml', serializedConfig, overwritePaths);
   addWriteIfChanged(plan, adapter.instruction_file, blockResult.content);
   if (context.host === 'codex') await planLaunchers(context);
 
@@ -621,6 +631,7 @@ async function loadHostConfig(packageRoot) {
         begin_marker: '<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->',
         end_marker: '<!-- grove:end -->',
         setup_command: '/grove:setup',
+        set_profile_command: '/grove:set-profile',
         inventory: 'metadata/claude-inventory.json',
       },
       codex: {
@@ -628,6 +639,7 @@ async function loadHostConfig(packageRoot) {
         begin_marker: '<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->',
         end_marker: '<!-- grove:end -->',
         setup_command: 'grove setup',
+        set_profile_command: 'grove set-profile',
         launcher_root: '.codex/agents',
         inventory: 'metadata/codex-inventory.json',
       },
@@ -645,6 +657,12 @@ async function planManagedFloor(context) {
 
 async function planConsumerSeed(context, path, content, overwritePaths) {
   const existing = await readRepoOptional(context, path);
+  // `content` may be null when the caller deferred seeding because it expected
+  // this to skip. Reaching a write branch with null would put the string
+  // "null" on a consumer's disk, so say so instead of writing it.
+  if ((existing == null || overwritePaths.has(path)) && typeof content !== 'string') {
+    throw new Error(`internal: no seed content computed for ${path}`);
+  }
   if (existing == null) {
     addAction(context.plan, {
       type: 'write',
@@ -662,7 +680,15 @@ async function planConsumerSeed(context, path, content, overwritePaths) {
       path === '.grove/gates.toml'
         // Naming only the ownership rule left the user's actual request
         // unanswered: they asked for a preset and were told a file exists.
-        ? 'consumer-authoritative file already exists, so the chosen preset was NOT applied — run /grove:set-profile <preset> to change it, or re-run setup with this path in overwritePaths'
+        // The command comes from adapter metadata, not a literal: spec-0004
+        // requires the host-facing command to resolve that way, and a
+        // hardcoded `/grove:set-profile` told every Codex user to run a
+        // Claude-only invocation.
+        ? `consumer-authoritative file already exists, so the chosen preset was NOT applied — run ${context.adapter.set_profile_command} <preset> to change it, or re-run setup with this path in overwritePaths`
+        // Named exemption, not an oversight: `.grove/config.toml` is
+        // synthesized from tokens and has no template to reseed from, so an
+        // approved overwrite there is a whole-file replacement and there is no
+        // per-row request to report as dropped.
         : 'consumer-authoritative file already exists',
     );
   }

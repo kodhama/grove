@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { after } from 'node:test';
 
@@ -219,9 +219,21 @@ test('EVERY plan on a no-support row leads with the disclosure, across every rep
   // let each fix miss its siblings, so this asserts the invariant over the
   // cross product instead: every shipped row, every operation, every repo state
   // that changes which branch returns.
+  //
+  // Round five was a `.grove/gates.toml` the consumer had hand-edited: seeding
+  // it threw out of planSetup before any branch returned, so the plan never
+  // existed to carry a summary. The state and the overwrite arm below are that
+  // round — the sweep only bites if new branch-selecting inputs get added to it.
   const rows = await shippedRows();
   const states = {
     empty: async () => {},
+    'malformed gates.toml': async (dir) => {
+      await mkdir(join(dir, '.grove'), { recursive: true });
+      // Only `seeded_from` is missing. The shipped template calls that field
+      // "provenance only — non-authoritative", so deleting it is an edit the
+      // product invites, not a corruption a user would have to work at.
+      await writeFile(join(dir, '.grove', 'gates.toml'), '[gates]\nnot_a_gate = "x"\n');
+    },
     'duplicate markers': async (dir) => {
       await writeFile(join(dir, 'CLAUDE.md'),
         '<!-- grove:begin (managed by grove) -->\na\n<!-- grove:end -->\n' +
@@ -239,7 +251,7 @@ test('EVERY plan on a no-support row leads with the disclosure, across every rep
   for (const row of rows) {
     if (row.support_claim === 'claimed') continue;
     for (const [stateName, seed] of Object.entries(states)) {
-      for (const operation of ['setup', 'refresh', 'set-profile', 'remove']) {
+      for (const operation of ['setup', 'setup+gates-overwrite', 'refresh', 'set-profile', 'remove']) {
         const dir = await repo();
         await seed(dir);
         const common = {
@@ -250,6 +262,13 @@ test('EVERY plan on a no-support row leads with the disclosure, across every rep
         };
         const plan = operation === 'setup'
           ? await planSetup({ ...common, choices: { preset: 'steward', config: {} } })
+          : operation === 'setup+gates-overwrite'
+          // The arm that actually reseeds. Without it the sweep only ever
+          // exercises the skip path, where a broken gates.toml is never read.
+            ? await planSetup({
+              ...common,
+              choices: { preset: 'steward', config: {}, overwritePaths: ['.grove/gates.toml'] },
+            })
           : operation === 'refresh'
             ? await planRefresh(common)
             : operation === 'set-profile'

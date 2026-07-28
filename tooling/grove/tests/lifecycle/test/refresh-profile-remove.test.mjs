@@ -360,3 +360,34 @@ test('setup without an approved overwrite says the preset was not applied', asyn
   assert.match(skipped.reason, /preset was NOT applied/u, 'the reason must name the dropped request');
   assert.match(skipped.reason, /set-profile/u, 'the reason must point at the command that does apply it');
 });
+
+test('the skip reason names each host its own set-profile command', async () => {
+  // The first version of that reason hardcoded `/grove:set-profile`, which is
+  // the Claude invocation. Codex users were told to run a command that does not
+  // exist on their host — the Claude-only-literal failure spec-0004 forbids for
+  // set-profile, reproduced in setup's skip path where that clause does not
+  // literally reach.
+  const expected = { claude: '/grove:set-profile', codex: 'grove set-profile' };
+  for (const invocation of [claudeInvocation, codexInvocation]) {
+    const { packageRoot, repoRoot } = await fixture();
+    await setupBoth(packageRoot, repoRoot);
+    const plan = await planSetup({
+      packageRoot,
+      repoRoot,
+      ...invocation,
+      choices: { preset: 'guardian', config: {} },
+    });
+    const skipped = plan.skipped.find((s) => s.path === '.grove/gates.toml');
+    assert.ok(skipped, `${invocation.host}: setup must report the skip`);
+    assert.ok(
+      skipped.reason.includes(`run ${expected[invocation.host]} <preset>`),
+      `${invocation.host}: expected the host's own command, got: ${skipped.reason}`,
+    );
+    if (invocation.host === 'codex') {
+      assert.ok(
+        !skipped.reason.includes('/grove:set-profile'),
+        'codex was handed the Claude slash-command form',
+      );
+    }
+  }
+});
