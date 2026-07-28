@@ -556,6 +556,22 @@ Not adopted; recorded so the next turn starts from a sharper question.
 
 ### Parked
 
+- **Multi-repo fan-out of writers** *(maintainer, 2026-07-28)*. Cognition's
+  *"writes stay single-threaded"* is a blanket heuristic for what is actually a
+  **condition**: writers may fan out iff their write-sets are disjoint. In net
+  terms the token is exclusive write access to an artifact set; competition is
+  modellable when sets overlap and absent when they don't. Acting on grove and
+  wisp from a stewards mandate is the disjoint case by construction. Kept in
+  mind, not designed for — *"if we ever want to tackle multi repo."*
+
+  **One immediate payoff, recorded rather than parked:** the same disjointness
+  argument dissolves the research note's join-collision hazard (two reviewers
+  writing the join postcondition simultaneously). The reviewers already write
+  **disjoint artifacts** — each its own verdict record — and under the Decided
+  artifact-derived marking **nobody writes the join at all; the join is a derived
+  fact.** The cursor takes writes only at run open and close. No shared place, no
+  race. (Research note open question 2: answered.)
+
 - **Trellis's own delivery.** Separate product, separate decision. The
   `.claude/rules/` option raised for `.trellis/` is written up in the research
   note; it is Claude-only and consumer-side, and it is not this record's call.
