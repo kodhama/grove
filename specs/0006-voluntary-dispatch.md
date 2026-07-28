@@ -244,9 +244,11 @@ date = "2026-07-28T15:10:00Z"
   rules) the reviewed "current bytes" are zero bytes: the record carries the
   empty-input SHA-256,
   `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`, and
-  counts while the path stays absent. This equals a zero-byte file's digest;
-  the coincidence is accepted in v1 — any content landing at the path
-  changes the digest and re-owes review.
+  counts while the path stays absent. This equals a zero-byte file's digest —
+  and a zero-byte file landing at the path would NOT change the digest, which
+  is why the sentinel's freshness condition is *the path stays absent*, not
+  digest mismatch: any file landing at the path, including an empty one,
+  re-owes review.
 - The guard reads records; it grades nothing. A `FAIL` record is a completion
   — the review ran; routing the failure is the dispatcher's judgment, and the
   record is loud on the change request.
@@ -293,22 +295,30 @@ when all its preconditions hold under one binding.
 **Predicate semantics (one definition, both modes):**
 
 - **Derived change set** — uncommitted changes plus commits not on the
-  merge-base with the default branch. Both modes use this one derivation.
+  merge-base with the default branch, resolved as `origin/HEAD` when set and
+  the local `main` otherwise; if neither resolves, the guard exits `1`
+  (internal error) rather than guessing. Both modes use this one derivation.
 - **`changed(class, $s)`** — `$s` classifies into `class` per the table
   below **and** `$s` is in the derived change set. Listing a subject in the
   cursor therefore does **not** by itself owe reviews: an untouched subject
   enables no transition and never blocks close — the cursor names what the
   guard watches; the change set establishes the fact of change.
 - **`record(rtype, $s)`** — a schema-valid record with
-  `record_type = rtype` and a `subject_sha256` matching `$s`'s current
-  bytes exists under **any** run's records directory
-  (`.grove/runs/*/records/`). The per-run directory is a **write-home**
+  `record_type = rtype`, **`subject` equal to `$s`'s repo-relative path**,
+  and a `subject_sha256` matching `$s`'s current bytes exists under **any**
+  run's records directory (`.grove/runs/*/records/`). The subject binding is
+  load-bearing, not bookkeeping: without it, the absence sentinel gives every
+  `missing` subject the same digest, and one reviewed deletion would satisfy
+  the predicate for **every** deletion of that review type in every future
+  run — a silent fail-open in exactly the class this spec exists to prevent. The per-run directory is a **write-home**
   (writers write into the open run's), never a read-boundary: the token
   means "these exact bytes carry this verdict", so a still-current record
   from a prior run — closed or aborted included — satisfies the predicate
   in supervisor mode and silences the observer, and aborting then
-  restarting a run over unchanged bytes re-owes nothing. The digest
-  currency rule is the sole freshness authority.
+  restarting a run over unchanged bytes re-owes nothing. Freshness has two
+  conditions, both required: the subject binding above, and digest currency —
+  for `missing` subjects the sentinel counts only while that path stays
+  absent.
 - **`no-record(rtype, $s)`** — no record satisfies `record(rtype, $s)`; an
   absent record and a stale (digest-mismatched) record both leave it true.
 - A record whose `record_type` is outside the four rule-consumable types
@@ -411,7 +421,7 @@ close: `close-run` requires exit `0`.
 |---|---|
 | a cursor carrying the reserved `claims` key | Yes — over that cursor's `subjects`; the run's owed work still holds and the defect line rides beside it. |
 | more than one open cursor | Yes — over the **union** of the open cursors' subjects; the report names every open cursor; resolution is adopt/abort down to one. |
-| an unparseable or schema-invalid cursor | Not over that cursor — its `subjects` are unreadable; the report names the file and the parse/validation failure. Any other parseable open cursor is still evaluated. A cursor whose `status` cannot be read is treated as open for mode selection (fail closed). |
+| an unparseable or schema-invalid cursor | Not over that cursor — its `subjects` are unreadable; the report names the file and the parse/validation failure. Any other parseable open cursor is still evaluated. A cursor whose `status` cannot be read is treated as open for mode selection (fail closed). Its only exit is a confirmed `abort-run`, which **replaces the file whole** with a minimal well-formed aborted cursor (`run_id` from the filename, `status: aborted`, `reason`) — a status-field edit inside unparseable bytes is not defined. |
 | a record with a `record_type` outside the enumerated types, or otherwise unparseable | Yes — the record satisfies no predicate; the defect line names it. |
 
 Through the hook, defects use the same channels as owed work: in supervisor
@@ -647,20 +657,22 @@ this contract.
   guard moment, resolved only by adopt or confirmed abort, and never
   silently deleted.
 - **INV11** — Verdict records shall follow §Verdict-record contract, and a
-  record shall count for a subject only while its `subject_sha256` matches
-  the subject's current bytes — for an absent subject, the empty-input
-  SHA-256 sentinel while the path stays absent. Record lookup shall span
-  every run's records directory in both modes, with the digest rule as the
-  sole freshness authority.
+  record shall count **only for the subject named in its own `subject`
+  field**, and only while its `subject_sha256` matches that subject's current
+  bytes — for an absent subject, the empty-input SHA-256 sentinel while that
+  path stays absent. Record lookup shall span every run's records directory
+  in both modes.
 - **INV12** — The record file shall not substitute for the change-request
   verdict report (adr-0027 D2), which remains owed.
 - **INV13** — `transitions.toml` shall ship at
   `plugins/grove/reference/dispatch/transitions.toml`, admit exactly the
   keys `id`/`fire`/`preconditions`/`postconditions` per transition, use only
   the closed predicate grammar, and fail validation on any other key or
-  predicate form, on an empty `preconditions` set, or on a transition whose
+  predicate form, on an empty `preconditions` set, on a transition whose
   postconditions name `record(r, $s)` without `no-record(r, $s)` among its
-  preconditions.
+  preconditions, or on a transition whose postconditions name no record at
+  all (INV14's property, enumerated here so the check rejects rather than
+  trusts).
 - **INV14** — Every transition's postconditions shall name at least one
   record whose absence is entailed by its preconditions — a property
   INV13's validation checks mechanically, never trusts.
@@ -863,9 +875,12 @@ its criterion's label.
 7. **AC7 — records are current-bytes tokens** [mechanical; the
    change-request report duty behavioral] (INV11, INV12; S16): red if a
    record with a mismatched `subject_sha256` still satisfies a
-   precondition, if the absent-subject sentinel rule is dropped, if record
-   lookup stops spanning every run's records directory, or the
-   change-request verdict report is dropped as owed.
+   precondition, **if a digest-matched record satisfies a precondition for a
+   subject other than the one its `subject` field names** (the sentinel makes
+   this collision certain across deletions, not merely possible), if the
+   absent-subject sentinel rule is dropped, if record lookup stops spanning
+   every run's records directory, or the change-request verdict report is
+   dropped as owed.
 8. **AC8 — rules are data, not an itinerary** [mechanical] (INV13–INV15;
    S15): red if an undeclared key or predicate form validates, an empty
    precondition set validates, a transition that is not self-disabling
