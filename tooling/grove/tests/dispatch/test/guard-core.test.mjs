@@ -577,3 +577,28 @@ test('a worktree-side rename (mv + add -N) puts BOTH halves in the derived chang
     `the OLD half of a worktree rename is an unreviewed deletion and must not vanish: ${JSON.stringify([...changed])}`,
   );
 });
+
+// Case list DERIVED FROM YAML's block-sequence rules: for a top-level
+// (column-0) mapping key, sequence items are valid at column 0 AND at any
+// deeper indentation, and item indentation may vary entry to entry. The
+// previous lookahead required indentation, so a column-0 list — valid
+// YAML — classified not-bearing (fail-open).
+test('block-style implements lists classify bearing at every YAML-legal indentation', () => {
+  const cases = {
+    'column-0 items': '---\nid: x\ntype: spec\nimplements:\n- adr-0001-a\nstatus: gated\n---\nbody\n',
+    'indented items': '---\nid: x\ntype: spec\nimplements:\n  - adr-0001-a\nstatus: gated\n---\nbody\n',
+    'mixed indentation': '---\nid: x\ntype: spec\nimplements:\n- adr-0001-a\n    - adr-0002-b\nstatus: gated\n---\nbody\n',
+  };
+  for (const [name, body] of Object.entries(cases)) {
+    const classified = classifyContent(body);
+    assert.ok(
+      classified.classes.includes('implements-bearing'),
+      `${name}: ${JSON.stringify(classified.classes)}`,
+    );
+    assert.ok(classified.classes.includes('spec'), name);
+  }
+  // The frontmatter terminator is never consumed as an item: a bare key
+  // directly above --- stays non-bearing.
+  const terminator = classifyContent('---\nid: x\ntype: spec\nimplements:\n---\nbody\n');
+  assert.deepEqual(terminator.classes, ['spec']);
+});

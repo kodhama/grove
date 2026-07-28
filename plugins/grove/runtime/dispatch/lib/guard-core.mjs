@@ -75,16 +75,19 @@ function readFrontmatter(text) {
     let value = match[2].trim();
     if (value === '') {
       // YAML block-style list: continuation `- item` lines belong to this
-      // key. Reading them as an empty scalar made a block-style
-      // `implements:` list classify NOT-bearing — a fail-open in the exact
-      // direction the classification exists to prevent.
+      // key. Per YAML's block-sequence rules for a column-0 mapping key,
+      // items are valid at column 0 AND at any deeper indentation (mixed
+      // per entry), so the lookahead is `^\s*` — requiring indentation made
+      // a column-0 list classify NOT-bearing, a fail-open in the exact
+      // direction the classification exists to prevent. (`---` never
+      // matches: the dash must be followed by whitespace then an item.)
       const items = [];
       while (
         index + 1 < lines.length
-        && /^\s+-\s+\S/.test(lines[index + 1])
+        && /^\s*-\s+\S/.test(lines[index + 1])
       ) {
         index += 1;
-        items.push(lines[index].replace(/^\s+-\s+/, '').trim());
+        items.push(lines[index].replace(/^\s*-\s+/, '').trim());
       }
       if (items.length > 0) value = items;
     }
