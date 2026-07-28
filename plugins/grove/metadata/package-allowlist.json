@@ -304,6 +304,14 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/runtime/dispatch/lib/cursor.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/lib/guard-core.mjs",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/runtime/dispatch/lib/toml.mjs",
       "kind": "file"
     },

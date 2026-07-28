@@ -91,6 +91,8 @@ export const STATIC_PACKAGE_FILES = Object.freeze([
   "plugins/grove/reference/surfaces/codex-exec-non-ephemeral-0.3.0-2026-07-24.json",
   "plugins/grove/reference/surfaces/codex-exec-non-ephemeral-0.3.0-attempt-2026-07-23.json",
   "plugins/grove/reference/surfaces/codex-hook-vocabulary-2026-07-28.json",
+  "plugins/grove/runtime/dispatch/lib/cursor.mjs",
+  "plugins/grove/runtime/dispatch/lib/guard-core.mjs",
   "plugins/grove/runtime/dispatch/lib/toml.mjs",
   "plugins/grove/runtime/dispatch/lib/transitions.mjs",
   "plugins/grove/runtime/gates/bin/resolve-profile.mjs",
