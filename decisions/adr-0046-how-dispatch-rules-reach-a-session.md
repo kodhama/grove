@@ -556,11 +556,23 @@ Not adopted; recorded so the next turn starts from a sharper question.
 
 ### Parked
 
-- **Multi-repo fan-out of writers** *(maintainer, 2026-07-28, refined in three
-  notes)*. Cognition's *"writes stay single-threaded"* is a blanket heuristic for
-  what is actually a **condition**: writers may fan out iff their write-sets are
-  disjoint. Kept in mind, not designed for — *"if we ever want to tackle multi
-  repo."* The refinements:
+- **The multi-repo use case — parked; the disjointness theory it produced —
+  live.** *(maintainer, 2026-07-28, scoping the parking precisely)*: what is
+  parked is the **use case**, not the theory built while discussing it. The
+  theory — closure-based disjointness, per-ask assessment, type-derived safety —
+  is general, and multi-repo is merely its most distant instance. **Its nearest
+  instances are already in scope**: research fanning out beside epic work, and
+  the paired reviewers themselves, are single-repo parallelism the current
+  design should permit now.
+
+  **The discipline**: no construct may be justified by multi-repo alone. It may
+  be cited as evidence a construct *generalises* — never as the reason the
+  construct exists. The theory stands to this design as `informed_by`, not
+  `depends_on`.
+
+  Cognition's *"writes stay single-threaded"* is a blanket heuristic for what is
+  actually a **condition**: writers may fan out iff their write-sets are
+  disjoint. The refinements:
 
   1. **Disjointness is over the downstream *closure*, at repo granularity.**
      Code and a spec in one repo are NOT disjoint even when the files differ —
