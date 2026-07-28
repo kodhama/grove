@@ -37,6 +37,35 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
 
 ### Decided
 
+- **Identity: the system is a supervisor over a nondeterministic plant.**
+  *(maintainer, 2026-07-28)*: *"Non-determinism comes from the underlying agent
+  choosing to act in a number of different ways… what our supervisor does,
+  embodied by some guarding construct between dispatcher rules and whatnot, is
+  constrain that action space to a subset of possible transitions. What the
+  fixed frameworks do is constrain to a single possibility — the supervisor IS
+  the intended linear graph — and others don't constrain at all: mapped to a
+  supervisor, it would be strictly equal to the underlying state machine."*
+
+  This is the design's lens, and it unifies everything decided so far:
+  **guard-not-router** is *the supervisor disables, never generates*; the
+  **emergence constraint** is *maximal permissiveness within the
+  specification*; the rejected fixed ladder is the **singleton-language
+  supervisor**; rejected pure delegation is the **trivial supervisor** equal to
+  the plant. Two further consequences fall out of the lens for free: the guard
+  acts only on **controllable events** (dispatch, merge, stop) and cannot
+  constrain the model's internal choices — which is *why* it must check
+  artifacts rather than intentions; and the supervisor operates under **partial
+  observation**, where records are the observable events — which is *why*
+  "state derived from artifact existence" is a necessity of the architecture,
+  not a hygiene rule.
+
+  **The steal-test this identity imposes** *(maintainer: "make sure that
+  whatever we steal does not contradict our vision… not port it blindly to a
+  system that works under different conditions")*: an import is admissible only
+  if it serves a **supervisor** — observation, constraint, or audit. Machinery
+  that exists to serve a **conductor** — anything whose purpose is to *generate*
+  the sequence — is inadmissible regardless of how well it works at home.
+
 - **Always-on rules and an always-on swarm are no longer the target.**
   *(maintainer, 2026-07-28)* — *"I think I am getting a bit tired with the
   direction I've been driving us to… there's probably a reason why other
@@ -685,6 +714,18 @@ Cited so the trade-offs are not relitigated. Tags are the research note's.
   - **The divergence NOT to import**: the pipeline is a fixed, centrally
     scripted phase ladder — precisely the itinerary shape this canvas forbade.
     The state discipline transfers; the sequencing model does not.
+
+  **Each borrowable, run through the steal-test** (imports must serve a
+  supervisor — observation, constraint, audit — never sequence generation):
+  *compact returns* — **passes**, it is observation hygiene, keeping the
+  observable record small and machine-readable. *Committed audit-trail cursor* —
+  **passes**, it is the observation function itself. *Disjoint write
+  allowlists* — **passes**, and is natively supervisory: a mutual-exclusion
+  specification the guard can check deterministically. *The dedicated
+  bookkeeping role and total delegation invariant* — **fails as-is**: that
+  machinery exists to serve a blind scripted conductor, and grove's driver is
+  the session itself; adopt at most the narrow idea that cursor writes go
+  through one owner. *The phase schema* — **fails**, sequence generation.
 
   The framework also confirms the earlier reported claim: a **state
   file per run, committed so it is resumable**; its dispatcher is **cold**, its
