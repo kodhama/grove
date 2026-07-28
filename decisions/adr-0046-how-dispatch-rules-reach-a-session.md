@@ -99,6 +99,48 @@ something outside its scope: subagents do not self-awake. grove#102
 shaping for that. This decision's obligation is narrower and testable: **encode no
 itinerary anywhere a future fit-based dispatcher would have to unpick.**
 
+### Constraint — encode transitions as precondition-sets, not event-agent pairs
+
+*(maintainer, 2026-07-28: "those simple rules are essentially the DAG transitions
+with a trigger -> agent firing encoding or something like it… in the future, I
+think there's some ideas for this routing table that could be taken from petri
+nets.")*
+
+**The maintainer's own example is the argument.** `conformance gate ∥ code-review
+gate → HUMAN merge` (`dispatcher.md:306`) is a **join**: the merge gate becomes
+eligible when *both* verdicts exist. A `trigger → agent` table expresses fan-out
+but not join — "fire when both" has nowhere to live. A transition with two
+preconditions expresses it directly.
+
+**Grove's charter is already written in this vocabulary**, which is evidence the
+structure fits rather than is imposed: `∥` for the paired gate; *"serialize
+across every dependency edge on any ratification"*; *"batch only human gates
+within an **antichain**"* (`:236-253`) — poset language; repair cascades *"bound at
+generation 2"*.
+
+**The unification.** A marking *is* the completeness guard adopted above. *"You
+may not stop while any place holds a token"* and *"you may not stop while an owed
+review is unrun"* are the same statement at two resolutions. The guard and the
+net are one mechanism, not two.
+
+**What this record commits to, and what it does not.** It does **not** build a
+Petri-net engine — `inv-minimal-first`, and grove needs a table, not a runtime.
+It commits to one encoding choice that is nearly free now and expensive to
+retrofit:
+
+> Transitions are expressed as **precondition-set → fire → postconditions**,
+> never as `event → agent` pairs.
+
+That shape yields, without further machinery: **fan-out** (several transitions
+enabled by one marking — the parallel dispatch the maintainer wants), **join** (a
+transition with two preconditions), **the guard** (stopping is disabled while any
+transition is enabled), and **Petri-net semantics later as an interpretation
+rather than a rewrite**.
+
+Explicitly parked, not adopted: coloured tokens, inhibitor arcs, capacities, and
+any reachability analysis. Named so a later reader knows they were considered and
+deferred, not missed.
+
 ### Parked
 
 - **Trellis's own delivery.** Separate product, separate decision. The
