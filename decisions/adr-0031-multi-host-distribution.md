@@ -3,11 +3,18 @@ id: adr-0031-multi-host-distribution
 type: adr
 status: approved  # maintainer's intent act 2026-07-23 ("Approved ... go ahead, I'll check at the end"); self-checked by the shaper; conformance scoped re-review PASS after graph fixes; decision-adversary NEEDS-REVISION on draft readiness, revision folded, scoped re-review SOUND; the later ship gate remains human
 depends_on: [adr-0014-install-is-invisible-and-ungated, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0028-plugin-release-tagging, adr-0029-non-interactive-loading]
+superseded_in_part_by: [adr-0046-how-dispatch-rules-reach-a-session]  # 2026-07-28 — the routing-rule clause at :157-158 ONLY ("adds the same semantic conditional-routing rule to AGENTS.md"): adr-0046 clause 6 removes rules from the managed block on both hosts, so that clause's subject ceases to exist. The rest of the sentence (:157-160) — the .grove/ floor composition and the minimal role bridge — and every other requirement of this decision stand untouched. Host equivalence survives as file parity: both hosts read the same rules from the same plugin-carried files.
 owner: agent
-updated: 2026-07-23
+updated: 2026-07-28
 ---
 
 # ADR-0031: one grove fleet, distributed through Claude and Codex
+
+> **Superseded in part by
+> [`adr-0046`](adr-0046-how-dispatch-rules-reach-a-session.md) (2026-07-28)** —
+> the routing-rule clause at `:157-158` alone. The managed block no longer
+> carries rules on either host; dispatch rules are plugin-carried data loaded by
+> voluntary entry, identical on both hosts. Everything else here stands.
 
 > **Adapter placement and the consumer/runtime boundary are refined by
 > `adr-0035-plugin-and-consumer-boundary`.** The one-kernel/two-adapter model

@@ -3,13 +3,21 @@ id: adr-0003-managed-block-routing-rule
 type: adr
 status: approved  # ratified by PR #17 merge (2026-07-09)
 depends_on: [kodhama/kodhama-0007-one-render-many-copiers]
-superseded_in_part_by: [adr-0026-thin-vendor-boundary]  # 2026-07-21 — D1/D6 only: the role locus. Decision 1's template names "the chartered agent roles in `.claude/agents/` (<ROLES_LIST>)"; the fleet is plugin-carried as `grove:<role>` and never vendored. The routing rule itself is untouched by adr-0026.
+superseded_in_part_by: [adr-0026-thin-vendor-boundary, adr-0046-how-dispatch-rules-reach-a-session]  # 2026-07-21 — D1/D6 only: the role locus. Decision 1's template names "the chartered agent roles in `.claude/agents/` (<ROLES_LIST>)"; the fleet is plugin-carried as `grove:<role>` and never vendored. The routing rule itself is untouched by adr-0026.
 owner: agent
 updated: 2026-07-28
 ---
 
 # ADR-0003: managed block is a conditional W1–W6 routing rule, not an identity claim; the block write is verified; upsert-script trigger armed
 
+> **Forward pointer — Decision 1 superseded (2026-07-28).**
+> [`adr-0046`](adr-0046-how-dispatch-rules-reach-a-session.md) supersedes
+> Decision 1 **deliberately**: the always-on inference rule was right for its
+> carrier, and the carrier is retired — voluntary entry (`/grove:enter`,
+> `/grove:start`) with an artifact-derived guard replaces it by choice, not by
+> drift. D1's quiet-default half survives by other means (the ask-boundary).
+> This closes the conflict grove#170/#173 recorded.
+>
 > **Forward pointer — role locus (2026-07-21).**
 > [`adr-0026`](adr-0026-thin-vendor-boundary.md) D1/D6 moved the fleet into the
 > plugin: the roles Decision 1's template points at are now `grove:<role>`

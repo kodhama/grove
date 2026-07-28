@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: ee38dd200e3959a25b6082aa4c62c1d1c204faec75428b0549b8e6995895deee -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/dispatcher.md; sha256: 71c376e588d3e9cd012405465ddf0cbcd744f1481f4d31f6c0b89c3dd4d0a96f -->
 
 # dispatcher — dispatch, sequencing, the findings ledger, checkpoint-resume
 
@@ -428,6 +428,14 @@ cheap check. **Rejected, with reasons**: fail-open on verifier timeout,
 score-threshold merge gates, free-text dependency parsing,
 session-holding continuation hooks — each contradicts the loud-failure
 floor or binary conformance-to-upstream.
+   *(Scoped narrowing — `adr-0046`, ratified 2026-07-28: the rejected form
+   is the silent **router** — a hook that holds the session in order to
+   continue a scripted ladder, the mechanism this list's source mined and
+   declined. A guard that holds only to **fail loudly**, naming the exact
+   unmet precondition and missing record, is this list's own adopted
+   deterministic artifact check run at the Stop moment — it serves the
+   loud-failure floor rather than contradicting it, which is this
+   rejection's stated test.)*
 
 ## Boundaries
 
