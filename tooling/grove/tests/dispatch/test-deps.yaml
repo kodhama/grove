@@ -48,6 +48,16 @@ groups:
       - file: "test/guard-core.test.mjs"
         cases:
           - title:
+              - "P1-B — a dangling symlink is present, never absent; an absence record cannot satisfy it"
+          - title:
+              - "P1-B — a symlink subject hashes its link target, so retargeting sheds the record"
+          - title:
+              - "P1-B — entry-type rules are stated: directory stays absent/missing; symlink classifies unclaimed"
+          - title:
+              - "P1-B — invalid UTF-8 bytes bind exactly: different invalid bytes, different digests"
+          - title:
+              - "P1-B — regular-file digests are unchanged by the raw-byte read (no churn of existing records)"
+          - title:
               - "a block-style implements list classifies implements-bearing; an empty key does not"
           - title:
               - "a digest-matched record never satisfies a different subject (sentinel collision)"
@@ -99,6 +109,16 @@ groups:
               - "INV8 exception — abort on an unparseable cursor replaces the file whole with the minimal aborted shape"
           - title:
               - "INV8 — on a well-formed cursor the whole-file replacement path is unreachable"
+          - title:
+              - "P1-A — a hand-written close plan without the identifying fields is refused"
+          - title:
+              - "P1-A — a licensed action pointing outside the named run is refused"
+          - title:
+              - "P1-A — a tampered plan whose only licensed action is a delete is refused"
+          - title:
+              - "P1-A — a tampered plan with an extra guardLicensed write is refused; nothing is written"
+          - title:
+              - "P1-A — the legitimate close plan still reconstructs and applies"
           - title:
               - "S11 — guard and run operations behave identically with a deleted or mangled managed block"
           - title:
