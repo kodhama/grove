@@ -14,6 +14,35 @@ const DECLARED_KEYS = Object.freeze([
   'claims',
 ]);
 
+// THE single status-line grammar. Its tolerance is DERIVED FROM toml.mjs's
+// line handling, mechanism by mechanism — never from an example list:
+//   split(/\r?\n/)            -> an optional trailing \r on every line
+//   stripComment()            -> a #-comment to end of line, outside strings
+//   .trim() after that        -> leading AND trailing whitespace
+//   line.slice(0, eq).trim()  -> whitespace between the key and '='
+//   line.slice(eq + 1).trim() -> whitespace between '=' and the value
+// Every reader of a status line (the close/abort field edit, the two
+// status-unreadable probes) uses this one source so they cannot diverge.
+export function statusLinePattern(status, flags = '') {
+  return new RegExp(
+    `^\\s*status\\s*=\\s*"${status}"\\s*(?:#.*)?\\r?$`,
+    flags,
+  );
+}
+
+// Exactly one readable status line -> that status; anything else (none,
+// several, an out-of-enum value) is unreadable = null. Fail closed at the
+// call sites: an unreadable status is open for mode selection.
+export function probeStatus(text) {
+  const pattern = statusLinePattern('(open|closed|aborted)');
+  const found = [];
+  for (const line of String(text).split('\n')) {
+    const match = line.match(pattern);
+    if (match) found.push(match[1]);
+  }
+  return found.length === 1 ? found[0] : null;
+}
+
 // A cursor subject is a repo-relative file path: never absolute, never a
 // traversal, never backslashed. Enforced at cursor validation AND at
 // open-run planning, always naming the offending subject.

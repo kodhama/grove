@@ -24,7 +24,7 @@ import {
   computeEnabled,
   deriveChangeSet,
 } from '../lib/guard-core.mjs';
-import { parseCursor } from '../lib/cursor.mjs';
+import { parseCursor, probeStatus } from '../lib/cursor.mjs';
 import { loadTransitions } from '../lib/transitions.mjs';
 
 const OBSERVER_CLASSES = new Set(['decision', 'spec', 'charter', 'unclaimed']);
@@ -187,6 +187,7 @@ async function inspectCursors(repoRoot) {
     defects.push({ path: relative, reason: parsed.reason });
     // Fail closed: a cursor whose status cannot be read is open for mode
     // selection; its subjects are unreadable, so it is not evaluated.
+    // probeStatus is cursor.mjs's single status-line source.
     const status = probeStatus(text);
     if (status == null || status === 'open') openForMode.push(relative);
   }
@@ -197,11 +198,6 @@ async function inspectCursors(repoRoot) {
     });
   }
   return { evaluable, openForMode, defects };
-}
-
-function probeStatus(text) {
-  const matches = [...String(text).matchAll(/^status = "(open|closed|aborted)"\s*$/gm)];
-  return matches.length === 1 ? matches[0][1] : null;
 }
 
 function owedLine(instance) {

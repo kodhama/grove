@@ -17,7 +17,9 @@ import {
   RUN_ID,
   minimalAbortedCursor,
   parseCursor,
+  probeStatus,
   serializeCursor,
+  statusLinePattern,
   validateSubjectPath,
 } from './cursor.mjs';
 import { parseToml } from './toml.mjs';
@@ -270,14 +272,15 @@ async function readCursor(repoRoot, runId) {
   return { ok: true, text, parsed: parseCursor(text, { runId }) };
 }
 
-// Matches the open-status assignment with the SAME tolerance parseCursor's
-// parser has — optional whitespace, an optional trailing comment, an
-// optional \r — so a well-formed non-canonical cursor can always close and
-// abort through the field edit (a byte-exact match here wedged such cursors
-// against INV8's deliberately unreachable whole-file path). The matched line
-// is replaced with the canonical assignment; the file's line-ending style is
+// The open-status matcher is cursor.mjs's statusLinePattern — the ONE
+// grammar derived from toml.mjs's line handling (leading/trailing trim,
+// key/value trim around '=', trailing comment, trailing \r) — so a
+// well-formed non-canonical cursor can always close and abort through the
+// field edit (a stricter match here wedged such cursors against INV8's
+// deliberately unreachable whole-file path, twice). The matched line is
+// replaced with the canonical assignment; the file's line-ending style is
 // preserved for the replacement and the appended lines.
-const OPEN_STATUS_LINE = /^status\s*=\s*"open"\s*(?:#.*)?\r?$/;
+const OPEN_STATUS_LINE = statusLinePattern('open');
 
 function editCursorText(text, newStatus, appendLines) {
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
@@ -322,9 +325,9 @@ async function listOpenCursors(repoRoot) {
 }
 
 function statusUnreadableOrOpen(text) {
-  const matches = [...String(text).matchAll(/^status = "(open|closed|aborted)"\s*$/gm)];
-  if (matches.length !== 1) return true; // fail closed: unreadable status is open
-  return matches[0][1] === 'open';
+  const status = probeStatus(text);
+  if (status == null) return true; // fail closed: unreadable status is open
+  return status === 'open';
 }
 
 async function setupCommand(input) {

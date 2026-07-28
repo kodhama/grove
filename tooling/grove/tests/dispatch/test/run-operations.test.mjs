@@ -375,7 +375,23 @@ test('S11 — guard and run operations behave identically with a deleted or mang
 // the close/abort field edit must carry the same tolerance (INV8 unwidened:
 // still a field edit on a well-formed cursor, never the whole-file path).
 
+// Variant list DERIVED FROM toml.mjs's line handling (one pin per parser
+// tolerance): split(/\r?\n/) -> optional trailing \r; stripComment() ->
+// #-comment to EOL outside strings; .trim() after comment-strip -> leading
+// AND trailing whitespace; key/value trimmed around '=' -> inner spacing.
 const NON_CANONICAL_CURSORS = {
+  'indented status line (leading trim)': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `  status = "open"\n`,
+  'trailing whitespace (trailing trim)': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `status = "open"  \t\n`,
+  'indented + comment + CRLF combined': (runId) =>
+    `schema = 1\r\nrun = "${runId}"\r\nopened = "2026-07-28T14:00:00Z"\r\n`
+      + `intent = "land the fixture"\r\nsubjects = ["specs/changed.md"]\r\n`
+      + `\t status = "open" \t# opened by fixture\r\n`,
   'crlf line endings': (runId) =>
     `schema = 1\r\nrun = "${runId}"\r\nopened = "2026-07-28T14:00:00Z"\r\n`
       + `intent = "land the fixture"\r\nsubjects = ["specs/changed.md"]\r\n`
