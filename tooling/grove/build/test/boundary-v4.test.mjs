@@ -21,6 +21,7 @@ test('INV23–INV25/S21 — the installable package has the exact permitted root
     'README.md',
     'VERSION',
     'adapters',
+    'hooks',
     'metadata',
     'reference',
     'runtime',

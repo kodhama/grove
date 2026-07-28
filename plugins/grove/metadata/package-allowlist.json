@@ -160,6 +160,14 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/hooks/hooks.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/hooks/stop-guard.sh",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/metadata/claude-inventory.json",
       "kind": "file"
     },
@@ -281,6 +289,10 @@
     },
     {
       "path": "plugins/grove/reference/surfaces/claude-headless-attempt-2026-07-23.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/reference/surfaces/claude-stop-hook-channels-2026-07-28.json",
       "kind": "file"
     },
     {
