@@ -296,6 +296,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/reference/surfaces/codex-hook-vocabulary-2026-07-28.json",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/reference/versioning.md",
       "kind": "file"
     },
