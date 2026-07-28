@@ -316,6 +316,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/runtime/dispatch/bin/grove-run.mjs",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/runtime/dispatch/bin/guard.mjs",
       "kind": "file"
     },
@@ -325,6 +329,10 @@
     },
     {
       "path": "plugins/grove/runtime/dispatch/lib/guard-core.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/lib/run.mjs",
       "kind": "file"
     },
     {

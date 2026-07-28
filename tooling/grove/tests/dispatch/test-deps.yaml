@@ -6,6 +6,7 @@ groups:
       - file: "test/codex-measurement-record.test.mjs"
       - file: "test/guard-cli.test.mjs"
       - file: "test/guard-core.test.mjs"
+      - file: "test/run-operations.test.mjs"
       - file: "test/stop-wrapper.test.mjs"
       - file: "test/transitions.test.mjs"
     specs:
