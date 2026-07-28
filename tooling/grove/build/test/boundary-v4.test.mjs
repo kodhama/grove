@@ -120,7 +120,9 @@ test('repository checks retain the five live suites and exclude retired bookkeep
     assert.match(text, /tooling\/grove\/probes/);
     assert.doesNotMatch(text, /retired\/review-bookkeeping/);
   }
-  assert.match(workflow, /five live suites/i);
+  // spec-0006 added the dispatch suite as the sixth; the test title keeps its
+  // historical name (retitling would churn the exact-pinned canary ledger).
+  assert.match(workflow, /six live suites/i);
   assert.match(gatesLedger, /tooling\/grove\/tests\/gates/);
   assert.doesNotMatch(gatesLedger, /plugins\/grove\/gates/);
   assert.match(probesLedger, /spec-0004-dual-host-distribution@v6/);

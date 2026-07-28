@@ -1,0 +1,12 @@
+schema: 2
+groups:
+  "spec-0006-voluntary-dispatch":
+    precision: coarse
+    tests:
+      - file: "test/codex-measurement-record.test.mjs"
+      - file: "test/transitions.test.mjs"
+    specs:
+      - "spec-0006-voluntary-dispatch@v2"
+    decisions:
+      - "adr-0046-how-dispatch-rules-reach-a-session"
+    notes: "This package tests the voluntary-dispatch machinery shipped at plugins/grove/runtime/dispatch/, plugins/grove/reference/dispatch/, and plugins/grove/hooks/: transition-rule validation, the deterministic guard in both modes, the confirm-gated run operations, and the Stop-hook wrapper exit mapping."

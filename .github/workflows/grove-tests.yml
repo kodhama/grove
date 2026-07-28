@@ -33,7 +33,7 @@ jobs:
     name: test — ${{ matrix.package }}
     runs-on: ubuntu-latest
     strategy:
-      # Report all five live suites independently. One failure must not mask
+      # Report all six live suites independently. One failure must not mask
       # another.
       fail-fast: false
       matrix:
@@ -43,6 +43,7 @@ jobs:
           - tooling/grove/tests/gates
           - tooling/grove/tests/lifecycle
           - tooling/grove/probes
+          - tooling/grove/tests/dispatch
     steps:
       - name: Check out
         uses: actions/checkout@v5
