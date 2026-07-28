@@ -6,10 +6,40 @@ implements: adr-0046-how-dispatch-rules-reach-a-session
 depends_on: [adr-0046-how-dispatch-rules-reach-a-session, spec-0004-dual-host-distribution@v7, adr-0035-plugin-and-consumer-boundary]
 owner: agent
 updated: 2026-07-28
-version: 1
+version: 2
 ---
 
 # spec-0006 — voluntary dispatch
+
+> **AMENDED 2026-07-28 — v1 → v2 (convergence fold: spec-adversary
+> `NEEDS-REVISION` + conformance `PASS` with pre-gate defects, one round)**
+> **WHAT:** Defined `changed()` and the record-lookup scope; reconciled the
+> close/confirm contradiction and gave abort its own operation (`abort-run`);
+> made self-disabling and non-empty preconditions mechanical validation;
+> specified defect handling (exit `2`, channels, hold semantics) and the hook
+> wrapper's exit mapping; added the `missing` subject class with the
+> empty-digest sentinel and made `subjects` immutable after open; labeled
+> acceptance criteria mechanical vs behavioral; corrected the
+> amendment-discipline citation to adr-0044; defined "lands" and bound this
+> spec's own spec-0004 pin advance to the landing commit; added the
+> dispatcher-charter annotation to clause-8 verification and the mid-run
+> subject-growth open question.
+> **WHY:** One convergence round returned nine adversary findings plus nits
+> and three conformance pre-gate defects plus two additions; all are folded
+> in one revision so re-review judges a single target.
+> **SCOPE:** Behavioral version `v2`; the entry verbs, cursor home, rule
+> shape, guard modes, floor extract, pointer block, and host scope all stand
+> — this fold sharpens semantics and closes contradictions without changing
+> the decision's realized architecture.
+> **POINTER:** Current requirements live in §Transition rules (predicate
+> semantics), §The confirm-gate extension, §The guard (defect handling,
+> wrapper mapping), §Run cursor contract, §Verdict-record contract, and
+> §Propagation and landing pairing.
+> **VALUE:** An implementer can build the guard and run operations without
+> inventing semantics at the ambiguity points a hostile review found first.
+> **CONFIDENCE:** `verified` — every folded item traces to a named finding
+> from the retained convergence verdicts; the v2 re-review is downstream and
+> not claimed here.
 
 This contract realizes approved `adr-0046-how-dispatch-rules-reach-a-session`:
 voluntary session entry through two verbs, a committed per-run cursor,
@@ -29,6 +59,7 @@ dispatcher).
 | Term | Meaning |
 |---|---|
 | **entry skills** | The generated `enter` and `start` skills, shipped per host under `plugins/grove/adapters/<host>/skills/`. |
+| **entry behavior contract** | The authored verb-shared body text both entry skills carry, stating the session's entry duties — the ask boundary, the per-handover guard duty, stale-cursor disclosure, and (Codex) the guard-absence disclosure. One declared source, projected per §Floor extract and skill generation; distinct from the floor extract. |
 | **run** | One governed unit of work opened by `start` and bounded by its cursor. |
 | **cursor** | The committed per-run TOML file at `.grove/runs/<run-id>/cursor.toml`. |
 | **open cursor** | A cursor whose `status` is `open`. |
@@ -80,28 +111,39 @@ Cursor creation goes through the `confirm-exact-action-ids` gate — an
 **extension of grove's existing lifecycle gate to a new write** (today it
 guards setup/refresh/set-profile/remove). The extension contract:
 
-1. The runtime gains run operations (`open-run`, `close-run`) following the
-   identical `plan → disclose → confirm-exact-action-ids → apply` flow. Their
+1. The runtime gains three run operations — `open-run`, `close-run`, and
+   `abort-run` — each following the identical
+   `plan → disclose → confirm-exact-action-ids → apply` flow. Their
    module location is an implementation choice, but **apply shall go through
    the same shared `applyPlan` enforcement** the lifecycle core uses, so the
    unconfirmed-action rejection (`applyPlan` throws on any unconfirmed action
-   id) and the post-plan drift preflight hold identically — never a parallel
-   re-implementation of the gate.
+   id) and the post-plan drift preflight hold identically for all three —
+   never a parallel re-implementation of the gate. Which actions require
+   user confirmation is stated per operation in point 4.
 2. `open-run`'s plan enumerates the cursor-create action with
    `confirmationRequired`; the entry skills route every cursor write through
-   this path and never write a cursor directly.
+   the run operations and never write a cursor directly.
 3. `open-run` requires an existing `.grove/` consumer floor and fails
-   pre-write otherwise, naming the host's setup command. It takes **no
-   surface invocation record**: the cursor is host-neutral run state inside
-   the consumer-run-owned `.grove/runs/`, not a host-adapter surface. (The
-   surface-classification machinery guards host-adapter writes; extending it
-   here would add ceremony to a write the confirm gate already covers.)
-4. Confirm-gated cursor writes: **open** and **abort**. The ordinary
-   **close** at guard-verified run completion is not separately confirm-gated
-   — the run it records was sanctioned at open, and gating the completion
-   record would deter the record.
-5. These operations are runtime operations invoked by the entry skills; they
-   are **not** lifecycle skills and add no row to the lifecycle inventory.
+   pre-write otherwise, naming the host's setup command. No run operation
+   takes a **surface invocation record**: the cursor is host-neutral run
+   state inside the consumer-run-owned `.grove/runs/`, not a host-adapter
+   surface. (The surface-classification machinery guards host-adapter
+   writes; extending it here would add ceremony to a write the confirm gate
+   already covers.)
+4. Confirmation per operation: `open-run`'s cursor-create action and
+   `abort-run`'s status-write action carry `confirmationRequired` — only the
+   user's confirm act through the gate confirms them. `close-run`'s single
+   ordinary-close action does **not**: its plan marks the action
+   pre-confirmed, and the sole confirmation authority is the guard's
+   exit-`0` verdict (§The guard), which `close-run` obtains immediately
+   before apply — the run it records was sanctioned at open, and gating the
+   completion record would deter the record. `applyPlan`'s
+   throw-on-unconfirmed rule therefore holds identically across all three
+   operations with no bypass; the operations differ only in **who may
+   confirm**.
+5. These operations are runtime operations invoked by the entry skills
+   (`abort-run` also by stale-cursor resolution at any moment); they are
+   **not** lifecycle skills and add no row to the lifecycle inventory.
 
 ## Run cursor contract
 
@@ -121,7 +163,7 @@ extended only on demonstrated need):
 ```toml
 schema = 1
 run = "20260728-140322-voluntary-dispatch"   # equals the directory name
-opened = "2026-07-28T14:03:22Z"
+opened = "2026-07-28T14:03:22Z"   # deliberate duplicate of the run-id instant: the RFC 3339 twin of `closed`, so both run bounds parse alike without run-id grammar knowledge
 intent = "one line: what this run exists to land"
 subjects = ["specs/0006-voluntary-dispatch.md"]  # repo-relative file paths
 status = "open"                               # open | closed | aborted
@@ -131,7 +173,12 @@ status = "open"                               # open | closed | aborted
 ```
 
 - `subjects` lists the run's governed subject **files**; it defines run scope
-  and the domain the supervisor-mode guard quantifies over.
+  and the domain the supervisor-mode guard quantifies over. Listing a subject
+  does not by itself owe reviews — see `changed()` in §Transition rules.
+- `subjects` is **immutable after open** (v1 minimalism): close and abort
+  write only `status`, `closed`, and `reason`. A run that outgrows its list
+  closes or aborts and reopens with the fuller list; the uncovered-change
+  gap this leaves is recorded as Open question 5, decided nowhere here.
 - **`claims` is schema-reserved and written by no current path.** A
   conforming writer never emits it; the guard reports any cursor carrying it
   as a schema defect. It activates only with a future decision on parallel
@@ -143,19 +190,24 @@ status = "open"                               # open | closed | aborted
 | Event | Actor and mechanism | Cursor write |
 |---|---|---|
 | **Create** | `start` (or an accepted `enter` ask) via confirm-gated `open-run`. Refused while any open cursor exists (see stale handling). | File created, `status = "open"`. |
-| **Close** | `close-run` at run completion, permitted only when the guard reports **no enabled-and-unfired transition** over the run's subjects. | `status = "closed"`, `closed` timestamp. Never deleted. |
-| **Abort** | A user decision, confirm-gated. | `status = "aborted"`, `closed` timestamp, one-line `reason`. Never deleted. |
+| **Close** | `close-run` at run completion, permitted only when the guard exits `0` — **no enabled-and-unfired transition and no defect**. That verdict pre-confirms the status-write action (§The confirm-gate extension, point 4). | `status = "closed"`, `closed` timestamp. Never deleted. |
+| **Abort** | A user decision via confirm-gated `abort-run`. | `status = "aborted"`, `closed` timestamp, one-line `reason`. Never deleted. |
 | **Commit** | The cursor enters git only through the normal commit flow — a human landing act. Grove performs no git action. | — |
 
 **Staleness.** A stale cursor is an open cursor in a session that did not
-open it — a dead run's leaving. Detection is deterministic and happens at
-every guard moment and at both entry verbs: the guard and the `start` plan
-list every open cursor; `start` refuses to create a second one. Resolution is
-a human choice, never silent: **adopt** (this session resumes the run — the
-cursor is the resumption mechanism; no write) or **abort** (confirm-gated
-status write). A stale cursor is never deleted; closed and aborted cursors
-are the run's committed audit trail. **At most one open cursor** is the v1
-invariant; the guard reports more than one as a defect in both modes.
+open it — a dead run's leaving. What is deterministic is the **listing**,
+not the diagnosis: the guard and the `start` plan list every open cursor at
+every guard moment and both entry verbs, and `start` refuses to create a
+second one; whether a listed open cursor is genuinely dead is the human's
+call — the schema records no session identity. Resolution is a human choice,
+never silent: **adopt** (this session resumes the run — the cursor is the
+resumption mechanism; no write; the run's records ride along) or **abort**
+(confirm-gated `abort-run`). A stale cursor is never deleted; closed and
+aborted cursors are the run's committed audit trail. **At most one open
+cursor** is the v1 invariant; the guard reports more than one as a defect in
+both modes (§Defect handling). Two sessions racing `start` can each pass the
+open-cursor preflight before either cursor exists; that race's outcome — two
+open cursors — resolves through the same defect path, never silently.
 
 Exactly two moments write the cursor — open and close/abort. Verdict records
 are separate files and are not cursor writes; nothing else mutates the file.
@@ -188,11 +240,21 @@ date = "2026-07-28T15:10:00Z"
   record deterministically, so the owed-review transition re-enables —
   review is a per-push gate, not a one-time entry gate. (This digest rule is
   this spec's concretization of "a record exists *for a changed subject*.")
+- **Absence has a defined digest.** For a `missing` subject (§Transition
+  rules) the reviewed "current bytes" are zero bytes: the record carries the
+  empty-input SHA-256,
+  `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`, and
+  counts while the path stays absent. This equals a zero-byte file's digest;
+  the coincidence is accepted in v1 — any content landing at the path
+  changes the digest and re-owes review.
 - The guard reads records; it grades nothing. A `FAIL` record is a completion
   — the review ran; routing the failure is the dispatcher's judgment, and the
   record is loud on the change request.
 - `human-approval` is a **reserved** record type, written by no current path
   (grove#74 owns the human-approval-record mechanism; see Open questions).
+  Until a decision activates it, it — like any `record_type` outside the
+  four enumerated types — is reported as a schema defect (§Defect handling)
+  and satisfies no precondition.
 
 ## Transition rules as data
 
@@ -208,7 +270,13 @@ other key — there is no field that can name a successor transition, a next
 step, a phase, or an ordering. `fire` names one action (it may name a role);
 it never names a sequence. Every transition's postconditions name at least
 one record whose absence is entailed by its preconditions, so a fired
-transition disables itself — token-as-completion, structurally.
+transition disables itself — token-as-completion, structurally. Validation
+enforces this mechanically, never trusts it, with two further checks:
+`preconditions` shall be **non-empty** (a bare `event → agent` pair is
+exactly the itinerary shape S15 rejects), and every transition whose
+postconditions name `record(r, $s)` shall carry `no-record(r, $s)` among its
+preconditions — the self-disabling check, and the `postconditions` key's
+first mechanical consumer.
 
 **Predicate grammar (closed):**
 
@@ -220,13 +288,38 @@ predicate  := changed(<class>, $s) | record(<rtype>, $s) | no-record(<rtype>, $s
 
 `$s` binds over the cursor's `subjects` list (supervisor mode) or the derived
 change set (observer mode, report-only). A transition instance is enabled
-when all its preconditions hold under one binding. `record`/`no-record`
-apply the `subject_sha256` currency rule.
+when all its preconditions hold under one binding.
+
+**Predicate semantics (one definition, both modes):**
+
+- **Derived change set** — uncommitted changes plus commits not on the
+  merge-base with the default branch. Both modes use this one derivation.
+- **`changed(class, $s)`** — `$s` classifies into `class` per the table
+  below **and** `$s` is in the derived change set. Listing a subject in the
+  cursor therefore does **not** by itself owe reviews: an untouched subject
+  enables no transition and never blocks close — the cursor names what the
+  guard watches; the change set establishes the fact of change.
+- **`record(rtype, $s)`** — a schema-valid record with
+  `record_type = rtype` and a `subject_sha256` matching `$s`'s current
+  bytes exists under **any** run's records directory
+  (`.grove/runs/*/records/`). The per-run directory is a **write-home**
+  (writers write into the open run's), never a read-boundary: the token
+  means "these exact bytes carry this verdict", so a still-current record
+  from a prior run — closed or aborted included — satisfies the predicate
+  in supervisor mode and silences the observer, and aborting then
+  restarting a run over unchanged bytes re-owes nothing. The digest
+  currency rule is the sole freshness authority.
+- **`no-record(rtype, $s)`** — no record satisfies `record(rtype, $s)`; an
+  absent record and a stale (digest-mismatched) record both leave it true.
+- A record whose `record_type` is outside the four rule-consumable types
+  satisfies no predicate and is reported as a defect (§Verdict-record
+  contract, §Defect handling).
 
 **Subject classes** (deterministic, frontmatter-derived):
 
 | Class | Determination |
 |---|---|
+| `missing` | path absent from the working tree (a deletion, or a rename's old half) — checked before every byte-derived row; fail-closed like `unclaimed`, owes the full set (the intended class of an absent file is unknowable from bytes) |
 | `decision` | frontmatter `type: adr` |
 | `spec` | frontmatter `type: spec` |
 | `charter` | frontmatter `type: charter` |
@@ -240,18 +333,19 @@ charter wins on any divergence):
 
 | id | preconditions | fire | postconditions |
 |---|---|---|---|
-| `t-conformance` | `changed(implements-bearing ∪ code ∪ unclaimed, $s)` ∧ `no-record(conformance, $s)` | dispatch `conformance-reviewer` on `$s` | `record(conformance, $s)` |
-| `t-decision-quality` | `changed(decision ∪ unclaimed, $s)` ∧ `no-record(decision-adversary, $s)` | dispatch `decision-adversary` on `$s` | `record(decision-adversary, $s)` |
-| `t-spec-quality` | `changed(spec ∪ unclaimed, $s)` ∧ `no-record(spec-adversary, $s)` | dispatch `spec-adversary` on `$s` | `record(spec-adversary, $s)` |
-| `t-code-quality` | `changed(code ∪ unclaimed, $s)` ∧ `no-record(code-review, $s)` | dispatch `code-reviewer` on `$s` | `record(code-review, $s)` |
+| `t-conformance` | `changed(implements-bearing ∪ code ∪ unclaimed ∪ missing, $s)` ∧ `no-record(conformance, $s)` | dispatch `conformance-reviewer` on `$s` | `record(conformance, $s)` |
+| `t-decision-quality` | `changed(decision ∪ unclaimed ∪ missing, $s)` ∧ `no-record(decision-adversary, $s)` | dispatch `decision-adversary` on `$s` | `record(decision-adversary, $s)` |
+| `t-spec-quality` | `changed(spec ∪ unclaimed ∪ missing, $s)` ∧ `no-record(spec-adversary, $s)` | dispatch `spec-adversary` on `$s` | `record(spec-adversary, $s)` |
+| `t-code-quality` | `changed(code ∪ unclaimed ∪ missing, $s)` ∧ `no-record(code-review, $s)` | dispatch `code-reviewer` on `$s` | `record(code-review, $s)` |
 
 There is no close/merge transition: run close is licensed by the guard's
-clean verdict (no enabled-and-unfired instance), which **is** the
+clean verdict (exit `0`: no enabled-and-unfired instance and no defect),
+which **is** the
 `conformance ∥ code-review → merge` join at two resolutions — nobody writes
 the join; it is a derived fact. Human ratification acts stay institutional
 (the D5 channel and the forge), outside the rule data in v1. Classes with no
 charter-named layer gate (e.g. `charter`) owe only what the charter names;
-fail-closed applies to `unclaimed` only.
+fail-closed applies to `unclaimed` and `missing` only.
 
 ## The guard
 
@@ -268,9 +362,12 @@ handover** (a duty the entry-skill bodies and the dispatcher charter place on
 the driving session), and **Stop** (the deterministic backstop, via hook —
 the one moment not dependent on the model choosing to run the check).
 
-Direct CLI exit codes: `0` no enabled-and-unfired instance (close permitted);
-`3` owed work exists (report on stdout: one line per enabled instance,
-naming transition id, subject, and missing record type); `1` internal error.
+Direct CLI exit codes: `0` no enabled-and-unfired instance and no defect
+(close permitted); `3` owed work exists (report on stdout: one line per
+enabled instance, naming transition id, subject, and missing record type);
+`2` defect (§Defect handling: one line per defect on stderr; close denied);
+`1` internal error. When owed work and defects coexist, both reports are
+emitted and the exit code is `2`.
 
 ### Supervisor mode (an open cursor exists)
 
@@ -284,20 +381,45 @@ naming transition id, subject, and missing record type); `1` internal error.
   `stop_hook_active: true` (the host's continuation flag), the guard reports
   but does not hold again — no infinite hold loop, and a dead run's cursor
   costs at most one held stop before its stale-resolution paths are on
-  screen.
+  screen. The non-hold report rides the observer channel: one line on
+  stderr, wrapper exit `1` (§Claude Stop-hook mechanics).
 
 ### Observer mode (no open cursor)
 
 - When the derived change set touches governed artifacts (excluding
   `reviewless`) with no current verdict records, the guard reports **one
-  line per stop event** and **never holds**. No deduplication exists or is
-  wanted: `enter` writes nothing, so there is no state home for "already
-  warned", and repetition at each stop is the correct loudness for a
-  standing condition.
-- Derived change set: uncommitted changes plus commits not on the merge-base
-  with the default branch. Observer scope is frontmatter-governed artifacts
-  only — deterministic classification beats coverage outside a run; code
-  subjects are covered in supervisor mode by the subject list.
+  line per stop event** and **never holds**. The line names the guard and
+  mode (`grove-guard (observer):`) and **every affected subject with its
+  missing record types**. No deduplication exists or is wanted: `enter`
+  writes nothing, so there is no state home for "already warned", and
+  repetition at each stop is the correct loudness for a standing condition.
+- The derived change set and record lookup are the shared definitions of
+  §Transition rules — a still-current record from any run, a closed one
+  included, silences the observer for its subject. Observer scope is
+  frontmatter-governed artifacts only — deterministic classification beats
+  coverage outside a run; code subjects, and absent (`missing`) paths whose
+  bytes cannot be classified, are covered in supervisor mode by the subject
+  list.
+
+### Defect handling
+
+The guard reports these as **defects** — direct-CLI exit `2`, one stderr
+line per defect naming the file and the failure. Exit `2` always denies
+close: `close-run` requires exit `0`.
+
+| Defect | Does supervisor evaluation continue? |
+|---|---|
+| a cursor carrying the reserved `claims` key | Yes — over that cursor's `subjects`; the run's owed work still holds and the defect line rides beside it. |
+| more than one open cursor | Yes — over the **union** of the open cursors' subjects; the report names every open cursor; resolution is adopt/abort down to one. |
+| an unparseable or schema-invalid cursor | Not over that cursor — its `subjects` are unreadable; the report names the file and the parse/validation failure. Any other parseable open cursor is still evaluated. A cursor whose `status` cannot be read is treated as open for mode selection (fail closed). |
+| a record with a `record_type` outside the enumerated types, or otherwise unparseable | Yes — the record satisfies no predicate; the defect line names it. |
+
+Through the hook, defects use the same channels as owed work: in supervisor
+context (any open — or unreadably-statused — cursor exists) the guard
+**holds once**, carrying the defect and its resolutions in the block reason,
+bounded by the same `stop_hook_active` rule; under `stop_hook_active`, and
+in observer context, defect lines ride the non-blocking stderr channel
+(wrapper exit `1`).
 
 ### Claude Stop-hook mechanics
 
@@ -315,8 +437,21 @@ naming transition id, subject, and missing record type); `1` internal error.
 - **Hold channel:** single-line JSON on stdout using the documented Stop
   blocking form — `{"decision": "block", "reason": "<the named transition,
   subject, missing record, and resolutions>"}` — exit 0.
-- **Observer channel:** one line on stderr with the documented non-blocking
-  non-2 exit code, so the line surfaces without holding.
+- **Observer channel:** one line on stderr with wrapper exit `1` — a
+  documented non-blocking, non-`2` exit code — so the line surfaces without
+  holding.
+- **Wrapper exit mapping** (one mapping, so an observer warning and an
+  internal guard error are mechanically distinguishable):
+
+  | Guard result | Wrapper output | Wrapper exit |
+  |---|---|---|
+  | `0` clean | none | `0` |
+  | `3` owed or `2` defect — supervisor context, continuation flag absent | block-decision JSON on stdout | `0` |
+  | `3` owed or `2` defect — otherwise (observer, or `stop_hook_active: true`) | one line on stderr | `1` |
+  | `1` internal error, or the wrapper itself fails | one line on stderr prefixed `grove-guard error:` | `4` |
+
+  The wrapper shall never exit `2` — the host's blocking-error code — so
+  the measured stdout block decision is the only hold channel.
 - **Envelope discipline (the measured trellis precedent, 2026-07-27):** a
   flat `additionalContext` envelope was measured silently discarded where the
   nested `hookSpecificOutput` envelope worked — an unverified envelope is a
@@ -427,8 +562,10 @@ grove plugin@<version>
 
 ## Propagation and landing pairing
 
-The change-request that lands this spec carries, **in the same commit** as
-the spec's landing:
+**"Lands" means the implementation landing** — the change request that
+makes this spec operative, not the authoring PR that first commits (or
+revises) this draft. That landing change-request carries, **in the same
+commit** as the spec's landing:
 
 1. `spec-0004-dual-host-distribution` revised per adr-0046 clause 8:
    §Driving-session loaders replaced by the entry verbs and pointer block,
@@ -436,16 +573,22 @@ the spec's landing:
    amendment (the Claude adapter's skill inventory gains `enter`/`start`; the
    exact package tree and allowlist gain `runtime/dispatch/`,
    `reference/dispatch/`, and the hook files; the lifecycle inventory stays
-   exactly four), under adr-0004's amendment discipline with its version
-   bump to `vN`.
+   exactly four), under adr-0044's paired-record amendment discipline (the
+   reciprocal `changes: [<spec-id>@vN]` pairing) with its version bump to
+   `vN`. This spec's own `depends_on` pin
+   `spec-0004-dual-host-distribution@v7` advances to that same `@vN` in the
+   same commit.
 2. adr-0046's `changes:` entry appended with that exact `@vN` pin — the
    frontmatter pointer-completion the decision itself sanctions.
 3. adr-0035's declared `.grove/` tree annotated with the scoped
    `.grove/runs/` note (adr-0046 clause 4: "when the spec lands").
 
-The adr-0003 forward pointer and adr-0031 scoped `superseded_in_part_by`
-pointer are adr-0046 clause 8's own orders, ratified with that decision;
-this spec's landing review verifies they are present but does not re-order
+The adr-0003 forward pointer, the adr-0031 scoped `superseded_in_part_by`
+pointer, and the dispatcher charter's scoped-narrowing annotation (the
+ratified `adr-0046` note inside its evidence-mined rejection list,
+distinguishing the declined silent router from the loud-failing Stop guard)
+are adr-0046 clause 8's own orders, ratified with that decision; this
+spec's landing review verifies all three are present but does not re-order
 them. The five `0.1.0` consumers migrate deliberately per adr-0046's
 consequences; the refresh wave stays blocked behind grove#169 and is outside
 this contract.
@@ -477,21 +620,27 @@ this contract.
   nothing.
 - **INV4** — `start` shall not require a prior `enter`; its body shall carry
   the same floor extract and entry behavior contract.
-- **INV5** — Every cursor create and abort shall be applied only through the
-  shared `applyPlan` path, which shall reject apply while any planned action
-  id is unconfirmed and shall preflight all file preconditions before the
-  first mutation.
+- **INV5** — Every cursor write — create, close, and abort — shall be
+  applied only through the shared `applyPlan` path, which shall reject
+  apply while any planned action id is unconfirmed and shall preflight all
+  file preconditions before the first mutation. Create and abort action ids
+  shall be confirmable only through the user-facing confirm gate; the
+  ordinary-close action id shall be pre-confirmed at plan time solely by
+  the guard's exit-`0` verdict, obtained by `close-run` immediately before
+  apply.
 - **INV6** — `open-run` shall fail pre-write when `.grove/` is absent or
-  when any open cursor exists, and shall take no surface invocation record.
+  when any open cursor exists, and no run operation shall take a surface
+  invocation record.
 - **INV7** — The cursor shall live at `.grove/runs/<run-id>/cursor.toml`
   with the schema and run-id grammar of §Run cursor contract, and at most
   one open cursor shall exist; the guard shall report a second open cursor
   as a defect in both modes.
 - **INV8** — Exactly two moments shall write the cursor: open, and
   close/abort. Close shall set `status = "closed"` only when the guard
-  reports no enabled-and-unfired instance; abort shall set
-  `status = "aborted"` with a one-line reason; neither shall delete the
-  file.
+  exits `0` (no enabled-and-unfired instance and no defect); abort shall
+  set `status = "aborted"` with a one-line reason; neither shall delete the
+  file, and both shall write only `status`, `closed`, and `reason` —
+  `subjects` and every other field shall be immutable after open.
 - **INV9** — No shipped path shall write the `claims` key; the guard shall
   report a cursor carrying it as a schema defect.
 - **INV10** — A stale cursor shall be surfaced at both entry verbs and every
@@ -499,16 +648,22 @@ this contract.
   silently deleted.
 - **INV11** — Verdict records shall follow §Verdict-record contract, and a
   record shall count for a subject only while its `subject_sha256` matches
-  the subject's current bytes.
+  the subject's current bytes — for an absent subject, the empty-input
+  SHA-256 sentinel while the path stays absent. Record lookup shall span
+  every run's records directory in both modes, with the digest rule as the
+  sole freshness authority.
 - **INV12** — The record file shall not substitute for the change-request
   verdict report (adr-0027 D2), which remains owed.
 - **INV13** — `transitions.toml` shall ship at
   `plugins/grove/reference/dispatch/transitions.toml`, admit exactly the
   keys `id`/`fire`/`preconditions`/`postconditions` per transition, use only
   the closed predicate grammar, and fail validation on any other key or
-  predicate form.
+  predicate form, on an empty `preconditions` set, or on a transition whose
+  postconditions name `record(r, $s)` without `no-record(r, $s)` among its
+  preconditions.
 - **INV14** — Every transition's postconditions shall name at least one
-  record whose absence is entailed by its preconditions.
+  record whose absence is entailed by its preconditions — a property
+  INV13's validation checks mechanically, never trusts.
 - **INV15** — No shipped rule, skill, hook, or block shall name a successor
   transition, next phase, or fixed sequence; `fire` shall name one action
   only.
@@ -521,18 +676,23 @@ this contract.
 - **INV18** — In supervisor mode the guard shall hold stop only, naming the
   exact transition id, subject, missing record type, and resolutions; when
   the hook input carries `stop_hook_active: true` it shall report without
-  holding.
+  holding, on the non-blocking stderr channel of §Claude Stop-hook
+  mechanics.
 - **INV19** — The guard shall never hold, perform, or attempt a merge or any
   forge action.
 - **INV20** — In observer mode the guard shall emit exactly one line per
-  stop event, shall never hold, and shall keep no deduplication state; its
-  scope shall be frontmatter-governed artifacts excluding `reviewless`
-  types, over the derived change set defined in §The guard.
+  stop event — naming the guard, the mode, and each affected subject with
+  its missing record types — shall never hold, and shall keep no
+  deduplication state; its scope shall be frontmatter-governed artifacts
+  excluding `reviewless` types, over the derived change set defined in
+  §Transition rules.
 - **INV21** — The Claude plugin shall register the guard on the `Stop` hook
   event; any hold shall use the documented block decision as single-line
   JSON; any context-injecting output shall use the nested
-  `hookSpecificOutput` envelope; and both output channels shall be verified
-  by a retained pre-release measurement on the target host.
+  `hookSpecificOutput` envelope; the wrapper shall implement the exit
+  mapping of §Claude Stop-hook mechanics and shall never exit `2`; and both
+  output channels shall be verified by a retained pre-release measurement
+  on the target host.
 - **INV22** — The floor extract shall be generated solely from the single
   `grove:floors` marker span of `charters/dispatcher.md`; generation shall
   fail on marker-pair or slug-set violations, on an extract over 2,500
@@ -551,6 +711,10 @@ this contract.
   the exact entry-time disclosure line of §Host scope; the Codex
   hook-vocabulary evidence record shall exist before the implementation's
   build gate closes.
+- **INV27** — The guard shall report the defect classes of §Defect handling
+  with direct-CLI exit `2`, shall deny close while any defect stands, shall
+  continue supervisor evaluation per that section's table, and shall route
+  defect reports through the same hold and non-hold channels as owed work.
 
 ## Scenarios (GWT)
 
@@ -586,7 +750,8 @@ written.
 confirmed abort as the only resolutions.
 
 ### S6 — close is guard-licensed
-**Given** an open run whose subject owes a conformance record
+**Given** an open run whose changed subject (present in the derived change
+set) owes a conformance record
 **When** close is attempted, then the record is added with a matching digest
 and close is attempted again
 **Then** the first attempt is refused with the guard's owed-work report and
@@ -594,12 +759,13 @@ the second sets `status = "closed"` with a `closed` timestamp.
 
 ### S7 — abort marks, never deletes
 **Given** an open run
-**When** the user aborts through the confirm gate
+**When** the user aborts through confirm-gated `abort-run`
 **Then** the cursor file remains with `status = "aborted"` and a one-line
 reason.
 
 ### S8 — supervisor hold names the gap
-**Given** an open cursor whose subject has no current conformance record
+**Given** an open cursor whose changed subject has no current conformance
+record
 **When** the session attempts to stop
 **Then** the Stop hook holds with a reason naming `t-conformance`, the exact
 subject path, the missing record type, and the resolution paths.
@@ -644,7 +810,9 @@ Stop hook is registered.
 
 ### S15 — itinerary shapes are rejected
 **Given** a `transitions.toml` containing a `next`, `then`, `phase`, or any
-undeclared key, or an `event → agent` pair without a precondition set
+undeclared key; a transition with an empty `preconditions` list (a bare
+`event → agent` pair); or a transition whose postconditions name
+`record(r, $s)` without `no-record(r, $s)` among its preconditions
 **When** validation runs
 **Then** it rejects the file naming the offending transition.
 
@@ -656,55 +824,80 @@ record's `subject_sha256` no longer matches.
 
 ## Acceptance criteria
 
-Each criterion names the mutation that turns it red.
+Each criterion names the mutation that turns it red, and carries an honesty
+label: **[mechanical]** — red is a failing check, test, or validation;
+**[behavioral]** — red is observable in session conduct but not
+machine-checked (the same honesty split §Host scope already draws for the
+Codex prose-enforced half). A parenthetical names any clause that crosses
+its criterion's label.
 
-1. **AC1 — guard, supervisor mode** (INV16–INV19; S6, S8, S9): red if the
-   hold branch is removed, the hold stops naming transition/subject/record,
-   the `stop_hook_active` bound is dropped (S9 loops), or the guard gains a
-   write or network call.
-2. **AC2 — guard, observer mode** (INV20; S10): red if the observer line is
-   suppressed, deduplicated across stop events, made to hold, or extended
+1. **AC1 — guard, supervisor mode and defects** [mechanical] (INV16, INV18,
+   INV19, INV27; INV17's run-start and Stop moments; S6, S8, S9): red if
+   the hold branch is removed, the hold stops naming
+   transition/subject/record, the `stop_hook_active` bound is dropped (S9
+   loops), a defect exits `0` or fails to deny close, or the guard gains a
+   write or network call. INV17's every-handover moment is [behavioral] — a
+   duty the entry-skill bodies place on the driving session; this criterion
+   claims no mechanical coverage for it.
+2. **AC2 — guard, observer mode** [mechanical] (INV20; S10): red if the
+   observer line is suppressed, deduplicated across stop events, made to
+   hold, stripped of its subject-and-missing-types content, or extended
    past deterministic frontmatter classification.
-3. **AC3 — enter writes nothing** (INV1–INV4; S1–S3): red if any `enter`
+3. **AC3 — enter writes nothing** [behavioral; INV1's frontmatter and
+   generation clauses mechanical] (INV1–INV4; S1–S3): red if any `enter`
    path acquires a write, if a run opens on model inference without a user
    yes, or if either skill gains `disable-model-invocation`.
-4. **AC4 — the confirm-gate extension** (INV5, INV6; S4): red if a cursor
-   can be created outside the shared `applyPlan` path, or applied with an
-   unconfirmed action id, or without an existing `.grove/` floor.
-5. **AC5 — cursor writes only at open and close** (INV7–INV10; S5, S7, S16
-   context): red if any third write moment appears, a close lands while owed
-   work exists, an abort deletes the file, a second open cursor is created,
-   or a stale cursor is resolved silently.
-6. **AC6 — claims stays reserved** (INV9): red if any shipped path writes
-   `claims` or the guard stops flagging its presence.
-7. **AC7 — records are current-bytes tokens** (INV11, INV12; S16): red if a
+4. **AC4 — the confirm-gate extension** [mechanical] (INV5, INV6; S4): red
+   if a cursor can be created outside the shared `applyPlan` path, or
+   applied with an unconfirmed action id, or without an existing `.grove/`
+   floor, or if an ordinary close applies without the guard's exit-`0`
+   verdict as its confirmation authority.
+5. **AC5 — cursor writes only at open and close** [mechanical;
+   stale-resolution loudness behavioral] (INV7–INV10; S5, S7, S16 context):
+   red if any third write moment appears, a close lands while owed work or
+   a defect exists, a close or abort touches any field beyond
+   `status`/`closed`/`reason`, an abort deletes the file, a second open
+   cursor is created, or a stale cursor is resolved silently.
+6. **AC6 — claims stays reserved** [mechanical] (INV9): red if any shipped
+   path writes `claims` or the guard stops flagging its presence.
+7. **AC7 — records are current-bytes tokens** [mechanical; the
+   change-request report duty behavioral] (INV11, INV12; S16): red if a
    record with a mismatched `subject_sha256` still satisfies a
-   precondition, or the change-request verdict report is dropped as owed.
-8. **AC8 — rules are data, not an itinerary** (INV13–INV15; S15): red if an
-   undeclared key or predicate form validates, a transition stops being
-   self-disabling, or any shipped text names a next step.
-9. **AC9 — floor-extract generation determinism** (INV22, INV23; S12, S13):
-   red if the extract can be produced from anything but the marker span, if
-   marker/slug/budget violations pass, if the floors are not the first body
-   content, if two generation runs differ, or if a hand edit passes check.
-10. **AC10 — pointer block, non-load-bearing** (INV24, INV25; S11): red if
-    the block regains rules or loader lines, gains a second version carrier,
-    stops validating under `inspectBlock`, or if any specified behavior
-    fails when the block is absent.
-11. **AC11 — host scope and the Codex precondition** (INV26; S14): red if
-    Codex projections omit either entry skill or the exact disclosure line,
-    ship guard wiring before a Codex guard is decided, or if the
-    implementation's build gate closes without the Codex hook-vocabulary
-    evidence record.
-12. **AC12 — hook-channel measurement** (INV21): red if the Stop hook is
-    unregistered, a hold uses an unmeasured envelope or the flat
-    `additionalContext` form, or no retained measurement evidence exists for
-    both channels at release.
-13. **AC13 — the landing pairing** (§Propagation): red if the commit that
-    lands this spec does not also carry spec-0004's §Driving-session loaders
-    revision (with its version bump and the enumerated reconciliations), the
-    `@vN` append to adr-0046's `changes:` entry, and adr-0035's scoped
-    `.grove/runs/` note — all in that same commit.
+   precondition, if the absent-subject sentinel rule is dropped, if record
+   lookup stops spanning every run's records directory, or the
+   change-request verdict report is dropped as owed.
+8. **AC8 — rules are data, not an itinerary** [mechanical] (INV13–INV15;
+   S15): red if an undeclared key or predicate form validates, an empty
+   precondition set validates, a transition that is not self-disabling
+   validates, or any shipped text names a next step.
+9. **AC9 — floor-extract generation determinism** [mechanical] (INV22,
+   INV23; S12, S13): red if the extract can be produced from anything but
+   the marker span, if marker/slug/budget violations pass, if the floors
+   are not the first body content, if two generation runs differ, or if a
+   hand edit passes check.
+10. **AC10 — pointer block, non-load-bearing** [mechanical] (INV24, INV25;
+    S11): red if the block regains rules or loader lines, gains a second
+    version carrier, stops validating under `inspectBlock`, or if any
+    specified behavior fails when the block is absent.
+11. **AC11 — host scope and the Codex precondition** [behavioral for the
+    disclosure line; the shipping and evidence-record clauses mechanical]
+    (INV26; S14): red if Codex projections omit either entry skill or the
+    exact disclosure line, ship guard wiring before a Codex guard is
+    decided, or if the implementation's build gate closes without the Codex
+    hook-vocabulary evidence record.
+12. **AC12 — hook-channel measurement and wrapper mapping** [mechanical]
+    (INV21): red if the Stop hook is unregistered, a hold uses an
+    unmeasured envelope or the flat `additionalContext` form, the wrapper
+    exits `2` or departs from the exit mapping, or no retained measurement
+    evidence exists for both channels at release.
+13. **AC13 — the landing pairing** [mechanical at landing review]
+    (§Propagation): red if the implementation-landing commit — "lands" as
+    §Propagation defines it, never this draft's authoring PR — does not
+    also carry spec-0004's §Driving-session loaders revision (with its
+    version bump and the enumerated reconciliations), the advance of this
+    spec's own `depends_on` pin to that resulting `@vN`, the `@vN` append
+    to adr-0046's `changes:` entry, and adr-0035's scoped `.grove/runs/`
+    note — all in that same commit.
 
 ## Open questions
 
@@ -722,6 +915,15 @@ Each criterion names the mutation that turns it red.
 4. **Codex guard activation.** If the measurement finds a Stop-equivalent
    event, activating a Codex guard and conditioning the disclosure line is
    follow-up amendment work under this spec.
+5. **Mid-run subject growth.** A governed artifact changed mid-run
+   **outside** the cursor's `subjects` list is neither held on (supervisor
+   mode binds over `subjects`) nor warned about (observer mode runs only
+   when no cursor is open). Both upstream clauses are honored; the gap is
+   real. A supervisor-mode observer overlay — the warn-only sweep running
+   beside the hold — would be decision-compatible. With `subjects`
+   immutable after open (v1 minimalism), the current recourse is
+   close-or-abort and reopen with the fuller list. Recorded open; nothing
+   is decided here.
 
 ## Rubric check
 
@@ -736,11 +938,13 @@ criteria.
 | Artifact contract | PASS | Frontmatter carries id/type/status/depends_on/implements/owner/updated/version; Acceptance criteria and Open questions sections exist. |
 | Decision fidelity | PASS | Clauses 1–8 map to §Non-goals (1), §Entry (2), §Floor extract + §Transition rules (3), §Run cursor (4), §The guard (5), §Managed pointer block (6), §Host scope (7), §Propagation (8). The three ratified draft choices are honored: model-invocable skills with the confirm gate, generated floor extract with a source-side marker convention, minimal cursor schema. |
 | Open-question ownership | PASS | Open 9 is resolved here as the decision orders; Open 7 is explicitly not advanced; genuinely open items are listed, none load-bearing for implementation. |
-| Testable grammars | PASS | INV1–INV26 are shall-form; S1–S16 are Given/When/Then; AC1–AC13 map both and each names its red-turning mutation. |
-| Boundaries | PASS | No net engine, itinerary, claims activation, forge hold, or Codex guard; nothing beyond the decision's scope — additions the decision does not name (`subject_sha256`, run-id grammar, budgets) are concretizations flagged in place. |
+| Testable grammars | PASS | INV1–INV27 are shall-form; S1–S16 are Given/When/Then; AC1–AC13 map both, each names its red-turning mutation, and each carries a mechanical/behavioral honesty label. |
+| Boundaries | PASS | No net engine, itinerary, claims activation, forge hold, or Codex guard; nothing beyond the decision's scope — additions the decision does not name (`subject_sha256` and its absence sentinel, run-id grammar, budgets, guard exit codes and defect classes) are concretizations flagged in place. |
 | Ambiguity | HONEST NOTE | Two mechanics rest on host-documented but locally unmeasured behavior: the Stop block-decision JSON and the observer stderr channel. The spec does not guess them silently — INV21/AC12 make pre-release measurement a hard requirement, following the trellis flat-envelope incident. |
 | Propagation | PASS | The spec-0004 pairing, adr-0046 `@vN` append, and adr-0035 note are bound to the landing commit by AC13. |
 
-Self-check passes with the honest note above. Status stays `draft`: the
-spec-adversary convergence pass and the profile's spec-gate ratification are
-downstream of this authoring pass and are not claimed here.
+Self-check passes with the honest note above. Status stays `draft`: v2
+folds the first convergence round (spec-adversary `NEEDS-REVISION`,
+conformance `PASS` with pre-gate defects) in one revision; the re-review of
+v2 and the profile's spec-gate ratification are downstream of this pass and
+are not claimed here.
