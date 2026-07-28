@@ -48,6 +48,14 @@ groups:
       - file: "test/guard-core.test.mjs"
         cases:
           - title:
+              - "BLOCK-2 — a symlink target binds its RAW bytes: distinct invalid UTF-8 targets never collide"
+          - title:
+              - "L1 — the regular-file read goes through one O_NOFOLLOW handle, not a second path lookup"
+          - title:
+              - "L4 — a non-regular entry digests a constant naming its exact kind"
+          - title:
+              - "M1 — a symlink digest is domain-separated from a regular file holding the same bytes"
+          - title:
               - "P1-B — a dangling symlink is present, never absent; an absence record cannot satisfy it"
           - title:
               - "P1-B — a symlink subject hashes its link target, so retargeting sheds the record"
@@ -106,17 +114,29 @@ groups:
       - file: "test/run-operations.test.mjs"
         cases:
           - title:
+              - "BLOCK-1 — a duplicate id in a confirmed open-run plan is refused; nothing is written"
+          - title:
+              - "BLOCK-1 — an UNFLAGGED action carrying the licensed id and a foreign path never applies"
+          - title:
+              - "BLOCK-1 — the shipped CLI refuses a forged plan file, empty confirmation file included"
+          - title:
               - "INV8 exception — abort on an unparseable cursor replaces the file whole with the minimal aborted shape"
           - title:
               - "INV8 — on a well-formed cursor the whole-file replacement path is unreachable"
           - title:
+              - "L3 — a cursor edited between plan and apply is reported as drift, never as forgery"
+          - title:
               - "P1-A — a hand-written close plan without the identifying fields is refused"
+          - title:
+              - "P1-A — a licensed action carrying no planned file precondition is refused (L2)"
           - title:
               - "P1-A — a licensed action pointing outside the named run is refused"
           - title:
               - "P1-A — a tampered plan whose only licensed action is a delete is refused"
           - title:
               - "P1-A — a tampered plan with an extra guardLicensed write is refused; nothing is written"
+          - title:
+              - "P1-A — each reconstruction conjunct discriminates: id, path, type, content"
           - title:
               - "P1-A — the legitimate close plan still reconstructs and applies"
           - title:
