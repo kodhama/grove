@@ -87,12 +87,18 @@ export function validateSurfaceMatrix(matrix, { release = false } = {}) {
     if (!SUPPORT_CLAIMS.has(item?.support_claim)) {
       errors.push(`${String(id)} support_claim must be claimed or none`);
     }
-    // adr-0041 clause 5: a product cannot honestly promise support while
-    // offering no operational path, so contradictory metadata must fail.
-    // Originally motivated by stewards/kodhama-0023, which stewards/kodhama-0025
-    // has since superseded in full — the invariant now stands on Grove's own
-    // decision, which is exactly what 0025 intends for the one repository that
-    // actually consumes these fields at runtime.
+    // stewards/kodhama-0023:153 — "`unavailable + claimed` is invalid because a
+    // product cannot honestly promise" support with no operational path.
+    //
+    // That upstream is superseded in full by stewards/kodhama-0025, which
+    // permits Grove to keep the names for its own runtime (:123) but does not
+    // restate the invariant. adr-0041 does not carry it either: it defers twice
+    // (:31-34, :167-170 — "combination invariants come from Stewards decision
+    // 0023"), and its clause 5 is the load-path rule, not this one. So this
+    // check is currently enforced with no live decision behind it. Adopting it
+    // as Grove-owned is grove#166; do not re-cite adr-0041 clause 5 here until
+    // that lands — an earlier revision of this comment did, and the clause
+    // resolves to a different rule.
     if (item?.availability_state === 'unavailable' && item?.support_claim === 'claimed') {
       errors.push(`${String(id)} cannot claim support while unavailable`);
     }

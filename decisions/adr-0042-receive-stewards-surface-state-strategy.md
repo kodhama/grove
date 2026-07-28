@@ -19,9 +19,17 @@ updated: 2026-07-28
 > `kodhama-0025`'s explicit intent: Grove has the family's only runtime
 > consumer of these fields, a lifecycle gate deciding whether to write into a
 > consumer repository, which 0025 names as *"a product mechanism answering a
-> product question, not a family contract."* What changes is authority, not
-> behaviour — `adr-0041` now stands on Grove's own feet rather than on an
-> upstream mandate, and no other repository is obliged to match Grove's shape.
+> product question, not a family contract."* `0025:123` states the permission
+> exactly — *"Grove may keep the names for its own runtime"* — and no other
+> repository is obliged to match Grove's shape.
+>
+> **Permission is not adoption, and the difference is a live gap.** `adr-0041`
+> twice defers the *combination invariants* to the retired upstream (`:31-34`,
+> `:167-170` — *"combination invariants come from Stewards decision 0023"*), so
+> the `unavailable + claimed` rule enforced in `release.mjs` now has no live
+> decision behind it. Adopting it as Grove-owned is grove#166. Nothing
+> executable changes meanwhile; what is missing is the authority, and naming it
+> is the point of this pointer.
 
 ## Decision state
 
