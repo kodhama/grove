@@ -1,0 +1,120 @@
+name: Claude Code Review
+
+# An automatic Claude review on every PR — a second, independent lens beside
+# whatever review the driving session already ran on itself.
+#
+# Ported from a sibling repo in this family that had already debugged it
+# against live runs. Every `with:` key below is there because its absence was
+# observed to break the review THERE, not because it looked sensible here. The
+# comments record which failure each one answers, so a future edit that drops
+# one knows what it is re-enabling.
+#
+# ┌──────────────────────────────────────────────────────────────────────────┐
+# │ IF YOU EDIT THIS FILE, THE REVIEW STOPS RUNNING — SILENTLY, AND GREEN.   │
+# └──────────────────────────────────────────────────────────────────────────┘
+#
+# `claude-code-action` refuses to run unless this file is byte-identical to the
+# copy on the DEFAULT branch (an injection defence). When it refuses it logs a
+# warning, does nothing, and the job still concludes SUCCESS. So:
+#
+#   * a PR that touches this file gets no Claude review — the blind spot sits
+#     exactly where mistakes are likeliest, since the file reviews itself out
+#     of existence;
+#   * merging a change here disables the review on EVERY open PR until each one
+#     merges the default branch back in.
+#
+# That is instrumented rather than merely documented: `agent-workflow-parity.yml`
+# fails loudly whenever a claude-code-action workflow differs from the default
+# branch. It runs no agent, so it cannot itself skip green. The upstream lesson
+# was that a point-of-use comment does NOT transfer between files — the same
+# cause was written down in one workflow and then recurred in another, because
+# the second reader never saw the first note. This paragraph is orientation;
+# the parity job is the control.
+#
+# When `parity` goes red on your PR:
+#
+#   1. expect no Claude review on that PR — get a second opinion elsewhere
+#      (the Codex reviewer is unaffected);
+#   2. after merging, `git merge origin/main` into every open PR branch, or
+#      they stay unreviewed behind a green tick.
+#
+# ── Green here has never meant "clean" ────────────────────────────────────────
+#
+# The exit code tracks whether the action RAN, never what it FOUND. Nothing in
+# this workflow can turn a finding into a red check. Upstream, five independent
+# causes produced one identical symptom — success reported, nothing delivered:
+#
+#   | # | cause                                     | fixed by            |
+#   |---|-------------------------------------------|---------------------|
+#   | 1 | `pull-requests: read` — findings buffered  | permissions below   |
+#   | 2 | weekly token quota exhausted (bailed)     | — (only loud one)   |
+#   | 3 | output hidden; verdict unreadable         | show_full_output    |
+#   | 4 | no `--comment`; terminal-only summary     | prompt              |
+#   | 5 | Bash denied; could not post               | claude_args         |
+#
+# Cause 2 is the only one that ever went red, and only because it failed
+# loudly. Treat silence from this job as UNRESOLVED, never as a pass — if you
+# need to know what it thought, read the run log, not the check mark.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    # Not inherited from either source: one has no cap, the sibling that does
+    # uses 10. A wedged agent job otherwise burns the runner default (6h). 20
+    # is a guess at "long enough for a large PR" and is the first thing to
+    # raise if a real review is ever killed mid-flight — a timeout kill is red,
+    # so it fails loudly rather than joining the list above.
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # write, not read — cause 1 above. With `read` the plugin buffers its
+      # inline findings and silently fails to post them.
+      pull-requests: write
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          # `--comment` — cause 4. Without it the command only prints a
+          # terminal summary and posts nothing.
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
+          # Cause 3. Keeps the review's own verdict readable in the run log,
+          # which is the only place a skipped or undelivered finding survives.
+          show_full_output: true
+          # Cause 5. Matched upstream to what a known-good run actually used —
+          # Bash x16, Write x4, Read x2 — not guessed.
+          #
+          #   Bash  posts via `gh api ... --input`, and locates/quotes this
+          #         repo's own rules with `find`/`grep` (which is most of this
+          #         reviewer's value here — grove's charters and specs are the
+          #         standard a change is judged against). Deliberately NOT
+          #         scoped to `Bash(gh:*)`: that would cut the standards
+          #         reading, and would not match the posting call anyway — a
+          #         compound `cd … && for … gh api …`.
+          #   Write stages one JSON payload per comment under /tmp.
+          #   Read  CLAUDE.md and the artifacts it points at.
+          #
+          # This is NOT a sandbox, and omitting `Edit` is not hardening —
+          # unrestricted Bash writes anywhere, and `Agent`/`ToolSearch` ran in
+          # the reference run without appearing here, so the flag grants rather
+          # than restricts. Read it as "what the job was handed". Real
+          # confinement needs a different mechanism.
+          claude_args: |
+            --allowedTools Bash,Read,Write
+          # https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # https://code.claude.com/docs/en/cli-reference
