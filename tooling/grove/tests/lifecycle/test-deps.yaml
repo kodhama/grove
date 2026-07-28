@@ -16,3 +16,23 @@ groups:
       - "adr-0036-remove-retired-review-bookkeeping"
       - "adr-0037-pre-execution-planning"
     notes: "Technical orientation: these tests use the Node.js built-in test runner and filesystem APIs."
+  "spec-0006-pointer-block":
+    precision: exact
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+        cases:
+          - title:
+              - "INV30/S26 — setup creates only the thin consumer floor and the invoking host loader"
+          - title:
+              - "spec-0006 INV24 — the pointer block is exactly four lines with host-correct invocations from adapter metadata"
+          - title:
+              - "spec-0006 INV24 — the pointer invocations come from adapter metadata, never a hardcoded literal"
+      - file: "test/surface-and-setup.test.mjs"
+        cases:
+          - title:
+              - "Claude and Codex setup in either order share one floor and are idempotent"
+    specs:
+      - "spec-0004-dual-host-distribution@v8"
+      - "spec-0006-voluntary-dispatch@v2"
+    decisions:
+      - "adr-0046-how-dispatch-rules-reach-a-session"
