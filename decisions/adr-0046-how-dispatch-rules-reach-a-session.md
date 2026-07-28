@@ -115,8 +115,10 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
 - **Token = completion; the guard warns outside a run.** *(maintainer,
   2026-07-28: "I agree. Completion + Warn.")* A token is a record that exists;
   owed work is derived by running the rules, never stored as an agent-written
-  request. Inside a run the guard may hold controllable events; outside a run it
-  is a sensor that reports once and never holds. From the request model, three
+  request. Inside a run the guard may hold the stop; outside a run it is a
+  sensor — one line per stop event, never holding, no deduplication (clause 5
+  refined the act's "warn" into these exact semantics; the paraphrase here
+  follows the clause, not the other way around). From the request model, three
   pieces are salvaged to existing homes: the atomic claim → the cursor (dormant
   until parallel dispatch); the calls-for-bids shape → grove#102/#101, already
   parked; scope/priority → annotations on the artifact. The decoupling is the
@@ -168,8 +170,10 @@ deterministic Stop guard; Codex sessions get rules **only**, enforced by prose.
 it has already been violated once in this area:**
 
 - `:157-158` requires *"the same semantic conditional-routing rule"* on
-  `AGENTS.md`. **Satisfied** — the table and cursor are files; both hosts read the
-  same rules.
+  `AGENTS.md`. ~~**Satisfied** — the table and cursor are files; both hosts read
+  the same rules.~~ **Reading withdrawn — superseded by clause 8's open
+  supersession of the routing-rule clause**, which records why the parity
+  reading could not stand.
 - `:219-220` item 9 requires proving an unsupported surface *"fails loudly rather
   than degrading to generic agents"*. **Not tripped** — Codex is not unsupported.
   It runs grove's rules; it lacks the deterministic backstop.
@@ -727,7 +731,7 @@ Cited so the trade-offs are not relitigated. Tags are the research note's.
   - **The run-state directory is committed — but the framework never commits.**
     It is written by the run as a *reviewable audit trail* and enters git only
     through the human's normal commit flow; aborts set a status field rather
-    than deleting. (Partial answer to Open 8: creation by the run, the commit is
+    than deleting. (Partial answer to Open 9: creation by the run, the commit is
     the human's act, and a dead run leaves a *marked* cursor, not a mystery.)
   - **Compact-return discipline.** Every specialist returns 1–3 lines, an
     artifact path, and a machine verdict; anything longer is summarised to one
@@ -893,7 +897,11 @@ without the deterministic guard. Un-guarded, not unsupported.
 - **`spec-0004` §Driving-session loaders** is revised under this record — the
   loader block it specifies is replaced by the entry verbs and pointer block.
   Per `adr-0044`'s amendment contract, this record declares the pairing in its
-  frontmatter (`changes:`) and the revision carries the reciprocal edge.
+  frontmatter (`changes:`) and the revision carries the reciprocal edge. **The
+  version pin is added by the amendment PR itself** — the change that bumps
+  `spec-0004` to its next version appends `@vN` to this record's `changes:`
+  entry in the same commit, a frontmatter pointer-completion of the class the
+  append-only rule already sanctions, not an edit of substance.
 - **`adr-0031`'s routing-rule requirement is superseded in the same scope.**
   `:157-158` requires the Codex setup path to add *"the same semantic
   conditional-routing rule"* to `AGENTS.md`; clause 6 removes rules from the
@@ -903,7 +911,9 @@ without the deterministic guard. Un-guarded, not unsupported.
   with. The host-equivalence *principle* survives: both hosts read the same
   rules from the same files (clause 7); only the block-carried delivery of them
   is retired. `adr-0031` gains a scoped `superseded_in_part_by` pointer naming
-  that sentence alone. An earlier Constraint in this canvas read `:157-158` as
+  **the routing-rule clause alone** — the sentence at `:157-160` also carries
+  the `.grove/` floor composition and the minimal role bridge, both of which
+  survive untouched. An earlier Constraint in this canvas read `:157-158` as
   already satisfied by file parity — that reading is **withdrawn** here in
   favour of the open supersession, because two artifacts of this same effort
   (`adr-0003`'s forward pointer and merged grove#173) read the same line as a
@@ -986,7 +996,7 @@ was right that *"the state file you proposed had some of that aspect in"*.
 committed cursor is a consumer-side file that can go stale, and a run that dies
 leaves one behind. It is a smaller and more disposable risk than the managed
 block (see §Correction) but it is not zero, and it creates the obligation now
-tracked as Open 8.
+tracked as Open 9.
 
 ## Open questions
 
