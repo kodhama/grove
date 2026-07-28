@@ -90,7 +90,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "54e1e69bb443fe0584bbf54c73201866f5f1b56285f99f1fd5851a8e7655f6f6"
+      "canonical_digest": "38f7a42f481a09802d4a4e3e610afcb2a51eeff805ecb11e3a55f0751c268c41"
     },
     {
       "raw_id": "grove:remove",
@@ -98,7 +98,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "54e1e69bb443fe0584bbf54c73201866f5f1b56285f99f1fd5851a8e7655f6f6"
+      "canonical_digest": "38f7a42f481a09802d4a4e3e610afcb2a51eeff805ecb11e3a55f0751c268c41"
     },
     {
       "raw_id": "grove:run-resumer",
@@ -114,7 +114,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "54e1e69bb443fe0584bbf54c73201866f5f1b56285f99f1fd5851a8e7655f6f6"
+      "canonical_digest": "38f7a42f481a09802d4a4e3e610afcb2a51eeff805ecb11e3a55f0751c268c41"
     },
     {
       "raw_id": "grove:setup",
@@ -122,7 +122,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "54e1e69bb443fe0584bbf54c73201866f5f1b56285f99f1fd5851a8e7655f6f6"
+      "canonical_digest": "38f7a42f481a09802d4a4e3e610afcb2a51eeff805ecb11e3a55f0751c268c41"
     },
     {
       "raw_id": "grove:spec-adversary",

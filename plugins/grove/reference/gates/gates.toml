@@ -7,8 +7,12 @@
 # `seeded_from` is provenance only — non-authoritative, the rows win if they
 # diverge from the named preset.
 #
-# Change the whole profile with /grove:set-profile <preset> (a wholesale switch
-# that shows the diff and confirms first), or hand-edit a single row here.
+# Change the whole profile with Grove's set-profile operation (a wholesale
+# switch that shows the diff and confirms first), or hand-edit a single row
+# here. The invocation is host-specific — `/grove:set-profile <preset>` on
+# Claude, `grove set-profile <preset>` on Codex — and this file is seeded
+# byte-identically on both, so it names the operation rather than one host's
+# spelling.
 #
 # THE FLOOR (adr-0018, floor-intent-gate) is validated on every read that
 # sequences a run: at least one human-owned intent-locus gate must exist —

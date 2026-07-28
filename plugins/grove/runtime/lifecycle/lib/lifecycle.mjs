@@ -669,9 +669,9 @@ async function planManagedFloor(context) {
 async function planConsumerSeed(context, path, content, overwritePaths, preread) {
   // One read, not two. The caller decides whether to seed from whether the file
   // exists, and re-reading here let those two decisions disagree: a file deleted
-  // between them sent a deferred (null) content down the write branch. Measured
-  // at 42/400 trials with a concurrent delete — a benign race before, an
-  // uncaught throw after the deferral landed. The caller passes what it read.
+  // between them sent a deferred (null) content down the write branch. Observed
+  // under a concurrent delete: the same race produced a normal plan before the
+  // deferral existed, and an uncaught throw after. The caller passes what it read.
   const existing = preread !== undefined ? preread : await readRepoOptional(context, path);
   // Belt for the callers that do not preread. Writing a deferred null would put
   // the literal "null" on a consumer's disk.
@@ -1364,6 +1364,13 @@ function fail(plan, reason) {
   const disclosure = plan.unsupportedDisclosure ?? null;
   plan.summary = disclosure ? `${disclosure} ${reason}` : reason;
   plan.actions = [];
+  // Deferred writes queued before this failure would otherwise land in
+  // `plan.actions` after it returned — measured: a failed plan reporting zero
+  // actions, then one, 400ms later. `planSetup` queues the floor README before
+  // any of its `fail()` sites, so this is reachable, not theoretical. Dropping
+  // the queue is what makes "a failed plan is pre-write" true rather than true
+  // -so-far.
+  delete plan._pending;
   return plan;
 }
 

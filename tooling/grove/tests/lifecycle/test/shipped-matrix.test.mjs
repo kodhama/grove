@@ -290,6 +290,24 @@ test('EVERY plan on a no-support row leads with the disclosure, across every rep
         if (!/^Grove claims no support/.test(String(plan.summary ?? ''))) {
           misses.push(`${row.surface_id}/${operation}/${stateName}: ${String(plan.summary).slice(0, 70)}`);
         }
+        // The fixture above must reach `seedPreset`, not stop at `parseProfile`.
+        // Nothing else enforces that: BOTH a parse failure and a seed failure
+        // lead with the disclosure, so the sweep cannot tell them apart, and the
+        // previous fixture stopped one line short while looking identical here.
+        // Prose in the fixture comment is not a check — this is. Tightening
+        // `parseProfile` or reshaping the shipped template would otherwise
+        // silently un-pin the fix and leave the sweep green over dead code.
+        // Available rows only: an unavailable row fails at the availability
+        // gate, long before any gates.toml is read.
+        if (stateName === 'gates.toml missing seeded_from'
+          && operation === 'set-profile'
+          && row.availability_state === 'available') {
+          assert.match(
+            String(plan.summary ?? ''),
+            /cannot apply preset/,
+            'the fixture stopped at parseProfile — it no longer exercises the unguarded seedPreset',
+          );
+        }
       }
     }
   }
