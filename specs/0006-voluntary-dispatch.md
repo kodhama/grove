@@ -327,7 +327,8 @@ when all its preconditions hold under one binding.
   the predicate for **every** deletion of that review type in every future
   run — a silent fail-open in exactly the class this spec exists to prevent. The per-run directory is a **write-home**
   (writers write into the open run's), never a read-boundary: the token
-  means "these exact bytes carry this verdict", so a still-current record
+  means "these exact bytes — or this declared absence — carry this
+  verdict", so a still-current record
   from a prior run — closed or aborted included — satisfies the predicate
   in supervisor mode and silences the observer, and aborting then
   restarting a run over unchanged bytes re-owes nothing. Freshness is the
@@ -909,10 +910,15 @@ its criterion's label.
    possible), if a record lacking `subject_state` satisfies any
    precondition, if record lookup stops spanning every run's records
    directory, or the change-request verdict report is dropped as owed.
-8. **AC8 — rules are data, not an itinerary** [mechanical] (INV13–INV15;
-   S15): red if an undeclared key or predicate form validates, an empty
-   precondition set validates, a transition that is not self-disabling
-   validates, or any shipped text names a next step.
+8. **AC8 — rules are data, not an itinerary** [mechanical; the
+   no-next-step property of authored skill/hook/extract text behavioral —
+   no named check reads meaning from authored prose; `transitions.toml` is
+   itinerary-proof by its closed schema and the pointer block by its
+   template, but a next step written into a skill body or the charter's
+   floor span validates green and is caught by review, not machinery]
+   (INV13–INV15; S15): red if an undeclared key or predicate form
+   validates, an empty precondition set validates, or a transition that is
+   not self-disabling validates.
 9. **AC9 — floor-extract generation determinism** [mechanical] (INV22,
    INV23; S12, S13): red if the extract can be produced from anything but
    the marker span, if marker/slug/budget violations pass, if the floors
