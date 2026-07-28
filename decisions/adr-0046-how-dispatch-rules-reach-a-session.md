@@ -307,6 +307,120 @@ because the draft was wrong and the reason is mechanical rather than aesthetic:
 model-matchable enough given that the *description*, not the name, is what the
 model matches on.
 
+### BLOCKING — the charter rejects session-holding continuation hooks by name
+
+Found by adversarial review 2026-07-28, missed by this draft and by an earlier
+adversary pass. `charters/dispatcher.md:432-435`, verbatim:
+
+> **Rejected, with reasons**: fail-open on verifier timeout, score-threshold merge
+> gates, free-text dependency parsing, **session-holding continuation hooks** —
+> each contradicts the loud-failure floor or binary conformance-to-upstream.
+
+**A Stop guard that blocks the model from stopping is a session-holding
+continuation hook.** That mechanism underlies option C, the guard-not-router
+constraint, and the cursor-less-layer question — four turns of this canvas.
+
+**What this record must NOT do is read the clause in its own favour.** There is an
+available argument that the rejection's stated *reason* — *"contradicts the
+loud-failure floor"* — does not apply to a guard whose entire purpose is to fail
+loudly, as opposed to a SpecSwarm-style router that silently continues a ladder.
+That argument may well be right. **It is also exactly the self-serving reading
+that would save the design already drafted**, and this shaping has twice recorded
+enthusiasm as approval. The distinction is the maintainer's to draw, and if the
+guard survives it needs `adr-0003`-style open supersession of this clause, not a
+favourable interpretation.
+
+### BLOCKING — the two-skill rationale does not follow from its own premise
+
+The premise is confirmed: `disable-model-invocation` is frontmatter, therefore
+per file, with no per-argument control. **The conclusion drawn from it is
+refuted twice over.**
+
+1. **`start` supplies no deterministic path that one skill lacks.** Default skill
+   frontmatter is user-invocable **and** model-invocable. A single skill already
+   gives a typed deterministic entry plus best-effort discovery. The claim at
+   §Under evaluation benefit 1 is false against the documented default. The
+   split's actual yield is one narrow thing: *the model cannot cause a cursor
+   write*.
+2. **Grove already attaches per-operation invocation policy inside one skill, in
+   code.** `lifecycle.mjs:34` emits the flow
+   `['plan','disclose','confirm-exact-action-ids','apply']`, and `applyPlan`
+   **throws** on any unconfirmed action id (`:403-408`). `setup` — which writes
+   the consumer's `CLAUDE.md` — and `remove` — which deletes consumer surfaces —
+   both ship **model-invocable with no flag at all**; their side effects are gated
+   at the confirm step, not at a skill seam. **A one-skill `/grove:start` whose
+   cursor write goes through that same confirm gate is strictly stronger than the
+   frontmatter flag**, because it also catches a *user*-invoked mistake, which the
+   flag does not.
+
+**`inv-self-improvement`:** adopting the flag would be grove's first use of it,
+leaving `remove` — the destructive one — outside the new convention. Migrate it or
+name the exemption.
+
+### BLOCKING — `enter` mode turns off D2, the charter's named load-bearing floor
+
+`charters/dispatcher.md:140` — *"**Per-RUN floor check at run start (D2, the
+load-bearing floor guard).**"* — and `:446-449`: every run keeps ≥1 human-owned
+intent-locus gate, *"enforced on every per-handover read **and** by the per-run
+floor check at run start."*
+
+**`enter` starts no run, so D2 never runs.** A session that entered, holds the
+rules, and does governed work sits **outside the human-intent floor**. And under
+Open 6's recorded lean the cursor-less layer only *warns* — so the state where the
+floor is unenforced is the state that gets a warning.
+
+That is the failure that opened this thread (*"reviewers silently not running"*)
+in a better-camouflaged form: a session that looks entered, has the rules, and is
+outside the floor.
+
+### BLOCKING — the cursor fork breaks something already Decided, either way
+
+The proposal does not say whether `enter` + governed work creates a cursor.
+
+- **If yes** — *"writes nothing"* is false in effect, and benefit 2's safety
+  rationale evaporates: the model's side effect was delayed, not prevented.
+- **If no** — `enter` mode is a cursor-less governed mode, **which this canvas
+  rejected** in §Considered and rejected: run scope is not derivable, the join has
+  no defined "both", resumption is impossible. The proposal re-admits the rejected
+  design as a first-class mode in the same document that rejected it.
+- **If `enter` mode is not governed at all** — then loading the rules buys
+  nothing: under the adopted precondition-set semantics, stopping is disabled
+  while any transition is enabled, and with no marking nothing is enabled. Rules
+  present, semantics vacuous.
+
+### MAJOR — the payload cannot have both properties this canvas assumed
+
+Grove's shipped skill idiom is a ~15-line **read-through pointer**
+(`generate.mjs:354-376`: *"This is a read-through entrypoint, not a lifecycle
+authority"*). What survives compaction in that idiom is **the pointer**, not the
+rules — the rules arrive by a `Read` into message history, which compaction
+summarizes away. The §Evidence section banks on invoked skill bodies persisting.
+**Both cannot hold.** Inlining instead means a hand-cut floor extract generated
+from a 27,601-byte charter — a new generated artifact of exactly the class that
+produced #164, #169 and #170.
+
+Corollary, in the proposal's favour: **payload duplication is a non-issue.**
+`config.mjs:35-48` already builds lifecycle skills as a cross-product of
+operations × hosts from one source. Two entry skills duplicate nothing.
+
+### MAJOR — the split's justification is Claude-only; its cost is dual-host
+
+`disable-model-invocation` is a Claude Code frontmatter key. Grove's Codex
+projections emit `name` + `description` only (`generate.mjs:320-324`), and
+`spec-0004`'s Codex contract carries no invocation-policy field. **On Codex the
+two skills have no enforced difference — the entire mechanical justification
+collapses while the three-state cost is still paid.** A new asymmetry, which the
+Constraint above requires be disclosed rather than left silent.
+
+### Correction — the eviction argument was Codex-shaped, not Claude-shaped
+
+This draft's §Evidence warned that grove's own role skills would evict
+`/grove:start` from the 25,000-token budget. **On Claude that is wrong**: roles are
+**agents** (13 files in `adapters/claude/agents/`), which do not consume the skill
+budget; `adapters/claude/skills/` holds four. The pressure is modest. The real cost
+of a broadly-matching description is not budget — it is `adr-0003:73-76`'s
+anti-hijack floor, which this canvas engaged only on its #5688 half.
+
 ### Parked
 
 - **Trellis's own delivery.** Separate product, separate decision. The
