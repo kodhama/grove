@@ -5,6 +5,14 @@
   "literal_prefix": "grove:",
   "components": [
     {
+      "raw_id": "grove:enter",
+      "path": "adapters/codex/skills/enter/SKILL.md",
+      "class": "entry",
+      "exposure": "entry",
+      "canonical_source": "tooling/grove/build/sources/entry-behavior.md",
+      "canonical_digest": "f1c936193c84c58f37c96e1d76845b5f99664e5388ae786bdd033697c7907971"
+    },
+    {
       "raw_id": "grove:refresh",
       "path": "adapters/codex/skills/refresh/SKILL.md",
       "class": "lifecycle",
@@ -66,7 +74,7 @@
       "class": "role",
       "exposure": "driving-session,scoped-advisor",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "71c376e588d3e9cd012405465ddf0cbcd744f1481f4d31f6c0b89c3dd4d0a96f"
+      "canonical_digest": "6f5af9a1d8dd7047bbd4477aa47086758aced328e937ea2b95a4a57016ee9093"
     },
     {
       "raw_id": "grove:role-divergent-researcher",
@@ -147,13 +155,21 @@
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
       "canonical_digest": "2168daec4fc49556eb985d90dd326862383a1a48e4560e556d89b74128f15a0a"
+    },
+    {
+      "raw_id": "grove:start",
+      "path": "adapters/codex/skills/start/SKILL.md",
+      "class": "entry",
+      "exposure": "entry",
+      "canonical_source": "tooling/grove/build/sources/entry-behavior.md",
+      "canonical_digest": "f1c936193c84c58f37c96e1d76845b5f99664e5388ae786bdd033697c7907971"
     }
   ],
   "driving_loaders": {
     "dispatcher": {
       "raw_skill_id": "grove:role-dispatcher",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "71c376e588d3e9cd012405465ddf0cbcd744f1481f4d31f6c0b89c3dd4d0a96f"
+      "canonical_digest": "6f5af9a1d8dd7047bbd4477aa47086758aced328e937ea2b95a4a57016ee9093"
     },
     "shaper": {
       "raw_skill_id": "grove:role-shaper",

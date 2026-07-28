@@ -47,6 +47,58 @@ export const LIFECYCLE_SKILLS = Object.freeze([
     }))),
 ]);
 
+// --- spec-0006 (voluntary dispatch): floor extract + entry skills ---
+
+// The single authored source of the entry skills' verb and shared body text.
+export const ENTRY_BEHAVIOR_SOURCE =
+  "tooling/grove/build/sources/entry-behavior.md";
+// The floor extract's only source: the marked span of the dispatcher charter.
+export const FLOOR_SOURCE = "charters/dispatcher.md";
+export const FLOOR_BEGIN_MARKER = "<!-- grove:floors:begin -->";
+export const FLOOR_END_MARKER = "<!-- grove:floors:end -->";
+// The declared slug set — the dispatcher-only floors (spec-0006 §Floor
+// extract and skill generation; adr-0046 clause 3).
+export const FLOOR_SLUGS = Object.freeze([
+  "floor-owed-reviews",
+  "floor-fail-closed-typing",
+  "floor-executor-needs-artifact",
+  "floor-approved-flip-human",
+  "floor-recorded-skips",
+  "floor-human-intent-locus",
+  "floor-d5-channel",
+  "floor-profile-per-handover",
+  "floor-sequences-not-grades",
+]);
+export const FLOOR_EXTRACT_BUDGET = 2500;
+export const ENTRY_SKILL_BODY_BUDGET = 12000;
+// The exact entry-time disclosure line of spec-0006 §Host scope, carried
+// byte-for-byte by the Codex projections only. It stays until a Codex guard
+// actually ships — conditional on guard absence, not on the measurement.
+export const CODEX_ENTRY_DISCLOSURE =
+  "This session runs Grove's dispatch rules without the deterministic stop "
+  + "guard; rule conformance here is prose-enforced only.";
+
+const ENTRY_VERBS = Object.freeze([
+  Object.freeze({
+    verb: "enter",
+    description: "Make Grove's dispatch rules available to govern this session without opening a run; writes nothing, ever. Use when the user asks Grove to be available to govern.",
+  }),
+  Object.freeze({
+    verb: "start",
+    description: "Govern this from the get-go: opens a committed run — the confirm-gated run cursor — then runs the run-start floor check. Use when the user asks Grove to govern this work from the start.",
+  }),
+]);
+
+export const ENTRY_SKILLS = Object.freeze(
+  ENTRY_VERBS.flatMap(({ verb, description }) =>
+    ["claude", "codex"].map((host) => Object.freeze({
+      host,
+      verb,
+      description,
+      output: `plugins/grove/adapters/${host}/skills/${verb}/SKILL.md`,
+    }))),
+);
+
 export const CANONICAL_ROLE_IDS = Object.freeze([
   "code-reviewer",
   "conformance-reviewer",
@@ -79,6 +131,7 @@ export const STATIC_PACKAGE_FILES = Object.freeze([
   "plugins/grove/hooks/hooks.json",
   "plugins/grove/hooks/stop-guard.sh",
   "plugins/grove/metadata/config-tokens.json",
+  "plugins/grove/metadata/entry-inventory.json",
   "plugins/grove/metadata/hosts.json",
   "plugins/grove/metadata/legacy-ownership.json",
   "plugins/grove/metadata/lifecycle-inventory.json",

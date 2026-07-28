@@ -72,6 +72,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/adapters/claude/skills/enter/SKILL.md",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/adapters/claude/skills/refresh/SKILL.md",
       "kind": "file"
     },
@@ -85,6 +89,14 @@
     },
     {
       "path": "plugins/grove/adapters/claude/skills/setup/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/skills/start/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/enter/SKILL.md",
       "kind": "file"
     },
     {
@@ -160,6 +172,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/adapters/codex/skills/start/SKILL.md",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/hooks/hooks.json",
       "kind": "file"
     },
@@ -181,6 +197,10 @@
     },
     {
       "path": "plugins/grove/metadata/config-tokens.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/entry-inventory.json",
       "kind": "file"
     },
     {

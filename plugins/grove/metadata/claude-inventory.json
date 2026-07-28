@@ -50,7 +50,7 @@
       "class": "agent",
       "exposure": "scoped-advisor",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "71c376e588d3e9cd012405465ddf0cbcd744f1481f4d31f6c0b89c3dd4d0a96f"
+      "canonical_digest": "6f5af9a1d8dd7047bbd4477aa47086758aced328e937ea2b95a4a57016ee9093"
     },
     {
       "raw_id": "grove:divergent-researcher",
@@ -59,6 +59,14 @@
       "exposure": "cold-native",
       "canonical_source": "charters/divergent-researcher.md",
       "canonical_digest": "7a67ee0f9ea5f2990b286a5ac341b14fc3818787a8099fd9f98ace443a39d333"
+    },
+    {
+      "raw_id": "grove:enter",
+      "path": "adapters/claude/skills/enter/SKILL.md",
+      "class": "entry",
+      "exposure": "entry",
+      "canonical_source": "tooling/grove/build/sources/entry-behavior.md",
+      "canonical_digest": "f1c936193c84c58f37c96e1d76845b5f99664e5388ae786bdd033697c7907971"
     },
     {
       "raw_id": "grove:executor",
@@ -133,6 +141,14 @@
       "canonical_digest": "a21ca8ac5e26da567636e3e10e1d191befb14b75ea4995bece30cdbae20a4098"
     },
     {
+      "raw_id": "grove:start",
+      "path": "adapters/claude/skills/start/SKILL.md",
+      "class": "entry",
+      "exposure": "entry",
+      "canonical_source": "tooling/grove/build/sources/entry-behavior.md",
+      "canonical_digest": "f1c936193c84c58f37c96e1d76845b5f99664e5388ae786bdd033697c7907971"
+    },
+    {
       "raw_id": "grove:validator",
       "path": "adapters/claude/agents/validator.md",
       "class": "agent",
@@ -145,7 +161,7 @@
     "dispatcher": {
       "raw_reference": "${CLAUDE_PLUGIN_ROOT}/reference/charters/dispatcher.md",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "71c376e588d3e9cd012405465ddf0cbcd744f1481f4d31f6c0b89c3dd4d0a96f"
+      "canonical_digest": "6f5af9a1d8dd7047bbd4477aa47086758aced328e937ea2b95a4a57016ee9093"
     },
     "shaper": {
       "raw_reference": "${CLAUDE_PLUGIN_ROOT}/reference/charters/shaper.md",

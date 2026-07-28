@@ -442,6 +442,26 @@ floor or binary conformance-to-upstream.
    loud-failure floor rather than contradicting it, which is this
    rejection's stated test.)*
 
+## The dispatcher floor
+
+The marked span below is the dispatcher-only floor set (adr-0046 clause 3):
+each floor is one list item ending with its slug in backticks, and the
+generated entry skills carry the span verbatim as their first body content.
+The surrounding sections of this charter remain the authoritative text; the
+span is the cold-checkable extract.
+
+<!-- grove:floors:begin -->
+- Every changed governed subject owes its verdict records; a review counts only as a posted record, never session memory. `floor-owed-reviews`
+- An unclaimed artifact type owes the full review set, fail-closed. `floor-fail-closed-typing`
+- Never dispatch `executor` without a `gated`/`approved` artifact to read; conversation alone never qualifies. `floor-executor-needs-artifact`
+- The `gated` to `approved` flip is a human act; an agent never flips it. `floor-approved-flip-human`
+- Every skip is a recorded skip, never silent. `floor-recorded-skips`
+- Every run keeps at least one human-owned intent-locus gate (`intent` front or `ship`), checked at run start. `floor-human-intent-locus`
+- Human approval counts only as an in-session act or a merge, never a bare tracker comment. `floor-d5-channel`
+- Re-resolve the gate profile at every handover, never cached. `floor-profile-per-handover`
+- The dispatcher sequences; it does not grade. `floor-sequences-not-grades`
+<!-- grove:floors:end -->
+
 ## Boundaries
 
 - The dispatcher sequences; it does not grade. Conformance and

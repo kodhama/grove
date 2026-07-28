@@ -597,7 +597,7 @@ export function validateLegacyOwnershipInventory(inventory) {
   return errors;
 }
 
-export function validateHostInventory(inventory, { host, roleInventory, lifecycleInventory }) {
+export function validateHostInventory(inventory, { host, roleInventory, lifecycleInventory, entryInventory }) {
   const errors = [];
   if (
     inventory?.schema_version !== 1
@@ -609,6 +609,10 @@ export function validateHostInventory(inventory, { host, roleInventory, lifecycl
   }
   const expectedIds = new Set([
     ...(lifecycleInventory?.operations ?? []).map((operation) => `grove:${operation}`),
+    // spec-0006: both hosts ship both entry verbs, declared in
+    // metadata/entry-inventory.json — a declared source, never an inference
+    // from the inventory under validation.
+    ...(entryInventory?.verbs ?? []).map((verb) => `grove:${verb}`),
     ...(roleInventory?.roles ?? [])
       .filter((role) => host === 'codex' || role.outputs?.claude_agent)
       .map((role) => host === 'codex' ? `grove:role-${role.id}` : `grove:${role.id}`),
@@ -1300,6 +1304,12 @@ export async function validateReleaseTree(root, {
       readJson(join(root, 'metadata', 'claude-inventory.json'), 'metadata/claude-inventory.json', errors),
       readJson(join(root, 'metadata', 'codex-inventory.json'), 'metadata/codex-inventory.json', errors),
     ]);
+    // spec-0006 entry verbs: declared, optional for legacy fixture packages —
+    // a host inventory carrying entry rows without this declaration fails as
+    // unexpected, so absence cannot hide shipped entry skills.
+    const entryInventory = await exists(join(root, 'metadata', 'entry-inventory.json'))
+      ? await readJson(join(root, 'metadata', 'entry-inventory.json'), 'metadata/entry-inventory.json', errors)
+      : null;
     if (legacy) errors.push(...validateLegacyOwnershipInventory(legacy));
     if (roleInventory && lifecycleInventory && claudeInventory) {
       if (version) errors.push(...validateClaudeManifest(claude, version, claudeInventory));
@@ -1307,6 +1317,7 @@ export async function validateReleaseTree(root, {
         host: 'claude',
         roleInventory,
         lifecycleInventory,
+        entryInventory,
       }));
     }
     if (roleInventory && lifecycleInventory && codexInventory) {
@@ -1314,6 +1325,7 @@ export async function validateReleaseTree(root, {
         host: 'codex',
         roleInventory,
         lifecycleInventory,
+        entryInventory,
       }));
     }
   }

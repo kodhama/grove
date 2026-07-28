@@ -39,8 +39,8 @@ test('INV26–INV27 — generated host isolation is a precondition, not S22/S23 
     /^plugins\/grove\/adapters\/codex\/skills\/[^/]+\/SKILL\.md$/.test(path));
 
   assert.equal(claudeAgents.length, 13, 'Claude gets twelve cold-native agents and the scoped dispatcher');
-  assert.equal(claudeSkills.length, 4, 'Claude gets only the four lifecycle skills');
-  assert.equal(codexSkills.length, 18, 'Codex gets fourteen role skills and four lifecycle skills');
+  assert.equal(claudeSkills.length, 6, 'Claude gets the four lifecycle skills plus enter/start (spec-0006)');
+  assert.equal(codexSkills.length, 20, 'Codex gets fourteen role skills, four lifecycle skills, and enter/start');
   assert.equal(paths.some((path) => path.startsWith('plugins/grove/agents/')), false);
   assert.equal(paths.some((path) => path.startsWith('plugins/grove/skills/')), false);
 
@@ -66,8 +66,8 @@ test('INV26–INV27 — generated host isolation is a precondition, not S22/S23 
   const codexInventory = JSON.parse(
     outputs.get('plugins/grove/metadata/codex-inventory.json'),
   );
-  assert.equal(claudeInventory.components.length, 17);
-  assert.equal(codexInventory.components.length, 18);
+  assert.equal(claudeInventory.components.length, 19);
+  assert.equal(codexInventory.components.length, 20);
   for (const inventory of [claudeInventory, codexInventory]) {
     for (const component of inventory.components) {
       assert.match(component.raw_id, /^grove:/);
