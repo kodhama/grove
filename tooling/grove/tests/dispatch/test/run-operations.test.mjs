@@ -369,3 +369,71 @@ test('S11 — guard and run operations behave identically with a deleted or mang
     }
   }
 });
+
+// --- BLOCK-1 regression: well-formed non-canonical cursors must close AND
+// abort. parseCursor tolerates CRLF, trailing comments, and extra spacing;
+// the close/abort field edit must carry the same tolerance (INV8 unwidened:
+// still a field edit on a well-formed cursor, never the whole-file path).
+
+const NON_CANONICAL_CURSORS = {
+  'crlf line endings': (runId) =>
+    `schema = 1\r\nrun = "${runId}"\r\nopened = "2026-07-28T14:00:00Z"\r\n`
+      + `intent = "land the fixture"\r\nsubjects = ["specs/changed.md"]\r\n`
+      + `status = "open"\r\n`,
+  'comment on the status line': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `status = "open" # opened by fixture\n`,
+  'extra spaces around the assignment': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `status   =   "open"\n`,
+};
+
+test('a well-formed non-canonical cursor closes cleanly (CRLF, comment, spacing)', async (t) => {
+  for (const [name, build] of Object.entries(NON_CANONICAL_CURSORS)) {
+    await t.test(name, async () => {
+      const dir = await repoFixture();
+      const runId = '20260728-140000-noncanon';
+      const cursorPath = join(dir, '.grove', 'runs', runId, 'cursor.toml');
+      await mkdir(join(dir, '.grove', 'runs', runId), { recursive: true });
+      const text = build(runId);
+      await writeFile(cursorPath, text);
+      // Subject untouched: the guard licenses the close.
+      const plan = await planCloseRun({
+        repoRoot: dir, runId, closed: '2026-07-28T18:00:00Z',
+      });
+      assert.equal(plan.ok, true, plan.summary);
+      await applyRunPlan(plan, {});
+      const after = await readFile(cursorPath, 'utf8');
+      const parsed = parseCursor(after, { runId });
+      assert.equal(parsed.ok, true, parsed.reason);
+      assert.equal(parsed.cursor.status, 'closed');
+      if (text.includes('\r\n')) {
+        assert.ok(after.includes('\r\n'), 'line-ending style preserved');
+      }
+    });
+  }
+});
+
+test('a well-formed non-canonical cursor aborts cleanly through the field edit, never whole-file', async (t) => {
+  for (const [name, build] of Object.entries(NON_CANONICAL_CURSORS)) {
+    await t.test(name, async () => {
+      const dir = await repoFixture();
+      const runId = '20260728-150000-noncanon';
+      const cursorPath = join(dir, '.grove', 'runs', runId, 'cursor.toml');
+      await mkdir(join(dir, '.grove', 'runs', runId), { recursive: true });
+      await writeFile(cursorPath, build(runId));
+      const plan = await planAbortRun({
+        repoRoot: dir, runId, closed: '2026-07-28T19:00:00Z', reason: 'fixture abort',
+      });
+      assert.equal(plan.ok, true, plan.summary);
+      assert.equal(plan.wholeFileReplacement, false, 'well-formed stays a field edit');
+      await applyRunPlan(plan, { confirmedActionIds: plan.actions.map((a) => a.id) });
+      const parsed = parseCursor(await readFile(cursorPath, 'utf8'), { runId });
+      assert.equal(parsed.ok, true, parsed.reason);
+      assert.equal(parsed.cursor.status, 'aborted');
+      assert.deepEqual(parsed.cursor.subjects, ['specs/changed.md'], 'subjects immutable');
+    });
+  }
+});

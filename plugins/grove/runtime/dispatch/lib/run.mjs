@@ -119,9 +119,9 @@ export async function planCloseRun(input) {
   // Close and abort write ONLY status/closed(/reason): a textual edit of the
   // existing bytes, never a re-serialization, so the byte-diff is exactly
   // those lines (INV8).
-  const content = editCursorText(cursor.text, [
-    ['status = "open"', 'status = "closed"'],
-  ], [`closed = ${JSON.stringify(closed)}`]);
+  const content = editCursorText(cursor.text, 'closed', [
+    `closed = ${JSON.stringify(closed)}`,
+  ]);
   if (content == null) {
     return fail(plan, `close-run cannot locate the single status line in ${runId}`);
   }
@@ -160,9 +160,7 @@ export async function planAbortRun(input) {
     }
     // Well-formed: the whole-file replacement path is UNREACHABLE — this is
     // a field edit preserving every open-time byte (INV8).
-    content = editCursorText(cursor.text, [
-      ['status = "open"', 'status = "aborted"'],
-    ], [
+    content = editCursorText(cursor.text, 'aborted', [
       `closed = ${JSON.stringify(closed)}`,
       `reason = ${JSON.stringify(reason)}`,
     ]);
@@ -235,18 +233,27 @@ async function readCursor(repoRoot, runId) {
   return { ok: true, text, parsed: parseCursor(text, { runId }) };
 }
 
-function editCursorText(text, replacements, appendLines) {
-  let next = text;
-  for (const [from, to] of replacements) {
-    const occurrences = next.split('\n').filter((line) => line === from).length;
-    if (occurrences !== 1) return null;
-    next = next
-      .split('\n')
-      .map((line) => (line === from ? to : line))
-      .join('\n');
-  }
-  const trailing = next.endsWith('\n') ? '' : '\n';
-  return `${next}${trailing}${appendLines.join('\n')}\n`;
+// Matches the open-status assignment with the SAME tolerance parseCursor's
+// parser has — optional whitespace, an optional trailing comment, an
+// optional \r — so a well-formed non-canonical cursor can always close and
+// abort through the field edit (a byte-exact match here wedged such cursors
+// against INV8's deliberately unreachable whole-file path). The matched line
+// is replaced with the canonical assignment; the file's line-ending style is
+// preserved for the replacement and the appended lines.
+const OPEN_STATUS_LINE = /^status\s*=\s*"open"\s*(?:#.*)?\r?$/;
+
+function editCursorText(text, newStatus, appendLines) {
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const lines = text.split('\n');
+  const matched = lines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => OPEN_STATUS_LINE.test(line));
+  if (matched.length !== 1) return null;
+  const keepCR = matched[0].line.endsWith('\r') ? '\r' : '';
+  lines[matched[0].index] = `status = ${JSON.stringify(newStatus)}${keepCR}`;
+  const next = lines.join('\n');
+  const trailing = next.endsWith('\n') ? '' : eol;
+  return `${next}${trailing}${appendLines.join(eol)}${eol}`;
 }
 
 async function listOpenCursors(repoRoot) {
