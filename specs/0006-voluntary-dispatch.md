@@ -170,6 +170,11 @@ status = "open"                               # open | closed | aborted
 # closed = "..."   RFC 3339 UTC; present only when status != open
 # reason = "..."   one line; present only when status = aborted
 # claims — RESERVED top-level key; written by no current path
+#
+# Required fields: `run` and `status` always; `opened`, `intent`, `subjects`
+# required when status = "open". The minimal aborted replacement (§Defect
+# handling) — run/status/closed/reason — is therefore schema-valid, never a
+# standing defect.
 ```
 
 - `subjects` lists the run's governed subject **files**; it defines run scope
@@ -225,6 +230,7 @@ semantics.
 schema = 1
 record_type = "conformance"   # conformance | decision-adversary | spec-adversary | code-review
 subject = "specs/0006-voluntary-dispatch.md"
+subject_state = "present"     # present | absent — what the reviewer reviewed: the file's bytes, or its absence
 subject_sha256 = "<hex digest of the subject bytes reviewed>"
 verdict = "PASS"              # the reviewer's own grammar, verbatim
 by = "conformance-reviewer"
@@ -235,20 +241,27 @@ date = "2026-07-28T15:10:00Z"
   verdict verbatim. It rides the same branch as the change, so it is visible
   on the change request the human at merge reads — it **supplements** the
   adr-0027 D2 change-request report, which remains required.
-- **A record counts for a subject only while `subject_sha256` matches the
-  subject's current bytes.** A subject edited after its review sheds the
-  record deterministically, so the owed-review transition re-enables —
-  review is a per-push gate, not a one-time entry gate. (This digest rule is
-  this spec's concretization of "a record exists *for a changed subject*.")
-- **Absence has a defined digest.** For a `missing` subject (§Transition
-  rules) the reviewed "current bytes" are zero bytes: the record carries the
-  empty-input SHA-256,
-  `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`, and
-  counts while the path stays absent. This equals a zero-byte file's digest —
-  and a zero-byte file landing at the path would NOT change the digest, which
-  is why the sentinel's freshness condition is *the path stays absent*, not
-  digest mismatch: any file landing at the path, including an empty one,
-  re-owes review.
+- **A record counts for a subject only while all three bind**: the record's
+  `subject` names the subject's repo-relative path, its `subject_state`
+  matches the subject's current state (`present` iff the path exists), and —
+  for `present` — its `subject_sha256` matches the subject's current bytes.
+  A subject edited after its review sheds the record deterministically, so
+  the owed-review transition re-enables — review is a per-push gate, not a
+  one-time entry gate. (The path + state + digest triple is this spec's
+  concretization of "a record exists *for a changed subject*.")
+- **Absence is a declared state, not a digest convention.** An absence review
+  writes `subject_state = "absent"` with the empty-input SHA-256 sentinel
+  (`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`) as its
+  `subject_sha256`, and counts only while the path stays absent — the state
+  match, not the digest, is what expires it. The sentinel equals a zero-byte
+  file's digest **by construction of SHA-256, and that coincidence now decides
+  nothing**: a zero-byte file landing at the path flips the subject's state to
+  `present`, the absence record's `subject_state` no longer matches, and
+  review is re-owed. The re-owed review of a present empty file writes
+  `subject_state = "present"` with the same digest, and the two records are
+  distinct by state — neither ever satisfies the other's condition, no run
+  becomes unclosable, and the fail-open both prior drafts circled cannot be
+  built from either reading.
 - The guard reads records; it grades nothing. A `FAIL` record is a completion
   — the review ran; routing the failure is the dispatcher's judgment, and the
   record is loud on the change request.
@@ -305,8 +318,10 @@ when all its preconditions hold under one binding.
   guard watches; the change set establishes the fact of change.
 - **`record(rtype, $s)`** — a schema-valid record with
   `record_type = rtype`, **`subject` equal to `$s`'s repo-relative path**,
-  and a `subject_sha256` matching `$s`'s current bytes exists under **any**
-  run's records directory (`.grove/runs/*/records/`). The subject binding is
+  **`subject_state` matching `$s`'s current state** (`present` iff the path
+  exists), and — for `present` — a `subject_sha256` matching `$s`'s current
+  bytes, exists under **any** run's records directory
+  (`.grove/runs/*/records/`). The subject binding is
   load-bearing, not bookkeeping: without it, the absence sentinel gives every
   `missing` subject the same digest, and one reviewed deletion would satisfy
   the predicate for **every** deletion of that review type in every future
@@ -315,10 +330,9 @@ when all its preconditions hold under one binding.
   means "these exact bytes carry this verdict", so a still-current record
   from a prior run — closed or aborted included — satisfies the predicate
   in supervisor mode and silences the observer, and aborting then
-  restarting a run over unchanged bytes re-owes nothing. Freshness has two
-  conditions, both required: the subject binding above, and digest currency —
-  for `missing` subjects the sentinel counts only while that path stays
-  absent.
+  restarting a run over unchanged bytes re-owes nothing. Freshness is the
+  path + state + digest triple defined in §Verdict-record contract — one
+  definition, restated nowhere.
 - **`no-record(rtype, $s)`** — no record satisfies `record(rtype, $s)`; an
   absent record and a stale (digest-mismatched) record both leave it true.
 - A record whose `record_type` is outside the four rule-consumable types
@@ -421,7 +435,7 @@ close: `close-run` requires exit `0`.
 |---|---|
 | a cursor carrying the reserved `claims` key | Yes — over that cursor's `subjects`; the run's owed work still holds and the defect line rides beside it. |
 | more than one open cursor | Yes — over the **union** of the open cursors' subjects; the report names every open cursor; resolution is adopt/abort down to one. |
-| an unparseable or schema-invalid cursor | Not over that cursor — its `subjects` are unreadable; the report names the file and the parse/validation failure. Any other parseable open cursor is still evaluated. A cursor whose `status` cannot be read is treated as open for mode selection (fail closed). Its only exit is a confirmed `abort-run`, which **replaces the file whole** with a minimal well-formed aborted cursor (`run_id` from the filename, `status: aborted`, `reason`) — a status-field edit inside unparseable bytes is not defined. |
+| an unparseable or schema-invalid cursor | Not over that cursor — its `subjects` are unreadable; the report names the file and the parse/validation failure. Any other parseable open cursor is still evaluated. A cursor whose `status` cannot be read is treated as open for mode selection (fail closed). Its only exit is a confirmed `abort-run`, which **replaces the file whole** with a minimal well-formed aborted cursor (`run` from the directory name, `status = "aborted"`, `closed` timestamp, `reason`) — a status-field edit inside unparseable bytes is not defined. This is INV8's one named exception. |
 | a record with a `record_type` outside the enumerated types, or otherwise unparseable | Yes — the record satisfies no predicate; the defect line names it. |
 
 Through the hook, defects use the same channels as owed work: in supervisor
@@ -650,7 +664,12 @@ this contract.
   exits `0` (no enabled-and-unfired instance and no defect); abort shall
   set `status = "aborted"` with a one-line reason; neither shall delete the
   file, and both shall write only `status`, `closed`, and `reason` —
-  `subjects` and every other field shall be immutable after open.
+  `subjects` and every other field shall be immutable after open. One named
+  exception: a confirmed `abort-run` on an **unparseable** cursor replaces the
+  file whole with the minimal aborted shape (§Defect handling) — a field edit
+  inside unparseable bytes is undefined, and the exception is reachable only
+  through the defect path, never on a well-formed cursor.
+
 - **INV9** — No shipped path shall write the `claims` key; the guard shall
   report a cursor carrying it as a schema defect.
 - **INV10** — A stale cursor shall be surfaced at both entry verbs and every
@@ -658,10 +677,10 @@ this contract.
   silently deleted.
 - **INV11** — Verdict records shall follow §Verdict-record contract, and a
   record shall count **only for the subject named in its own `subject`
-  field**, and only while its `subject_sha256` matches that subject's current
-  bytes — for an absent subject, the empty-input SHA-256 sentinel while that
-  path stays absent. Record lookup shall span every run's records directory
-  in both modes.
+  field**, only while its `subject_state` matches that subject's current
+  state, and — for `present` — only while its `subject_sha256` matches the
+  subject's current bytes. Record lookup shall span every run's records
+  directory in both modes.
 - **INV12** — The record file shall not substitute for the change-request
   verdict report (adr-0027 D2), which remains owed.
 - **INV13** — `transitions.toml` shall ship at
@@ -868,7 +887,9 @@ its criterion's label.
    stale-resolution loudness behavioral] (INV7–INV10; S5, S7, S16 context):
    red if any third write moment appears, a close lands while owed work or
    a defect exists, a close or abort touches any field beyond
-   `status`/`closed`/`reason`, an abort deletes the file, a second open
+   `status`/`closed`/`reason` (save INV8's sole named exception — the
+   whole-file replacement of an *unparseable* cursor, itself red if reachable
+   on a well-formed one), an abort deletes the file, a second open
    cursor is created, or a stale cursor is resolved silently.
 6. **AC6 — claims stays reserved** [mechanical] (INV9): red if any shipped
    path writes `claims` or the guard stops flagging its presence.
