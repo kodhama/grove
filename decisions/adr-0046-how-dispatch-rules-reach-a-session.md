@@ -49,6 +49,11 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
   artifact-derived.** *(maintainer, 2026-07-28: "I think option 2 is fine exactly
   because it's not too strict about it.")* The weighing they asked for is in
   §Considered and rejected.
+- **Host scope: the artifact half is host-neutral; only enforcement is
+  Claude-first.** *(maintainer, 2026-07-28, option C)* The transition table and
+  the run cursor are **files**, so both hosts get the same rules. The
+  deterministic Stop guard is Claude-side until Codex's hook vocabulary is
+  measured. Codex is *un-guarded*, not *unsupported*.
 - **The field agrees.** No plugin-class system was found doing always-on
   orchestration injection; Anthropic's own `/deep-research` lost auto-activation
   in v2.1.218; BMAD is migrating off always-on `.clinerules` onto invoked
@@ -65,8 +70,7 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
    inferred dispatch from descriptions, citing `claude-code#5688`.
 3. **What carries the dispatcher-only floors** — the rules no subagent charter
    restates, so no spawned role catches them for us.
-4. **Codex parity.** Codex ships fourteen `role-*` skills and **no agents**; any
-   Claude-shaped answer needs its Codex twin or an explicit scope limit.
+4. ~~Codex parity?~~ **Answered** — see Decided (option C).
 5. **What happens to the existing managed block**, and to the five consumers
    still running the compliant `0.1.0` text.
 6. **How cold does the dispatcher go — and what is lost by going there?**
@@ -79,6 +83,32 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
    behind is a new drift class, and grove has been bitten by drift three times
    this week. What creates it, what clears it, and what a stale one means are
    unanswered.
+
+### Constraint — the enforcement asymmetry must be disclosed, not silent
+
+Option C creates a real asymmetry: Claude sessions get rules **plus** a
+deterministic Stop guard; Codex sessions get rules **only**, enforced by prose.
+
+**Checked against `adr-0031`, because that is the host-equivalence contract and
+it has already been violated once in this area:**
+
+- `:157-158` requires *"the same semantic conditional-routing rule"* on
+  `AGENTS.md`. **Satisfied** — the table and cursor are files; both hosts read the
+  same rules.
+- `:219-220` item 9 requires proving an unsupported surface *"fails loudly rather
+  than degrading to generic agents"*. **Not tripped** — Codex is not unsupported.
+  It runs grove's rules; it lacks the deterministic backstop.
+
+**But a difference nobody is told about is exactly the failure this whole thread
+is about.** So: **a Codex session must be told, at entry, that it is running
+without the deterministic guard.** Without that line, C recreates silent
+degradation in a new place, which would be the third instance this month.
+
+**Obligation before implementation, not before this decision:** measure Codex's
+hook vocabulary. Trellis ships `hooks/codex-hooks.json` with a `SessionStart`
+matcher, so Codex has *a* hook system; whether it has a `Stop` event is
+**unknown** and unmeasured. If it does, the asymmetry may be temporary and the
+disclosure line becomes conditional.
 
 ### Constraint — do not foreclose emergent sequencing
 
