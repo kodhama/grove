@@ -1,0 +1,104 @@
+name: Agent workflow parity
+
+# The instrumented answer to the byte-identity skip.
+#
+# `claude-code-action` refuses to run when its workflow file differs from the
+# copy on the repository's DEFAULT branch (an injection defence). When it
+# refuses it logs a warning, does nothing, and the job still concludes
+# SUCCESS. So a PR that edits one of those workflows silently loses that
+# agent, and merging such a change silently disables it on every open PR
+# until each one merges the default branch back in.
+#
+# Ported alongside `claude-code-review.yml` from a sibling repo in this family,
+# where the cause was written down at the point of use in one workflow and then
+# recurred in a second one anyway — because the second reader was in a
+# different file and never saw the first note. Point-of-use comments do not
+# transfer between files, which is why this check exists as a job rather than
+# as another paragraph.
+#
+# THIS JOB IS DETERMINISTIC ON PURPOSE. It runs no agent and uses no
+# claude-code-action, so it is the one check in this area that cannot itself
+# skip green. Do not "improve" it into an agentic check.
+#
+# Advisory: `main` carries no branch protection here, so a red never blocks a
+# merge. It exists to make an invisible state visible, not to gate.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Every claude-code-action workflow must match the default branch
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -uo pipefail
+
+          # Match the `uses:` line, NOT any mention of the action. This file
+          # names it in its own comments; a substring match flags itself.
+          USES_RE='^[[:space:]]*uses:[[:space:]]*anthropics/claude-code-action'
+
+          # The action compares against the DEFAULT branch, not this PR's base,
+          # so that is what we compare against too.
+          git fetch --no-tags --depth=1 origin "$DEFAULT_BRANCH"
+
+          # Files invoking the action, on either side of the diff: a PR can add
+          # one (absent from the default branch — it will skip) as easily as it
+          # can edit one.
+          {
+            grep -rlE "$USES_RE" .github/workflows/ 2>/dev/null || true
+            git ls-tree -r --name-only FETCH_HEAD -- .github/workflows/ 2>/dev/null |
+              while read -r f; do
+                if git show "FETCH_HEAD:$f" 2>/dev/null | grep -qE "$USES_RE"; then
+                  echo "$f"
+                fi
+              done
+          } | sort -u > /tmp/agent-workflows
+
+          if [ ! -s /tmp/agent-workflows ]; then
+            echo "No claude-code-action workflows found on either side — nothing to check."
+            exit 0
+          fi
+
+          echo "Checking against origin/$DEFAULT_BRANCH:"
+          drift=0
+          while read -r f; do
+            [ -n "$f" ] || continue
+
+            if [ ! -f "$f" ]; then
+              echo "  - $f — deleted in this PR, nothing to skip."
+              continue
+            fi
+
+            if ! git show "FETCH_HEAD:$f" > /tmp/base-copy 2>/dev/null; then
+              echo "::error file=$f::New agent workflow: absent from $DEFAULT_BRANCH, so claude-code-action will SKIP it on this PR — green, silently, having done nothing. It starts working once this lands."
+              drift=1
+              continue
+            fi
+
+            if diff -q /tmp/base-copy "$f" >/dev/null 2>&1; then
+              echo "  - $f — matches."
+            else
+              echo "::error file=$f::Differs from $DEFAULT_BRANCH, so claude-code-action will SKIP it on this PR — green, silently, having done nothing. Get a second opinion elsewhere for this PR, and after merging, merge $DEFAULT_BRANCH into every open PR branch or they stay unreviewed behind a green tick."
+              drift=1
+            fi
+          done < /tmp/agent-workflows
+
+          if [ "$drift" -ne 0 ]; then
+            echo
+            echo "Red here does not mean the change is wrong — editing these files is normal."
+            echo "It means: the agents configured by the differing file(s) are NOT running on"
+            echo "this PR, and their green checks above are meaningless. Advisory; merge anyway"
+            echo "if that is the intent."
+            exit 1
+          fi
+
+          echo "All agent workflows match $DEFAULT_BRANCH — their results on this PR are real."
