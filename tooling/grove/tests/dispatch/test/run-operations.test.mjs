@@ -571,3 +571,104 @@ test('close-run rejects a closed timestamp the parser cannot round-trip, naming 
   assert.deepEqual(plan.actions, []);
   assert.match(plan.summary, /closed/, `names the field — got: ${plan.summary}`);
 });
+
+
+// --- P1-A: guard licensing must not trust the plan file (INV5/AC4) ---
+// The CLI apply path loads the plan from a CALLER-SUPPLIED JSON file; the
+// close-run branch previously auto-confirmed EVERY action flagged
+// guardLicensed — so a hand-written plan could smuggle arbitrary writes
+// through the confirm gate. The licensed action must RECONSTRUCT from the
+// plan's identifying fields (repoRoot + run + closed) via the same
+// construction code planCloseRun uses; guardLicensed is a hint, never
+// authority.
+
+async function cleanClosablePlan(dir) {
+  // Subject untouched: the guard licenses the close.
+  const plan = await planCloseRun({
+    repoRoot: dir, runId: RUN_ID, closed: '2026-07-28T18:00:00Z',
+  });
+  assert.equal(plan.ok, true, plan.summary);
+  return plan;
+}
+
+test('P1-A — a tampered plan with an extra guardLicensed write is refused; nothing is written', async () => {
+  const dir = await repoFixture();
+  await openedRun(dir);
+  const plan = await cleanClosablePlan(dir);
+  plan.actions.push({
+    type: 'write',
+    path: 'evil.txt',
+    content: 'smuggled\n',
+    expected: { kind: 'file', content: null },
+    guardLicensed: true,
+    id: 'write:evil.txt',
+  });
+  await assert.rejects(
+    applyRunPlan(plan, {}),
+    (error) => /guardLicensed|reconstruct|licenses exactly one/i.test(error.message),
+  );
+  await assert.rejects(readFile(join(dir, 'evil.txt')), /ENOENT/, 'nothing was written');
+  const cursor = await readFile(join(dir, '.grove', 'runs', RUN_ID, 'cursor.toml'), 'utf8');
+  assert.match(cursor, /status = "open"/, 'the cursor was not closed either');
+});
+
+test('P1-A — a tampered plan whose only licensed action is a delete is refused', async () => {
+  const dir = await repoFixture();
+  await openedRun(dir);
+  const plan = await cleanClosablePlan(dir);
+  const cursorPath = `.grove/runs/${RUN_ID}/cursor.toml`;
+  plan.actions = [{
+    type: 'delete',
+    path: cursorPath,
+    expected: { kind: 'file', content: await readFile(join(dir, cursorPath), 'utf8') },
+    guardLicensed: true,
+    id: `delete:${cursorPath}`,
+  }];
+  await assert.rejects(
+    applyRunPlan(plan, {}),
+    (error) => /reconstruct|guardLicensed/i.test(error.message),
+  );
+  assert.ok(await readFile(join(dir, cursorPath), 'utf8'), 'the cursor still exists');
+});
+
+test('P1-A — a licensed action pointing outside the named run is refused', async () => {
+  const dir = await repoFixture();
+  await openedRun(dir);
+  const plan = await cleanClosablePlan(dir);
+  const foreign = '.grove/runs/20260728-990000-other/cursor.toml';
+  plan.actions = [{
+    ...plan.actions[0],
+    path: foreign,
+    id: `write:${foreign}`,
+  }];
+  await assert.rejects(
+    applyRunPlan(plan, {}),
+    (error) => /reconstruct|guardLicensed/i.test(error.message),
+  );
+  await assert.rejects(
+    readFile(join(dir, foreign)),
+    /ENOENT/,
+    'nothing was written outside the named run',
+  );
+});
+
+test('P1-A — a hand-written close plan without the identifying fields is refused', async () => {
+  const dir = await repoFixture();
+  await openedRun(dir);
+  const plan = await cleanClosablePlan(dir);
+  delete plan.run;
+  await assert.rejects(
+    applyRunPlan(plan, {}),
+    (error) => /run id|identifying/i.test(error.message),
+  );
+});
+
+test('P1-A — the legitimate close plan still reconstructs and applies', async () => {
+  const dir = await repoFixture();
+  const cursorPath = await openedRun(dir);
+  const plan = await cleanClosablePlan(dir);
+  await applyRunPlan(plan, {});
+  const parsed = parseCursor(await readFile(cursorPath, 'utf8'), { runId: RUN_ID });
+  assert.equal(parsed.ok, true, parsed.reason);
+  assert.equal(parsed.cursor.status, 'closed');
+});

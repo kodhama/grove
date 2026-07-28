@@ -169,27 +169,40 @@ export async function planCloseRun(input) {
     return fail(plan, `close-run requires an open cursor; ${runId} is ${cursor.parsed.cursor.status}`);
   }
 
-  // Close and abort write ONLY status/closed(/reason): a textual edit of the
-  // existing bytes, never a re-serialization, so the byte-diff is exactly
-  // those lines (INV8).
-  const content = editCursorText(cursor.text, 'closed', [
-    `closed = ${JSON.stringify(closed)}`,
-  ]);
-  if (content == null) {
+  const closeAction = buildCloseAction(cursor.text, runId, closed);
+  if (closeAction == null) {
     return fail(plan, `close-run cannot locate the single status line in ${runId}`);
   }
-  plan.actions.push(action({
+  // The identifying fields applyRunPlan reconstructs the licensed action
+  // from — the plan FILE is caller-supplied and never trusted.
+  plan.run = runId;
+  plan.closed = closed;
+  plan.actions.push(closeAction);
+  plan.summary = `close-run plans the guard-licensed close of ${runId}`;
+  return plan;
+}
+
+// THE single construction of the ordinary-close action, used by planCloseRun
+// AND by applyRunPlan's licensing reconstruction so the two cannot diverge.
+// Close and abort write ONLY status/closed(/reason): a textual edit of the
+// existing bytes, never a re-serialization, so the byte-diff is exactly
+// those lines (INV8).
+function buildCloseAction(cursorText, runId, closed) {
+  const content = editCursorText(cursorText, 'closed', [
+    `closed = ${JSON.stringify(closed)}`,
+  ]);
+  if (content == null) return null;
+  return action({
     type: 'write',
     path: `.grove/runs/${runId}/cursor.toml`,
     content,
-    expected: { kind: 'file', content: cursor.text },
-    // Pre-confirmed at plan time solely by the guard's exit-0 verdict,
-    // which applyRunPlan obtains immediately before apply.
+    expected: { kind: 'file', content: cursorText },
+    // Pre-confirmed solely by the guard's exit-0 verdict, obtained by
+    // applyRunPlan immediately before apply — and only after the action
+    // reconstructs from the plan's identifying fields.
     confirmationRequired: false,
     guardLicensed: true,
-  }));
-  plan.summary = `close-run plans the guard-licensed close of ${runId}`;
-  return plan;
+  });
 }
 
 export async function planAbortRun(input) {
@@ -249,12 +262,19 @@ export async function planAbortRun(input) {
 
 // Apply through the one shared gate. For close-run the operation itself
 // obtains the guard's exit-0 license immediately before apply and supplies
-// the pre-confirmed action id; for open/abort only the caller's
-// user-confirmed ids pass through.
+// the pre-confirmed action id — but the plan arrives from a CALLER-SUPPLIED
+// file (the CLI reads plan JSON from disk), so nothing in it is trusted:
+// the licensed action is RECONSTRUCTED from the plan's identifying fields
+// (repoRoot + run + closed) through buildCloseAction — the same code
+// planCloseRun used — and only an action matching that reconstruction in
+// id, path, type, AND content, existing exactly once, is ever confirmed.
+// `guardLicensed` is a hint, never authority; a plan carrying licensed
+// actions that do not reconstruct is itself a defect and is refused.
 export async function applyRunPlan(plan, { confirmedActionIds = [] } = {}) {
   if (!plan?.ok) throw new Error('cannot apply a failed run plan');
   let ids = [...confirmedActionIds];
   if (plan.operation === 'close-run') {
+    const licensed = await reconstructCloseLicense(plan);
     const verdict = runGuard(plan.repoRoot);
     if (verdict.status !== 0) {
       const report = `${verdict.stdout ?? ''}${verdict.stderr ?? ''}`.trim();
@@ -263,11 +283,56 @@ export async function applyRunPlan(plan, { confirmedActionIds = [] } = {}) {
           + `owed work or a defect stands.\n${report}`,
       );
     }
-    ids = plan.actions
-      .filter((item) => item.guardLicensed)
-      .map((item) => item.id);
+    ids = [licensed.id];
   }
   return applyPlan(plan, { confirmedActionIds: ids });
+}
+
+async function reconstructCloseLicense(plan) {
+  const runId = plan.run;
+  if (typeof runId !== 'string' || !RUN_ID.test(runId)) {
+    throw new Error(
+      'close-run refused: the plan carries no grammatical run id among its identifying fields; nothing can be licensed',
+    );
+  }
+  if (typeof plan.closed !== 'string' || plan.closed === '') {
+    throw new Error(
+      'close-run refused: the plan carries no closed timestamp among its identifying fields; nothing can be licensed',
+    );
+  }
+  const flagged = (Array.isArray(plan.actions) ? plan.actions : [])
+    .filter((item) => item?.guardLicensed);
+  if (flagged.length !== 1) {
+    throw new Error(
+      `close-run licenses exactly one reconstructed action; this plan flags ${flagged.length} `
+        + 'guardLicensed action(s) — guardLicensed is a hint, never authority, and a plan '
+        + 'carrying unreconstructable licensed actions is itself a defect',
+    );
+  }
+  const cursor = await readCursor(resolve(plan.repoRoot), runId);
+  if (!cursor.ok) {
+    throw new Error(`close-run refused: ${cursor.reason}`);
+  }
+  const expected = buildCloseAction(cursor.text, runId, plan.closed);
+  if (expected == null) {
+    throw new Error(
+      `close-run refused: the current cursor for ${runId} has no single open-status line to close`,
+    );
+  }
+  const candidate = flagged[0];
+  if (
+    candidate.id !== expected.id
+    || candidate.path !== expected.path
+    || candidate.type !== expected.type
+    || candidate.content !== expected.content
+  ) {
+    throw new Error(
+      `close-run refused: the plan's guardLicensed action does not reconstruct as the cursor `
+        + `status-write at ${expected.path} (id/path/type/content must all match the recomputed `
+        + 'action; guardLicensed is a hint, never authority)',
+    );
+  }
+  return expected;
 }
 
 function runGuard(repoRoot) {
