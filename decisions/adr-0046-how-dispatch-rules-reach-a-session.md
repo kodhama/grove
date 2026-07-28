@@ -597,6 +597,12 @@ Not adopted; recorded so the next turn starts from a sharper question.
 
 ### Parked
 
+- **Offline DES-style analysis of the rule set** *(maintainer, 2026-07-28)*:
+  extracting the FSA / net / event-language view of the activation rules
+  (Cassandras & Lafortune toolbox) to give assurances about what the model can
+  do on top of the open LLM action space. **An analysis tool, never the
+  engine** — discretionary work for free time and tokens, unblocking nothing.
+
 - **The multi-repo use case — parked; the disjointness theory it produced —
   live.** *(maintainer, 2026-07-28, scoping the parking precisely)*: what is
   parked is the **use case**, not the theory built while discussing it. The
