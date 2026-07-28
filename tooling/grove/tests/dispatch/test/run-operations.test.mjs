@@ -521,3 +521,20 @@ test('open-run rejects a planned cursor that does not round-trip, naming the off
   assert.deepEqual(control.actions, []);
   assert.match(control.summary, /subject/i, `names the field: ${control.summary}`);
 });
+
+// Case list DERIVED FROM the counterpart mechanism: git's path output (the
+// derived change set) is canonical repo-relative — no leading "./", no "."
+// segments, no empty segments ("//" or a trailing "/"). A subject in any
+// non-canonical form passes a looser validator but can never equal a
+// change-set path, so its owed work silently never enables.
+test('open-run rejects non-canonical relative subject paths (./, /./, //, trailing /)', async () => {
+  const dir = await repoFixture();
+  for (const bad of ['./dotslash.md', 'a/./b.md', 'x//y.md', 'x/']) {
+    const plan = await planOpenRun(openRequest(dir, { subjects: [bad] }));
+    assert.equal(plan.ok, false, bad);
+    assert.ok(
+      plan.summary.includes(bad) || plan.summary.includes(JSON.stringify(bad)),
+      `${bad}: summary names the offending subject — got: ${plan.summary}`,
+    );
+  }
+});

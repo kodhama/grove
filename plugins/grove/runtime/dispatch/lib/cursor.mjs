@@ -59,6 +59,13 @@ export function validateSubjectPath(subject) {
   if (subject.split('/').some((segment) => segment === '..')) {
     return `subject ${JSON.stringify(subject)} contains a ".." segment; subjects never traverse`;
   }
+  // Canonical form, derived from what git emits for the change set: no "."
+  // segments (leading "./" or internal "/./") and no empty segments ("//"
+  // or a trailing "/"). A non-canonical subject can never equal a
+  // change-set path, so its owed work would silently never enable.
+  if (subject.split('/').some((segment) => segment === '' || segment === '.')) {
+    return `subject ${JSON.stringify(subject)} is not in canonical repo-relative form (no "./", "/./", "//", or trailing "/")`;
+  }
   return null;
 }
 
