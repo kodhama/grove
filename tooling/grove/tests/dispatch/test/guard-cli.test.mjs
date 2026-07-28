@@ -447,3 +447,57 @@ test('a multi-line parse-error token cannot break a defect line', async () => {
     assert.match(line, /^grove-guard/, `orphan continuation line: ${JSON.stringify(line)}`);
   }
 });
+
+// --- R6: the status probe is bounded to the ROOT table ---
+// Found by review against 6c0ba93, and it is the READ twin of the cursor-EDIT
+// bug fixed the round before: editCursorText was scoped to the root table
+// while probeStatus still scanned the whole file. A cursor whose ROOT carries
+// no `status` but which holds `status = "closed"` inside a `[[claims]]` table
+// answered "closed", so the fail-closed rule ("an unreadable status is open
+// for mode selection") never fired and the hook left supervisor mode.
+
+const SMUGGLED_STATUS = (runId, smuggled) =>
+  `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+  + 'intent = "root status is missing"\nsubjects = ["specs/changed.md"]\n'
+  + `\n[[claims]]\nstatus = "${smuggled}"\n`;
+
+test('R6 — a status smuggled into a [[claims]] table cannot take the guard out of supervisor mode', async () => {
+  for (const smuggled of ['closed', 'aborted']) {
+    const dir = await repoFixture();
+    await mkdir(join(dir, 'specs'), { recursive: true });
+    await writeFile(join(dir, 'specs', 'changed.md'), SPEC_BODY);
+    const runId = `20260728-140000-${smuggled}`;
+    await writeCursor(dir, runId, SMUGGLED_STATUS(runId, smuggled));
+
+    // Direct CLI: the malformed cursor is a defect either way.
+    const direct = await runGuard(dir);
+    assert.equal(direct.status, 2, `${direct.stdout}${direct.stderr}`);
+    assert.match(direct.stderr, new RegExp(runId));
+
+    // The load-bearing half: through the hook it must HOLD. A non-root status
+    // used to select observer mode, which reports without ever blocking.
+    const hook = await runGuard(dir, { hook: true, stdin: '{"stop_hook_active": false}' });
+    assert.equal(
+      hook.status, 0,
+      `${smuggled}: expected a supervisor hold, got ${hook.status}: ${hook.stdout}${hook.stderr}`,
+    );
+    const decision = JSON.parse(hook.stdout.trim());
+    assert.equal(decision.decision, 'block', `${smuggled}: the hook must hold`);
+    assert.match(decision.reason, new RegExp(runId));
+    assert.doesNotMatch(hook.stderr, /observer/, 'observer mode is the bug, not the behaviour');
+  }
+});
+
+test('R6 — a ROOT status still reads normally; the bound narrows nothing legitimate', async () => {
+  // The over-correction guard: bounding the scan must not stop the probe from
+  // reading a status that really is at the root.
+  const dir = await repoFixture();
+  const runId = '20260728-150000-rooted';
+  // Root says closed but carries no `closed` timestamp, so parseCursor fails
+  // and the probe is what decides the mode: closed => not open => observer.
+  await writeCursor(dir, runId, `schema = 1\nrun = "${runId}"\nstatus = "closed"\n`);
+  const hook = await runGuard(dir, { hook: true, stdin: '{"stop_hook_active": false}' });
+  assert.equal(hook.status, 1, `${hook.stdout}${hook.stderr}`);
+  assert.equal(hook.stdout.trim(), '', 'a non-open root status does not hold');
+  assert.match(hook.stderr, new RegExp(runId), 'the defect is still reported');
+});

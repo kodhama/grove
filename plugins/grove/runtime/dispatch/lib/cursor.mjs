@@ -43,13 +43,25 @@ export function statusLinePattern(status, flags = '') {
 // a `[[claims]]` table produced a schema-invalid result.
 export const TABLE_HEADER_LINE = /^\s*\[/;
 
-// Exactly one readable status line -> that status; anything else (none,
-// several, an out-of-enum value) is unreadable = null. Fail closed at the
-// call sites: an unreadable status is open for mode selection.
+// Exactly one readable ROOT-TABLE status line -> that status; anything else
+// (none, several, an out-of-enum value) is unreadable = null. Fail closed at
+// the call sites: an unreadable status is open for mode selection.
+//
+// The root-table bound is the whole point, and its absence was the READ twin
+// of the cursor-EDIT bug fixed one round earlier: this probe scanned the whole
+// file, so a cursor whose ROOT carries no `status` at all but which contains
+// `status = "closed"` inside a `[[claims]]` table answered "closed". Both
+// callers run this ONLY on a cursor that already failed parseCursor, and both
+// read a non-open answer as "not open" — so the smuggled value took the Stop
+// hook out of supervisor mode into non-holding observer mode, and let open-run
+// admit a second cursor beside the malformed one. Scanning stops at the first
+// TABLE_HEADER_LINE, which is where editCursorText already stops; one grammar,
+// both directions.
 export function probeStatus(text) {
   const pattern = statusLinePattern('(open|closed|aborted)');
   const found = [];
   for (const line of String(text).split('\n')) {
+    if (TABLE_HEADER_LINE.test(line)) break;
     const match = line.match(pattern);
     if (match) found.push(match[1]);
   }

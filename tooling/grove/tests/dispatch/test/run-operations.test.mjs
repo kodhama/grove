@@ -1063,3 +1063,31 @@ test("R4 — a caller's malformed timestamp is named before repository state can
   assert.match(abort.summary, CONTRACT_REFUSAL, abort.summary);
   assert.doesNotMatch(abort.summary, /no cursor exists/, abort.summary);
 });
+
+// --- R6: the second call site of the root-bounded status probe ---
+// listOpenCursors reads the same probe, so the same smuggled status let
+// open-run admit a SECOND cursor beside a malformed one — the stale-cursor
+// guarantee (INV7: at most one open cursor) turned off by a value in a table.
+
+test('R6 — open-run refuses beside a cursor whose ROOT status is missing but a table carries one', async () => {
+  for (const smuggled of ['closed', 'aborted']) {
+    const dir = await repoFixture();
+    const stale = `20260728-140000-${smuggled}`;
+    await mkdir(join(dir, '.grove', 'runs', stale), { recursive: true });
+    await writeFile(
+      join(dir, '.grove', 'runs', stale, 'cursor.toml'),
+      `schema = 1\nrun = "${stale}"\nopened = "2026-07-28T14:00:00Z"\n`
+        + 'intent = "root status is missing"\nsubjects = ["specs/changed.md"]\n'
+        + `\n[[claims]]\nstatus = "${smuggled}"\n`,
+    );
+
+    const plan = await planOpenRun(openRequest(dir, { runId: '20260728-160000-second' }));
+    assert.equal(
+      plan.ok, false,
+      `${smuggled}: a malformed cursor is open for mode selection, so open-run must refuse`,
+    );
+    assert.deepEqual(plan.actions, []);
+    assert.match(plan.summary, new RegExp(stale), plan.summary);
+    assert.match(plan.summary, /adopt|abort/i, plan.summary);
+  }
+});

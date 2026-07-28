@@ -10,6 +10,10 @@ groups:
       - file: "test/guard-cli.test.mjs"
         cases:
           - title:
+              - "R6 — a ROOT status still reads normally; the bound narrows nothing legitimate"
+          - title:
+              - "R6 — a status smuggled into a [[claims]] table cannot take the guard out of supervisor mode"
+          - title:
               - "S10 — observer: exactly one prefixed line per stop, every stop, never a hold, no state"
           - title:
               - "S8 — the hook holds naming the exact transition, subject, record, and resolutions"
@@ -82,7 +86,11 @@ groups:
           - title:
               - "R5 — a file that opens NO block is still genuinely code, not swept into unclaimed"
           - title:
-              - "R5 — one delimiter grammar at both ends: what closes a block also opens one"
+              - "R6 — a padded delimiter is malformed at both ends, never a delimiter and never ignored"
+          - title:
+              - "R6 — legal YAML inside a complete block stays legal; the strictness stops at syntax"
+          - title:
+              - "R6 — no malformed, truncated, or ambiguous block can reach the absorbing reviewless class"
           - title:
               - "a block-style implements list classifies implements-bearing; an empty key does not"
           - title:
@@ -169,6 +177,8 @@ groups:
               - "R4 — the one-line contract covers intent and reason, a lone CR as well as an LF"
           - title:
               - "R4 — the status line is counted in the root table only: a [[claims]] status never wedges abort"
+          - title:
+              - "R6 — open-run refuses beside a cursor whose ROOT status is missing but a table carries one"
           - title:
               - "S11 — guard and run operations behave identically with a deleted or mangled managed block"
           - title:

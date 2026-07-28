@@ -78,16 +78,33 @@ export function classifyContent(content) {
   return { classes, base, implementsBearing };
 }
 
-// ONE delimiter grammar, used at BOTH ends: a line whose trimmed form is
-// exactly `---`. The two ends disagreed before — the open was the byte-exact
-// prefix `---\n`/`---\r\n` while the close was `line.trim() === '---'` — so
-// `--- ` closed a block it could not open, and `---` at EOF with no newline
-// opened nothing at all. Deriving both from one predicate removes the
-// asymmetry by construction instead of patching whichever end a reviewer
-// happened to look at. `----` is not this delimiter in EITHER position: it
-// opens no block (genuinely code) and closes none (the open block stays
-// unterminated, hence unclaimed) — the same strict read, both ends.
-const FRONTMATTER_DELIMITER = /^\s*---\s*$/;
+// ONE delimiter grammar, used at BOTH ends, and now STRICT: exactly `---`,
+// nothing around it. The previous revision matched `/^\s*---\s*$/` at both
+// ends, which removed the open/close asymmetry but opened a new route into
+// `reviewless`: `--- ` + `type: research` moved a file from code (owes 2) to
+// reviewless (owes 0, and observer-EXCLUDED). Making the pad strict-fail
+// instead of strict-reject is what closes it in BOTH directions at once — a
+// padded delimiter is neither "a delimiter" (which would let a typo reach
+// reviewless) nor "not a delimiter" (which would let a padded-open artifact
+// classify `code` and vanish from observer mode). It is MALFORMED: unclaimed,
+// owes the full set, visible. `----` remains outside the grammar in either
+// position: it opens no block (genuinely code) and closes none (leaving the
+// block unterminated, hence unclaimed).
+const FRONTMATTER_DELIMITER = /^---$/;
+const DELIMITER_LOOKALIKE = /^\s*---\s*$/;
+
+// The line shapes that are LEGAL inside a block and carry nothing this parser
+// needs to read. Everything not on this list, and not a column-0 `key:`, makes
+// the block malformed — a parser that silently discards syntax it cannot
+// interpret keeps a `type` it has no right to trust, which is how `- broken`
+// beside `type: research` classified reviewless and escaped review entirely.
+// An INDENTED line is the deliberate exception: it belongs to the key above it
+// (a nested map, a block scalar's body, an indented list item). Its content is
+// not read, and it cannot masquerade as a top-level `type`/`implements`, so
+// skipping it is safe — and it is what keeps a legal multi-line string whose
+// body happens to contain `---` from being read as a delimiter at all.
+const COMMENT_LINE = /^\s*#/;
+const INDENTED_CONTINUATION = /^\s+\S/;
 
 // Three outcomes, never two:
 //   { kind: 'none' }              no block was opened — genuinely code
@@ -104,16 +121,34 @@ function readFrontmatter(text) {
   const hasByteOrderMark = text.charCodeAt(0) === 0xfeff;
   const body = hasByteOrderMark ? text.slice(1) : text;
   const lines = body.split(/\r?\n/);
-  if (!FRONTMATTER_DELIMITER.test(lines[0])) return { kind: 'none' };
+  if (!DELIMITER_LOOKALIKE.test(lines[0])) return { kind: 'none' };
+  if (!FRONTMATTER_DELIMITER.test(lines[0])) {
+    return { kind: 'malformed', reason: 'the opening delimiter is not exactly `---`' };
+  }
   if (hasByteOrderMark) {
     return { kind: 'malformed', reason: 'a byte-order mark precedes the opening delimiter' };
   }
   const fields = new Map();
   for (let index = 1; index < lines.length; index += 1) {
     const line = lines[index];
+    // Order is load-bearing. The clean close is tested FIRST so it always
+    // wins; the indented-continuation skip comes BEFORE anything that could
+    // read an indented `---` as a delimiter, so a block scalar whose body
+    // contains one stays legal. A COLUMN-0 padded close (`--- `) needs no case
+    // of its own: it is not a key, not a comment and not indented, so the
+    // unreadable-line rule below already makes the block malformed. A branch
+    // for it would differ only in the `reason` string, which classifyContent
+    // discards — measured, and removed rather than kept as untested weight.
     if (FRONTMATTER_DELIMITER.test(line)) return { kind: 'block', fields };
+    if (line.trim() === '' || COMMENT_LINE.test(line)) continue;
+    if (INDENTED_CONTINUATION.test(line)) continue;
     const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (!match) continue;
+    if (!match) {
+      return {
+        kind: 'malformed',
+        reason: `line ${index + 1} is neither a key, a comment, nor an indented continuation`,
+      };
+    }
     let value = match[2].trim();
     if (value === '') {
       // YAML block-style list: continuation `- item` lines belong to this
@@ -133,7 +168,14 @@ function readFrontmatter(text) {
       }
       if (items.length > 0) value = items;
     }
-    if (!fields.has(match[1])) fields.set(match[1], value);
+    // A duplicate key is ambiguous, and YAML forbids it outright. First-wins
+    // silently resolved the ambiguity in the writer's favour: `type: research`
+    // above `type: spec` classified reviewless, and the reverse order
+    // classified spec. Ambiguous input never gets a class it can benefit from.
+    if (fields.has(match[1])) {
+      return { kind: 'malformed', reason: `duplicate key "${match[1]}" in the frontmatter block` };
+    }
+    fields.set(match[1], value);
   }
   // Unterminated. The previous revision returned "not frontmatter" here and
   // the caller mapped that to `code` — the charitable read the header comment

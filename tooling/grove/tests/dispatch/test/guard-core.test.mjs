@@ -1076,16 +1076,28 @@ test('R5 — a file that opens NO block is still genuinely code, not swept into 
   }
 });
 
-test('R5 — one delimiter grammar at both ends: what closes a block also opens one', () => {
-  // The two ends disagreed: the open was a byte-exact `---\n` prefix while the
-  // close was line.trim() === '---', so `--- ` closed a block it could not
-  // open. Both now derive from one predicate, so the pair below must agree.
-  const opensAndCloses = `--- \n${R5_BODY}\n--- \n\nbody\n`;
-  assert.deepEqual(
-    classifyContent(opensAndCloses).classes, ['spec', 'implements-bearing'],
-    'a trailing-space delimiter is the same delimiter at both ends',
-  );
-  // And the same spelling that fails to close also fails to open.
+// R6 supersedes R5's tolerant-delimiter half. R5 made `--- ` a delimiter at
+// BOTH ends to remove an open/close asymmetry; that was still a charitable
+// read, and it opened a route into `reviewless` — `--- ` above `type:
+// research` moved a file from code (owes 2) to reviewless (owes 0 AND
+// observer-excluded). A padded delimiter is now neither a delimiter nor
+// not-a-delimiter: it is MALFORMED. That closes the route in both directions
+// at once, which neither strict-reject nor tolerant-accept could do alone.
+test('R6 — a padded delimiter is malformed at both ends, never a delimiter and never ignored', () => {
+  for (const [name, text] of Object.entries({
+    'padded open and close': `--- \n${R5_BODY}\n--- \n\nbody\n`,
+    'padded open only': `--- \n${R5_BODY}\n---\n`,
+    'padded close only': `---\n${R5_BODY}\n--- \n`,
+    'indented open': `  ---\n${R5_BODY}\n---\n`,
+    'indented close': `---\n${R5_BODY}\n  ---\n`,
+  })) {
+    assert.deepEqual(
+      classifyContent(text).classes, ['unclaimed'],
+      `${name}: a padded delimiter is malformed, so the file owes the full set`,
+    );
+  }
+  // `----` is still outside the grammar in either position — it opens no block
+  // and closes none. That half of R5 stands.
   assert.deepEqual(
     classifyContent(`----\n${R5_BODY}\n---\n`).classes, ['code'],
     '---- opens no block',
@@ -1110,4 +1122,68 @@ test('R5 — a complete block still classifies by its type; malformed never outr
     classifyContent('---\n# a comment\n\nid: x\ntype: charter\n---\n').classes, ['charter'],
     'unparseable-but-legal lines inside a CLOSED block are skipped, not fatal',
   );
+});
+
+// --- R6: `reviewless` is the one ABSORBING class, so nothing malformed reaches it ---
+// Every other class under-owes when it is wrong; `reviewless` owes ZERO records
+// AND is excluded from the guard's observer-mode class set, so reaching it is
+// escaping review entirely. The parser used to discard any line it could not
+// interpret and keep the `type` it had already read, so `- broken` beside
+// `type: research` classified reviewless. The table is the mechanism — every
+// route by which not-cleanly-well-formed input reached that state — not the
+// one shape the review demonstrated.
+
+test('R6 — no malformed, truncated, or ambiguous block can reach the absorbing reviewless class', () => {
+  const routes = {
+    'stray column-0 list item': '---\nid: x\ntype: research\n- broken\n---\n',
+    'column-0 prose the parser cannot read': '---\nid: x\ntype: research\nthis is not yaml at all\n---\n',
+    'a bare punctuation line': '---\nid: x\ntype: research\n!!!\n---\n',
+    'a YAML directive': '---\n%YAML 1.2\nid: x\ntype: research\n---\n',
+    'padded opening delimiter': '--- \nid: x\ntype: research\n---\n',
+    'padded closing delimiter': '---\nid: x\ntype: research\n--- \n',
+    'indented opening delimiter': '  ---\nid: x\ntype: research\n---\n',
+    'duplicate type, research first': '---\ntype: research\ntype: spec\n---\n',
+    'duplicate type, spec first': '---\ntype: spec\ntype: research\n---\n',
+    'duplicate of any other key': '---\nid: a\nid: b\ntype: research\n---\n',
+    'unterminated block': '---\nid: x\ntype: research\n',
+    'byte-order mark': '\ufeff---\nid: x\ntype: research\n---\n',
+  };
+  for (const [name, text] of Object.entries(routes)) {
+    const classified = classifyContent(text);
+    assert.deepEqual(
+      classified.classes, ['unclaimed'],
+      `${name}: must not reach reviewless — got ${JSON.stringify(classified.classes)}`,
+    );
+  }
+  // The legitimate route still works: a CLEAN block saying research/feedback.
+  assert.deepEqual(classifyContent('---\nid: x\ntype: research\n---\n').classes, ['reviewless']);
+  assert.deepEqual(classifyContent('---\nid: x\ntype: feedback\n---\n').classes, ['reviewless']);
+});
+
+test('R6 — legal YAML inside a complete block stays legal; the strictness stops at syntax', () => {
+  // The over-correction guard. Round five deliberately left comments and blank
+  // lines non-fatal; this keeps that and extends it to every indented shape,
+  // because an indented line belongs to the key above it and can never
+  // masquerade as a top-level type/implements.
+  const legal = {
+    'a comment': ['---\n# a comment\nid: x\ntype: charter\n---\n', ['charter']],
+    'a blank line': ['---\n\nid: x\ntype: charter\n\n---\n', ['charter']],
+    'an indented comment': ['---\n   # indented\nid: x\ntype: charter\n---\n', ['charter']],
+    'a nested map': ['---\nid: x\ntype: charter\nmeta:\n  owner: someone\n---\n', ['charter']],
+    'a deeply nested map': ['---\nid: x\ntype: charter\na:\n  b:\n    c: 1\n---\n', ['charter']],
+    'a literal block scalar': ['---\nid: x\ntype: charter\nnotes: |\n  line one\n  line two\n---\n', ['charter']],
+    'a folded block scalar': ['---\nid: x\ntype: charter\nnotes: >\n  folded\n---\n', ['charter']],
+    'a block scalar containing an indented ---': ['---\nid: x\ntype: charter\nnotes: |\n  ---\n  more\n---\n', ['charter']],
+    'a tab-indented continuation': ['---\nid: x\ntype: charter\nnotes:\n\tsomething\n---\n', ['charter']],
+    'a quoted value containing a colon': ['---\nid: x\ntype: charter\ntitle: "a: b"\n---\n', ['charter']],
+    'trailing whitespace on a value': ['---\nid: x\ntype: research   \n---\n', ['reviewless']],
+    'a column-0 list value': ['---\nid: x\ntype: spec\nimplements:\n- adr-0001-a\n---\n', ['spec', 'implements-bearing']],
+    'an indented list value': ['---\nid: x\ntype: spec\nimplements:\n  - adr-0001-a\n---\n', ['spec', 'implements-bearing']],
+  };
+  for (const [name, [text, expected]] of Object.entries(legal)) {
+    assert.deepEqual(
+      classifyContent(text).classes, expected,
+      `${name}: legal frontmatter must not be made malformed`,
+    );
+  }
 });
