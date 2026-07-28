@@ -911,11 +911,13 @@ its criterion's label.
    precondition, if record lookup stops spanning every run's records
    directory, or the change-request verdict report is dropped as owed.
 8. **AC8 — rules are data, not an itinerary** [mechanical; the
-   no-next-step property of authored skill/hook/extract text behavioral —
-   no named check reads meaning from authored prose; `transitions.toml` is
-   itinerary-proof by its closed schema and the pointer block by its
-   template, but a next step written into a skill body or the charter's
-   floor span validates green and is caught by review, not machinery]
+   no-next-step property of authored skill/hook/extract text — **and of the
+   `fire` string, the rules file's one free-text field** — behavioral: no
+   named check reads meaning from authored prose, so a sequence written
+   into a skill body, the charter's floor span, or a `fire` value validates
+   green and is caught by review, not machinery. `transitions.toml`'s
+   *structure* is itinerary-proof by its closed schema and the pointer
+   block by its template; its `fire` text is not]
    (INV13–INV15; S15): red if an undeclared key or predicate form
    validates, an empty precondition set validates, or a transition that is
    not self-disabling validates.
