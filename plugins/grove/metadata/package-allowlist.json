@@ -304,6 +304,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/runtime/dispatch/bin/guard.mjs",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/runtime/dispatch/lib/cursor.mjs",
       "kind": "file"
     },

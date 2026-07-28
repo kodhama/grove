@@ -89,7 +89,9 @@ export async function deriveChangeSet({ repoRoot }) {
   ])).split('\n')) {
     if (line.trim() !== '') paths.add(line.trim());
   }
-  for (const line of (await git(repoRoot, ['status', '--porcelain'])).split('\n')) {
+  for (const line of (await git(repoRoot, [
+    'status', '--porcelain', '--untracked-files=all',
+  ])).split('\n')) {
     if (line.trim() === '') continue;
     const entry = line.slice(3);
     for (const half of entry.split(' -> ')) {
