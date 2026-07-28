@@ -227,12 +227,20 @@ test('EVERY plan on a no-support row leads with the disclosure, across every rep
   const rows = await shippedRows();
   const states = {
     empty: async () => {},
-    'malformed gates.toml': async (dir) => {
+    'gates.toml missing seeded_from': async (dir) => {
+      // The SHIPPED template with only the `seeded_from` line removed. An
+      // earlier version of this state used a bogus gate row instead, which
+      // `parseProfile` rejects first — so set-profile returned a clean failure
+      // and the sweep never reached the unguarded `seedPreset` one line below
+      // it. The fixture must be a file that PARSES and still fails to seed,
+      // or it tests the guard instead of the gap.
+      const template = await readFile(join(packageRoot, 'reference/gates/gates.toml'), 'utf8');
+      const withoutProvenance = template
+        .split(/\r?\n/)
+        .filter((line) => !line.trimStart().startsWith('seeded_from'))
+        .join('\n');
       await mkdir(join(dir, '.grove'), { recursive: true });
-      // Only `seeded_from` is missing. The shipped template calls that field
-      // "provenance only — non-authoritative", so deleting it is an edit the
-      // product invites, not a corruption a user would have to work at.
-      await writeFile(join(dir, '.grove', 'gates.toml'), '[gates]\nnot_a_gate = "x"\n');
+      await writeFile(join(dir, '.grove', 'gates.toml'), withoutProvenance);
     },
     'duplicate markers': async (dir) => {
       await writeFile(join(dir, 'CLAUDE.md'),
@@ -274,8 +282,12 @@ test('EVERY plan on a no-support row leads with the disclosure, across every rep
             : operation === 'set-profile'
               ? await planSetProfile({ ...common, preset: 'guardian' })
               : await planRemove(common);
-        const text = `${plan.summary ?? ''} ${(plan.notices ?? []).join(' ')}`;
-        if (!text.includes('Grove claims no support')) {
+        // LEADS with it, matching the sibling tests. This asserted `.includes`
+        // over summary plus `plan.notices` — and `newPlan` has no `notices`
+        // field, so that half was always the empty string. A disclosure buried
+        // mid-summary would have passed the sweep while failing every test
+        // around it.
+        if (!/^Grove claims no support/.test(String(plan.summary ?? ''))) {
           misses.push(`${row.surface_id}/${operation}/${stateName}: ${String(plan.summary).slice(0, 70)}`);
         }
       }

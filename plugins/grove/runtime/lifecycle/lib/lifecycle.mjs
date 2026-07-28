@@ -160,7 +160,7 @@ export async function planSetup(input) {
       return fail(plan, `cannot apply preset "${choices.preset}" to .grove/gates.toml: ${error.message}`);
     }
   }
-  await planConsumerSeed(context, '.grove/gates.toml', gatesContent, overwritePaths);
+  await planConsumerSeed(context, '.grove/gates.toml', gatesContent, overwritePaths, gatesExisting);
   await planConsumerSeed(context, '.grove/config.toml', serializedConfig, overwritePaths);
   addWriteIfChanged(plan, adapter.instruction_file, blockResult.content);
   if (context.host === 'codex') await planLaunchers(context);
@@ -205,7 +205,18 @@ export async function planSetProfile(input) {
   } catch (error) {
     return fail(plan, `cannot switch an unreadable gates.toml: ${error.message}`);
   }
-  const next = seedPreset(original, preset);
+  // `parseProfile` above does NOT cover this. It rejects unknown gate rows and
+  // returns before `seedPreset`'s own precondition — seeded_from plus exactly
+  // four gate rows — is ever tested, so a file that parses cleanly can still
+  // throw here. Deleting only `seeded_from` from the shipped template is such a
+  // file, and the template calls that field "provenance only". Same treatment as
+  // planSetup: report, never throw, so the plan still carries the disclosure.
+  let next;
+  try {
+    next = seedPreset(original, preset);
+  } catch (error) {
+    return fail(plan, `cannot apply preset "${preset}" to .grove/gates.toml: ${error.message}`);
+  }
   const verified = parseProfile(next);
   if (!verified.floor) return fail(plan, 'generated preset violates the Grove human intent floor');
   plan.changes = GATES
@@ -655,11 +666,15 @@ async function planManagedFloor(context) {
   );
 }
 
-async function planConsumerSeed(context, path, content, overwritePaths) {
-  const existing = await readRepoOptional(context, path);
-  // `content` may be null when the caller deferred seeding because it expected
-  // this to skip. Reaching a write branch with null would put the string
-  // "null" on a consumer's disk, so say so instead of writing it.
+async function planConsumerSeed(context, path, content, overwritePaths, preread) {
+  // One read, not two. The caller decides whether to seed from whether the file
+  // exists, and re-reading here let those two decisions disagree: a file deleted
+  // between them sent a deferred (null) content down the write branch. Measured
+  // at 42/400 trials with a concurrent delete — a benign race before, an
+  // uncaught throw after the deferral landed. The caller passes what it read.
+  const existing = preread !== undefined ? preread : await readRepoOptional(context, path);
+  // Belt for the callers that do not preread. Writing a deferred null would put
+  // the literal "null" on a consumer's disk.
   if ((existing == null || overwritePaths.has(path)) && typeof content !== 'string') {
     throw new Error(`internal: no seed content computed for ${path}`);
   }

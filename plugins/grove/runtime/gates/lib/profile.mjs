@@ -179,10 +179,18 @@ function parseValue(v, lineNo) {
 }
 
 // The loud fallback warning (D8). Named so callers surface an identical message.
+//
+// Names the OPERATION, not a host invocation. This said "run /grove:set-profile
+// <preset>", which is the Claude slash form, and `resolveProfile` has no host to
+// resolve it against — `resolve-profile.mjs` takes none — so every Codex user
+// with an unreadable gates.toml was told to run a command their host does not
+// have. The lifecycle layer resolves the invocation through
+// `adapter.set_profile_command`; this layer cannot, so it says the neutral thing
+// rather than guessing.
 export function fallbackWarning(cause) {
   return (
     `gates.toml ${cause} — running at ${FALLBACK_PRESET} (human at intent + spec + ship) ` +
-    `until restored; run /grove:set-profile <preset> to rebuild it.`
+    `until restored; run Grove's set-profile operation to rebuild it.`
   );
 }
 
