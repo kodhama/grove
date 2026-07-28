@@ -44,7 +44,15 @@ jobs:
 
           # Match the `uses:` line, NOT any mention of the action. This file
           # names it in its own comments; a substring match flags itself.
-          USES_RE='^[[:space:]]*uses:[[:space:]]*anthropics/claude-code-action'
+          #
+          # The `(-[[:space:]]+)?` is load-bearing: a step may be written either
+          # as `- name: …` with `uses:` on a later line, OR nameless as
+          # `- uses: anthropics/claude-code-action@v1`. The first form has only
+          # whitespace before `uses:`; the second has the list dash. Without the
+          # optional dash this check MISSES the nameless form entirely and
+          # reports "nothing to check" — green, while blind to exactly the file
+          # it exists to watch.
+          USES_RE='^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*anthropics/claude-code-action'
 
           # The action compares against the DEFAULT branch, not this PR's base,
           # so that is what we compare against too.
