@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { after } from 'node:test';
 
@@ -219,9 +219,29 @@ test('EVERY plan on a no-support row leads with the disclosure, across every rep
   // let each fix miss its siblings, so this asserts the invariant over the
   // cross product instead: every shipped row, every operation, every repo state
   // that changes which branch returns.
+  //
+  // Round five was a `.grove/gates.toml` the consumer had hand-edited: seeding
+  // it threw out of planSetup before any branch returned, so the plan never
+  // existed to carry a summary. The state and the overwrite arm below are that
+  // round — the sweep only bites if new branch-selecting inputs get added to it.
   const rows = await shippedRows();
   const states = {
     empty: async () => {},
+    'gates.toml missing seeded_from': async (dir) => {
+      // The SHIPPED template with only the `seeded_from` line removed. An
+      // earlier version of this state used a bogus gate row instead, which
+      // `parseProfile` rejects first — so set-profile returned a clean failure
+      // and the sweep never reached the unguarded `seedPreset` one line below
+      // it. The fixture must be a file that PARSES and still fails to seed,
+      // or it tests the guard instead of the gap.
+      const template = await readFile(join(packageRoot, 'reference/gates/gates.toml'), 'utf8');
+      const withoutProvenance = template
+        .split(/\r?\n/)
+        .filter((line) => !line.trimStart().startsWith('seeded_from'))
+        .join('\n');
+      await mkdir(join(dir, '.grove'), { recursive: true });
+      await writeFile(join(dir, '.grove', 'gates.toml'), withoutProvenance);
+    },
     'duplicate markers': async (dir) => {
       await writeFile(join(dir, 'CLAUDE.md'),
         '<!-- grove:begin (managed by grove) -->\na\n<!-- grove:end -->\n' +
@@ -239,7 +259,7 @@ test('EVERY plan on a no-support row leads with the disclosure, across every rep
   for (const row of rows) {
     if (row.support_claim === 'claimed') continue;
     for (const [stateName, seed] of Object.entries(states)) {
-      for (const operation of ['setup', 'refresh', 'set-profile', 'remove']) {
+      for (const operation of ['setup', 'setup+gates-overwrite', 'refresh', 'set-profile', 'remove']) {
         const dir = await repo();
         await seed(dir);
         const common = {
@@ -250,17 +270,47 @@ test('EVERY plan on a no-support row leads with the disclosure, across every rep
         };
         const plan = operation === 'setup'
           ? await planSetup({ ...common, choices: { preset: 'steward', config: {} } })
+          : operation === 'setup+gates-overwrite'
+          // The arm that actually reseeds. Without it the sweep only ever
+          // exercises the skip path, where a broken gates.toml is never read.
+            ? await planSetup({
+              ...common,
+              choices: { preset: 'steward', config: {}, overwritePaths: ['.grove/gates.toml'] },
+            })
           : operation === 'refresh'
             ? await planRefresh(common)
             : operation === 'set-profile'
               ? await planSetProfile({ ...common, preset: 'guardian' })
               : await planRemove(common);
-        const text = `${plan.summary ?? ''} ${(plan.notices ?? []).join(' ')}`;
-        if (!text.includes('Grove claims no support')) {
+        // LEADS with it, matching the sibling tests. This asserted `.includes`
+        // over summary plus `plan.notices` — and `newPlan` has no `notices`
+        // field, so that half was always the empty string. A disclosure buried
+        // mid-summary would have passed the sweep while failing every test
+        // around it.
+        if (!/^Grove claims no support/.test(String(plan.summary ?? ''))) {
           misses.push(`${row.surface_id}/${operation}/${stateName}: ${String(plan.summary).slice(0, 70)}`);
+        }
+        // The fixture above must reach `seedPreset`, not stop at `parseProfile`.
+        // Nothing else enforces that: BOTH a parse failure and a seed failure
+        // lead with the disclosure, so the sweep cannot tell them apart, and the
+        // previous fixture stopped one line short while looking identical here.
+        // Prose in the fixture comment is not a check — this is. Tightening
+        // `parseProfile` or reshaping the shipped template would otherwise
+        // silently un-pin the fix and leave the sweep green over dead code.
+        // Available rows only: an unavailable row fails at the availability
+        // gate, long before any gates.toml is read.
+        if (stateName === 'gates.toml missing seeded_from'
+          && operation === 'set-profile'
+          && row.availability_state === 'available') {
+          assert.match(
+            String(plan.summary ?? ''),
+            /cannot apply preset/,
+            'the fixture stopped at parseProfile — it no longer exercises the unguarded seedPreset',
+          );
         }
       }
     }
   }
   assert.deepEqual(misses, [], `plans reached the user with no support disclosure:\n  ${misses.join('\n  ')}`);
 });
+

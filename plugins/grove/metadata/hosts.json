@@ -16,6 +16,7 @@
       "begin_marker": "<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->",
       "end_marker": "<!-- grove:end -->",
       "setup_command": "/grove:setup",
+      "set_profile_command": "/grove:set-profile",
       "inventory": "metadata/claude-inventory.json"
     },
     "codex": {
@@ -24,6 +25,7 @@
       "begin_marker": "<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->",
       "end_marker": "<!-- grove:end -->",
       "setup_command": "grove setup",
+      "set_profile_command": "grove set-profile",
       "launcher_root": ".codex/agents",
       "inventory": "metadata/codex-inventory.json"
     }

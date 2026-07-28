@@ -132,18 +132,36 @@ export async function planSetup(input) {
   if (!blockResult.ok) return fail(plan, blockResult.reason);
 
   await planManagedFloor(context, { mode: 'setup' });
-  await planConsumerSeed(
-    context,
-    '.grove/gates.toml',
-    seedPreset(await readRequired(join(packageRoot, 'reference/gates/gates.toml')), choices.preset),
-    new Set(choices.overwritePaths ?? []),
-  );
-  await planConsumerSeed(
-    context,
-    '.grove/config.toml',
-    serializedConfig,
-    new Set(choices.overwritePaths ?? []),
-  );
+  // An approved overwrite reseeds the consumer's OWN file, not the shipped
+  // template. Seeding from the template dropped every consumer-owned row —
+  // measured: a project with `runtime_dir = "vendor/grove-gates/"` got it back
+  // as a commented-out default, silently, on a write the user had approved.
+  // `set-profile` has always seeded this way (adr-0021 AC5 guarantees it keeps
+  // `runtime_dir`); setup's overwrite path did not, and had no test.
+  //
+  // Seeded only when a write is actually on the table. Seeding unconditionally
+  // made an empty or hand-broken consumer `gates.toml` throw out of planSetup
+  // even when the file was about to be skipped untouched — a hard crash where
+  // the previous behaviour returned a normal plan, and one that escapes
+  // `fail()` and so drops the adr-0041 clause 7 disclosure. Deleting
+  // `seeded_from` is enough to trigger it, and the shipped template invites
+  // exactly that: "provenance only — non-authoritative".
+  const overwritePaths = new Set(choices.overwritePaths ?? []);
+  const gatesExisting = await readRepoOptional(context, '.grove/gates.toml');
+  let gatesContent = null;
+  if (gatesExisting == null || overwritePaths.has('.grove/gates.toml')) {
+    const gatesBase = gatesExisting
+      ?? await readRequired(join(packageRoot, 'reference/gates/gates.toml'));
+    try {
+      gatesContent = seedPreset(gatesBase, choices.preset);
+    } catch (error) {
+      // spec-0004: on malformed repository state, report the carrier and write
+      // nothing. Reported, never thrown, so the plan still carries the summary.
+      return fail(plan, `cannot apply preset "${choices.preset}" to .grove/gates.toml: ${error.message}`);
+    }
+  }
+  await planConsumerSeed(context, '.grove/gates.toml', gatesContent, overwritePaths, gatesExisting);
+  await planConsumerSeed(context, '.grove/config.toml', serializedConfig, overwritePaths);
   addWriteIfChanged(plan, adapter.instruction_file, blockResult.content);
   if (context.host === 'codex') await planLaunchers(context);
 
@@ -187,7 +205,18 @@ export async function planSetProfile(input) {
   } catch (error) {
     return fail(plan, `cannot switch an unreadable gates.toml: ${error.message}`);
   }
-  const next = seedPreset(original, preset);
+  // `parseProfile` above does NOT cover this. It rejects unknown gate rows and
+  // returns before `seedPreset`'s own precondition — seeded_from plus exactly
+  // four gate rows — is ever tested, so a file that parses cleanly can still
+  // throw here. Deleting only `seeded_from` from the shipped template is such a
+  // file, and the template calls that field "provenance only". Same treatment as
+  // planSetup: report, never throw, so the plan still carries the disclosure.
+  let next;
+  try {
+    next = seedPreset(original, preset);
+  } catch (error) {
+    return fail(plan, `cannot apply preset "${preset}" to .grove/gates.toml: ${error.message}`);
+  }
   const verified = parseProfile(next);
   if (!verified.floor) return fail(plan, 'generated preset violates the Grove human intent floor');
   plan.changes = GATES
@@ -613,6 +642,7 @@ async function loadHostConfig(packageRoot) {
         begin_marker: '<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->',
         end_marker: '<!-- grove:end -->',
         setup_command: '/grove:setup',
+        set_profile_command: '/grove:set-profile',
         inventory: 'metadata/claude-inventory.json',
       },
       codex: {
@@ -620,6 +650,7 @@ async function loadHostConfig(packageRoot) {
         begin_marker: '<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->',
         end_marker: '<!-- grove:end -->',
         setup_command: 'grove setup',
+        set_profile_command: 'grove set-profile',
         launcher_root: '.codex/agents',
         inventory: 'metadata/codex-inventory.json',
       },
@@ -635,8 +666,18 @@ async function planManagedFloor(context) {
   );
 }
 
-async function planConsumerSeed(context, path, content, overwritePaths) {
-  const existing = await readRepoOptional(context, path);
+async function planConsumerSeed(context, path, content, overwritePaths, preread) {
+  // One read, not two. The caller decides whether to seed from whether the file
+  // exists, and re-reading here let those two decisions disagree: a file deleted
+  // between them sent a deferred (null) content down the write branch. Observed
+  // under a concurrent delete: the same race produced a normal plan before the
+  // deferral existed, and an uncaught throw after. The caller passes what it read.
+  const existing = preread !== undefined ? preread : await readRepoOptional(context, path);
+  // Belt for the callers that do not preread. Writing a deferred null would put
+  // the literal "null" on a consumer's disk.
+  if ((existing == null || overwritePaths.has(path)) && typeof content !== 'string') {
+    throw new Error(`internal: no seed content computed for ${path}`);
+  }
   if (existing == null) {
     addAction(context.plan, {
       type: 'write',
@@ -648,7 +689,23 @@ async function planConsumerSeed(context, path, content, overwritePaths) {
   } else if (overwritePaths.has(path)) {
     addWriteIfChanged(context.plan, path, content, { confirmationRequired: true });
   } else {
-    skip(context.plan, path, 'consumer-authoritative file already exists');
+    skip(
+      context.plan,
+      path,
+      path === '.grove/gates.toml'
+        // Naming only the ownership rule left the user's actual request
+        // unanswered: they asked for a preset and were told a file exists.
+        // The command comes from adapter metadata, not a literal: spec-0004
+        // requires the host-facing command to resolve that way, and a
+        // hardcoded `/grove:set-profile` told every Codex user to run a
+        // Claude-only invocation.
+        ? `consumer-authoritative file already exists, so the chosen preset was NOT applied — run ${context.adapter.set_profile_command} <preset> to change it, or re-run setup with this path in overwritePaths`
+        // Named exemption, not an oversight: `.grove/config.toml` is
+        // synthesized from tokens and has no template to reseed from, so an
+        // approved overwrite there is a whole-file replacement and there is no
+        // per-row request to report as dropped.
+        : 'consumer-authoritative file already exists',
+    );
   }
 }
 
@@ -1307,6 +1364,12 @@ function fail(plan, reason) {
   const disclosure = plan.unsupportedDisclosure ?? null;
   plan.summary = disclosure ? `${disclosure} ${reason}` : reason;
   plan.actions = [];
+  // Clearing the array is not sufficient on its own — deferred writes queued
+  // before the failure resolve afterwards and call `addAction` again. That
+  // guard lives in `addAction`, keyed on `plan.ok === false`, which is set
+  // immediately above. Dropping the queue here as well so `settlePlan` does not
+  // await work whose results are now discarded.
+  delete plan._pending;
   return plan;
 }
 
@@ -1336,6 +1399,13 @@ function addDeferredWrite(plan, path, content, existingPromise, options) {
 }
 
 function addAction(plan, action) {
+  // A failed plan takes no further actions, including from deferred writes that
+  // were queued before it failed and resolve afterwards. `fail()` clearing
+  // `plan.actions` was not enough: the queued async work calls straight back in
+  // here and repopulates the array it just emptied — measured as a failed plan
+  // reporting zero actions, then one, 400ms later. Enforced here rather than at
+  // the ~dozen `fail()` sites, so it holds for every future one too.
+  if (plan.ok === false) return;
   action.path = normalizeSlashes(action.path);
   action.id = `${action.type}:${action.path}`;
   if (!plan.actions.some((item) => item.id === action.id)) plan.actions.push(action);
