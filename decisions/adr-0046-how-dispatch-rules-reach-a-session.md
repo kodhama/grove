@@ -111,6 +111,17 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
   2026-07-28, confirming the retained architecture)*: *"not a fixed routing, more
   like the transition rules. Like, as you formulated — precondition, activation,
   and the postcondition."*
+- **Token = completion; the guard warns outside a run.** *(maintainer,
+  2026-07-28: "I agree. Completion + Warn.")* A token is a record that exists;
+  owed work is derived by running the rules, never stored as an agent-written
+  request. Inside a run the guard may hold controllable events; outside a run it
+  is a sensor that reports once and never holds. From the request model, three
+  pieces are salvaged to existing homes: the atomic claim → the cursor (dormant
+  until parallel dispatch); the calls-for-bids shape → grove#102/#101, already
+  parked; scope/priority → annotations on the artifact. The decoupling is the
+  point: **demand is institutional, not transactional** — the reviewer is
+  compelled by standing rules, so a producer never needs to know a consumer
+  exists.
 - **The field agrees.** No plugin-class system was found doing always-on
   orchestration injection; Anthropic's own `/deep-research` lost auto-activation
   in v2.1.218; BMAD is migrating off always-on `.clinerules` onto invoked
@@ -757,11 +768,128 @@ Cited so the trade-offs are not relitigated. Tags are the research note's.
 
 ## Decision
 
-*Not yet drafted — the canvas is open at Open question 1.*
+The clauses below are the operative text. Three implementation choices the
+maintainer has not individually ratified are marked **(draft choice)** — made so
+the record is complete, flagged so they are reversible at review.
+
+### 1. Identity
+
+Grove's dispatch is a **supervisor over a nondeterministic plant**. The plant is
+the underlying agent's action space; the supervisor is the activation rules plus
+the guard, and it **constrains that space to a subset of legal transitions —
+never generates the sequence**. The formalism (net / automaton / event language)
+is the semantics for offline analysis only; the implementation is plain rules.
+No net engine, no FSA library, no marking object in code.
+
+### 2. Entry — two verbs, the ask as the boundary
+
+- **`/grove:enter`** loads the rules and **writes nothing, ever**. After entry
+  the model may act with grove's agents or not; when it detects conditions where
+  swarm governance could apply, it **asks the user** — it never opens a run on
+  its own inference.
+- **`/grove:start`** implicitly enters, then **opens a run**: it creates the
+  committed run cursor and performs the run-start floor check (D2). A yes to
+  `enter`'s ask *is* a start — the in-session answer is the human intent act
+  (the D5-compliant channel).
+- **(draft choice)** Both skills ship **model-invocable** (default frontmatter,
+  no flag). The invocation policy lives in the **ask plus the confirm gate**,
+  not in frontmatter: cursor creation goes through grove's existing
+  `confirm-exact-action-ids` gate, which is stronger than
+  `disable-model-invocation` because it also catches a user-invoked mistake,
+  and it is host-neutral where the flag is Claude-only.
+
+### 3. Rules and payload
+
+Routing is **transition rules** — precondition-set → fire → postconditions —
+shipped as data in the plugin payload, evaluated by the session. No fixed
+pipeline exists anywhere in the system.
+
+**(draft choice)** The entry skills carry a **generated floor extract** inline
+(the dispatcher-only floors, from the same single-source generation machinery
+that produces grove's existing 56 projections, guarded by the same `check`),
+and a pointer to the full charter for everything else. Inline because an
+invoked skill body survives compaction where a read-through's `Read` does not;
+generated because hand-cut extracts are the drift class of #164/#169/#170.
+
+### 4. Marking
+
+Run state is a **committed per-run cursor**; every place is **derived from
+artifacts, never agent claims**. A **token is a completion** — a record that
+exists. Owed work is an **enabled-and-unfired transition**, computed by running
+the rules, stored nowhere. Joins are **derived facts**: the paired reviewers
+write disjoint verdict records and nobody writes "the join", so the cursor
+takes writes only at run open and close **(draft choice: minimal schema — run
+id, intent line, subject list, in-flight dispatch claims; extended only on
+demonstrated need, with the reference framework's fuller inventory as the
+menu, not the default)**.
+
+### 5. The guard
+
+The deterministic zero-model artifact check runs at **run start, every
+handover, and Stop**. Two modes, branched on cursor presence:
+
+- **Cursor present — supervisor mode.** The guard may hold controllable events
+  (stop, merge) while a rule's preconditions are unmet, and always says which
+  transition and which missing record. Loud, specific, never silent.
+- **No cursor — observer mode.** If the diff touches governed artifacts with no
+  verdict records, the guard **reports once and never holds**. Outside a run
+  there is no supervisor, only a sensor.
+
+The Stop placement **extends** the charter's adopted early-check mechanic to a
+moment it did not contemplate; the steal-list's rejection of session-holding
+continuation hooks targeted a silent *router*, which this is not — the guard
+exists to fail loudly, the rejection's own stated test.
+
+### 6. The managed block
+
+Shrinks to a **one-line entry pointer plus the version stamp**, carrying no
+rules. Damaging it degrades to "nothing written" — non-load-bearing by
+construction. The stamp survives, so `adr-0026` D4's review seam survives.
+
+### 7. Hosts
+
+The artifact half — rules, cursor, verdict records — is **host-neutral**.
+Enforcement is **Claude-first**; a Codex session is told at entry that it runs
+without the deterministic guard. Un-guarded, not unsupported.
+
+### 8. Supersessions, made openly
+
+- **`adr-0003` Decision 1 is superseded by this record.** The always-on
+  inference rule was right for its time and its carrier is gone; voluntary
+  entry replaces it deliberately, not by drift. `adr-0003` gains the scoped
+  pointer.
+- **`spec-0004` §Driving-session loaders** is revised under this record — the
+  loader block it specifies is replaced by the entry verbs and pointer block.
+- The dispatcher charter's steal-list clause is **extended, not superseded** —
+  recorded above.
+
+Acceptance criteria are deliberately omitted: per the question grove#172 opened,
+testable criteria belong to the downstream spec this decision authorizes, not to
+the intent record.
 
 ## Consequences
 
-*Follows the decision.*
+- **The original failure class closes by construction.** Reviewers not running
+  was owed work materialised nowhere and checked by nobody. Owed work is now
+  computed by a guard that runs at three moments, and inside a run it can hold
+  the session until the record exists.
+- **Ownership fragility becomes harmless rather than eliminated.** No
+  load-bearing consumer-side content remains: the block is a pointer, the
+  cursor is per-run and disposable, the rules live in the plugin.
+- **Compaction stops being an enemy.** Skill bodies re-inject; the guard is
+  code, not context; the cursor is on disk; and losing the charter mid-session
+  degrades to the floors plus a guard that still bites.
+- **Emergence stays open.** Nothing anywhere encodes an itinerary; a future
+  fit-based dispatcher changes who *chooses* among enabled transitions, and
+  nothing else.
+- **Two failure modes are accepted, eyes open.** A session that ignores the
+  observer's warning proceeds ungoverned — that is what voluntary means. And on
+  a surface where hooks do not run, Codex today, the floors arrive but the
+  backstop does not — disclosed at entry, revisited when the host's hook
+  vocabulary is measured.
+- **The five `0.1.0` consumers migrate deliberately**: their blocks keep
+  working until each repo runs the new setup; the refresh wave stays blocked
+  behind grove#169's version fix.
 
 ## Considered and rejected
 
