@@ -134,7 +134,14 @@ test('exit 3 — owed work: one stdout line per enabled instance naming id, subj
   for (const line of lines) assert.match(line, /specs\/changed\.md/);
   assert.match(conformance, /conformance/);
   assert.match(specQuality, /spec-adversary/);
-  assert.equal(result.stderr.trim(), '', 'no defect lines on a clean-defect repo');
+  // §Staleness listing (deliberate update): supervisor hold/defect output
+  // carries exactly one line listing every open cursor path; no defect
+  // lines on a clean-defect repo.
+  const stderrLines = result.stderr.trim().split('\n');
+  assert.equal(stderrLines.length, 1, result.stderr);
+  assert.match(stderrLines[0], /open cursors?:/i);
+  assert.match(stderrLines[0], /\.grove\/runs\/20260728-140000-owed\/cursor\.toml/);
+  assert.doesNotMatch(result.stderr, /defect/i);
 });
 
 test('a current record fires the token: only the unfired instance remains', async () => {
@@ -278,6 +285,9 @@ test('S8 — the hook holds naming the exact transition, subject, record, and re
   assert.match(decision.reason, /specs\/changed\.md/);
   assert.match(decision.reason, /conformance/);
   assert.match(decision.reason, /adopt|abort/i);
+  // §Staleness listing: the hold names every open cursor path.
+  assert.match(decision.reason, /open cursors?:/i);
+  assert.match(decision.reason, /\.grove\/runs\/20260728-140000-hold\/cursor\.toml/);
 });
 
 test('S9 — stop_hook_active bounds the hold: same gap reported on stderr, exit 1, no block', async () => {

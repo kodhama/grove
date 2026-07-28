@@ -54,6 +54,14 @@ async function main() {
     for (const instance of evaluation.enabled) {
       process.stdout.write(`${owedLine(instance)}\n`);
     }
+    // §Staleness: the guard lists every open cursor at every guard moment —
+    // one line, riding the hold/defect output (a clean exit 0 stays silent).
+    if (
+      evaluation.openCursors.length > 0
+      && (evaluation.enabled.length > 0 || evaluation.defects.length > 0)
+    ) {
+      process.stderr.write(`grove-guard: open cursors: ${evaluation.openCursors.join(', ')}\n`);
+    }
     for (const defect of evaluation.defects) {
       process.stderr.write(`grove-guard defect: ${defect.path}: ${defect.reason}\n`);
     }
@@ -208,6 +216,10 @@ function holdReason(evaluation) {
   for (const defect of evaluation.defects) {
     parts.push(`defect: ${defect.path}: ${defect.reason}`);
   }
+  if (evaluation.openCursors.length > 0) {
+    // §Staleness: every hold names every open cursor path.
+    parts.push(`open cursors: ${evaluation.openCursors.join(', ')}`);
+  }
   parts.push(
     'Resolutions: produce the missing record(s); if this run is dead, adopt the cursor or abort it via confirmed abort-run. A defect denies close until its named file is resolved.',
   );
@@ -239,6 +251,19 @@ async function readHookInput() {
 }
 
 const hookRequested = process.argv.includes('--hook');
+
+// Belt for the pre-main corner: a crash outside the promise chain would
+// otherwise surface as a raw non-zero exit that the wrapper could mistake
+// for the observer channel. Route every escape through the internal-error
+// channel instead.
+function internalCrash(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`grove-guard error: ${message}\n`);
+  process.exit(hookRequested ? 4 : 1);
+}
+process.on('uncaughtException', internalCrash);
+process.on('unhandledRejection', internalCrash);
+
 main().catch((error) => {
   process.stderr.write(`grove-guard error: ${error.message}\n`);
   process.exitCode = hookRequested ? 4 : 1;
