@@ -30,6 +30,19 @@ export function statusLinePattern(status, flags = '') {
   );
 }
 
+// THE table-header grammar, derived from toml.mjs the same way the status-line
+// pattern above is — mechanism by mechanism, never from an example list:
+//   stripComment() then .trim()   -> leading whitespace, and a trailing comment
+//   /^\[\[([^\]]+)\]\]$/          -> an array-of-tables header; every key AFTER
+//                                    it belongs to that table, not the root
+//   line.startsWith('[') -> throw -> any other '[' line is unparseable
+// Every cursor key the schema declares lives in the ROOT table, so the root
+// table is exactly the lines BEFORE the first line matching this. A reader
+// that appends a key without honouring the boundary writes it into the last
+// table instead of the root — which is how a field edit on a cursor carrying
+// a `[[claims]]` table produced a schema-invalid result.
+export const TABLE_HEADER_LINE = /^\s*\[/;
+
 // Exactly one readable status line -> that status; anything else (none,
 // several, an out-of-enum value) is unreadable = null. Fail closed at the
 // call sites: an unreadable status is open for mode selection.
@@ -41,6 +54,64 @@ export function probeStatus(text) {
     if (match) found.push(match[1]);
   }
   return found.length === 1 ? found[0] : null;
+}
+
+// THE cursor's declared field contracts, in one place, enforced on BOTH sides
+// — parseCursor when a cursor is read, and every planner before one is
+// written. They were previously enforced on neither: each site checked only
+// "a non-empty string", so `opened = "not-a-time"`, a whitespace-only
+// timestamp, and a multi-line `intent` all planned, committed, and read back
+// clean, and the committed audit boundary said something the spec's §Run
+// cursor contract does not allow. Same mechanism each time — a declared
+// contract with no enforcing code — so the contracts live here rather than at
+// the call sites that happened to be reviewed.
+
+// `opened`/`closed` are declared "RFC 3339 UTC" (§Run cursor contract). Closed
+// deliberately to the UTC `Z` spelling: an offset form would make two
+// spellings of one instant compare unequal as strings, and the cursor compares
+// them as strings. Leap seconds (`:60`) are rejected — a narrowing of RFC 3339
+// stated rather than hidden, matching the run id's wall-clock instant.
+export const RFC3339_UTC = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+
+export function timestampFailure(field, value) {
+  const match = typeof value === 'string' ? RFC3339_UTC.exec(value) : null;
+  if (match == null) {
+    return `${field} ${JSON.stringify(value)} is not an RFC 3339 UTC instant `
+      + '(YYYY-MM-DDThh:mm:ss[.fff]Z)';
+  }
+  const instant = new Date(value);
+  if (Number.isNaN(instant.getTime())) {
+    return `${field} ${JSON.stringify(value)} names no real instant`;
+  }
+  // The grammar plus Date.parse is NOT enough, measured: Date rolls an
+  // impossible day over instead of rejecting it (2026-02-30 -> March 2;
+  // 2026-02-29, a non-leap year, -> March 1) while it does reject an
+  // out-of-range hour or minute. So the parsed instant must SPELL BACK the
+  // calendar date that was written.
+  const [, year, month, day] = match;
+  if (
+    instant.getUTCFullYear() !== Number(year)
+    || instant.getUTCMonth() + 1 !== Number(month)
+    || instant.getUTCDate() !== Number(day)
+  ) {
+    return `${field} ${JSON.stringify(value)} names no such calendar date`;
+  }
+  return null;
+}
+
+// `intent` and `reason` are both declared "one line". A line break survives
+// the round trip intact — JSON.stringify escapes it and the parser decodes it
+// again — so nothing downstream catches it; only a check here does. CR counts:
+// the abort planner tested `\n` alone, and a lone CR still breaks a one-line
+// report just as a LF does.
+export function oneLineFailure(field, value) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return `${field} must be a non-empty one-line string`;
+  }
+  if (/[\r\n]/.test(value)) {
+    return `${field} must be one line; it contains a line break`;
+  }
+  return null;
 }
 
 // A cursor subject is a repo-relative file path: never absolute, never a
@@ -99,6 +170,10 @@ export function parseCursor(text, { runId } = {}) {
         return { ok: false, reason: `open cursor requires ${key}` };
       }
     }
+    const openedInvalid = timestampFailure('opened', root.opened);
+    if (openedInvalid) return { ok: false, reason: openedInvalid };
+    const intentInvalid = oneLineFailure('intent', root.intent);
+    if (intentInvalid) return { ok: false, reason: intentInvalid };
     if (!Array.isArray(root.subjects)) {
       return { ok: false, reason: 'open cursor requires subjects as repo-relative file paths' };
     }
@@ -113,10 +188,14 @@ export function parseCursor(text, { runId } = {}) {
     if (typeof root.closed !== 'string' || root.closed === '') {
       return { ok: false, reason: `${root.status} cursor requires a closed timestamp` };
     }
+    const closedInvalid = timestampFailure('closed', root.closed);
+    if (closedInvalid) return { ok: false, reason: closedInvalid };
     if (root.status === 'aborted') {
       if (typeof root.reason !== 'string' || root.reason === '') {
         return { ok: false, reason: 'aborted cursor requires a one-line reason' };
       }
+      const reasonInvalid = oneLineFailure('reason', root.reason);
+      if (reasonInvalid) return { ok: false, reason: reasonInvalid };
     } else if (root.reason !== undefined) {
       return { ok: false, reason: 'reason is present only when status = aborted' };
     }
@@ -152,10 +231,18 @@ export function serializeCursor(cursor) {
 
 // INV8's one named exception: a confirmed abort-run on an unparseable or
 // schema-invalid cursor replaces the file WHOLE with this minimal aborted
-// shape — schema-valid by construction, never a standing defect.
+// shape — schema-valid by construction, never a standing defect. "By
+// construction" has to mean it: this checks all THREE fields it writes, not
+// just the run id it happened to check. It is exported, so a planner's gate is
+// not its gate, and the whole point of this shape is that the file it replaces
+// was already a defect — producing a second one here would leave the run with
+// no exit at all.
 export function minimalAbortedCursor({ runId, closed, reason }) {
   if (!RUN_ID.test(String(runId))) {
     throw new Error(`minimal aborted cursor requires a grammatical run id, got ${JSON.stringify(runId)}`);
+  }
+  for (const failure of [timestampFailure('closed', closed), oneLineFailure('reason', reason)]) {
+    if (failure) throw new Error(`minimal aborted cursor requires ${failure}`);
   }
   return serializeCursor({
     schema: 1,

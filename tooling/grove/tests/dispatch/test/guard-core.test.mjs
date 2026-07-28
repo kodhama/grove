@@ -20,7 +20,9 @@ import {
   collectRecords,
   computeEnabled,
   deriveChangeSet,
+  digestTagList,
   parseStatusZ,
+  subjectDigest,
   validateRecord,
   recordSatisfies,
 } from '../../../../../plugins/grove/runtime/dispatch/lib/guard-core.mjs';
@@ -679,15 +681,36 @@ test('P1-B — a dangling symlink is present, never absent; an absence record ca
   );
 });
 
-test('P1-B — regular-file digests are unchanged by the raw-byte read (no churn of existing records)', async () => {
+// R4 supersedes P1-B's no-churn claim, deliberately. P1-B pinned "for valid
+// UTF-8 the raw-byte digest equals the string digest every existing record
+// used" — true then, FALSE now: tagging the regular-file side (the other half
+// of M1's domain separation) changes every regular-file digest. The churn is
+// the price of closing the collision, and it is fail-closed in the only
+// direction that matters: an old untagged record is SHED and re-owes its
+// review; it can never newly satisfy something it did not review.
+test('R4 — a regular-file digest is tagged, so an untagged pre-tag record is shed, never honoured', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'grove-bind-stable-'));
   scratch.push(dir);
   await writeFile(join(dir, 'plain.md'), SPEC_LIKE_BODY);
   const bound = await bindSubject({ repoRoot: dir, path: 'plain.md', changeSet: new Set() });
   assert.equal(bound.state, 'present');
   assert.equal(
+    bound.sha256, subjectDigest('file', Buffer.from(SPEC_LIKE_BODY)),
+    'the bound digest is the tagged one the shipped constructor produces',
+  );
+  assert.notEqual(
     bound.sha256, sha256(SPEC_LIKE_BODY),
-    'for valid UTF-8 the raw-byte digest equals the string digest every existing record used',
+    'the untagged byte hash is no longer what a regular file binds to',
+  );
+  const preTagRecord = record({
+    subject: 'plain.md', subject_sha256: sha256(SPEC_LIKE_BODY),
+  });
+  assert.equal(
+    recordSatisfies({
+      record: preTagRecord, subject: 'plain.md', state: 'present', sha256: bound.sha256,
+    }),
+    false,
+    'churn is a SHED: the pre-tag record stops satisfying and re-owes its review',
   );
   assert.deepEqual(bound.classes, ['spec']);
 });
@@ -729,7 +752,10 @@ test('P1-B — entry-type rules are stated: directory stays absent/missing; syml
   await link(join(dir, 'target.md'), join(dir, 'hard-link.md'));
   const hard = await bindSubject({ repoRoot: dir, path: 'hard-link.md', changeSet: new Set() });
   assert.equal(hard.state, 'present');
-  assert.equal(hard.sha256, sha256(SPEC_LIKE_BODY), 'a hard link binds as the regular file it is');
+  assert.equal(
+    hard.sha256, subjectDigest('file', Buffer.from(SPEC_LIKE_BODY)),
+    'a hard link binds as the regular file it is',
+  );
   assert.deepEqual(hard.classes, ['spec']);
 });
 
@@ -824,5 +850,171 @@ test('L1 — the regular-file read goes through one O_NOFOLLOW handle, not a sec
     source,
     /await readFile\(target\)/,
     'no second path-based read of the subject may exist beside the lstat',
+  );
+});
+
+// --- R4: domain separation is SYMMETRIC or it is nothing ---
+// Round two tagged only the NON-REGULAR representations and left regular-file
+// bytes hashed raw — which made the tag merely a string an attacker writes
+// into a file. Measured: a regular file holding `grove:symlink-target:
+// target.txt` reproduced the reviewed symlink's digest exactly (bf1b65c9…), so
+// every record made for that unclaimed symlink still satisfied the replacement
+// CODE file and the guard exited 0 over never-reviewed code. The SAME
+// mechanism, never demonstrated by any reviewer, also collided a fifo with a
+// regular file holding `grove:non-regular-entry:fifo` (d6b36a5b…). The first
+// test below states the mechanism's property over every pair of tags, so a
+// fourth kind added later cannot reopen the class one case at a time.
+
+test('R4 — the digest tags are mutually prefix-free, so no byte string reads as two kinds', () => {
+  const tags = digestTagList();
+  assert.ok(tags.length >= 3, 'every entry kind contributes a tag');
+  assert.equal(new Set(tags).size, tags.length, 'no two kinds share a tag');
+  for (const first of tags) {
+    for (const second of tags) {
+      if (first === second) continue;
+      assert.ok(
+        !first.startsWith(second) && !second.startsWith(first),
+        `"${first}" and "${second}" must be prefix-free, or one kind's representation `
+          + "can be read as another's",
+      );
+    }
+  }
+  assert.throws(
+    () => subjectDigest('invented-kind', 'x'),
+    /unknown subject digest kind/,
+    'an untagged kind is a throw, never a raw digest',
+  );
+});
+
+test('R4 — a regular file whose BYTES are the symlink tag cannot inherit the symlink verdict', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-forge-link-'));
+  scratch.push(dir);
+  const { symlink, rm } = await import('node:fs/promises');
+  await writeFile(join(dir, 'target.txt'), 'the real target\n');
+  await symlink('target.txt', join(dir, 'subject.md'));
+  const asLink = await bindSubject({ repoRoot: dir, path: 'subject.md', changeSet: new Set() });
+
+  // The forgery: same path, still present, bytes chosen to BE the tagged
+  // representation the symlink digests.
+  await rm(join(dir, 'subject.md'));
+  await writeFile(join(dir, 'subject.md'), 'grove:symlink-target:target.txt');
+  const asFile = await bindSubject({ repoRoot: dir, path: 'subject.md', changeSet: new Set() });
+
+  assert.equal(asFile.state, 'present');
+  assert.deepEqual(asFile.classes, ['code'], 'the replacement is unreviewed CODE');
+  assert.notEqual(asLink.sha256, asFile.sha256, 'the forged bytes must not reproduce the link digest');
+  assert.equal(
+    recordSatisfies({
+      record: record({
+        subject: 'subject.md', record_type: 'code-review', subject_sha256: asLink.sha256,
+      }),
+      subject: 'subject.md',
+      state: asFile.state,
+      sha256: asFile.sha256,
+    }),
+    false,
+    "the symlink's review cannot satisfy the regular file that replaced it",
+  );
+});
+
+test('R4 — the same forgery through the non-regular tag fails too (never demonstrated, same mechanism)', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-bind-forge-fifo-'));
+  scratch.push(dir);
+  execFileSync('mkfifo', [join(dir, 'pipe.md')]);
+  const asFifo = await bindSubject({ repoRoot: dir, path: 'pipe.md', changeSet: new Set() });
+  await writeFile(join(dir, 'plain.md'), 'grove:non-regular-entry:fifo');
+  const asPlain = await bindSubject({ repoRoot: dir, path: 'plain.md', changeSet: new Set() });
+
+  assert.equal(asFifo.state, 'present');
+  assert.equal(asPlain.state, 'present');
+  assert.notEqual(
+    asFifo.sha256, asPlain.sha256,
+    'a regular file holding the non-regular tag once digested identically to the fifo',
+  );
+});
+
+// --- R4: the same field contracts on the READ side ---
+// A planner gate only covers cursors this code wrote. parseCursor is what the
+// guard runs over whatever is on disk — a hand-written cursor, one from an
+// older writer, one edited in place — so the contract has to hold there too or
+// the guard reports no defect for a cursor the spec does not allow. One
+// definition (cursor.mjs), both sides.
+
+const OPEN_CURSOR_RUN = '20260728-140000-fixture';
+function openCursorText(fields = {}) {
+  const merged = {
+    opened: '2026-07-28T14:00:00Z',
+    intent: 'land the fixture',
+    ...fields,
+  };
+  return `schema = 1\nrun = "${OPEN_CURSOR_RUN}"\n`
+    + `opened = ${JSON.stringify(merged.opened)}\n`
+    + `intent = ${JSON.stringify(merged.intent)}\n`
+    + 'subjects = ["specs/a.md"]\nstatus = "open"\n';
+}
+
+test('R4 — parseCursor enforces the declared field contracts, not just non-emptiness', () => {
+  assert.equal(
+    parseCursor(openCursorText(), { runId: OPEN_CURSOR_RUN }).ok, true,
+    'the canonical cursor still validates',
+  );
+
+  for (const stamp of ['not-a-time', '2026-13-45T99:99:99Z', '2026-02-30T00:00:00Z', '   ', '2026-07-28T14:00:00+01:00']) {
+    const parsed = parseCursor(openCursorText({ opened: stamp }), { runId: OPEN_CURSOR_RUN });
+    assert.equal(parsed.ok, false, `opened ${JSON.stringify(stamp)} must be a defect`);
+    assert.match(parsed.reason, /opened/, parsed.reason);
+  }
+  for (const breaker of ['\n', '\r']) {
+    const parsed = parseCursor(
+      openCursorText({ intent: `line one${breaker}line two` }), { runId: OPEN_CURSOR_RUN },
+    );
+    assert.equal(parsed.ok, false, 'a multi-line intent must be a defect');
+    assert.match(parsed.reason, /intent/, parsed.reason);
+  }
+
+  // The closed/aborted half: `closed` on both, `reason` on aborted.
+  const aborted = (fields) => `schema = 1\nrun = "${OPEN_CURSOR_RUN}"\nstatus = "aborted"\n`
+    + `closed = ${JSON.stringify(fields.closed ?? '2026-07-28T19:00:00Z')}\n`
+    + `reason = ${JSON.stringify(fields.reason ?? 'dead run')}\n`;
+  assert.equal(parseCursor(aborted({}), { runId: OPEN_CURSOR_RUN }).ok, true);
+  const badClosed = parseCursor(aborted({ closed: 'whenever' }), { runId: OPEN_CURSOR_RUN });
+  assert.equal(badClosed.ok, false);
+  assert.match(badClosed.reason, /closed/, badClosed.reason);
+  const badReason = parseCursor(aborted({ reason: 'dead\nrun' }), { runId: OPEN_CURSOR_RUN });
+  assert.equal(badReason.ok, false);
+  assert.match(badReason.reason, /reason/, badReason.reason);
+});
+
+test('R4 — the minimal aborted shape validates all three fields it writes, not just the run id', () => {
+  // "Schema-valid by construction" has to hold for the constructor itself:
+  // it is exported, so a planner's gate is not its gate, and it exists to
+  // replace a cursor that is ALREADY a defect. A second defect here would
+  // leave the run with no exit.
+  const good = {
+    runId: '20260728-140322-dead-run',
+    closed: '2026-07-28T18:00:00Z',
+    reason: 'unparseable cursor aborted by user',
+  };
+  assert.equal(parseCursor(minimalAbortedCursor(good), { runId: good.runId }).ok, true);
+
+  assert.throws(
+    () => minimalAbortedCursor({ ...good, closed: 'whenever' }),
+    /RFC 3339/,
+    'a malformed closed timestamp is a throw, not a written defect',
+  );
+  assert.throws(
+    () => minimalAbortedCursor({ ...good, closed: '2026-02-30T00:00:00Z' }),
+    /calendar date/,
+    'a day that does not exist is a throw too',
+  );
+  assert.throws(
+    () => minimalAbortedCursor({ ...good, reason: 'line one\nline two' }),
+    /one line/,
+    'a multi-line reason is a throw, not a written defect',
+  );
+  assert.throws(
+    () => minimalAbortedCursor({ ...good, reason: '   ' }),
+    /non-empty one-line/,
+    'a whitespace-only reason is a throw too',
   );
 });

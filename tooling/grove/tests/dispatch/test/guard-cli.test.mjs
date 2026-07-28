@@ -13,11 +13,19 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { after } from 'node:test';
 
+import { subjectDigest } from '../../../../../plugins/grove/runtime/dispatch/lib/guard-core.mjs';
+
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '..', '..', '..', '..', '..');
 const GUARD = join(
   REPOSITORY_ROOT,
   'plugins/grove/runtime/dispatch/bin/guard.mjs',
 );
+
+// The digest the guard computes for a regular file holding these bytes. Built
+// through the shipped constructor, never re-spelled here: the kind tag is part
+// of the digest, and a test that hardcoded the untagged hash would silently
+// stop testing what the guard does.
+const fileDigest = (body) => subjectDigest('file', Buffer.from(body));
 
 const scratch = [];
 after(async () => {
@@ -150,13 +158,12 @@ test('a current record fires the token: only the unfired instance remains', asyn
   await writeFile(join(dir, 'specs', 'changed.md'), SPEC_BODY);
   const runId = '20260728-140000-owed';
   await writeCursor(dir, runId, openCursor(runId, ['specs/changed.md']));
-  const { createHash } = await import('node:crypto');
   await writeRecord(dir, runId, 'conformance.toml', {
     schema: 1,
     record_type: 'conformance',
     subject: 'specs/changed.md',
     subject_state: 'present',
-    subject_sha256: createHash('sha256').update(SPEC_BODY).digest('hex'),
+    subject_sha256: fileDigest(SPEC_BODY),
     verdict: 'PASS',
     by: 'conformance-reviewer',
     date: '2026-07-28T15:00:00Z',
@@ -349,8 +356,7 @@ test('observer direct CLI: owed work reports with exit 3; a current record silen
   const runId = '20260101-000000-old-run';
   await writeCursor(dir, runId,
     `schema = 1\nrun = "${runId}"\nstatus = "closed"\nclosed = "2026-01-01T01:00:00Z"\n`);
-  const { createHash } = await import('node:crypto');
-  const digest = createHash('sha256').update(SPEC_BODY).digest('hex');
+  const digest = fileDigest(SPEC_BODY);
   for (const [name, type, by] of [
     ['conformance.toml', 'conformance', 'conformance-reviewer'],
     ['spec.toml', 'spec-adversary', 'spec-adversary'],

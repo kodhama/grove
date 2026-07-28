@@ -18,16 +18,32 @@ import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import {
-  bindSubject,
-  collectRecords,
-  computeEnabled,
-  deriveChangeSet,
-} from '../lib/guard-core.mjs';
-import { parseCursor, probeStatus } from '../lib/cursor.mjs';
-import { loadTransitions } from '../lib/transitions.mjs';
-
 const OBSERVER_CLASSES = new Set(['decision', 'spec', 'charter', 'unclaimed']);
+
+// The dispatch lib loads DYNAMICALLY, from inside main(), and that placement
+// is load-bearing: a static import resolves before ANY of this file's body
+// runs, so it also precedes the crash handlers registered at the bottom. A
+// missing or broken lib module therefore escaped as Node's own multi-line
+// ERR_MODULE_NOT_FOUND stack on exit 1 — the wrapper's `guard 1 -> 1`
+// non-blocking-report slot — masquerading as an observer report instead of
+// reaching the exit-4 internal-error channel. Loaded here, the same failure is
+// an ordinary rejection of main().
+async function loadDispatchLib() {
+  const [core, cursor, transitions] = await Promise.all([
+    import('../lib/guard-core.mjs'),
+    import('../lib/cursor.mjs'),
+    import('../lib/transitions.mjs'),
+  ]);
+  return {
+    bindSubject: core.bindSubject,
+    collectRecords: core.collectRecords,
+    computeEnabled: core.computeEnabled,
+    deriveChangeSet: core.deriveChangeSet,
+    parseCursor: cursor.parseCursor,
+    probeStatus: cursor.probeStatus,
+    loadTransitions: transitions.loadTransitions,
+  };
+}
 
 async function main() {
   const args = process.argv.slice(2);
@@ -44,11 +60,12 @@ async function main() {
     }
   }
   const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+  const lib = await loadDispatchLib();
 
   let hookInput = {};
   if (hookMode) hookInput = await readHookInput();
 
-  const evaluation = await evaluate({ repoRoot, packageRoot });
+  const evaluation = await evaluate({ repoRoot, packageRoot, lib });
 
   if (!hookMode) {
     for (const instance of evaluation.enabled) {
@@ -101,7 +118,10 @@ async function main() {
   process.exitCode = 1;
 }
 
-async function evaluate({ repoRoot, packageRoot }) {
+async function evaluate({ repoRoot, packageRoot, lib }) {
+  const {
+    bindSubject, collectRecords, computeEnabled, deriveChangeSet, loadTransitions,
+  } = lib;
   let transitions;
   try {
     transitions = loadTransitions(await readFile(
@@ -115,7 +135,7 @@ async function evaluate({ repoRoot, packageRoot }) {
     throw new Error(`shipped transitions are unusable: ${error.message}`);
   }
 
-  const cursors = await inspectCursors(repoRoot);
+  const cursors = await inspectCursors(repoRoot, lib);
   const defects = [...cursors.defects];
   const { records, defects: recordDefects } = await collectRecords({ repoRoot });
   defects.push(...recordDefects);
@@ -150,7 +170,7 @@ async function evaluate({ repoRoot, packageRoot }) {
   return { mode, enabled, defects, openCursors: cursors.openForMode };
 }
 
-async function inspectCursors(repoRoot) {
+async function inspectCursors(repoRoot, { parseCursor, probeStatus }) {
   const runsRoot = join(repoRoot, '.grove', 'runs');
   const evaluable = [];
   const openForMode = [];
@@ -263,17 +283,28 @@ const hookRequested = process.argv.includes('--hook');
 
 // Belt for the pre-main corner: a crash outside the promise chain would
 // otherwise surface as a raw non-zero exit that the wrapper could mistake
-// for the observer channel. Route every escape through the internal-error
-// channel instead.
+// for the observer channel. These handlers route every escape FROM THIS POINT
+// ON through the internal-error channel — the qualifier is the honest claim,
+// not "every escape". Registration happens when this body runs, so anything
+// resolved earlier is out of reach; that is precisely why the lib modules load
+// dynamically inside main() rather than as static imports. What remains
+// uncovered, named rather than implied: a syntax error in THIS file, which
+// fails before the body executes at all and exits 1 with a raw parse stack
+// (the wrapper maps 1 -> 1, so it lands in the non-blocking-report slot). The
+// wrapper's own `[ ! -f "$GUARD" ]` check is the net for a missing guard.
+// Both crash writes go through oneLine: an error message can carry embedded
+// newlines (JSON.parse quotes the offending input back verbatim), and a
+// multi-line internal-error report breaks the same channel hygiene the report
+// helpers below exist to hold.
 function internalCrash(error) {
   const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`grove-guard error: ${message}\n`);
+  process.stderr.write(`grove-guard error: ${oneLine(message)}\n`);
   process.exit(hookRequested ? 4 : 1);
 }
 process.on('uncaughtException', internalCrash);
 process.on('unhandledRejection', internalCrash);
 
 main().catch((error) => {
-  process.stderr.write(`grove-guard error: ${error.message}\n`);
+  process.stderr.write(`grove-guard error: ${oneLine(error.message)}\n`);
   process.exitCode = hookRequested ? 4 : 1;
 });

@@ -21,6 +21,7 @@ import {
   planOpenRun,
 } from '../../../../../plugins/grove/runtime/dispatch/lib/run.mjs';
 import { parseCursor } from '../../../../../plugins/grove/runtime/dispatch/lib/cursor.mjs';
+import { subjectDigest } from '../../../../../plugins/grove/runtime/dispatch/lib/guard-core.mjs';
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '..', '..', '..', '..', '..');
 const PACKAGE_ROOT = join(REPOSITORY_ROOT, 'plugins', 'grove');
@@ -165,7 +166,9 @@ test('S6 — close is refused while the guard is non-zero; after records land it
   );
   assert.equal(await readFile(cursorPath, 'utf8'), before, 'refused close wrote nothing');
 
-  const digest = sha256(SPEC_BODY);
+  // The tagged digest the guard computes for this regular file (see
+  // guard-core's DIGEST_TAGS) — never the untagged hash of the bytes.
+  const digest = subjectDigest('file', Buffer.from(SPEC_BODY));
   await writeRecord(dir, RUN_ID, 'conformance.toml', 'conformance', 'conformance-reviewer', digest);
   await writeRecord(dir, RUN_ID, 'spec.toml', 'spec-adversary', 'spec-adversary', digest);
 
@@ -840,4 +843,223 @@ test('L3 — a cursor edited between plan and apply is reported as drift, never 
       && !/guardLicensed is a hint/i.test(error.message),
   );
   assert.match(await readFile(cursorPath, 'utf8'), /status = "open"/, 'nothing was applied');
+});
+
+// --- R4: the field edit is scoped to the ROOT table (INV8/AC5) ---
+// Found by review against 4106b4c. `claims` is a DECLARED cursor key whose
+// presence is a defect on a PARSEABLE cursor, never a parse failure — so a
+// cursor carrying a `[[claims]]` array-of-tables is well-formed, and the
+// well-formed branch of abort/close is the one that runs. The edit appended
+// `closed`/`reason` at end-of-file with no table-scope awareness, so they
+// landed inside that table instead of at the root: the first abort wrote a
+// schema-INVALID aborted cursor ("aborted cursor requires a closed
+// timestamp"). Close had the identical gap, blocked only incidentally (the
+// guard reports `claims` as a defect and denies the exit-0 license at apply).
+// The fix keeps INV8 literal — still a field edit, never the whole-file
+// exception, which stays pinned to the unparseable-or-schema-invalid row.
+
+function claimsTableCursor(runId, { statusInsideTable = false } = {}) {
+  return `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+    + 'intent = "land the fixture"\nsubjects = ["specs/changed.md"]\nstatus = "open"\n'
+    + '\n[[claims]]\nnote = "written by no shipped path"\n'
+    + (statusInsideTable ? 'status = "open"\n' : '');
+}
+
+async function claimsCursorFixture(runId, options) {
+  const dir = await repoFixture();
+  await mkdir(join(dir, '.grove', 'runs', runId), { recursive: true });
+  const path = join(dir, '.grove', 'runs', runId, 'cursor.toml');
+  await writeFile(path, claimsTableCursor(runId, options));
+  // The premise: this cursor is WELL-FORMED, so the whole-file exception is
+  // out of reach and the field edit must produce a valid cursor by itself.
+  assert.equal(parseCursor(await readFile(path, 'utf8'), { runId }).ok, true);
+  return { dir, path };
+}
+
+test('R4 — abort edits the ROOT table: a trailing [[claims]] table cannot swallow closed/reason', async () => {
+  const runId = '20260728-140000-claims';
+  const { dir, path } = await claimsCursorFixture(runId);
+
+  const plan = await planAbortRun({
+    repoRoot: dir, runId, closed: '2026-07-28T19:00:00Z', reason: 'abort the claims-carrying run',
+  });
+  assert.equal(plan.ok, true, plan.summary);
+  assert.equal(plan.wholeFileReplacement, false, 'INV8: still a field edit, never the exception');
+  const planned = parseCursor(plan.actions[0].content, { runId });
+  assert.equal(planned.ok, true, `planned bytes must validate: ${planned.reason}`);
+
+  await applyRunPlan(plan, { confirmedActionIds: plan.actions.map((a) => a.id) });
+  const text = await readFile(path, 'utf8');
+  const parsed = parseCursor(text, { runId });
+  assert.equal(parsed.ok, true, `the written cursor must validate: ${parsed.reason}`);
+  assert.equal(parsed.cursor.status, 'aborted');
+  assert.equal(parsed.cursor.closed, '2026-07-28T19:00:00Z');
+  assert.equal(parsed.cursor.reason, 'abort the claims-carrying run');
+  // At the ROOT, not inside the table.
+  assert.equal(parsed.cursor.claims[0].closed, undefined);
+  assert.equal(parsed.cursor.claims[0].reason, undefined);
+  // INV8's immutability half: every open-time byte survives, table included.
+  assert.match(text, /intent = "land the fixture"/);
+  assert.match(text, /subjects = \["specs\/changed\.md"\]/);
+  assert.match(text, /\[\[claims\]\]/);
+  assert.match(text, /note = "written by no shipped path"/);
+});
+
+test('R4 — close plans ROOT-table bytes on the same cursor; the planned edit must validate pre-write', async () => {
+  const runId = '20260728-150000-claims';
+  const { dir } = await claimsCursorFixture(runId);
+
+  const plan = await planCloseRun({ repoRoot: dir, runId, closed: '2026-07-28T20:00:00Z' });
+  assert.equal(plan.ok, true, plan.summary);
+  const planned = parseCursor(plan.actions[0].content, { runId });
+  assert.equal(planned.ok, true, `planned bytes must validate: ${planned.reason}`);
+  assert.equal(planned.cursor.status, 'closed');
+  assert.equal(planned.cursor.closed, '2026-07-28T20:00:00Z');
+  assert.equal(planned.cursor.claims[0].closed, undefined);
+});
+
+test('R4 — the status line is counted in the root table only: a [[claims]] status never wedges abort', async () => {
+  const runId = '20260728-160000-claims';
+  const { dir, path } = await claimsCursorFixture(runId, { statusInsideTable: true });
+
+  const plan = await planAbortRun({
+    repoRoot: dir, runId, closed: '2026-07-28T19:00:00Z', reason: 'abort despite the second status line',
+  });
+  assert.equal(plan.ok, true, `a file-wide status count wedged this run: ${plan.summary}`);
+  assert.equal(plan.wholeFileReplacement, false);
+  await applyRunPlan(plan, { confirmedActionIds: plan.actions.map((a) => a.id) });
+  const text = await readFile(path, 'utf8');
+  const parsed = parseCursor(text, { runId });
+  assert.equal(parsed.ok, true, `the written cursor must validate: ${parsed.reason}`);
+  assert.equal(parsed.cursor.status, 'aborted');
+  // Only the ROOT status line was rewritten; the table's own key is untouched.
+  assert.equal(parsed.cursor.claims[0].status, 'open');
+});
+
+// --- R4: the cursor's declared field contracts, enforced (write side) ---
+// Found by review against 4106b4c. §Run cursor contract declares `opened` and
+// `closed` RFC 3339 UTC and `intent`/`reason` one line — and every site
+// checked only "a non-empty string", so `opened = "not-a-time"` planned,
+// committed, and read back clean, and a newline in `intent` survived
+// serialization intact (JSON.stringify escapes it, the TOML parser decodes it
+// again). The tables below quantify over the mechanism: every planner that
+// takes a timestamp, and every field declared one line. The contracts
+// themselves live once, in cursor.mjs, and the read side enforces the same
+// ones (see the parseCursor test in guard-core.test.mjs).
+
+// Why these tests assert the REFUSAL TEXT and not just `ok === false`:
+// measured, every planner already re-parses its planned bytes through
+// parseCursor (open's round-trip gate, close/abort's post-edit gate), so with
+// parseCursor enforcing the contracts a planner would refuse these inputs even
+// with no check of its own — mutating the planner check out left the whole
+// suite green. What the planner check actually buys is an ACCURATE refusal:
+// "opened … is not an RFC 3339 UTC instant" rather than "planned cursor does
+// not round-trip (…)", which sends the reader hunting for a serialization
+// fault that is not there. That is the property under test, so that is what is
+// asserted.
+const CONTRACT_REFUSAL = /is not an RFC 3339 UTC instant|names no such calendar date|names no real instant/;
+
+const BAD_TIMESTAMPS = [
+  ['prose', 'not-a-time'],
+  ['a non-RFC-3339 order', '28/07/2026'],
+  ['grammatical but impossible', '2026-13-45T99:99:99Z'],
+  ['a real-looking day that does not exist', '2026-02-30T00:00:00Z'],
+  ['Feb 29 in a non-leap year', '2026-02-29T00:00:00Z'],
+  ['whitespace only', '   '],
+  ['a local-time spelling with no zone', '2026-07-28T14:00:00'],
+  ['an offset instead of UTC', '2026-07-28T14:00:00+01:00'],
+  ['a date with no time', '2026-07-28'],
+];
+
+test('R4 — every planner enforces the RFC 3339 UTC timestamp contract, not just non-emptiness', async (t) => {
+  for (const [name, stamp] of BAD_TIMESTAMPS) {
+    await t.test(`open-run rejects opened: ${name}`, async () => {
+      const dir = await repoFixture();
+      const plan = await planOpenRun(openRequest(dir, { opened: stamp }));
+      assert.equal(plan.ok, false, `${name} (${JSON.stringify(stamp)}) must not plan`);
+      assert.deepEqual(plan.actions, []);
+      assert.match(plan.summary, /opened/, plan.summary);
+      assert.match(plan.summary, CONTRACT_REFUSAL, plan.summary);
+      assert.doesNotMatch(plan.summary, /round-trip/, `the contract check names the contract: ${plan.summary}`);
+    });
+    await t.test(`close-run rejects closed: ${name}`, async () => {
+      const dir = await repoFixture();
+      await openedRun(dir);
+      const plan = await planCloseRun({ repoRoot: dir, runId: RUN_ID, closed: stamp });
+      assert.equal(plan.ok, false, `${name} (${JSON.stringify(stamp)}) must not plan`);
+      assert.deepEqual(plan.actions, []);
+      assert.match(plan.summary, /closed/, plan.summary);
+      assert.match(plan.summary, CONTRACT_REFUSAL, plan.summary);
+      assert.doesNotMatch(plan.summary, /round-trip/, `the contract check names the contract: ${plan.summary}`);
+    });
+    await t.test(`abort-run rejects closed: ${name}`, async () => {
+      const dir = await repoFixture();
+      await openedRun(dir);
+      const plan = await planAbortRun({
+        repoRoot: dir, runId: RUN_ID, closed: stamp, reason: 'dead run',
+      });
+      assert.equal(plan.ok, false, `${name} (${JSON.stringify(stamp)}) must not plan`);
+      assert.deepEqual(plan.actions, []);
+      assert.match(plan.summary, /closed/, plan.summary);
+      assert.match(plan.summary, CONTRACT_REFUSAL, plan.summary);
+      assert.doesNotMatch(plan.summary, /round-trip/, `the contract check names the contract: ${plan.summary}`);
+    });
+  }
+  // The contract admits what it should: the canonical spelling and fractional
+  // seconds both plan.
+  const dir = await repoFixture();
+  const good = await planOpenRun(openRequest(dir, { opened: '2026-07-28T14:00:00.250Z' }));
+  assert.equal(good.ok, true, good.summary);
+});
+
+test('R4 — the one-line contract covers intent and reason, a lone CR as well as an LF', async (t) => {
+  for (const [name, breaker] of [['LF', '\n'], ['CR', '\r'], ['CRLF', '\r\n']]) {
+    await t.test(`open-run rejects a multi-line intent (${name})`, async () => {
+      const dir = await repoFixture();
+      const plan = await planOpenRun(openRequest(dir, { intent: `line one${breaker}line two` }));
+      assert.equal(plan.ok, false, `${name} in intent must not plan`);
+      assert.deepEqual(plan.actions, []);
+      assert.match(plan.summary, /intent/, plan.summary);
+      assert.match(plan.summary, /must be one line/, plan.summary);
+      assert.doesNotMatch(plan.summary, /round-trip/, plan.summary);
+    });
+    await t.test(`abort-run rejects a multi-line reason (${name})`, async () => {
+      const dir = await repoFixture();
+      await openedRun(dir);
+      const plan = await planAbortRun({
+        repoRoot: dir,
+        runId: RUN_ID,
+        closed: '2026-07-28T19:00:00Z',
+        reason: `dead${breaker}run`,
+      });
+      assert.equal(plan.ok, false, `${name} in reason must not plan`);
+      assert.deepEqual(plan.actions, []);
+      assert.match(plan.summary, /reason/, plan.summary);
+      // The LF-only predecessor let a lone CR reach the round-trip probe,
+      // which refused it as a serialization fault instead of a contract one.
+      assert.match(plan.summary, /must be one line/, plan.summary);
+      assert.doesNotMatch(plan.summary, /round-trip/, plan.summary);
+    });
+  }
+});
+
+test("R4 — a caller's malformed timestamp is named before repository state can mask it", async () => {
+  // What the close/abort timestamp checks buy that the shared post-edit gate
+  // does not: ORDER. Validate the caller's own arguments before inspecting the
+  // repository, or a bad argument arriving at a missing (or malformed) run is
+  // reported as a missing run and the caller never learns their input was
+  // wrong. Measured: without the pre-state check these refuse with "no cursor
+  // exists for run …" instead.
+  const dir = await repoFixture();
+  const close = await planCloseRun({ repoRoot: dir, runId: RUN_ID, closed: 'whenever' });
+  assert.equal(close.ok, false);
+  assert.match(close.summary, CONTRACT_REFUSAL, close.summary);
+  assert.doesNotMatch(close.summary, /no cursor exists/, close.summary);
+
+  const abort = await planAbortRun({
+    repoRoot: dir, runId: RUN_ID, closed: 'whenever', reason: 'dead run',
+  });
+  assert.equal(abort.ok, false);
+  assert.match(abort.summary, CONTRACT_REFUSAL, abort.summary);
+  assert.doesNotMatch(abort.summary, /no cursor exists/, abort.summary);
 });

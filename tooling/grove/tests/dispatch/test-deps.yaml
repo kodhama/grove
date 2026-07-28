@@ -64,7 +64,17 @@ groups:
           - title:
               - "P1-B — invalid UTF-8 bytes bind exactly: different invalid bytes, different digests"
           - title:
-              - "P1-B — regular-file digests are unchanged by the raw-byte read (no churn of existing records)"
+              - "R4 — a regular file whose BYTES are the symlink tag cannot inherit the symlink verdict"
+          - title:
+              - "R4 — a regular-file digest is tagged, so an untagged pre-tag record is shed, never honoured"
+          - title:
+              - "R4 — parseCursor enforces the declared field contracts, not just non-emptiness"
+          - title:
+              - "R4 — the digest tags are mutually prefix-free, so no byte string reads as two kinds"
+          - title:
+              - "R4 — the minimal aborted shape validates all three fields it writes, not just the run id"
+          - title:
+              - "R4 — the same forgery through the non-regular tag fails too (never demonstrated, same mechanism)"
           - title:
               - "a block-style implements list classifies implements-bearing; an empty key does not"
           - title:
@@ -140,6 +150,18 @@ groups:
           - title:
               - "P1-A — the legitimate close plan still reconstructs and applies"
           - title:
+              - "R4 — a caller's malformed timestamp is named before repository state can mask it"
+          - title:
+              - "R4 — abort edits the ROOT table: a trailing [[claims]] table cannot swallow closed/reason"
+          - title:
+              - "R4 — close plans ROOT-table bytes on the same cursor; the planned edit must validate pre-write"
+          - title:
+              - "R4 — every planner enforces the RFC 3339 UTC timestamp contract, not just non-emptiness"
+          - title:
+              - "R4 — the one-line contract covers intent and reason, a lone CR as well as an LF"
+          - title:
+              - "R4 — the status line is counted in the root table only: a [[claims]] status never wedges abort"
+          - title:
               - "S11 — guard and run operations behave identically with a deleted or mangled managed block"
           - title:
               - "S2 — the confirmed open creates a schema-valid cursor with the run-id grammar"
@@ -183,6 +205,10 @@ groups:
               - "AC12 — the retained Claude channel measurement exists and verifies both channels"
           - title:
               - "INV21 envelope discipline: no context-injecting output exists; block JSON is the only hold form"
+          - title:
+              - "R4 — a missing lib module reaches the internal-error channel: exit 4, one line, no stack"
+          - title:
+              - "R4 — an internal-error report stays one line when the error message embeds newlines"
           - title:
               - "clean repository: silent exit 0"
           - title:

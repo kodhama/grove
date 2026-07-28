@@ -15,11 +15,14 @@ import { fileURLToPath } from 'node:url';
 import { applyPlan } from '../../lifecycle/lib/lifecycle.mjs';
 import {
   RUN_ID,
+  TABLE_HEADER_LINE,
   minimalAbortedCursor,
+  oneLineFailure,
   parseCursor,
   probeStatus,
   serializeCursor,
   statusLinePattern,
+  timestampFailure,
   validateSubjectPath,
 } from './cursor.mjs';
 import { parseToml } from './toml.mjs';
@@ -63,9 +66,13 @@ export async function planOpenRun(input) {
   if (typeof opened !== 'string' || opened === '') {
     return fail(plan, 'open-run requires the opened RFC 3339 timestamp');
   }
+  const openedInvalid = timestampFailure('opened', opened);
+  if (openedInvalid) return fail(plan, `open-run refused: ${openedInvalid}`);
   if (typeof intent !== 'string' || intent.trim() === '') {
     return fail(plan, 'open-run requires a one-line intent');
   }
+  const intentInvalid = oneLineFailure('intent', intent);
+  if (intentInvalid) return fail(plan, `open-run refused: ${intentInvalid}`);
   if (!Array.isArray(subjects) || subjects.length === 0) {
     return fail(plan, 'open-run requires a non-empty subjects list of repo-relative file paths');
   }
@@ -156,6 +163,8 @@ export async function planCloseRun(input) {
   if (typeof closed !== 'string' || closed === '') {
     return fail(plan, 'close-run requires the closed RFC 3339 timestamp');
   }
+  const closedInvalid = timestampFailure('closed', closed);
+  if (closedInvalid) return fail(plan, `close-run refused: ${closedInvalid}`);
   const closedFidelity = fieldRoundTripFailure('closed', closed);
   if (closedFidelity) {
     return fail(plan, `close-run refused: planned edit does not round-trip — ${closedFidelity}`);
@@ -170,14 +179,14 @@ export async function planCloseRun(input) {
   }
 
   const closeAction = buildCloseAction(cursor.text, runId, closed);
-  if (closeAction == null) {
-    return fail(plan, `close-run cannot locate the single status line in ${runId}`);
+  if (!closeAction.ok) {
+    return fail(plan, `close-run refused: ${closeAction.reason}`);
   }
   // The identifying fields applyRunPlan reconstructs the licensed action
   // from — the plan FILE is caller-supplied and never trusted.
   plan.run = runId;
   plan.closed = closed;
-  plan.actions.push(closeAction);
+  plan.actions.push(closeAction.action);
   plan.summary = `close-run plans the guard-licensed close of ${runId}`;
   return plan;
 }
@@ -186,23 +195,42 @@ export async function planCloseRun(input) {
 // AND by applyRunPlan's licensing reconstruction so the two cannot diverge.
 // Close and abort write ONLY status/closed(/reason): a textual edit of the
 // existing bytes, never a re-serialization, so the byte-diff is exactly
-// those lines (INV8).
+// those lines (INV8). Returns a result, never a bare action: the two callers
+// report the SAME refusal reason, and the post-edit validity gate below needs
+// to name which of the two failures it hit.
 function buildCloseAction(cursorText, runId, closed) {
   const content = editCursorText(cursorText, 'closed', [
     `closed = ${JSON.stringify(closed)}`,
   ]);
-  if (content == null) return null;
-  return action({
-    type: 'write',
-    path: `.grove/runs/${runId}/cursor.toml`,
-    content,
-    expected: { kind: 'file', content: cursorText },
-    // Pre-confirmed solely by the guard's exit-0 verdict, obtained by
-    // applyRunPlan immediately before apply — and only after the action
-    // reconstructs from the plan's identifying fields.
-    confirmationRequired: false,
-    guardLicensed: true,
-  });
+  if (content == null) {
+    return { ok: false, reason: `cannot locate the single root-table status line in ${runId}` };
+  }
+  // The gate planOpenRun already has, on the edit path too: bytes are planned
+  // only if they parse AND validate. Refusing is the fail-closed choice here
+  // and costs nothing — close-run already refuses a malformed cursor outright
+  // ("the only exit is confirmed abort-run"), so an edit that would MAKE one
+  // is the same class of refusal.
+  const reparse = parseCursor(content, { runId });
+  if (!reparse.ok) {
+    return {
+      ok: false,
+      reason: `the planned edit of ${runId} does not validate (${reparse.reason}); nothing was written`,
+    };
+  }
+  return {
+    ok: true,
+    action: action({
+      type: 'write',
+      path: `.grove/runs/${runId}/cursor.toml`,
+      content,
+      expected: { kind: 'file', content: cursorText },
+      // Pre-confirmed solely by the guard's exit-0 verdict, obtained by
+      // applyRunPlan immediately before apply — and only after the action
+      // reconstructs from the plan's identifying fields.
+      confirmationRequired: false,
+      guardLicensed: true,
+    }),
+  };
 }
 
 export async function planAbortRun(input) {
@@ -212,9 +240,12 @@ export async function planAbortRun(input) {
   if (typeof closed !== 'string' || closed === '') {
     return fail(plan, 'abort-run requires the closed RFC 3339 timestamp');
   }
-  if (typeof reason !== 'string' || reason.trim() === '' || reason.includes('\n')) {
-    return fail(plan, 'abort-run requires a one-line reason');
-  }
+  const closedInvalid = timestampFailure('closed', closed);
+  if (closedInvalid) return fail(plan, `abort-run refused: ${closedInvalid}`);
+  // The shared one-line contract, replacing a local `includes('\n')` that let
+  // a lone CR through.
+  const reasonInvalid = oneLineFailure('reason', reason);
+  if (reasonInvalid) return fail(plan, `abort-run requires a one-line reason: ${reasonInvalid}`);
   for (const [field, value] of [['reason', reason], ['closed', closed]]) {
     const fidelity = fieldRoundTripFailure(field, value);
     if (fidelity) {
@@ -237,7 +268,22 @@ export async function planAbortRun(input) {
       `reason = ${JSON.stringify(reason)}`,
     ]);
     if (content == null) {
-      return fail(plan, `abort-run cannot locate the single status line in ${runId}`);
+      return fail(plan, `abort-run cannot locate the single root-table status line in ${runId}`);
+    }
+    // Same pre-write gate as close's, and REFUSAL rather than a fall-through
+    // to the whole-file shape below — deliberately. INV8 pins that exception
+    // to the unparseable-or-schema-invalid input row and AC5 reds it if it
+    // becomes reachable on a well-formed cursor, so widening it here would
+    // need a spec amendment. Abort's escape-hatch duty is met by the
+    // root-table scoping instead: the edit that used to produce invalid bytes
+    // now produces valid ones, so this gate is a belt, not the exit.
+    const reparse = parseCursor(content, { runId });
+    if (!reparse.ok) {
+      return fail(
+        plan,
+        `abort-run refused: the planned edit of ${runId} does not validate `
+          + `(${reparse.reason}); nothing was written`,
+      );
     }
   } else {
     // INV8's one named exception, reachable ONLY through the
@@ -335,12 +381,11 @@ async function reconstructCloseLicense(plan) {
   if (!cursor.ok) {
     throw new Error(`close-run refused: ${cursor.reason}`);
   }
-  const expected = buildCloseAction(cursor.text, runId, plan.closed);
-  if (expected == null) {
-    throw new Error(
-      `close-run refused: the current cursor for ${runId} has no single open-status line to close`,
-    );
+  const reconstruction = buildCloseAction(cursor.text, runId, plan.closed);
+  if (!reconstruction.ok) {
+    throw new Error(`close-run refused: ${reconstruction.reason}`);
   }
+  const expected = reconstruction.action;
   const candidate = flagged[0];
   // The planned file precondition is part of the equality set, and it is
   // checked FIRST — the candidate's `expected` is what applyPlan's post-plan
@@ -413,18 +458,37 @@ async function readCursor(repoRoot, runId) {
 // preserved for the replacement and the appended lines.
 const OPEN_STATUS_LINE = statusLinePattern('open');
 
+// The edit is scoped to the ROOT table — the lines before the first
+// TABLE_HEADER_LINE — because that is where every declared cursor key lives.
+// Both halves need the scope. Appending at end-of-file put `closed`/`reason`
+// inside a trailing `[[claims]]` table (a shape parseCursor accepts: `claims`
+// is declared, and its presence is a defect on a parseable cursor, never a
+// parse failure), so a well-formed open cursor was edited into a
+// schema-INVALID aborted one — "aborted cursor requires a closed timestamp".
+// Counting status lines file-wide had the mirror bug: a `status` key inside
+// such a table made the count 2 and wedged the edit. In a cursor with no table
+// header — everything any shipped path writes — the produced bytes are
+// unchanged.
 function editCursorText(text, newStatus, appendLines) {
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   const lines = text.split('\n');
+  const headerIndex = lines.findIndex((line) => TABLE_HEADER_LINE.test(line));
+  const rootEnd = headerIndex === -1 ? lines.length : headerIndex;
   const matched = lines
+    .slice(0, rootEnd)
     .map((line, index) => ({ line, index }))
     .filter(({ line }) => OPEN_STATUS_LINE.test(line));
   if (matched.length !== 1) return null;
   const keepCR = matched[0].line.endsWith('\r') ? '\r' : '';
   lines[matched[0].index] = `status = ${JSON.stringify(newStatus)}${keepCR}`;
-  const next = lines.join('\n');
-  const trailing = next.endsWith('\n') ? '' : eol;
-  return `${next}${trailing}${appendLines.join(eol)}${eol}`;
+  if (rootEnd === lines.length) {
+    const next = lines.join('\n');
+    const trailing = next.endsWith('\n') ? '' : eol;
+    return `${next}${trailing}${appendLines.join(eol)}${eol}`;
+  }
+  const keepCRLF = eol === '\r\n' ? '\r' : '';
+  lines.splice(rootEnd, 0, ...appendLines.map((line) => `${line}${keepCRLF}`));
+  return lines.join('\n');
 }
 
 async function listOpenCursors(repoRoot) {

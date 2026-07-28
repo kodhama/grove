@@ -228,3 +228,43 @@ test('AC12 — the retained Claude channel measurement exists and verifies both 
     assert.ok(allowlist.leaves.some((leaf) => leaf.path === path), path);
   }
 });
+
+// --- R4: the internal-error channel holds for a BROKEN INSTALL too ---
+// Found by review against 4106b4c. The guard's lib imports used to be static,
+// so they resolved before the process-level crash handlers were registered: a
+// missing lib module escaped as Node's own multi-line ERR_MODULE_NOT_FOUND
+// stack on exit 1 — the wrapper's `guard 1 -> 1` non-blocking-report slot,
+// i.e. a broken install masquerading as an observer report. Claude treats
+// Stop-hook 1 and 4 alike (both non-blocking), so the cost is report hygiene
+// and diagnosability, not a missed hold; it is still the difference between
+// the two exit slots the wrapper documents as mechanically distinguishable.
+
+test('R4 — a missing lib module reaches the internal-error channel: exit 4, one line, no stack', async () => {
+  const dir = await repoFixture();
+  const broken = await mkdtemp(join(tmpdir(), 'grove-broken-lib-'));
+  scratch.push(broken);
+  await cp(PACKAGE_ROOT, broken, { recursive: true });
+  await rm(join(broken, 'runtime', 'dispatch', 'lib', 'guard-core.mjs'));
+
+  const result = runWrapper(dir, { wrapper: join(broken, 'hooks', 'stop-guard.sh') });
+  assert.equal(result.status, 4, `${result.stdout}${result.stderr}`);
+  assert.equal(result.stdout.trim(), '');
+  const lines = result.stderr.trim().split('\n');
+  assert.equal(lines.length, 1, `one-line report, got:\n${result.stderr}`);
+  assert.match(lines[0], /^grove-guard error: /);
+  assert.doesNotMatch(result.stderr, /^\s+at /m, 'a raw stack frame is never a report line');
+});
+
+test('R4 — an internal-error report stays one line when the error message embeds newlines', async () => {
+  const dir = await repoFixture();
+  // Node quotes the offending input back inside the JSON parse message, raw
+  // newlines and all — the same smuggling class oneLine() already guards on
+  // the defect/owed lines, which the two crash writes did not use.
+  const result = runWrapper(dir, { stdin: '[1,\n2,\nx\n]' });
+  assert.equal(result.status, 4, `${result.stdout}${result.stderr}`);
+  assert.equal(result.stdout.trim(), '');
+  const lines = result.stderr.trim().split('\n');
+  assert.equal(lines.length, 1, `one-line report, got:\n${result.stderr}`);
+  assert.match(lines[0], /^grove-guard error: unreadable hook input: /);
+  assert.match(lines[0], /\\n/, 'the embedded newlines are escaped, not emitted raw');
+});

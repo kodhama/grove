@@ -314,18 +314,61 @@ export async function collectRecords({ repoRoot }) {
 // untagged symlink to `target.txt` digested identically to a regular file
 // whose bytes are exactly `target.txt` (measured: 199b3bad…), which let a
 // code-review record on the file survive its replacement by a symlink.
-// Residual, stated: separation is by digest only. `recordSatisfies` compares
-// subject/state/digest and never the entry kind, so a record cannot express
-// which kind it reviewed, and a regular file whose bytes are literally this
-// tag followed by a path still collides with the symlink to that path.
+// That tag was applied to ONE SIDE, which is not domain separation: with the
+// regular-file bytes still hashed raw, a regular file whose bytes were exactly
+// `grove:symlink-target:target.txt` reproduced the symlink's digest exactly
+// (measured: bf1b65c9…), so every record made for the reviewed symlink still
+// satisfied the unreviewed replacement CODE file — and the same mechanism, not
+// only the demonstrated case, also collided a fifo with a regular file holding
+// `grove:non-regular-entry:fifo` (measured: d6b36a5b…). EVERY kind is tagged
+// below, through one constructor, and the tags are mutually PREFIX-FREE: they
+// share `grove:` and then diverge at byte 6, so no byte string can be read as
+// two different kinds' representations. That closes cross-kind collision by
+// construction rather than case by case.
 //
-// Record churn, stated exactly — an earlier commit message claimed "existing
-// records stay valid" without qualification, which was true only of the case
-// it had measured. Records on regular files whose bytes are valid UTF-8 keep
-// their digests; records on BINARY subjects were already shed when the read
-// became raw-byte, and records on SYMLINK subjects are shed by this tag. All
-// three directions are fail-closed: a shed record re-owes its review.
-const SYMLINK_DIGEST_TAG = Buffer.from('grove:symlink-target:');
+// Residual, restated honestly against what this now does: `recordSatisfies`
+// still compares subject/state/digest and never the entry kind, so a record
+// still cannot NAME which kind it reviewed. It no longer needs to. With
+// prefix-free tags the digest itself is injective over (kind, representation),
+// so a digest match already implies a kind match — the entry kind in the
+// comparison would be redundant, not additive. What remains genuinely open is
+// only what a digest cannot express: SHA-256 collision resistance, and the
+// fact that a record read in isolation is not self-describing.
+//
+// Record churn, stated exactly. Tagging the regular-file side changes EVERY
+// regular-file digest, so every pre-existing record on a regular-file subject
+// is shed and re-owes its review — a bigger churn than the symlink-only tag,
+// and named rather than discovered. Verified in this repository: no `.grove/
+// runs/` directory exists, so there are no verdict records here to shed. Every
+// direction is fail-closed — a shed record re-owes its review, never the
+// reverse.
+const DIGEST_TAGS = Object.freeze({
+  file: 'grove:file-bytes:',
+  symlink: 'grove:symlink-target:',
+  'non-regular': 'grove:non-regular-entry:',
+});
+
+// THE one place a subject digest is constructed. `value` is raw bytes for the
+// kinds that have them (regular-file contents, a readlink target) — never a
+// decoded string, which collapsed distinct invalid byte sequences to one
+// digest.
+export function subjectDigest(kind, value) {
+  const tag = DIGEST_TAGS[kind];
+  if (tag == null) {
+    throw new Error(`unknown subject digest kind "${kind}"`);
+  }
+  return sha256(Buffer.concat([
+    Buffer.from(tag),
+    Buffer.isBuffer(value) ? value : Buffer.from(String(value)),
+  ]));
+}
+
+// The prefix-free property the separation rests on, checkable rather than
+// asserted: exported so a test can quantify over every pair instead of
+// re-listing the tags.
+export function digestTagList() {
+  return Object.values(DIGEST_TAGS);
+}
 
 // Subject binding (INV11/AC7): the digest binds the subject's ACTUAL bytes,
 // and presence is established WITHOUT dereferencing. Entry-type case list
@@ -373,10 +416,7 @@ export async function bindSubject({ repoRoot, path, changeSet }) {
     return {
       path,
       state: 'present',
-      sha256: sha256(Buffer.concat([
-        SYMLINK_DIGEST_TAG,
-        await readlink(target, { encoding: 'buffer' }),
-      ])),
+      sha256: subjectDigest('symlink', await readlink(target, { encoding: 'buffer' })),
       classes: ['unclaimed'],
       changed,
     };
@@ -386,7 +426,7 @@ export async function bindSubject({ repoRoot, path, changeSet }) {
     return {
       path,
       state: 'present',
-      sha256: sha256(bytes),
+      sha256: subjectDigest('file', bytes),
       classes: classifyContent(bytes.toString('utf8')).classes,
       changed,
     };
@@ -394,7 +434,7 @@ export async function bindSubject({ repoRoot, path, changeSet }) {
   return {
     path,
     state: 'present',
-    sha256: sha256(`grove:non-regular-entry:${entryKind(entry)}`),
+    sha256: subjectDigest('non-regular', entryKind(entry)),
     classes: ['unclaimed'],
     changed,
   };
