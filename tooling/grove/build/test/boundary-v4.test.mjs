@@ -326,6 +326,14 @@ groups:
       - "spec-0006-voluntary-dispatch@v2"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
+  "adr-0041-shipped-matrix":
+    precision: exact
+    tests:
+      - file: "test/shipped-matrix.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v8"
+    decisions:
+      - "adr-0041-separate-support-from-operational-availability"
 `],
   ]);
 

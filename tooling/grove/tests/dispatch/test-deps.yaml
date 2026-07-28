@@ -18,6 +18,10 @@ groups:
           - title:
               - "a current record fires the token: only the unfired instance remains"
           - title:
+              - "a multi-line parse-error token cannot break a defect line"
+          - title:
+              - "a newline in a run-directory name cannot break the stderr report lines"
+          - title:
               - "a status-unreadable cursor is open for mode selection (fail closed): supervisor, defect"
           - title:
               - "exit 0 — no enabled instance and no defect: an untouched subject never blocks close"
@@ -54,9 +58,15 @@ groups:
           - title:
               - "a record lacking subject_state — or otherwise schema-invalid — satisfies nothing"
           - title:
+              - "a staged rename puts BOTH halves in the derived change set (R100-like and R050-like)"
+          - title:
               - "a stale record (digest mismatch) leaves no-record true — S16 re-enables the transition"
           - title:
               - "a subdirectory repoRoot is an internal error, not an empty-and-passing change set"
+          - title:
+              - "a worktree-side rename (mv + add -N) puts BOTH halves in the derived change set"
+          - title:
+              - "block-style implements lists classify bearing at every YAML-legal indentation"
           - title:
               - "classification: every table row, missing before every byte-derived row"
           - title:
@@ -73,6 +83,8 @@ groups:
               - "enabled-and-unfired: a missing subject owes the full set, fail closed"
           - title:
               - "enabled-and-unfired: changed implements-bearing spec owes conformance and spec-adversary"
+          - title:
+              - "parseStatusZ: every documented column case, both rename halves in the set"
           - title:
               - "record lookup spans every run records directory, closed and aborted runs included"
           - title:
@@ -106,13 +118,19 @@ groups:
           - title:
               - "a well-formed non-canonical cursor closes cleanly (CRLF, comment, spacing)"
           - title:
+              - "abort-run rejects a reason the parser cannot round-trip, naming the field"
+          - title:
               - "close of a non-open or missing run fails pre-write; abort of a closed run fails too"
+          - title:
+              - "close-run rejects a closed timestamp the parser cannot round-trip, naming the field"
           - title:
               - "open-run fails pre-write without .grove/, naming the host setup command"
           - title:
               - "open-run rejects a planned cursor that does not round-trip, naming the offending field"
           - title:
               - "open-run rejects an empty subjects list"
+          - title:
+              - "open-run rejects non-canonical relative subject paths (./, /./, //, trailing /)"
           - title:
               - "open-run rejects traversal, absolute, and backslash subject paths, naming the offender"
           - title:
