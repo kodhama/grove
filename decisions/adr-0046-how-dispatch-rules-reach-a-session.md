@@ -45,6 +45,15 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
   autonomous and follow the dispatch rules. *(maintainer, 2026-07-28)*
 - **Superseding previous decisions is permitted** where the evidence warrants.
   *(maintainer, 2026-07-28)*
+- **Run state is a committed, per-run file.** *(maintainer, 2026-07-28, from RPI
+  Team practice — internal to CGM, not consultable here)*: *"RPI team uses a state
+  file per run, but commits it so it's resumable."* Committing buys resumption
+  across session, machine and compaction, in git, for free.
+- **Direction: toward a cold, artifact-inferring dispatcher — partially.**
+  *(maintainer, 2026-07-28)*: *"even their dispatcher is cold and all the agents
+  do is read and write to disk. They infer everything from artifacts. I'm not
+  thinking of going ALL the way there, not yet at least, but a bit would be ok."*
+  How far is Open question 6.
 - **The field agrees.** No plugin-class system was found doing always-on
   orchestration injection; Anthropic's own `/deep-research` lost auto-activation
   in v2.1.218; BMAD is migrating off always-on `.clinerules` onto invoked
@@ -65,6 +74,9 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
    Claude-shaped answer needs its Codex twin or an explicit scope limit.
 5. **What happens to the existing managed block**, and to the five consumers
    still running the compliant `0.1.0` text.
+6. **How cold does the dispatcher go?** The maintainer has said *"a bit"* and
+   explicitly not *"all the way"*. Where the line falls decides how much stays
+   resident.
 
 ### Constraint — do not foreclose emergent sequencing
 
@@ -98,6 +110,43 @@ something outside its scope: subagents do not self-awake. grove#102
 (query-before-dispatch / contract-net) and grove#101 (fit-probe) are the existing
 shaping for that. This decision's obligation is narrower and testable: **encode no
 itinerary anywhere a future fit-based dispatcher would have to unpick.**
+
+### Correction — committed run state is not the ownership class we removed
+
+An earlier turn of this shaping framed a run-state file as *"reintroducing a small
+piece of the thing we just spent a day removing."* **That was wrong, and the
+distinction matters enough to record.**
+
+The managed block was fragile because it was **plugin-generated, owned by nobody,
+and drifting against a version stamp** — hence #164, #169, #170. A committed
+run-state file is **authored by the run, owned by the repo, versioned in git, and
+disposable on completion.** It does not weaken *"state derived from artifact
+existence, never agent claims"* (`dispatcher.md:421-422`) — **it satisfies it**,
+because the state file *is* an artifact.
+
+### Consequence — a cold dispatcher shrinks the resident payload
+
+If the marking is inferred from artifacts, much of what this record was budgeting
+as resident prose becomes **mechanically checkable** by the Stop guard, from git
+and disk:
+
+| floor | cold-checkable? |
+|---|---|
+| owed reviews unrun (no verdict record for a changed subject) | **yes** |
+| `executor` dispatched without a `gated`/`approved` artifact | **yes** |
+| an agent flipped `approved` (a human act) | **yes** — git diff |
+| every skip is a recorded skip | **yes** |
+| per-run floor check: ≥1 human-owned intent-locus gate | **yes** — `gates.toml` + run state |
+| D5: approval came by in-session act or merge, not a tracker comment | **yes** |
+| *"the dispatcher sequences; it does not grade"* | **no** — behavioural stance |
+| re-resolve the profile at **every** handover, never cached | **partly** — a guard can warn, not compel |
+| fail-closed typing of an unclaimed artifact | **partly** |
+
+**So the resident payload is smaller than this record first assumed.** The skill
+carries orientation and the two-and-a-half non-mechanizable stances; the guard
+carries the rest deterministically. That is the shape Anthropic's own guidance
+points at — *"use hooks to enforce behavior deterministically"* when prose
+degrades.
 
 ### Constraint — encode transitions as precondition-sets, not event-agent pairs
 
