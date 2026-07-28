@@ -2,7 +2,7 @@
 name: remove
 description: "Inventory and explicitly remove only selected Grove-owned consumer surfaces through the shared lifecycle core. Use when the user asks to remove, uninstall, undo, or take Grove out of a repository."
 ---
-<!-- GENERATED — DO NOT EDIT; canonical-source: plugins/grove/runtime/lifecycle/lib/lifecycle.mjs; sha256: 281713fdd6789c8ae43b7addd0df6d52acd59c8277e20196c49b20b162bab807 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: plugins/grove/runtime/lifecycle/lib/lifecycle.mjs; sha256: 5f90f79c76d221019e41b8677c587d2889147678e62267dc4c630ccea99a8bb9 -->
 
 # Grove remove adapter
 

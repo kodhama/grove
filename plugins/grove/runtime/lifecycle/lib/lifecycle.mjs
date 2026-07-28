@@ -132,10 +132,18 @@ export async function planSetup(input) {
   if (!blockResult.ok) return fail(plan, blockResult.reason);
 
   await planManagedFloor(context, { mode: 'setup' });
+  // An approved overwrite reseeds the consumer's OWN file, not the shipped
+  // template. Seeding from the template dropped every consumer-owned row —
+  // measured: a project with `runtime_dir = "vendor/grove-gates/"` got it back
+  // as a commented-out default, silently, on a write the user had approved.
+  // `set-profile` has always seeded this way (adr-0021 AC5 guarantees it keeps
+  // `runtime_dir`); setup's overwrite path did not, and had no test.
+  const gatesReference = await readRequired(join(packageRoot, 'reference/gates/gates.toml'));
+  const gatesBase = await readRepoOptional(context, '.grove/gates.toml') ?? gatesReference;
   await planConsumerSeed(
     context,
     '.grove/gates.toml',
-    seedPreset(await readRequired(join(packageRoot, 'reference/gates/gates.toml')), choices.preset),
+    seedPreset(gatesBase, choices.preset),
     new Set(choices.overwritePaths ?? []),
   );
   await planConsumerSeed(
@@ -648,7 +656,15 @@ async function planConsumerSeed(context, path, content, overwritePaths) {
   } else if (overwritePaths.has(path)) {
     addWriteIfChanged(context.plan, path, content, { confirmationRequired: true });
   } else {
-    skip(context.plan, path, 'consumer-authoritative file already exists');
+    skip(
+      context.plan,
+      path,
+      path === '.grove/gates.toml'
+        // Naming only the ownership rule left the user's actual request
+        // unanswered: they asked for a preset and were told a file exists.
+        ? 'consumer-authoritative file already exists, so the chosen preset was NOT applied — run /grove:set-profile <preset> to change it, or re-run setup with this path in overwritePaths'
+        : 'consumer-authoritative file already exists',
+    );
   }
 }
 

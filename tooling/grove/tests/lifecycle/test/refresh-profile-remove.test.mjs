@@ -303,3 +303,60 @@ test('valid unsupported surfaces disclose role unavailability and permit only cl
   assert.equal(refresh.ok, false);
   assert.deepEqual(refresh.actions, []);
 });
+
+// `choices.overwritePaths` is a published input on `describe setup` and had no
+// test at all. That is how setup's approved-overwrite path came to reseed from
+// the shipped template rather than the consumer's own file, silently discarding
+// every consumer-owned row on a write the user had explicitly approved.
+test('an approved gates.toml overwrite applies the preset and keeps consumer rows', async () => {
+  const { packageRoot, repoRoot } = await fixture();
+  await setupBoth(packageRoot, repoRoot);
+
+  const gates = join(repoRoot, '.grove', 'gates.toml');
+  const before = await readFile(gates, 'utf8');
+  assert.match(before, /^spec = "agent"/mu, 'fixture assumption: seeded steward');
+  await writeFile(gates, `${before}\nruntime_dir = "vendor/grove-gates/"\n`);
+
+  const plan = await planSetup({
+    packageRoot,
+    repoRoot,
+    ...claudeInvocation,
+    choices: {
+      preset: 'guardian',
+      config: {},
+      overwritePaths: ['.grove/gates.toml'],
+    },
+  });
+  assert.equal(plan.ok, true, plan.summary);
+
+  const write = plan.actions.find((a) => a.path === '.grove/gates.toml');
+  assert.ok(write, 'an approved overwrite must plan the write');
+  assert.equal(write.confirmationRequired, true, 'a destructive write must stay confirmation-bound');
+
+  // The preset is applied…
+  assert.match(write.content, /^spec = "human"/mu, 'guardian preset was not applied');
+  // …and the consumer's own row survives it.
+  assert.match(
+    write.content,
+    /^runtime_dir = "vendor\/grove-gates\/"/mu,
+    'the approved overwrite discarded a consumer-owned row',
+  );
+});
+
+test('setup without an approved overwrite says the preset was not applied', async () => {
+  // The skip reason named the ownership rule and never answered the request the
+  // user actually made, which is what made the two skills look interchangeable.
+  const { packageRoot, repoRoot } = await fixture();
+  await setupBoth(packageRoot, repoRoot);
+
+  const plan = await planSetup({
+    packageRoot,
+    repoRoot,
+    ...claudeInvocation,
+    choices: { preset: 'guardian', config: {} },
+  });
+  const skipped = plan.skipped.find((s) => s.path === '.grove/gates.toml');
+  assert.ok(skipped, 'setup must report the skip, not perform it silently');
+  assert.match(skipped.reason, /preset was NOT applied/u, 'the reason must name the dropped request');
+  assert.match(skipped.reason, /set-profile/u, 'the reason must point at the command that does apply it');
+});
