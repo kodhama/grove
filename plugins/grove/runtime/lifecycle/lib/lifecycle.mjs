@@ -1364,12 +1364,11 @@ function fail(plan, reason) {
   const disclosure = plan.unsupportedDisclosure ?? null;
   plan.summary = disclosure ? `${disclosure} ${reason}` : reason;
   plan.actions = [];
-  // Deferred writes queued before this failure would otherwise land in
-  // `plan.actions` after it returned — measured: a failed plan reporting zero
-  // actions, then one, 400ms later. `planSetup` queues the floor README before
-  // any of its `fail()` sites, so this is reachable, not theoretical. Dropping
-  // the queue is what makes "a failed plan is pre-write" true rather than true
-  // -so-far.
+  // Clearing the array is not sufficient on its own — deferred writes queued
+  // before the failure resolve afterwards and call `addAction` again. That
+  // guard lives in `addAction`, keyed on `plan.ok === false`, which is set
+  // immediately above. Dropping the queue here as well so `settlePlan` does not
+  // await work whose results are now discarded.
   delete plan._pending;
   return plan;
 }
@@ -1400,6 +1399,13 @@ function addDeferredWrite(plan, path, content, existingPromise, options) {
 }
 
 function addAction(plan, action) {
+  // A failed plan takes no further actions, including from deferred writes that
+  // were queued before it failed and resolve afterwards. `fail()` clearing
+  // `plan.actions` was not enough: the queued async work calls straight back in
+  // here and repopulates the array it just emptied — measured as a failed plan
+  // reporting zero actions, then one, 400ms later. Enforced here rather than at
+  // the ~dozen `fail()` sites, so it holds for every future one too.
+  if (plan.ok === false) return;
   action.path = normalizeSlashes(action.path);
   action.id = `${action.type}:${action.path}`;
   if (!plan.actions.some((item) => item.id === action.id)) plan.actions.push(action);

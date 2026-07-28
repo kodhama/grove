@@ -2,7 +2,7 @@
 name: refresh
 description: "Refresh Grove-managed consumer files and only the invoking host's adapter through the shared lifecycle core. Use when the user asks to refresh, update, upgrade, or roll out Grove in an existing repository."
 ---
-<!-- GENERATED — DO NOT EDIT; canonical-source: plugins/grove/runtime/lifecycle/lib/lifecycle.mjs; sha256: 38f7a42f481a09802d4a4e3e610afcb2a51eeff805ecb11e3a55f0751c268c41 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: plugins/grove/runtime/lifecycle/lib/lifecycle.mjs; sha256: 2168daec4fc49556eb985d90dd326862383a1a48e4560e556d89b74128f15a0a -->
 
 # Grove refresh adapter
 
