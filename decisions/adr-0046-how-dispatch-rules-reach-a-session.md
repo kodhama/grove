@@ -66,6 +66,10 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
 
   **Reservation recorded, not smoothed:** *"I'm not sure I want to manage the
   blocks."* Adopted as the least-bad option, not as an enthusiasm.
+- **Routing is transition rules, not a fixed pipeline.** *(maintainer,
+  2026-07-28, confirming the retained architecture)*: *"not a fixed routing, more
+  like the transition rules. Like, as you formulated — precondition, activation,
+  and the postcondition."*
 - **The field agrees.** No plugin-class system was found doing always-on
   orchestration injection; Anthropic's own `/deep-research` lost auto-activation
   in v2.1.218; BMAD is migrating off always-on `.clinerules` onto invoked
@@ -307,7 +311,57 @@ because the draft was wrong and the reason is mechanical rather than aesthetic:
 model-matchable enough given that the *description*, not the name, is what the
 model matches on.
 
-### BLOCKING — the charter rejects session-holding continuation hooks by name
+### RESOLVED — the rejected clause was a SpecSwarm steal-list entry
+
+Traced to source at the maintainer's insistence rather than inferred, which was
+the right call: the inference and the provenance point the same way, but only the
+provenance is evidence.
+
+`charters/dispatcher.md:432-435` carries the clause; it entered grove at `627165d`
+(2026-07-07) in `charters/head-gardener.md:125`, the dispatcher's predecessor,
+whose commit message names its source as *"ADR-0030's team table +
+Dispatch/Workflows/Adopted-mechanics sections"*. That resolves to
+`math-quest/decisions/adr-0030-espalier.md:94`, and the section heading is the
+answer:
+
+> **## Adopted mechanics (specswarm mining, 2026-07-07 — steal-list)**
+
+**The list is what grove looked at in SpecSwarm and chose not to take.**
+SpecSwarm's continuation hook is `go-loop-hook.sh` — a **router** that blocks stop
+and names the next phase of a fixed ladder. That is precisely the form this canvas
+forbade three turns before anyone knew the clause existed.
+
+**The same list records what grove *did* take**, and two entries are load-bearing
+here:
+
+> …**vacuity detection at every gate**…; **state derived from artifact existence,
+> never agent claims**; …**a deterministic zero-LLM artifact-graph preflight**
+> (depends_on targets exist and are `gated|approved`; test-provenance anchors
+> resolve) — buildable, a strong early furrow
+
+**Grove adopted the check and rejected the router.** The completeness guard *is*
+that adopted deterministic zero-LLM artifact check. Supersession is therefore the
+wrong instrument — there is nothing to supersede.
+
+**What is genuinely novel is the timing.** The adopted preflight is *"an early,
+cheap check"* — at run start. Running it at **Stop** is a moment the charter never
+contemplated: not the rejected thing, not explicitly the permitted thing.
+
+**Resolution, taken under the maintainer's explicit deferral** (*"I don't have
+enough sensibility to pick either way, so I'm deferring to your judgment"*):
+**run the adopted check at run start and at every handover, AND at Stop.** The
+handover checks are free, conflict-free, and catch owed work earlier than a stop
+guard would; the Stop check is the backstop for the one case handovers cannot
+see — a session abandoned mid-run. The record states that the Stop placement
+extends an adopted mechanic to a new moment, rather than pretending the charter
+already blessed it.
+
+**A loop worth recording:** grove mined SpecSwarm in July 2026 and rejected its
+continuation hook. Today's research re-derived SpecSwarm's architecture
+independently and proposed adopting it. The same source, mined twice, reaching
+opposite conclusions — which is why the provenance was worth chasing.
+
+### Superseded framing — the clause as a blocking conflict
 
 Found by adversarial review 2026-07-28, missed by this draft and by an earlier
 adversary pass. `charters/dispatcher.md:432-435`, verbatim:
@@ -465,6 +519,40 @@ This draft's §Evidence warned that grove's own role skills would evict
 budget; `adapters/claude/skills/` holds four. The pressure is modest. The real cost
 of a broadly-matching description is not budget — it is `adr-0003:73-76`'s
 anti-hijack floor, which this canvas engaged only on its #5688 half.
+
+### Open — how is work transferred? (maintainer, 2026-07-28)
+
+*"How the work is transferred… whether we're using any specific records as
+requests for work. They seem roughly conceptually similar to the tokens in the
+Petri nets… when code is created, which generates the needs for two different
+reviewers to work in parallel, and then the continuation requires those two
+reviewers to finish."*
+
+**The observation exposes an asymmetry in grove as it stands.** Completions are
+records — verdict records, artifact status. **Requests are not.** A dispatch is an
+act, not a record. So grove can see tokens consumed and cannot see them produced.
+
+**That asymmetry is the original bug.** *"Reviewers silently not running"* is
+exactly *owed work that was never materialised anywhere*. If the obligation had
+been a thing on disk, its absence would have been visible.
+
+**A modelling note, offered because it decides whether the parked features stay
+parked.** There are two ways to place the token, and they are not equivalent:
+
+- **Token = obligation** (a token sits in "conformance review owed" until
+  discharged). The merge transition then fires on *absence* of tokens, which is
+  an **inhibitor arc** — explicitly parked by this record.
+- **Token = completion** (a token appears in "conformance verdict exists for X"
+  when the record exists). The merge transition **consumes from both places**.
+  Plain Petri net, no inhibitor, and artifact-derived: a token is present iff a
+  record is present.
+
+**The second matches both the maintainer's fork/join example and the already-
+Decided artifact-derived marking, and it keeps the parked features parked.** Owed
+work is then not a token but an *enabled-and-unfired transition* — which is
+precisely what the completeness guard checks.
+
+Not adopted; recorded so the next turn starts from a sharper question.
 
 ### Parked
 
