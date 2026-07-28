@@ -572,7 +572,9 @@ function entrySkillProjection(metadata, { span, sections, digest }) {
   return content;
 }
 
-function hostInventory({ host, components, drivingLoaders }) {
+// spec-0006 retired the driving loaders: the managed block is a pointer to
+// the entry skills, and the host inventory carries components only.
+function hostInventory({ host, components }) {
   return `${JSON.stringify({
     generated: "GENERATED — DO NOT EDIT",
     schema_version: 1,
@@ -580,7 +582,6 @@ function hostInventory({ host, components, drivingLoaders }) {
     literal_prefix: "grove:",
     components: [...components].sort((left, right) =>
       left.raw_id.localeCompare(right.raw_id)),
-    driving_loaders: drivingLoaders,
   }, null, 2)}\n`;
 }
 
@@ -601,13 +602,11 @@ export async function buildProjectionSet({
   const launchers = [];
   const claudeComponents = [];
   const codexComponents = [];
-  const roleDigests = new Map();
   for (const role of [...inventory.roles].sort((left, right) =>
     left.id.localeCompare(right.id),
   )) {
     const canonical = await readCanonical(repoRoot, role.source);
     const digest = sha256(canonical);
-    roleDigests.set(role.id, digest);
     const sourceFragment = role.exposures.find(
       (item) => item.source_fragment,
     )?.source_fragment;
@@ -715,34 +714,10 @@ export async function buildProjectionSet({
   outputs.set(CLAUDE_INVENTORY_PATH, hostInventory({
     host: "claude",
     components: claudeComponents,
-    drivingLoaders: {
-      dispatcher: {
-        raw_reference: "${CLAUDE_PLUGIN_ROOT}/reference/charters/dispatcher.md",
-        canonical_source: "charters/dispatcher.md",
-        canonical_digest: roleDigests.get("dispatcher"),
-      },
-      shaper: {
-        raw_reference: "${CLAUDE_PLUGIN_ROOT}/reference/charters/shaper.md",
-        canonical_source: "charters/shaper.md",
-        canonical_digest: roleDigests.get("shaper"),
-      },
-    },
   }));
   outputs.set(CODEX_INVENTORY_PATH, hostInventory({
     host: "codex",
     components: codexComponents,
-    drivingLoaders: {
-      dispatcher: {
-        raw_skill_id: "grove:role-dispatcher",
-        canonical_source: "charters/dispatcher.md",
-        canonical_digest: roleDigests.get("dispatcher"),
-      },
-      shaper: {
-        raw_skill_id: "grove:role-shaper",
-        canonical_source: "charters/shaper.md",
-        canonical_digest: roleDigests.get("shaper"),
-      },
-    },
   }));
   outputs.set(PACKAGE_ALLOWLIST_PATH, packageAllowlist(outputs.keys()));
 

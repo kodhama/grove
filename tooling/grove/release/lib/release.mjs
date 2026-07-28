@@ -634,15 +634,10 @@ export function validateHostInventory(inventory, { host, roleInventory, lifecycl
     if (!seen.has(id)) errors.push(`${host} inventory is missing ${id}`);
   }
   if (seen.size !== expectedIds.size) errors.push(`${host} inventory component count differs from authored inventory`);
-  for (const role of ['dispatcher', 'shaper']) {
-    const loader = inventory.driving_loaders?.[role];
-    if (
-      !loader
-      || loader.canonical_source !== `charters/${role}.md`
-      || !/^[0-9a-f]{64}$/.test(loader.canonical_digest ?? '')
-    ) {
-      errors.push(`${host} driving loader ${role} lacks exact source/digest`);
-    }
+  // spec-0006 retired the driving loaders (the managed block is a pointer to
+  // the entry skills); an inventory still carrying them is stale generation.
+  if (inventory.driving_loaders !== undefined) {
+    errors.push(`${host} inventory carries retired driving_loaders`);
   }
   return errors;
 }

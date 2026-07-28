@@ -17,6 +17,8 @@
       "end_marker": "<!-- grove:end -->",
       "setup_command": "/grove:setup",
       "set_profile_command": "/grove:set-profile",
+      "start_invocation": "/grove:start",
+      "enter_invocation": "/grove:enter",
       "inventory": "metadata/claude-inventory.json"
     },
     "codex": {
@@ -26,6 +28,8 @@
       "end_marker": "<!-- grove:end -->",
       "setup_command": "grove setup",
       "set_profile_command": "grove set-profile",
+      "start_invocation": "grove:start",
+      "enter_invocation": "grove:enter",
       "launcher_root": ".codex/agents",
       "inventory": "metadata/codex-inventory.json"
     }

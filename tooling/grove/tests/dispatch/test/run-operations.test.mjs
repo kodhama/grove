@@ -327,3 +327,45 @@ test('the grove-run CLI mirrors grove-operation.mjs (describe/plan/apply)', asyn
   assert.equal(contract.operation, 'open-run');
   assert.deepEqual(contract.flow, ['plan', 'disclose', 'confirm-exact-action-ids', 'apply']);
 });
+
+// --- S11 / INV25: the managed block is not load-bearing ---
+
+test('S11 — guard and run operations behave identically with a deleted or mangled managed block', async () => {
+  const plain = await repoFixture();
+  const mangled = await repoFixture();
+  await writeFile(
+    join(mangled, 'CLAUDE.md'),
+    '<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->\n'
+      + 'mangled, no stamp, no end marker\n',
+  );
+  for (const dir of [plain, mangled]) {
+    await mkdir(join(dir, 'specs'), { recursive: true });
+    await writeFile(join(dir, 'specs', 'changed.md'), SPEC_BODY);
+    const plan = await planOpenRun(openRequest(dir));
+    assert.equal(plan.ok, true, plan.summary);
+    await applyRunPlan(plan, {
+      confirmedActionIds: plan.actions.map((action) => action.id),
+    });
+  }
+  const guard = join(PACKAGE_ROOT, 'runtime', 'dispatch', 'bin', 'guard.mjs');
+  const results = [plain, mangled].map((dir) =>
+    spawnSync(process.execPath, [guard, '--repo', dir], { encoding: 'utf8' }));
+  assert.equal(results[0].status, results[1].status);
+  assert.equal(results[0].stdout, results[1].stdout);
+  assert.equal(results[0].stderr, results[1].stderr);
+  assert.equal(results[0].status, 3, 'owed work reported in both');
+
+  // Pin: the new dispatch machinery never reads the instruction-file block.
+  const { readdir: rd } = await import('node:fs/promises');
+  for (const sub of ['lib', 'bin']) {
+    const dirPath = join(PACKAGE_ROOT, 'runtime', 'dispatch', sub);
+    for (const name of await rd(dirPath)) {
+      const source = await readFile(join(dirPath, name), 'utf8');
+      assert.doesNotMatch(
+        source,
+        /CLAUDE\.md|AGENTS\.md|grove:begin|instruction_file/,
+        `${sub}/${name} must not read the managed block`,
+      );
+    }
+  }
+});

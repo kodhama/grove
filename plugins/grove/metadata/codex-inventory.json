@@ -18,7 +18,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "2168daec4fc49556eb985d90dd326862383a1a48e4560e556d89b74128f15a0a"
+      "canonical_digest": "114c36a17d750548621eed7bb48f027c633d25db54cbe2f5a7627689e56be336"
     },
     {
       "raw_id": "grove:remove",
@@ -26,7 +26,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "2168daec4fc49556eb985d90dd326862383a1a48e4560e556d89b74128f15a0a"
+      "canonical_digest": "114c36a17d750548621eed7bb48f027c633d25db54cbe2f5a7627689e56be336"
     },
     {
       "raw_id": "grove:role-code-reviewer",
@@ -146,7 +146,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "2168daec4fc49556eb985d90dd326862383a1a48e4560e556d89b74128f15a0a"
+      "canonical_digest": "114c36a17d750548621eed7bb48f027c633d25db54cbe2f5a7627689e56be336"
     },
     {
       "raw_id": "grove:setup",
@@ -154,7 +154,7 @@
       "class": "lifecycle",
       "exposure": "lifecycle",
       "canonical_source": "plugins/grove/runtime/lifecycle/lib/lifecycle.mjs",
-      "canonical_digest": "2168daec4fc49556eb985d90dd326862383a1a48e4560e556d89b74128f15a0a"
+      "canonical_digest": "114c36a17d750548621eed7bb48f027c633d25db54cbe2f5a7627689e56be336"
     },
     {
       "raw_id": "grove:start",
@@ -164,17 +164,5 @@
       "canonical_source": "tooling/grove/build/sources/entry-behavior.md",
       "canonical_digest": "f1c936193c84c58f37c96e1d76845b5f99664e5388ae786bdd033697c7907971"
     }
-  ],
-  "driving_loaders": {
-    "dispatcher": {
-      "raw_skill_id": "grove:role-dispatcher",
-      "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "6f5af9a1d8dd7047bbd4477aa47086758aced328e937ea2b95a4a57016ee9093"
-    },
-    "shaper": {
-      "raw_skill_id": "grove:role-shaper",
-      "canonical_source": "charters/shaper.md",
-      "canonical_digest": "20a09193caae4e9be7f86d7b0fe9ca0c4499dd7b968f2500b8d20446534a95a6"
-    }
-  }
+  ]
 }

@@ -129,15 +129,17 @@ test('INV30/S26 — setup creates only the thin consumer floor and the invoking 
         join(repoRoot, invocation.host === 'claude' ? 'CLAUDE.md' : 'AGENTS.md'),
         'utf8',
       );
+      // spec-0006 INV24: the carrier holds the four-line pointer block, no
+      // loader lines, no rules.
       if (invocation.host === 'claude') {
-        assert.match(carrier, /\$\{CLAUDE_PLUGIN_ROOT\}\/reference\/charters\/dispatcher\.md/);
-        assert.match(carrier, /\$\{CLAUDE_PLUGIN_ROOT\}\/reference\/charters\/shaper\.md/);
+        assert.match(carrier, /\/grove:start/);
+        assert.match(carrier, /\/grove:enter/);
       } else {
-        assert.match(carrier, /grove:role-dispatcher/);
-        assert.match(carrier, /grove:role-shaper/);
-        assert.match(carrier, /current task/i);
-        assert.match(carrier, /do not (?:delegate|spawn)/i);
+        assert.match(carrier, /grove:start/);
+        assert.match(carrier, /grove:enter/);
       }
+      assert.doesNotMatch(carrier, /role-dispatcher|role-shaper|reference\/charters/);
+      assert.doesNotMatch(carrier, /runtime_dir/);
     });
   }
 });
@@ -678,33 +680,16 @@ test('INV35 — stamp inventory reports every valid carrier path/value and expli
   );
 });
 
-test('INV28/INV33/S31 — managed driving loaders derive from host inventory declarations', async (t) => {
-  for (const [invocation, inventoryName, loaderFields, expected] of [
-    [
-      claudeInvocation,
-      'claude-inventory.json',
-      {
-        dispatcher: { raw_reference: '${CLAUDE_PLUGIN_ROOT}/reference/custom/dispatcher.md' },
-        shaper: { raw_reference: '${CLAUDE_PLUGIN_ROOT}/reference/custom/shaper.md' },
-      },
-      ['reference/custom/dispatcher.md', 'reference/custom/shaper.md'],
-    ],
-    [
-      codexInvocation,
-      'codex-inventory.json',
-      {
-        dispatcher: { raw_skill_id: 'grove:custom-dispatcher' },
-        shaper: { raw_skill_id: 'grove:custom-shaper' },
-      },
-      ['grove:custom-dispatcher', 'grove:custom-shaper'],
-    ],
+// spec-0006 INV24/AC10: the managed block shrank to the four-line pointer
+// block. This replaces the retired driving-loader derivation test — loaders
+// left the block entirely.
+test('spec-0006 INV24 — the pointer block is exactly four lines with host-correct invocations from adapter metadata', async (t) => {
+  for (const [invocation, expectedStart, expectedEnter] of [
+    [claudeInvocation, '/grove:start', '/grove:enter'],
+    [codexInvocation, 'grove:start', 'grove:enter'],
   ]) {
     await t.test(invocation.host, async () => {
       const { packageRoot, repoRoot } = await fixture();
-      await writeFile(
-        join(packageRoot, 'metadata', inventoryName),
-        `${JSON.stringify({ schema_version: 1, host: invocation.host, driving_loaders: loaderFields }, null, 2)}\n`,
-      );
       const plan = await planSetup({
         packageRoot,
         repoRoot,
@@ -715,9 +700,77 @@ test('INV28/INV33/S31 — managed driving loaders derive from host inventory dec
       const carrierPath = invocation.host === 'claude' ? 'CLAUDE.md' : 'AGENTS.md';
       const carrier = plan.actions.find((action) => action.path === carrierPath);
       assert.ok(carrier);
-      for (const value of expected) {
-        assert.match(carrier.content, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-      }
+      const lines = carrier.content.trimEnd().split('\n');
+      assert.equal(lines.length, 4, carrier.content);
+      assert.match(lines[0], /^<!-- grove:begin/);
+      assert.equal(
+        lines[1],
+        `Grove is installed. Run ${expectedStart} to open a governed run, or `
+          + `${expectedEnter} to make Grove's dispatch rules available without opening one.`,
+      );
+      assert.equal(lines[2], 'grove plugin@0.3.0');
+      assert.equal(lines[3], '<!-- grove:end -->');
+      // No loader lines, no runtime_dir sentence, no rules; the stamp is the
+      // block's ONLY version carrier.
+      assert.doesNotMatch(carrier.content, /runtime_dir/);
+      assert.doesNotMatch(
+        carrier.content,
+        /Load the complete|Invoke the exact installed skill|role-dispatcher|role-shaper/,
+      );
+      assert.equal(
+        (carrier.content.match(/0\.3\.0/g) ?? []).length,
+        1,
+        'the stamp line is the only version carrier',
+      );
     });
   }
+});
+
+test('spec-0006 INV24 — the pointer invocations come from adapter metadata, never a hardcoded literal', async () => {
+  const { packageRoot, repoRoot } = await fixture();
+  const hosts = {
+    schema_version: 1,
+    surface_matrix: 'metadata/surfaces.json',
+    version: 'VERSION',
+    config_tokens: 'metadata/config-tokens.json',
+    codex_launchers: 'metadata/codex-launchers.json',
+    legacy_ownership: 'metadata/legacy-ownership.json',
+    hosts: {
+      claude: {
+        instruction_file: 'CLAUDE.md',
+        begin_marker: '<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->',
+        end_marker: '<!-- grove:end -->',
+        setup_command: '/grove:setup',
+        set_profile_command: '/grove:set-profile',
+        start_invocation: '/custom:start',
+        enter_invocation: '/custom:enter',
+        inventory: 'metadata/claude-inventory.json',
+      },
+      codex: {
+        instruction_file: 'AGENTS.md',
+        begin_marker: '<!-- grove:begin (managed by grove — dials live in .grove/, not this block) -->',
+        end_marker: '<!-- grove:end -->',
+        setup_command: 'grove setup',
+        set_profile_command: 'grove set-profile',
+        start_invocation: 'custom:start',
+        enter_invocation: 'custom:enter',
+        launcher_root: '.codex/agents',
+        inventory: 'metadata/codex-inventory.json',
+      },
+    },
+  };
+  await writeFile(
+    join(packageRoot, 'metadata', 'hosts.json'),
+    `${JSON.stringify(hosts, null, 2)}\n`,
+  );
+  const plan = await planSetup({
+    packageRoot,
+    repoRoot,
+    ...claudeInvocation,
+    choices: { preset: 'steward', config: {} },
+  });
+  assert.equal(plan.ok, true, plan.summary);
+  const carrier = plan.actions.find((action) => action.path === 'CLAUDE.md');
+  assert.match(carrier.content, /\/custom:start/);
+  assert.match(carrier.content, /\/custom:enter/);
 });

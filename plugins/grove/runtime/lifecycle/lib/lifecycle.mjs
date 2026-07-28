@@ -643,6 +643,8 @@ async function loadHostConfig(packageRoot) {
         end_marker: '<!-- grove:end -->',
         setup_command: '/grove:setup',
         set_profile_command: '/grove:set-profile',
+        start_invocation: '/grove:start',
+        enter_invocation: '/grove:enter',
         inventory: 'metadata/claude-inventory.json',
       },
       codex: {
@@ -651,6 +653,8 @@ async function loadHostConfig(packageRoot) {
         end_marker: '<!-- grove:end -->',
         setup_command: 'grove setup',
         set_profile_command: 'grove set-profile',
+        start_invocation: 'grove:start',
+        enter_invocation: 'grove:enter',
         launcher_root: '.codex/agents',
         inventory: 'metadata/codex-inventory.json',
       },
@@ -712,13 +716,18 @@ async function planConsumerSeed(context, path, content, overwritePaths, preread)
 async function planManagedBlock(context) {
   const { adapter, installedVersion } = context;
   const existing = await readRepoOptional(context, adapter.instruction_file);
-  let loaders;
-  try {
-    loaders = await loadDrivingLoaders(context);
-  } catch (error) {
-    return { ok: false, reason: error.message };
+  if (
+    typeof adapter.start_invocation !== 'string'
+    || adapter.start_invocation === ''
+    || typeof adapter.enter_invocation !== 'string'
+    || adapter.enter_invocation === ''
+  ) {
+    return {
+      ok: false,
+      reason: `${context.host} adapter metadata declares no start/enter invocations for the pointer block`,
+    };
   }
-  const block = managedBlock(context.host, adapter, installedVersion, loaders);
+  const block = managedBlock(adapter, installedVersion);
   if (existing == null) return { ok: true, content: block };
   const inspection = inspectBlock(existing, adapter);
   if (!inspection.present) {
@@ -732,53 +741,15 @@ async function planManagedBlock(context) {
   };
 }
 
-async function loadDrivingLoaders(context) {
-  const inventoryPath = context.adapter.inventory;
-  if (typeof inventoryPath !== 'string' || inventoryPath === '') {
-    throw new Error(`${context.host} adapter has no declared host inventory`);
-  }
-  let inventory;
-  try {
-    inventory = JSON.parse(await readRequired(join(context.packageRoot, inventoryPath)));
-  } catch (error) {
-    throw new Error(`cannot load ${context.host} driving-loader inventory: ${error.message}`);
-  }
-  if (
-    inventory?.schema_version !== 1
-    || inventory.host !== context.host
-    || typeof inventory.driving_loaders !== 'object'
-  ) {
-    throw new Error(`${inventoryPath} has an invalid driving-loader envelope`);
-  }
-  const field = context.host === 'claude' ? 'raw_reference' : 'raw_skill_id';
-  const dispatcher = inventory.driving_loaders?.dispatcher?.[field];
-  const shaper = inventory.driving_loaders?.shaper?.[field];
-  if (
-    typeof dispatcher !== 'string'
-    || dispatcher === ''
-    || typeof shaper !== 'string'
-    || shaper === ''
-  ) {
-    throw new Error(`${inventoryPath} must declare exact dispatcher and shaper ${field} values`);
-  }
-  return { dispatcher, shaper };
-}
-
-function managedBlock(host, adapter, version, loaders) {
-  const hostLoader = host === 'claude'
-    ? [
-      `Load the complete driving-session dispatcher from \`${loaders.dispatcher}\` in this current task.`,
-      `Load the complete interactive shaper from \`${loaders.shaper}\` in this current task.`,
-      'Do not delegate or spawn either driving-session role. A native dispatcher remains only the scoped advisor.',
-    ]
-    : [
-      `Invoke the exact installed skill \`${loaders.dispatcher}\` in this current task for the complete driving-session dispatcher.`,
-      `Invoke the exact installed skill \`${loaders.shaper}\` in this current task for the complete interactive shaper.`,
-      'Do not delegate or spawn either driving-session role. A generated dispatcher project launcher selects only scoped-advisor.',
-    ];
+// spec-0006 §Managed pointer block (INV24): exactly four lines — begin
+// marker, ONE pointer sentence with host-correct invocations from adapter
+// metadata, the stamp (the block's only version carrier), end marker. The
+// block carries no rules and no loader lines; per-handover duties live in
+// the floor extract and the charter. Non-load-bearing by construction:
+// deleting or mangling it changes nothing but the pointer (INV25).
+function managedBlock(adapter, version) {
   return `${adapter.begin_marker}
-${hostLoader.join('\n')}
-At every handover, an absent \`runtime_dir\` resolves \`runtime/gates/\` relative to the active installed Grove package. A declared non-legacy runtime is exact authority and is never searched or replaced.
+Grove is installed. Run ${adapter.start_invocation} to open a governed run, or ${adapter.enter_invocation} to make Grove's dispatch rules available without opening one.
 grove plugin@${version}
 ${adapter.end_marker}
 `;

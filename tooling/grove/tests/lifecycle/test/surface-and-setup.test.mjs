@@ -86,10 +86,13 @@ test('Claude and Codex setup in either order share one floor and are idempotent'
         'utf8',
       ),
     };
-    assert.match(snapshot.claude, /\$\{CLAUDE_PLUGIN_ROOT\}\/reference\/charters\/dispatcher\.md/);
-    assert.match(snapshot.claude, /\$\{CLAUDE_PLUGIN_ROOT\}\/reference\/charters\/shaper\.md/);
-    assert.match(snapshot.codex, /grove:role-dispatcher/);
-    assert.match(snapshot.codex, /grove:role-shaper/);
+    // spec-0006 INV24: the carrier holds only the pointer block.
+    assert.match(snapshot.claude, /\/grove:start/);
+    assert.match(snapshot.claude, /\/grove:enter/);
+    assert.match(snapshot.codex, /grove:start/);
+    assert.match(snapshot.codex, /grove:enter/);
+    assert.doesNotMatch(snapshot.claude, /reference\/charters/);
+    assert.doesNotMatch(snapshot.codex, /role-dispatcher|role-shaper/);
     assert.match(snapshot.planner, /name = "grove_implementation_planner"/);
     assert.doesNotMatch(JSON.stringify(snapshot), /grove-status|status emission/i);
     assert.equal((snapshot.claude.match(/grove:begin/g) ?? []).length, 1);
