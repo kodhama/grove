@@ -45,6 +45,10 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
   autonomous and follow the dispatch rules. *(maintainer, 2026-07-28)*
 - **Superseding previous decisions is permitted** where the evidence warrants.
   *(maintainer, 2026-07-28)*
+- **The marking lives in a committed per-run cursor; the places stay
+  artifact-derived.** *(maintainer, 2026-07-28: "I think option 2 is fine exactly
+  because it's not too strict about it.")* The weighing they asked for is in
+  §Considered and rejected.
 - **The field agrees.** No plugin-class system was found doing always-on
   orchestration injection; Anthropic's own `/deep-research` lost auto-activation
   in v2.1.218; BMAD is migrating off always-on `.clinerules` onto invoked
@@ -70,9 +74,11 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
    *(maintainer, 2026-07-28)*. The pro side is drafted in the analysis section;
    the con side is not, and the maintainer's stated instinct is that something is
    lost. Not a shaping turn — this needs its own pass.
-7. **Where does the marking live** — pure artifact derivation, or a committed
-   per-run cursor plus artifact-derived places? Informed by the RPI Team evidence
-   below; **not yet answered.**
+7. ~~Where does the marking live?~~ **Answered** — see Decided.
+8. **Does the cursor have a lifecycle?** A committed file that a dead run leaves
+   behind is a new drift class, and grove has been bitten by drift three times
+   this week. What creates it, what clears it, and what a stale one means are
+   unanswered.
 
 ### Constraint — do not foreclose emergent sequencing
 
@@ -259,7 +265,41 @@ Cited so the trade-offs are not relitigated. Tags are the research note's.
 
 ## Considered and rejected
 
-*Populated as options are retired, each with its one-line reason.*
+### Pure artifact derivation, with no run cursor — **rejected**
+
+**One line:** it cannot express the thing the design exists for.
+
+Weighed properly, because it is the stricter reading of grove's own floor and
+deserves better than a dismissal. **For it:** nothing to drift, nothing to
+garbage-collect, no consumer-side file at all, and the most literal satisfaction
+of *"state derived from artifact existence, never agent claims"*.
+
+**Against it, decisively:** run scope is not derivable from artifacts. The paired
+gate this record is built around — `conformance ∥ code-review → merge` — is a
+**join**, and a join needs a defined set of participants. "Fire when both are
+present" has no meaning without a "both". Two further losses follow from the same
+root: a transition that fired and legitimately produced nothing is
+indistinguishable from one that never fired, and resumption is impossible because
+nothing marks a run as in progress.
+
+### A fully cold, artifact-inferring dispatcher — **not rejected; deferred**
+
+**Not** in this section as a retired option. It remains Open 6 and requires
+adversarial review of its pros and cons before it can be adopted or rejected.
+
+Recorded here only because the weighing is relevant to the choice above:
+**the adopted option is a proper subset of the cold direction, not a fork away
+from it.** A cursor plus artifact-derived places is one step along that road;
+going colder later — moving the transition table to disk, then the rules — is
+**additive rather than a rewrite**. That is why this could be settled now without
+waiting for the cold review, and it is the specific sense in which the maintainer
+was right that *"the state file you proposed had some of that aspect in"*.
+
+**The cost the adopted option carries, named rather than discovered later:** a
+committed cursor is a consumer-side file that can go stale, and a run that dies
+leaves one behind. It is a smaller and more disposable risk than the managed
+block (see §Correction) but it is not zero, and it creates the obligation now
+tracked as Open 8.
 
 ## Open questions
 
