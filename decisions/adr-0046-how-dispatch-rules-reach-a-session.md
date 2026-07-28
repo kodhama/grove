@@ -330,6 +330,45 @@ enthusiasm as approval. The distinction is the maintainer's to draw, and if the
 guard survives it needs `adr-0003`-style open supersession of this clause, not a
 favourable interpretation.
 
+### Refinement — the ask is the boundary (maintainer, 2026-07-28)
+
+*"We don't need this enter path to then automatically start a run if the model
+finds out… when it detects the conditions that could apply for swarm governance,
+then it asks the user. So we never get away from the user intent."*
+
+Two verbs, two **user intentions**:
+
+- **`/grove:start`** — *"govern this from the get-go."* All in, up front.
+- **`/grove:enter`** — *"be available to govern."* On detecting conditions where
+  swarm governance could apply, the model **asks**. The user answers. A yes
+  becomes a start.
+
+**This resolves two blocking findings and converts a third.**
+
+- **D2 is no longer disabled.** The state that broke it — *entered + governed work
+  + no run* — is no longer a designed path. Governed work is preceded by an ask;
+  a yes opens a run and D2 runs at run start. What remains is the model failing to
+  ask, which is model unreliability rather than a designed hole, and its failure
+  mode is *grove did not engage* — the same outcome as grove not being installed.
+  Not nothing, but not the floor being silently off.
+- **The cursor fork gets a third answer the review did not consider.** Not *"yes,
+  `enter` creates a cursor"* (safety evaporates) and not *"no, cursor-less governed
+  mode"* (the rejected design). **The ask is the boundary**: `enter` writes nothing
+  ever; the ask converts it into a start, and the start writes. Consistent with
+  `dispatcher.md` D5, since an in-session ask-and-answer is an in-session approval.
+- **The justification moves from mechanism to intent — and that dissolves the
+  Codex asymmetry.** The split is no longer argued from
+  `disable-model-invocation`, so nothing rests on a Claude-only frontmatter key.
+  Both hosts ship both verbs meaning the same thing. The MAJOR finding below
+  stands as a correction of the *old* rationale, not of this one.
+
+**It also makes `enter` genuinely safe to leave model-invocable**, which is what
+the maintainer wanted: a spurious model invocation costs a question, and the
+worst case is the user saying no.
+
+**Still unresolved by this refinement:** the payload question, and the charter's
+rejection of session-holding continuation hooks. Both below.
+
 ### BLOCKING — the two-skill rationale does not follow from its own premise
 
 The premise is confirmed: `disable-model-invocation` is frontmatter, therefore
@@ -356,6 +395,12 @@ refuted twice over.**
 **`inv-self-improvement`:** adopting the flag would be grove's first use of it,
 leaving `remove` — the destructive one — outside the new convention. Migrate it or
 name the exemption.
+
+**Superseded in part by the Refinement above.** The mechanical argument for the
+split is still refuted — one skill *can* hold both invocation modes, and grove's
+confirm gate is the stronger control. What survives is a **different and better
+argument**: the two verbs encode two user intentions, not two invocation
+policies. That argument does not depend on the refuted premise.
 
 ### BLOCKING — `enter` mode turns off D2, the charter's named load-bearing floor
 
