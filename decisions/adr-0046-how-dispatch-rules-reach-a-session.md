@@ -52,8 +52,11 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
 
 ### Open
 
-1. **Where do the dispatch rules live — in context, or outside it?** The
-   architecture fork. Everything below narrows once this is answered.
+1. **Where do the dispatch rules live — in context, or outside it?**
+   **Narrowed to C** *(maintainer leans C, 2026-07-28: "I like C but…")* —
+   floors in an invoked skill, sequence driven by a Stop hook — **conditional on
+   the emergence constraint below.** Not yet ratified; the lean is recorded, not
+   the act.
 2. **Is entry model-invocable or user-invocable only?** `adr-0003` rejected
    inferred dispatch from descriptions, citing `claude-code#5688`.
 3. **What carries the dispatcher-only floors** — the rules no subagent charter
@@ -62,6 +65,39 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
    Claude-shaped answer needs its Codex twin or an explicit scope limit.
 5. **What happens to the existing managed block**, and to the five consumers
    still running the compliant `0.1.0` text.
+
+### Constraint — do not foreclose emergent sequencing
+
+*(maintainer, 2026-07-28: "which strategy is the most consistent with the idea,
+which I haven't dropped, of letting the sequence be emergent somehow… I don't
+want to lean into a fixed workflow so far it makes that harder.")*
+
+**The mechanism that forecloses emergence is not the Stop hook — it is what the
+hook returns.**
+
+- **Hook as router** — *"next phase is `plan`; run `/grove:plan`"* (SpecSwarm's
+  shape). Encodes an **itinerary**. Forecloses emergence, and separately
+  contradicts `dispatcher.md`, where gate ownership is *"read at run time from
+  the profile"* and explicitly *"not hardcoded in this charter"*.
+- **Hook as completeness guard** — *"a changed artifact has no conformance
+  verdict record; you may not stop."* Encodes an **invariant**. The model decides
+  *how* to satisfy it, which is where emergent sequencing would live.
+
+**This record adopts the guard form and forbids the router form.** A guard
+constrains the end state; a router constrains the path. Grove already leans this
+way: *"the dispatcher sequences; it does not grade"* (`dispatcher.md:434-435`),
+and a gate advances only on a **record**, never on memory. A Stop hook checking
+for records is that floor made deterministic — which is what hooks are for
+(*"use hooks to enforce behavior deterministically"*) when prose degrades.
+
+Ranked on emergence-compatibility: **A ≈ C > B-as-SpecSwarm-builds-it**. A and C
+leave sequencing to rules the model reasons over.
+
+**What this record does not attempt.** Emergent dispatch is blocked today by
+something outside its scope: subagents do not self-awake. grove#102
+(query-before-dispatch / contract-net) and grove#101 (fit-probe) are the existing
+shaping for that. This decision's obligation is narrower and testable: **encode no
+itinerary anywhere a future fit-based dispatcher would have to unpick.**
 
 ### Parked
 
