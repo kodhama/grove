@@ -171,10 +171,10 @@ status = "open"                               # open | closed | aborted
 # reason = "..."   one line; present only when status = aborted
 # claims — RESERVED top-level key; written by no current path
 #
-# Required fields: `run` and `status` always; `opened`, `intent`, `subjects`
-# required when status = "open". The minimal aborted replacement (§Defect
-# handling) — run/status/closed/reason — is therefore schema-valid, never a
-# standing defect.
+# Required fields: `schema`, `run`, and `status` always; `opened`, `intent`,
+# `subjects` required when status = "open". The minimal aborted replacement
+# (§Defect handling) — schema/run/status/closed/reason — is therefore
+# schema-valid, never a standing defect.
 ```
 
 - `subjects` lists the run's governed subject **files**; it defines run scope
@@ -331,10 +331,11 @@ when all its preconditions hold under one binding.
   from a prior run — closed or aborted included — satisfies the predicate
   in supervisor mode and silences the observer, and aborting then
   restarting a run over unchanged bytes re-owes nothing. Freshness is the
-  path + state + digest triple defined in §Verdict-record contract — one
-  definition, restated nowhere.
+  path + state + digest triple defined in §Verdict-record contract; this
+  bullet and INV11 restate it and must move with it.
 - **`no-record(rtype, $s)`** — no record satisfies `record(rtype, $s)`; an
-  absent record and a stale (digest-mismatched) record both leave it true.
+  absent record and a stale record — by digest mismatch or by
+  `subject_state` mismatch — both leave it true.
 - A record whose `record_type` is outside the four rule-consumable types
   satisfies no predicate and is reported as a defect (§Verdict-record
   contract, §Defect handling).
@@ -435,7 +436,7 @@ close: `close-run` requires exit `0`.
 |---|---|
 | a cursor carrying the reserved `claims` key | Yes — over that cursor's `subjects`; the run's owed work still holds and the defect line rides beside it. |
 | more than one open cursor | Yes — over the **union** of the open cursors' subjects; the report names every open cursor; resolution is adopt/abort down to one. |
-| an unparseable or schema-invalid cursor | Not over that cursor — its `subjects` are unreadable; the report names the file and the parse/validation failure. Any other parseable open cursor is still evaluated. A cursor whose `status` cannot be read is treated as open for mode selection (fail closed). Its only exit is a confirmed `abort-run`, which **replaces the file whole** with a minimal well-formed aborted cursor (`run` from the directory name, `status = "aborted"`, `closed` timestamp, `reason`) — a status-field edit inside unparseable bytes is not defined. This is INV8's one named exception. |
+| an unparseable or schema-invalid cursor | Not over that cursor — its `subjects` are unreadable; the report names the file and the parse/validation failure. Any other parseable open cursor is still evaluated. A cursor whose `status` cannot be read is treated as open for mode selection (fail closed). Its only exit is a confirmed `abort-run`, which **replaces the file whole** with a minimal well-formed aborted cursor (`schema = 1`, `run` from the directory name, `status = "aborted"`, `closed` timestamp, `reason`). This is INV8's one named exception, and its category is exactly this row's: **unparseable or schema-invalid, including status-unreadable** — "well-formed" throughout this spec means parseable AND schema-valid. |
 | a record with a `record_type` outside the enumerated types, or otherwise unparseable | Yes — the record satisfies no predicate; the defect line names it. |
 
 Through the hook, defects use the same channels as owed work: in supervisor
@@ -665,11 +666,12 @@ this contract.
   set `status = "aborted"` with a one-line reason; neither shall delete the
   file, and both shall write only `status`, `closed`, and `reason` —
   `subjects` and every other field shall be immutable after open. One named
-  exception: a confirmed `abort-run` on an **unparseable** cursor replaces the
-  file whole with the minimal aborted shape (§Defect handling) — a field edit
-  inside unparseable bytes is undefined, and the exception is reachable only
-  through the defect path, never on a well-formed cursor.
-
+  exception: a confirmed `abort-run` on an **unparseable or schema-invalid**
+  cursor (including status-unreadable) replaces the file whole with the
+  minimal aborted shape (§Defect handling) — a trustworthy field edit inside
+  a file that fails parse or schema is undefined, and the exception is
+  reachable only through that defect row, never on a well-formed (parseable
+  and schema-valid) cursor.
 - **INV9** — No shipped path shall write the `claims` key; the guard shall
   report a cursor carrying it as a schema defect.
 - **INV10** — A stale cursor shall be surfaced at both entry verbs and every
@@ -842,8 +844,9 @@ Stop hook is registered.
 ### S15 — itinerary shapes are rejected
 **Given** a `transitions.toml` containing a `next`, `then`, `phase`, or any
 undeclared key; a transition with an empty `preconditions` list (a bare
-`event → agent` pair); or a transition whose postconditions name
-`record(r, $s)` without `no-record(r, $s)` among its preconditions
+`event → agent` pair); a transition whose postconditions name
+`record(r, $s)` without `no-record(r, $s)` among its preconditions; or a
+transition whose postconditions name no record at all
 **When** validation runs
 **Then** it rejects the file naming the offending transition.
 
@@ -888,20 +891,24 @@ its criterion's label.
    red if any third write moment appears, a close lands while owed work or
    a defect exists, a close or abort touches any field beyond
    `status`/`closed`/`reason` (save INV8's sole named exception — the
-   whole-file replacement of an *unparseable* cursor, itself red if reachable
-   on a well-formed one), an abort deletes the file, a second open
+   whole-file replacement of an *unparseable or schema-invalid* cursor,
+   itself red if reachable on a well-formed — parseable and schema-valid —
+   one), an abort deletes the file, a second open
    cursor is created, or a stale cursor is resolved silently.
 6. **AC6 — claims stays reserved** [mechanical] (INV9): red if any shipped
    path writes `claims` or the guard stops flagging its presence.
-7. **AC7 — records are current-bytes tokens** [mechanical; the
+7. **AC7 — records are path + state + digest tokens** [mechanical; the
    change-request report duty behavioral] (INV11, INV12; S16): red if a
    record with a mismatched `subject_sha256` still satisfies a
-   precondition, **if a digest-matched record satisfies a precondition for a
-   subject other than the one its `subject` field names** (the sentinel makes
-   this collision certain across deletions, not merely possible), if the
-   absent-subject sentinel rule is dropped, if record lookup stops spanning
-   every run's records directory, or the change-request verdict report is
-   dropped as owed.
+   precondition, **if a record whose `subject_state` mismatches the
+   subject's current state still satisfies a precondition** (the
+   round-three resurrect scenario: an absence record surviving a zero-byte
+   file landing at its path), **if a digest-matched record satisfies a
+   precondition for a subject other than the one its `subject` field names**
+   (the sentinel makes this collision certain across deletions, not merely
+   possible), if a record lacking `subject_state` satisfies any
+   precondition, if record lookup stops spanning every run's records
+   directory, or the change-request verdict report is dropped as owed.
 8. **AC8 — rules are data, not an itinerary** [mechanical] (INV13–INV15;
    S15): red if an undeclared key or predicate form validates, an empty
    precondition set validates, a transition that is not self-disabling
