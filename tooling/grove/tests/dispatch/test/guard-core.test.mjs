@@ -19,6 +19,7 @@ import {
   collectRecords,
   computeEnabled,
   deriveChangeSet,
+  parseStatusZ,
   validateRecord,
   recordSatisfies,
 } from '../../../../../plugins/grove/runtime/dispatch/lib/guard-core.mjs';
@@ -505,4 +506,74 @@ test('a block-style implements list classifies implements-bearing; an empty key 
     '---\nid: x\ntype: spec\nimplements:\nstatus: gated\n---\nbody\n',
   );
   assert.deepEqual(emptyKey.classes, ['spec'], 'a bare key with no items is not bearing');
+});
+// --- BLOCK-2 residual: renames/copies in EITHER porcelain column ---
+// Case list DERIVED FROM git's status --porcelain v1 -z format (git-status
+// documentation + probed git 2.39): every entry is "XY PATH" NUL-terminated,
+// and when EITHER the index column X or the worktree column Y is R or C, ONE
+// extra NUL-terminated token follows carrying the ORIGINAL path. Both paths
+// are changes. Probed live: `git mv` -> "R  new\0old"; `mv old new &&
+// git add -N new` -> " R new\0old"; rename+edit -> "R  new\0old".
+
+test('parseStatusZ: every documented column case, both rename halves in the set', () => {
+  const NUL = '\0';
+  const cases = [
+    ['staged rename (X=R)', `R  new.md${NUL}old.md${NUL}`, ['new.md', 'old.md']],
+    ['worktree rename (Y=R)', ` R new.md${NUL}old.md${NUL}`, ['new.md', 'old.md']],
+    ['staged copy (X=C)', `C  copy.md${NUL}orig.md${NUL}`, ['copy.md', 'orig.md']],
+    ['worktree copy (Y=C)', ` C copy.md${NUL}orig.md${NUL}`, ['copy.md', 'orig.md']],
+    ['rename then modified (X=R, Y=M)', `RM new.md${NUL}old.md${NUL}`, ['new.md', 'old.md']],
+    ['plain modified', ` M plain.md${NUL}`, ['plain.md']],
+    ['untracked', `?? fresh.md${NUL}`, ['fresh.md']],
+    ['deleted', ` D gone.md${NUL}`, ['gone.md']],
+    [
+      'rename followed by an ordinary entry (stream stays in sync)',
+      `R  new.md${NUL}old.md${NUL} M after.md${NUL}`,
+      ['new.md', 'old.md', 'after.md'],
+    ],
+    [
+      'worktree rename followed by an ordinary entry (stream stays in sync)',
+      ` R new.md${NUL}old.md${NUL}?? after.md${NUL}`,
+      ['new.md', 'old.md', 'after.md'],
+    ],
+  ];
+  for (const [name, stream, expected] of cases) {
+    assert.deepEqual([...parseStatusZ(stream)].sort(), [...expected].sort(), name);
+  }
+});
+
+test('a staged rename puts BOTH halves in the derived change set (R100-like and R050-like)', async () => {
+  const dir = await gitFixture();
+  await writeFile(join(dir, 'old.md'), 'stable content for rename detection\n');
+  await writeFile(join(dir, 'second.md'), 'another stable body for rename detection\n');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'base');
+  git(dir, 'checkout', '-q', '-b', 'work');
+  // Exact rename (R100-like).
+  git(dir, 'mv', 'old.md', 'new.md');
+  // Rename with an edit on top (R050-like: still X=R with a worktree edit).
+  git(dir, 'mv', 'second.md', 'renamed-second.md');
+  await writeFile(join(dir, 'renamed-second.md'), 'another stable body for rename detection\nedited\n');
+  const changed = await deriveChangeSet({ repoRoot: dir });
+  for (const path of ['old.md', 'new.md', 'second.md', 'renamed-second.md']) {
+    assert.ok(changed.has(path), `${path} in ${JSON.stringify([...changed])}`);
+  }
+});
+
+test('a worktree-side rename (mv + add -N) puts BOTH halves in the derived change set', async () => {
+  const dir = await gitFixture();
+  await writeFile(join(dir, 'tracked.md'), 'stable content for rename detection\n');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'base');
+  git(dir, 'checkout', '-q', '-b', 'work');
+  const { rename } = await import('node:fs/promises');
+  await rename(join(dir, 'tracked.md'), join(dir, 'moved.md'));
+  git(dir, 'add', '-N', 'moved.md');
+  // Probed: this git emits " R moved.md\0tracked.md" — the Y-column rename.
+  const changed = await deriveChangeSet({ repoRoot: dir });
+  assert.ok(changed.has('moved.md'), JSON.stringify([...changed]));
+  assert.ok(
+    changed.has('tracked.md'),
+    `the OLD half of a worktree rename is an unreviewed deletion and must not vanish: ${JSON.stringify([...changed])}`,
+  );
 });

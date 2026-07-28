@@ -125,21 +125,36 @@ export async function deriveChangeSet({ repoRoot }) {
   ])).split('\0')) {
     if (token !== '') paths.add(token);
   }
-  // status --porcelain -z: entries are "XY <path>" NUL-terminated; a rename
-  // or copy entry is followed by one extra NUL-terminated token carrying the
-  // original path — both halves are changes.
-  const statusTokens = (await git(repoRoot, [
+  for (const path of parseStatusZ(await git(repoRoot, [
     'status', '--porcelain', '--untracked-files=all', '-z',
-  ])).split('\0');
-  for (let index = 0; index < statusTokens.length; index += 1) {
-    const token = statusTokens[index];
+  ]))) {
+    paths.add(path);
+  }
+  return paths;
+}
+
+// status --porcelain v1 -z (derived from the git-status format
+// documentation, probed on git 2.39): every entry is "XY PATH"
+// NUL-terminated, and when EITHER the index column X (staged rename/copy,
+// `git mv`) or the worktree column Y (worktree rename/copy, `mv` +
+// `git add -N`) is R or C, ONE extra NUL-terminated token follows carrying
+// the ORIGINAL path. Both halves are changes — the original is an
+// unreviewed deletion — and consuming the extra token on either column
+// keeps the stream in sync for the entries after it.
+export function parseStatusZ(output) {
+  const paths = new Set();
+  const tokens = String(output).split('\0');
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
     if (token === '') continue;
     const status = token.slice(0, 2);
     const path = token.slice(3);
     if (path !== '') paths.add(path);
-    if (status[0] === 'R' || status[0] === 'C') {
+    const renamedOrCopied = ['R', 'C'].includes(status[0])
+      || ['R', 'C'].includes(status[1]);
+    if (renamedOrCopied) {
       index += 1;
-      const original = statusTokens[index];
+      const original = tokens[index];
       if (original) paths.add(original);
     }
   }
