@@ -3,7 +3,7 @@ id: spec-0006-voluntary-dispatch
 type: spec
 status: gated  # spec gate ratified 2026-07-28 under the `spec = agent` profile row: spec-adversary APPROVE-READY at round eight of an eight-round convergence (rounds 1-3, 5-8 spec-adversary; round 4 fresh-eyes decision-adversary, concurring). The verdict record with the convergence table, mechanical-vs-behavioral ledger and residual risks is on PR #177. `approved` remains a human act; ship = human stands.
 implements: adr-0046-how-dispatch-rules-reach-a-session
-depends_on: [adr-0046-how-dispatch-rules-reach-a-session, spec-0004-dual-host-distribution@v7, adr-0035-plugin-and-consumer-boundary]
+depends_on: [adr-0046-how-dispatch-rules-reach-a-session, spec-0004-dual-host-distribution@v8, adr-0035-plugin-and-consumer-boundary]  # @v7 -> @v8 advanced in the landing commit per §Propagation and landing pairing
 owner: agent
 updated: 2026-07-28
 version: 2

@@ -1,15 +1,61 @@
 ---
 id: spec-0004-dual-host-distribution
 type: spec
-status: gated  # v7 replaces the release_state operation model per adr-0041 AC9; awaiting its independent spec gate
+status: gated  # v8 lands adr-0046 clause 8 with spec-0006's implementation landing; v7 replaced the release_state operation model per adr-0041 AC9
 implements: adr-0031-multi-host-distribution
-depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0037-pre-execution-planning, adr-0036-remove-retired-review-bookkeeping, adr-0041-separate-support-from-operational-availability]
+depends_on: [adr-0031-multi-host-distribution, adr-0032-status-emission-belongs-to-wisp, adr-0035-plugin-and-consumer-boundary, adr-0037-pre-execution-planning, adr-0036-remove-retired-review-bookkeeping, adr-0041-separate-support-from-operational-availability, adr-0046-how-dispatch-rules-reach-a-session]
 owner: agent
-updated: 2026-07-27
-version: 7
+updated: 2026-07-28
+version: 8
 ---
 
 # spec-0004 — dual-host distribution
+
+> **AMENDED 2026-07-28 — v7 → v8 (`adr-0046` clause 8, landed with
+> `spec-0006-voluntary-dispatch`'s implementation under `adr-0044`'s
+> paired-record amendment discipline)**
+>
+> **WHAT:** §Driving-session loaders is replaced by the entry verbs and the
+> managed pointer block: the managed instruction block shrinks to four lines
+> (markers, one pointer sentence, the stamp), the dispatcher/shaper loader
+> lines and per-handover `runtime_dir` sentence leave the block, and both
+> hosts gain the generated `enter`/`start` entry skills. That section's
+> recorded grove#170 upstream-conflict note is retired by name: approved
+> `adr-0046` now governs what the block carries (clause 6) and carries the
+> `adr-0003`/`adr-0031` scoped supersessions its clause 8 ordered, so the
+> conflict the note recorded no longer exists. The package tree and
+> allowlist gain `hooks/`, `runtime/dispatch/`, and `reference/dispatch/`;
+> the Claude and Codex skill inventories gain `enter`/`start` (declared in
+> `metadata/entry-inventory.json`); the shared-runtime deliverable row now
+> includes the dispatch runtime; the source-boundary table gains the
+> entry-behavior source and the dispatcher charter's marked floor span; the
+> host inventories no longer declare driving loaders. The lifecycle
+> inventory stays exactly four.
+>
+> **WHY:** `adr-0046` clause 8 orders this revision to land in the same
+> commit as `spec-0006-voluntary-dispatch`'s implementation landing —
+> dispatch rules now reach a session through voluntary entry skills, a
+> committed run cursor, shipped rule data, and a deterministic Stop-hook
+> guard, not through managed-block loader lines.
+>
+> **SCOPE:** Behavioral version `v8`; canonical role generation, the Codex
+> bridge and surface evidence, lifecycle operation semantics, release
+> authority, marketplace channels, and immutable-tag behavior remain
+> unchanged. The entry skills', guard's, cursor's, and rule data's own
+> behavior is `spec-0006`'s contract, not this spec's.
+>
+> **POINTER:** Current requirements live in "Deliverables and ownership,"
+> "Exact package tree," "Exact host discovery," "Entry verbs and the managed
+> pointer block," "Source boundary," "Generator behavior," and acceptance
+> criteria `INV26`/`INV27`/`INV33` and `S18`/`S31`.
+>
+> **VALUE:** The package a consumer installs now matches what dispatch
+> actually ships — a pointer block that cannot rot into stale rules, entry
+> skills generated from declared sources, and the guard runtime beside the
+> lifecycle runtime.
+>
+> **CONFIDENCE:** `verified` — approved `adr-0046` orders each change;
+> the generation, lifecycle, and release suites pin the new shapes.
 
 > **AMENDED 2026-07-27 — v6 → v7 (`adr-0041` AC9)**
 >
@@ -178,17 +224,18 @@ decision reserves for a later intent gate.
 | Deliverable | Authority | Required property |
 |---|---|---|
 | Role and companion charters | `charters/` | The only authored normative role/method prose. |
-| Role inventory, lifecycle inventory, surface matrix, host metadata, stamp schema, and legacy ownership inventory | `plugins/grove/metadata/` | Metadata only; role inventory has exactly fourteen unique role ids, including `implementation-planner` as `cold-native` only, and declares every permitted exposure; host inventories declare exact positive discovery and driving-session loaders; the versioned legacy inventory declares exact historical managed bytes without carrying old executable code. |
-| Claude adapter | `plugins/grove/adapters/claude/` | Generated native-agent envelopes plus only the four lifecycle skill entrypoints; its manifest exposes only this adapter. |
-| Codex adapter | `plugins/grove/adapters/codex/` | Generated lifecycle and role skills, no custom-agent definitions; its manifest exposes only this adapter. |
-| Shared runtime | `plugins/grove/runtime/lifecycle/` and `plugins/grove/runtime/gates/` | The only installed executable lifecycle and gate behavior; host adapters invoke it in place and setup never copies it into a consumer. |
+| Role inventory, lifecycle inventory, entry inventory, surface matrix, host metadata, stamp schema, and legacy ownership inventory | `plugins/grove/metadata/` | Metadata only; role inventory has exactly fourteen unique role ids, including `implementation-planner` as `cold-native` only, and declares every permitted exposure; the entry inventory declares exactly the two entry verbs; host inventories declare exact positive discovery (driving-session loaders are retired — `adr-0046` clause 6); the versioned legacy inventory declares exact historical managed bytes without carrying old executable code. |
+| Claude adapter | `plugins/grove/adapters/claude/` | Generated native-agent envelopes plus the four lifecycle skill entrypoints and the two generated entry skills (`enter`, `start`); its manifest exposes only this adapter. |
+| Codex adapter | `plugins/grove/adapters/codex/` | Generated lifecycle, role, and entry skills, no custom-agent definitions; its manifest exposes only this adapter. |
+| Shared runtime | `plugins/grove/runtime/lifecycle/`, `plugins/grove/runtime/gates/`, and `plugins/grove/runtime/dispatch/` | The only installed executable lifecycle, gate, and dispatch behavior; host adapters invoke it in place and setup never copies it into a consumer. |
+| Claude Stop-hook registration | `plugins/grove/hooks/` | `hooks.json` registers the guard on the `Stop` event; `stop-guard.sh` is a thin exit-mapping wrapper over the dispatch runtime (behavior per `spec-0006`). |
 | Runtime references | `plugins/grove/reference/` | Deterministic frontmatter-free projections and fixed package data; no path is a host-discovery root. |
 | Codex project role bridge | Generated by setup from package metadata | Uses native underscore ids and thin TOML launchers only on bridge-viable surfaces. |
 | Setup, refresh, set-profile, and remove behavior | One host-neutral operation source | Claude and Codex entrypoints are thin generated adapters over the same operation semantics. |
 | Claude manifest | `plugins/grove/.claude-plugin/plugin.json` | Host metadata plus the shared release version. |
 | Codex manifest | `plugins/grove/.codex-plugin/plugin.json` | Host metadata plus the same shared release version. |
 | Release version | `plugins/grove/VERSION` | One line containing the current semantic version without a `v` prefix. |
-| Package declarations | `plugins/grove/README.md`, both manifest directories, `VERSION`, `adapters/`, `runtime/`, `reference/`, and `metadata/` | These are the only permitted package-root entries; an exact recursive leaf allowlist is declared once and validated before any package or release claim. |
+| Package declarations | `plugins/grove/README.md`, both manifest directories, `VERSION`, `adapters/`, `hooks/`, `runtime/`, `reference/`, and `metadata/` | These are the only permitted package-root entries; an exact recursive leaf allowlist is declared once and validated before any package or release claim. |
 | Surface matrix and spike evidence | Declared machine-readable sources under `plugins/grove/metadata/` or `plugins/grove/reference/` | The matrix is the sole source for support claims and links immutable evidence records such as `reference/surfaces/codex-bridge-spike-2026-07-23.json`. |
 | Maintainer machinery | `tooling/grove/build/`, `tooling/grove/release/`, `tooling/grove/tests/`, and `tooling/grove/probes/` | Retained source-repository inputs outside the installable package; tests import package modules and release/probe commands operate on an exact ephemeral package snapshot. |
 | Claude marketplace entry | Existing Claude marketplace | Resolves the released Grove Claude package. |
@@ -234,9 +281,11 @@ plugins/grove/
       skills/
     codex/
       skills/
+  hooks/
   runtime/
     lifecycle/
     gates/
+    dispatch/
   reference/
   metadata/
 ```
@@ -273,9 +322,11 @@ snapshot fidelity.
 
 ### Exact host discovery
 
-The authored role inventory and lifecycle inventory shall determine the
-expected host sets. The lifecycle inventory contains exactly `setup`,
-`refresh`, `set-profile`, and `remove`. The role inventory shall assign
+The authored role inventory, lifecycle inventory, and entry inventory shall
+determine the expected host sets. The lifecycle inventory contains exactly
+`setup`, `refresh`, `set-profile`, and `remove` — the run operations
+`spec-0006` introduces are runtime operations and add no row to it. The
+entry inventory contains exactly `enter` and `start`. The role inventory shall assign
 `shaper` only `driving-session`, `dispatcher` exactly `driving-session` then
 `scoped-advisor`, and every other role exactly its approved `cold-native`
 exposure. A driving-session exposure has no `native_id`; a `cold-native` or
@@ -291,8 +342,8 @@ For a clean installed package:
 
 | Host | Manifest declaration | Exact discovered Grove components | Components that shall not be discovered |
 |---|---|---|---|
-| Claude | Every generated file under `adapters/claude/agents/` is declared explicitly; the only skill path is `adapters/claude/skills/`. | One native agent for each role-inventory exposure classified `cold-native` or `scoped-advisor`, exactly once, plus the four lifecycle skills. The dispatcher native agent loads only its scoped-advisor fragment; shaper has no native agent. | A cold full dispatcher or shaper; every Codex `role-*` skill; every path under `adapters/codex/`; `runtime/`, `reference/`, and `metadata/` as skills or agents; any undeclared Grove component. |
-| Codex | The only skill path is `adapters/codex/skills/`; no plugin agent path is declared. | One lifecycle skill for each lifecycle-inventory entry plus one generated `role-<canonical-id>` skill for every role-inventory row, each exactly once. Setup generates project launchers only for exposures classified `cold-native` or `scoped-advisor`; the dispatcher launcher selects only `scoped-advisor`, and shaper has no launcher. | A cold full dispatcher or shaper; every Claude native-agent envelope; every path under `adapters/claude/`; `runtime/`, `reference/`, and `metadata/` as skills or agents; any plugin custom-agent TOML or undeclared Grove component. |
+| Claude | Every generated file under `adapters/claude/agents/` is declared explicitly; the only skill path is `adapters/claude/skills/`. | One native agent for each role-inventory exposure classified `cold-native` or `scoped-advisor`, exactly once, plus the four lifecycle skills and the two entry skills (`enter`, `start`). The dispatcher native agent loads only its scoped-advisor fragment; shaper has no native agent. | A cold full dispatcher or shaper; every Codex `role-*` skill; every path under `adapters/codex/`; `hooks/`, `runtime/`, `reference/`, and `metadata/` as skills or agents; any undeclared Grove component. |
+| Codex | The only skill path is `adapters/codex/skills/`; no plugin agent path is declared. | One lifecycle skill for each lifecycle-inventory entry, one entry skill for each entry-inventory verb, plus one generated `role-<canonical-id>` skill for every role-inventory row, each exactly once. Setup generates project launchers only for exposures classified `cold-native` or `scoped-advisor`; the dispatcher launcher selects only `scoped-advisor`, and shaper has no launcher. | A cold full dispatcher or shaper; every Claude native-agent envelope; every path under `adapters/claude/`; `hooks/`, `runtime/`, `reference/`, and `metadata/` as skills or agents; any plugin custom-agent TOML, Stop-hook wiring, or undeclared Grove component. |
 
 Host-discovery tests shall derive the expected positive and negative sets from
 the authored inventories and manifest declarations, never from the files a
@@ -305,49 +356,42 @@ hyphens/underscores, remove a second prefix, or otherwise normalize.
 Missing, extra, duplicate, wrong-kind, wrong-adapter, wrong-source, or
 wrong-digest entries fail the host.
 
-### Driving-session loaders
+### Entry verbs and the managed pointer block
 
-> **Unresolved upstream conflict — recorded 2026-07-28, no requirement changed
-> by this note.** This section replaced the block body mandated by
-> [`adr-0003`](../decisions/adr-0003-managed-block-routing-rule.md) Decision 1 —
-> a conditional W1–W6 routing rule *"not a hope pinned on agent descriptions"* —
-> without naming it. `adr-0003` is `approved` and no decision supersedes its
-> Decision 1, and a `gated` spec cannot supersede a decision in any case.
-> Separately, this spec's own approved upstream
-> [`adr-0031`](../decisions/adr-0031-multi-host-distribution.md) `:157-158` still
-> requires *"the same semantic conditional-routing rule"* on `AGENTS.md`, which
-> the loaders below do not carry.
->
-> Measured consequence: the five consumers still on the `0.1.0` block carry the
-> routing rule; the one on `0.3.0` does not, and dispatch stopped happening there.
-> Tracked as [grove#170](https://github.com/kodhama/grove/issues/170) and owed a
-> decision — which this note does not attempt to be.
+> **v8 (`adr-0046` clause 8).** This section replaces v7's §Driving-session
+> loaders. The upstream-conflict note that section carried — recorded
+> 2026-07-28 against `adr-0003` Decision 1 and `adr-0031` `:157-158`, tracked
+> as [grove#170](https://github.com/kodhama/grove/issues/170) — is retired by
+> name: approved `adr-0046` now governs the block's content (its clause 6),
+> and its ratified clause-8 orders placed the forward pointer on `adr-0003`
+> and the scoped `superseded_in_part_by` pointer on `adr-0031`, so no
+> unsuperseded decision still mandates a routing rule or loader lines in the
+> managed block. The `0.1.0` consumers' migration remains deliberate,
+> per-consumer work behind grove#169 and is outside this contract.
 
-The generated managed instruction block is the routing trigger and names an
-exact generated loader for both `dispatcher` and `shaper`; saying merely that
-the driving task “retains” those roles is insufficient.
+Dispatch rules reach a session through the two generated entry skills
+(`grove:enter`, `grove:start`) whose content, cursor, guard, and rule-data
+contracts are `spec-0006-voluntary-dispatch`'s. This spec constrains their
+distribution shape:
 
-- **Claude:** the generated `CLAUDE.md` block shall name
-  `${CLAUDE_PLUGIN_ROOT}/reference/charters/dispatcher.md` and
-  `${CLAUDE_PLUGIN_ROOT}/reference/charters/shaper.md` as plugin-root-relative
-  complete projections and direct the current driving task to read the
-  selected projection before enacting that role. It shall select the complete
-  dispatcher projection, never the scoped-agent fragment.
-- **Codex:** the generated `AGENTS.md` block shall name the exact raw installed
-  skill ids for the generated `role-dispatcher` and `role-shaper` skills under
-  `adapters/codex/skills/` and direct the current driving task to invoke the
-  selected skill without delegation. Each skill shall read its corresponding
-  complete projection under `reference/charters/`; the dispatcher skill shall
-  select the complete driving-session contract unless a generated project
-  launcher supplies the exact `scoped-advisor` selector.
-
-These blocks and loaders contain only generated pointers, selectors,
-canonical ids, source paths, and digests. They shall not copy a charter body or
-become an authored instruction source. A driving-session probe passes only if
-the current task follows the declared loader, reports the inventory source and
-digest, and spawns no agent. A native dispatcher probe passes only if it
-selects the scoped-advisor fragment. No native probe may report
-`driving-session`.
+- Both hosts ship both entry skills, generated by the same projection
+  machinery and checked by the same check mode; the entry inventory declares
+  exactly the two verbs, and the host inventories carry one `entry`-class
+  component row per verb per host.
+- The managed instruction block is a **non-load-bearing pointer block** of
+  exactly four lines — begin marker, one pointer sentence naming the
+  host-correct `start` and `enter` invocations from adapter metadata, the
+  repository stamp, end marker. It carries no rules, no loader lines, no
+  `runtime_dir` sentence, and no version outside the stamp; `inspectBlock`
+  marker/stamp validity semantics are unchanged, so the stamp-skew and
+  malformed-carrier contracts below apply to it verbatim.
+- No shipped behavior other than the pointer's visibility depends on the
+  block's presence or content: deleting or mangling it degrades to "nothing
+  written", never to broken machinery.
+- The complete dispatcher and shaper projections remain shipped under
+  `reference/charters/`; the entry skills carry the generated pointers that
+  reach them. Neither the block nor the entry skills copy a charter body or
+  become an authored instruction source.
 
 Each host shall pass this contract from a clean marketplace install in a fresh
 host state in two fixtures outside a source checkout: one cache no more than
@@ -370,6 +414,12 @@ inside this repository does not satisfy installed discovery.
 - Setup/refresh/set-profile/remove semantics have one authored host-neutral source.
   Host-specific skill files contain only host invocation metadata and generated
   projections or pointers to that source.
+- The entry skills' verb and shared body text has exactly one authored
+  source, `tooling/grove/build/sources/entry-behavior.md`, declared in the
+  build configuration; their floor extract originates solely in the marked
+  `grove:floors` span of `charters/dispatcher.md` (`spec-0006` owns the
+  extract's validation and budgets). Generated entry skills are never a
+  source.
 - Generated output shall never be read as the source for another host's
   output. Both adapters derive from the kernel and host metadata directly.
 
@@ -390,11 +440,10 @@ The generator shall:
    outside declared generated roots;
 3. produce Claude agent envelopes only for cold-native and scoped-advisor
    exposures under `adapters/claude/agents/`, the
-   Claude lifecycle entrypoints under `adapters/claude/skills/`, and shared
-   reference projections plus the generated Claude driving-session loader
-   pointers;
-4. produce the Codex role and lifecycle projections under
-   `adapters/codex/skills/`, the generated Codex driving-session skill
+   Claude lifecycle and entry entrypoints under `adapters/claude/skills/`,
+   and shared reference projections;
+4. produce the Codex role, lifecycle, and entry projections under
+   `adapters/codex/skills/`, the generated Codex dispatcher skill's exposure
    selectors, and setup inputs for bridge-viable thin project launchers only
    for cold-native and scoped-advisor exposures, but no plugin-carried custom
    agents;
@@ -1188,15 +1237,15 @@ derived from, or mechanically validated against, this matrix.
   a discovery root.
 - **INV26 — Claude isolation:** From a clean installed cache, Claude discovery
   shall return exactly one generated Claude native agent for every
-  `cold-native` or `scoped-advisor` exposure and the four lifecycle skills,
-  each from `adapters/claude/`; shaper shall have no native agent and the
-  dispatcher agent shall expose only scoped-advisor.
+  `cold-native` or `scoped-advisor` exposure, the four lifecycle skills, and
+  the two entry skills, each from `adapters/claude/`; shaper shall have no
+  native agent and the dispatcher agent shall expose only scoped-advisor.
 - **INV27 — Codex isolation:** From a clean installed cache, Codex discovery
-  shall return exactly the four lifecycle skills and one `role-<canonical-id>`
-  skill for each of the fourteen role rows, all from
-  `adapters/codex/skills/`; generated project launchers shall exist only for
-  `cold-native` or `scoped-advisor` exposures, with no shaper launcher or
-  full-dispatcher launcher.
+  shall return exactly the four lifecycle skills, the two entry skills, and
+  one `role-<canonical-id>` skill for each of the fourteen role rows, all
+  from `adapters/codex/skills/`; generated project launchers shall exist only
+  for `cold-native` or `scoped-advisor` exposures, with no shaper launcher or
+  full-dispatcher launcher, and no Codex Stop-hook wiring shall ship.
 - **INV28 — package-resident default runtime:** When `runtime_dir` is absent,
   every handover shall invoke `runtime/gates/` relative to the active installed
   plugin without writing an absolute cache path or falling back to a source
@@ -1218,11 +1267,14 @@ derived from, or mechanically validated against, this matrix.
   the validated `plugins/grove/` source package and whose symlink kinds and
   literal targets are identical; snapshot construction shall not dereference a
   link or hide an unexpected source-package path.
-- **INV33 — generated driving-session loading:** On both hosts, the managed
-  instruction block shall select generated complete-projection loaders for
-  dispatcher and shaper in the current task; it shall not copy charter prose,
-  spawn those full roles, or allow a native dispatcher/shaper to advertise
-  driving-session.
+- **INV33 — the pointer block and entry shipping (v8):** On both hosts, the
+  managed instruction block shall be the four-line pointer block of "Entry
+  verbs and the managed pointer block" — host-correct `start`/`enter`
+  invocations from adapter metadata, the stamp as its only version carrier,
+  no rules, no loader lines, no copied charter prose — and both hosts shall
+  ship the two generated entry skills; no native dispatcher/shaper may
+  advertise driving-session, and no shipped behavior beyond the pointer's
+  visibility shall depend on the block.
 - **INV34 — versioned legacy proof:** The package shall carry the schema-v1,
   append-only legacy ownership inventory for every released legacy upgrade
   fixture, and cleanup shall classify a path as ownership-proven only after
@@ -1429,9 +1481,9 @@ bounded writes proceed.
 **Given** a fresh candidate on a claimed-supported surface and the authored
 fourteen-row inventory,
 **When** discovery runs,
-**Then** the driving task follows the host's declared generated loaders and
-returns matching source identity for full dispatcher and interactive shaper
-without spawning, every inventory exposure classified cold-native is
+**Then** both entry skills resolve on the host and the complete dispatcher
+projection remains reachable through their generated pointers without
+spawning, every inventory exposure classified cold-native is
 enumerated and returns matching source identity independently, the one native
 dispatcher selects and returns `scoped-advisor`, shaper has no native id, no
 native identity claims driving-session, and any missing, duplicate, extra,
@@ -1564,17 +1616,18 @@ none of that source-side tooling, preserves all v3 surface and
 release classifications, and no version or tag changes merely because the
 paths moved.
 
-#### S31 — driving roles load in the current task
+#### S31 — the pointer block points and the entry skills carry the way in (v8)
 
 **Given** a fresh supported Claude session and a fresh supported Codex session
-whose managed blocks were generated from the host inventories,
-**When** the driving task selects full dispatcher and then interactive shaper,
-**Then** Claude reads the two exact `${CLAUDE_PLUGIN_ROOT}` complete
-projections, Codex invokes the two exact raw installed driving-session skill
-ids, both hosts report the declared source/digest without spawning, and
-neither managed block or loader contains copied charter prose; **and given** a
-native dispatcher invocation, **when** it loads, **then** it selects only the
-scoped-advisor fragment.
+whose managed pointer blocks were generated from adapter metadata,
+**When** each carrier is read,
+**Then** each block is exactly four lines — begin marker, one pointer
+sentence naming that host's exact `start` and `enter` invocations, the
+stamp, end marker — with no loader lines, no rules, no copied charter prose,
+and no version outside the stamp; the entry skills reached through those
+invocations carry generated pointers to the complete dispatcher projection;
+**and given** a native dispatcher invocation, **when** it loads, **then** it
+selects only the scoped-advisor fragment.
 
 #### S32 — legacy ownership proof is conservative
 
