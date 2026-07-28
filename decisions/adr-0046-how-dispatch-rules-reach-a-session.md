@@ -2,7 +2,8 @@
 id: adr-0046-how-dispatch-rules-reach-a-session
 type: adr
 status: draft  # shaping canvas — the shaper drafts, the maintainer decides. Not promoted past `gated` by this role.
-depends_on: [adr-0003-managed-block-routing-rule]
+depends_on: [adr-0003-managed-block-routing-rule, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution]
+changes: [spec-0004-dual-host-distribution]  # §Driving-session loaders revised under clause 8; reciprocal edge lands with the amendment
 informed_by: [research-rule-delivery-and-activation, research-orchestrator-patterns]
 owner: agent
 updated: 2026-07-28
@@ -140,20 +141,20 @@ rule at all**, and dispatch stopped happening there. Reviewers — including
    restates, so no spawned role catches them for us.
 4. ~~Codex parity?~~ **Answered** — see Decided (option C).
 5. ~~What happens to the existing managed block?~~ **Answered** — see Decided.
-6. **Does the Stop guard have a cursor-less layer?** Maintainer **leans
-   option 3** — two layers, the cursor-less one warns rather than blocks — and
-   asked for a fuller explanation before deciding. **Lean recorded, not the act.**
-   In one line: option 1 cannot see the failure that started this thread; option 2
-   sees it and refuses to let go, conscripting people who never opted in; option 3
-   sees it and tells you, so the strong guarantee lives inside a run and a loud
-   notice lives outside one.
+6. ~~Does the Stop guard have a cursor-less layer?~~ **Answered** — see
+   Decided (*Completion + Warn*). The entry above this one was written when only
+   a lean existed; the explicit act came later the same day, **after** the
+   requested fuller explanation of all three options' consequences: *"I agree.
+   Completion + Warn."* The act, not the lean, resolves this item — recorded
+   with the timeline because this canvas has twice logged enthusiasm-read-as-
+   approval, and this is not an instance of it.
 7. **How cold does the dispatcher go — and what is lost by going there?**
    **Requires adversarial review of the pros and cons before adoption**
    *(maintainer, 2026-07-28)*. The pro side is drafted in the analysis section;
    the con side is not, and the maintainer's stated instinct is that something is
    lost. Not a shaping turn — this needs its own pass.
-7. ~~Where does the marking live?~~ **Answered** — see Decided.
-8. **Does the cursor have a lifecycle?** A committed file that a dead run leaves
+8. ~~Where does the marking live?~~ **Answered** — see Decided.
+9. **Does the cursor have a lifecycle?** A committed file that a dead run leaves
    behind is a new drift class, and grove has been bitten by drift three times
    this week. What creates it, what clears it, and what a stale one means are
    unanswered.
@@ -203,7 +204,7 @@ hook returns.**
 
 **This record adopts the guard form and forbids the router form.** A guard
 constrains the end state; a router constrains the path. Grove already leans this
-way: *"the dispatcher sequences; it does not grade"* (`dispatcher.md:434-435`),
+way: *"the dispatcher sequences; it does not grade"* (`dispatcher.md:439-440`),
 and a gate advances only on a **record**, never on memory. A Stop hook checking
 for records is that floor made deterministic — which is what hooks are for
 (*"use hooks to enforce behavior deterministically"*) when prose degrades.
@@ -245,7 +246,7 @@ The managed block was fragile because it was **plugin-generated, owned by nobody
 and drifting against a version stamp** — hence #164, #169, #170. A committed
 run-state file is **authored by the run, owned by the repo, versioned in git, and
 disposable on completion.** It does not weaken *"state derived from artifact
-existence, never agent claims"* (`dispatcher.md:421-422`) — **it satisfies it**,
+existence, never agent claims"* (`dispatcher.md:426-427`) — **it satisfies it**,
 because the state file *is* an artifact.
 
 ### Analysis (option not taken) — a cold dispatcher would shrink the resident payload
@@ -280,7 +281,7 @@ honest as the artifacts, so a role that writes a verdict record without doing th
 work is indistinguishable from one that did; and "everything on disk" moves cost
 from context into I/O and into the consumer's diff, which is not free either.
 
-**Nothing here is adopted.** See Open question 6.
+**Nothing here is adopted.** See Open question 7.
 
 ### Constraint — encode transitions as precondition-sets, not event-agent pairs
 
@@ -290,7 +291,7 @@ think there's some ideas for this routing table that could be taken from petri
 nets.")*
 
 **The maintainer's own example is the argument.** `conformance gate ∥ code-review
-gate → HUMAN merge` (`dispatcher.md:306`) is a **join**: the merge gate becomes
+gate → HUMAN merge` (`dispatcher.md:311`) is a **join**: the merge gate becomes
 eligible when *both* verdicts exist. A `trigger → agent` table expresses fan-out
 but not join — "fire when both" has nowhere to live. A transition with two
 preconditions expresses it directly.
@@ -793,10 +794,16 @@ No net engine, no FSA library, no marking object in code.
   (the D5-compliant channel).
 - **(draft choice)** Both skills ship **model-invocable** (default frontmatter,
   no flag). The invocation policy lives in the **ask plus the confirm gate**,
-  not in frontmatter: cursor creation goes through grove's existing
-  `confirm-exact-action-ids` gate, which is stronger than
-  `disable-model-invocation` because it also catches a user-invoked mistake,
-  and it is host-neutral where the flag is Claude-only.
+  not in frontmatter: cursor creation goes through the
+  `confirm-exact-action-ids` gate — **an extension of grove's existing gate to
+  a new write, not existing coverage** (today it guards
+  setup/refresh/set-profile/remove). The honest comparison, for the maintainer
+  to ratify against: the confirm gate catches user-invoked mistakes and is
+  host-neutral; the flag is host-*enforced* (the model cannot load the skill at
+  all) but Claude-only and blind to user mistakes. Neither dominates; this
+  record picks the gate because the ask-boundary already routes model intent
+  through a human answer, making the flag's extra enforcement redundant on the
+  path that matters.
 
 ### 3. Rules and payload
 
@@ -810,6 +817,12 @@ that produces grove's existing 56 projections, guarded by the same `check`),
 and a pointer to the full charter for everything else. Inline because an
 invoked skill body survives compaction where a read-through's `Read` does not;
 generated because hand-cut extracts are the drift class of #164/#169/#170.
+Feasibility is measured, not assumed: the floors were extracted at ~1,330
+characters of a 4,048-character full payload — far inside the 5,000-token
+truncation cap, with the floors placed **first** in the body because truncation
+keeps the start. The charter source gains an explicit marker convention for
+which text is a floor, so the generated selection is deterministic rather than
+a hand-cut judgment — otherwise the drift class returns one level up.
 
 ### 4. Marking
 
@@ -818,22 +831,41 @@ artifacts, never agent claims**. A **token is a completion** — a record that
 exists. Owed work is an **enabled-and-unfired transition**, computed by running
 the rules, stored nowhere. Joins are **derived facts**: the paired reviewers
 write disjoint verdict records and nobody writes "the join", so the cursor
-takes writes only at run open and close **(draft choice: minimal schema — run
-id, intent line, subject list, in-flight dispatch claims; extended only on
-demonstrated need, with the reference framework's fuller inventory as the
-menu, not the default)**.
+takes writes **only at run open and close**. **(draft choice: minimal schema —
+run id, intent line, subject list; extended only on demonstrated need, with the
+reference framework's fuller inventory as the menu, not the default.)**
+
+The cursor lives under **`.grove/`** — the consumer-owned class `adr-0035`
+already defines — with its exact path, creation, clearing, and staleness
+semantics resolved in the downstream spec (Open 9 names the questions);
+`adr-0035`'s declared tree gains a scoped note when the spec lands.
+
+**Dispatch claims are schema-reserved and written by no current path.** One
+driving session dispatching the paired reviewers needs no claim — there is no
+second dispatcher to race. The field activates only when a second concurrent
+dispatcher can exist, which is parked with the multi-repo use case and the
+open-participation ideas (grove#101/#102). Until then the
+writes-only-at-open-and-close property holds without exception, which is what
+the derived-join argument leans on.
 
 ### 5. The guard
 
 The deterministic zero-model artifact check runs at **run start, every
 handover, and Stop**. Two modes, branched on cursor presence:
 
-- **Cursor present — supervisor mode.** The guard may hold controllable events
-  (stop, merge) while a rule's preconditions are unmet, and always says which
-  transition and which missing record. Loud, specific, never silent.
+- **Cursor present — supervisor mode.** The guard may hold **stop** — the one
+  controllable event its mechanism can actually hold — while a rule's
+  preconditions are unmet, and always says which transition and which missing
+  record. Loud, specific, never silent. **Merge is gated institutionally, not
+  mechanically**: the human-merge rule is a precondition the session follows
+  and the forge's own protections back, because no hook here can hold a forge
+  action — the record does not write a check the mechanism cannot cash.
 - **No cursor — observer mode.** If the diff touches governed artifacts with no
-  verdict records, the guard **reports once and never holds**. Outside a run
-  there is no supervisor, only a sensor.
+  verdict records, the guard reports — **one line per stop event, never
+  holding**. No session-level deduplication exists or is wanted: `enter` writes
+  nothing, so there is no state home for "already warned", and a repeated
+  warning at each stop attempt is the correct loudness for a standing
+  condition. Outside a run there is no supervisor, only a sensor.
 
 The Stop placement **extends** the charter's adopted early-check mechanic to a
 moment it did not contemplate; the steal-list's rejection of session-holding
@@ -860,8 +892,33 @@ without the deterministic guard. Un-guarded, not unsupported.
   pointer.
 - **`spec-0004` §Driving-session loaders** is revised under this record — the
   loader block it specifies is replaced by the entry verbs and pointer block.
-- The dispatcher charter's steal-list clause is **extended, not superseded** —
-  recorded above.
+  Per `adr-0044`'s amendment contract, this record declares the pairing in its
+  frontmatter (`changes:`) and the revision carries the reciprocal edge.
+- **`adr-0031`'s routing-rule requirement is superseded in the same scope.**
+  `:157-158` requires the Codex setup path to add *"the same semantic
+  conditional-routing rule"* to `AGENTS.md`; clause 6 removes rules from the
+  block on both hosts, so that sentence's subject ceases to exist. Left
+  unsuperseded, the divergence that grove#170/#173 condemned would become
+  permanent — the exact failure class this record's problem statement opens
+  with. The host-equivalence *principle* survives: both hosts read the same
+  rules from the same files (clause 7); only the block-carried delivery of them
+  is retired. `adr-0031` gains a scoped `superseded_in_part_by` pointer naming
+  that sentence alone. An earlier Constraint in this canvas read `:157-158` as
+  already satisfied by file parity — that reading is **withdrawn** here in
+  favour of the open supersession, because two artifacts of this same effort
+  (`adr-0003`'s forward pointer and merged grove#173) read the same line as a
+  live requirement on the block, and a record cannot lean on both readings.
+- **The dispatcher charter's steal-list clause is annotated, not silently
+  interpreted.** For the *adopted check*, Stop is a new moment — an extension,
+  argued in RESOLVED above. For the *rejection* of "session-holding
+  continuation hooks", clause 5's supervisor mode does hold stops, and this
+  record does not get to read the rejection narrowly on its own authority.
+  `charters/dispatcher.md:432-435` gains a scoped annotation narrowing the
+  rejection to the router form (the provenance-traced SpecSwarm mechanism that
+  silently continues a ladder) with a pointer to this record — **ordered here,
+  ratified by the same intent act that ratifies this record.** If the
+  maintainer declines the narrowing, clause 5's hold is struck and the guard
+  becomes observer-mode everywhere.
 
 Acceptance criteria are deliberately omitted: per the question grove#172 opened,
 testable criteria belong to the downstream spec this decision authorizes, not to
@@ -885,8 +942,10 @@ the intent record.
 - **Two failure modes are accepted, eyes open.** A session that ignores the
   observer's warning proceeds ungoverned — that is what voluntary means. And on
   a surface where hooks do not run, Codex today, the floors arrive but the
-  backstop does not — disclosed at entry, revisited when the host's hook
-  vocabulary is measured.
+  backstop does not — disclosed at entry. **Measuring Codex's hook vocabulary
+  remains a precondition of implementation** (the Constraint above), not an
+  eventual revisit; if Codex has a stop-equivalent event, the asymmetry is
+  temporary and the disclosure becomes conditional.
 - **The five `0.1.0` consumers migrate deliberately**: their blocks keep
   working until each repo runs the new setup; the refresh wave stays blocked
   behind grove#169's version fix.
@@ -912,7 +971,7 @@ nothing marks a run as in progress.
 
 ### A fully cold, artifact-inferring dispatcher — **not rejected; deferred**
 
-**Not** in this section as a retired option. It remains Open 6 and requires
+**Not** in this section as a retired option. It remains Open 7 and requires
 adversarial review of its pros and cons before it can be adopted or rejected.
 
 Recorded here only because the weighing is relevant to the choice above:
