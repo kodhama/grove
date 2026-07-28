@@ -1,7 +1,7 @@
 ---
 id: adr-0046-how-dispatch-rules-reach-a-session
 type: adr
-status: gated  # converged after three adversary rounds (NEEDS-REVISION x2, SOUND on the final delta); awaiting the maintainer's intent act. The shaper never promotes past gated.
+status: approved  # maintainer's intent act in-session (D5 channel), 2026-07-28: "Approved!" — rider accepted (the narrowing not declined), all three draft choices standing
 depends_on: [adr-0003-managed-block-routing-rule, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution]
 changes: [spec-0004-dual-host-distribution]  # §Driving-session loaders revised under clause 8; reciprocal edge lands with the amendment
 informed_by: [research-rule-delivery-and-activation, research-orchestrator-patterns]
@@ -1027,4 +1027,11 @@ Shaping opened 2026-07-28 on the maintainer's instruction, with
 `research-rule-delivery-and-activation` as the basis and the question *"how do we
 solve the dispatching problem in grove"*.
 
-`status: draft`. This role never promotes past `gated`.
+**`approved` 2026-07-28** by the maintainer's in-session intent act — the
+D5-compliant channel — verbatim: *"Approved! Curious to see the next phases…"*
+The act followed the full ratification packet (three adversary rounds recorded,
+the rider and its decline fallback stated, the three draft choices and six
+residual risks named). The narrowing rider was **not declined**, so clause 5's
+hold stands and the ordered dispatcher-charter annotation lands with this
+approval. The three draft choices stand as drafted, individually reversible
+downstream.

@@ -50,7 +50,7 @@
       "class": "agent",
       "exposure": "scoped-advisor",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "ee38dd200e3959a25b6082aa4c62c1d1c204faec75428b0549b8e6995895deee"
+      "canonical_digest": "71c376e588d3e9cd012405465ddf0cbcd744f1481f4d31f6c0b89c3dd4d0a96f"
     },
     {
       "raw_id": "grove:divergent-researcher",
@@ -145,7 +145,7 @@
     "dispatcher": {
       "raw_reference": "${CLAUDE_PLUGIN_ROOT}/reference/charters/dispatcher.md",
       "canonical_source": "charters/dispatcher.md",
-      "canonical_digest": "ee38dd200e3959a25b6082aa4c62c1d1c204faec75428b0549b8e6995895deee"
+      "canonical_digest": "71c376e588d3e9cd012405465ddf0cbcd744f1481f4d31f6c0b89c3dd4d0a96f"
     },
     "shaper": {
       "raw_reference": "${CLAUDE_PLUGIN_ROOT}/reference/charters/shaper.md",

@@ -433,6 +433,14 @@ cheap check. **Rejected, with reasons**: fail-open on verifier timeout,
 score-threshold merge gates, free-text dependency parsing,
 session-holding continuation hooks — each contradicts the loud-failure
 floor or binary conformance-to-upstream.
+   *(Scoped narrowing — `adr-0046`, ratified 2026-07-28: the rejected form
+   is the silent **router** — a hook that holds the session in order to
+   continue a scripted ladder, the mechanism this list's source mined and
+   declined. A guard that holds only to **fail loudly**, naming the exact
+   unmet precondition and missing record, is this list's own adopted
+   deterministic artifact check run at the Stop moment — it serves the
+   loud-failure floor rather than contradicting it, which is this
+   rejection's stated test.)*
 
 ## Boundaries
 
