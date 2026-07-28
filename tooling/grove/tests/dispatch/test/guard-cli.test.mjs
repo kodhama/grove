@@ -406,3 +406,38 @@ test('supervisor holds on a changed non-ASCII subject instead of passing over it
   assert.equal(decision.decision, 'block');
   assert.match(decision.reason, /specs\/café-spec\.md/);
 });
+
+
+// --- LOW e: report-line hygiene — no report element may break its line ---
+
+test('a newline in a run-directory name cannot break the stderr report lines', async () => {
+  const dir = await repoFixture();
+  const evil = 'bad\nname';
+  await mkdir(join(dir, '.grove', 'runs', evil), { recursive: true });
+  await writeFile(
+    join(dir, '.grove', 'runs', evil, 'cursor.toml'),
+    'schema = 1\nstatus = "open"\n',
+  );
+  const result = await runGuard(dir);
+  assert.equal(result.status, 2, `${result.stdout}${result.stderr}`);
+  for (const line of result.stderr.trim().split('\n')) {
+    assert.match(line, /^grove-guard/, `orphan continuation line: ${JSON.stringify(line)}`);
+  }
+});
+
+test('a multi-line parse-error token cannot break a defect line', async () => {
+  const dir = await repoFixture();
+  const runId = '20260728-140000-badrecord';
+  await mkdir(join(dir, '.grove', 'runs', runId, 'records'), { recursive: true });
+  // An unquoted multi-line array token: the parser error embeds the token,
+  // newlines included.
+  await writeFile(
+    join(dir, '.grove', 'runs', runId, 'records', 'broken.toml'),
+    'schema = 1\nsubject = [\n  junk token\n  spanning lines\n]\n',
+  );
+  const result = await runGuard(dir);
+  assert.equal(result.status, 2, `${result.stdout}${result.stderr}`);
+  for (const line of result.stderr.trim().split('\n')) {
+    assert.match(line, /^grove-guard/, `orphan continuation line: ${JSON.stringify(line)}`);
+  }
+});

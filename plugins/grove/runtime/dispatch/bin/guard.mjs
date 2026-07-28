@@ -60,10 +60,10 @@ async function main() {
       evaluation.openCursors.length > 0
       && (evaluation.enabled.length > 0 || evaluation.defects.length > 0)
     ) {
-      process.stderr.write(`grove-guard: open cursors: ${evaluation.openCursors.join(', ')}\n`);
+      process.stderr.write(`grove-guard: open cursors: ${oneLine(evaluation.openCursors.join(', '))}\n`);
     }
     for (const defect of evaluation.defects) {
-      process.stderr.write(`grove-guard defect: ${defect.path}: ${defect.reason}\n`);
+      process.stderr.write(`${defectLine(defect)}\n`);
     }
     if (evaluation.defects.length > 0) process.exitCode = 2;
     else if (evaluation.enabled.length > 0) process.exitCode = 3;
@@ -87,16 +87,16 @@ async function main() {
   if (evaluation.mode === 'supervisor') {
     // Single-hold bound: report without holding, one line on the
     // non-blocking stderr channel.
-    process.stderr.write(`grove-guard (supervisor): ${holdReason(evaluation)}\n`);
+    process.stderr.write(`grove-guard (supervisor): ${oneLine(holdReason(evaluation))}\n`);
     process.exitCode = 1;
     return;
   }
   // Observer: one line per stop event, never a hold, no dedup state.
   if (evaluation.enabled.length > 0) {
-    process.stderr.write(`grove-guard (observer): ${observerSummary(evaluation.enabled)}\n`);
+    process.stderr.write(`grove-guard (observer): ${oneLine(observerSummary(evaluation.enabled))}\n`);
   }
   for (const defect of evaluation.defects) {
-    process.stderr.write(`grove-guard defect: ${defect.path}: ${defect.reason}\n`);
+    process.stderr.write(`${defectLine(defect)}\n`);
   }
   process.exitCode = 1;
 }
@@ -200,8 +200,21 @@ async function inspectCursors(repoRoot) {
   return { evaluable, openForMode, defects };
 }
 
+
+// Report-line hygiene: every emitted report element is one line. Repository
+// state can smuggle newlines into report components (a run-directory name,
+// a parse-error message embedding a multi-line token); escape them at the
+// assembly point so no channel line ever breaks.
+function oneLine(value) {
+  return String(value).replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+}
+
+function defectLine(defect) {
+  return `grove-guard defect: ${oneLine(defect.path)}: ${oneLine(defect.reason)}`;
+}
+
 function owedLine(instance) {
-  return `grove-guard: ${instance.id} enabled for ${instance.subject} — missing ${instance.missingRecordType} record`;
+  return oneLine(`grove-guard: ${instance.id} enabled for ${instance.subject} — missing ${instance.missingRecordType} record`);
 }
 
 function holdReason(evaluation) {
