@@ -281,8 +281,9 @@ rules' meaning; this file is their evaluable encoding.
 
 Schema (`schema = 1`): a list of `[[transition]]` tables with **exactly** the
 keys `id`, `fire`, `preconditions`, `postconditions`. Validation rejects any
-other key — there is no field that can name a successor transition, a next
-step, a phase, or an ordering. `fire` names one action (it may name a role);
+other key — no *key* exists for naming a successor transition, a next step,
+a phase, or an ordering; what the two free-text values may *say* is AC8's
+behavioral half. `fire` names one action (it may name a role);
 it never names a sequence. Every transition's postconditions name at least
 one record whose absence is entailed by its preconditions, so a fired
 transition disables itself — token-as-completion, structurally. Validation
@@ -692,9 +693,13 @@ this contract.
   the closed predicate grammar, and fail validation on any other key or
   predicate form, on an empty `preconditions` set, on a transition whose
   postconditions name `record(r, $s)` without `no-record(r, $s)` among its
-  preconditions, or on a transition whose postconditions name no record at
+  preconditions, on a transition whose postconditions name no record at
   all (INV14's property, enumerated here so the check rejects rather than
-  trusts).
+  trusts), on an `id` not matching `^t-[a-z0-9][a-z0-9-]*$`, or on a
+  duplicate `id` — INV18 surfaces ids verbatim and assumes they
+  discriminate, so uniqueness is load-bearing, while the id's *meaning*
+  stays review-caught (AC8's disclaim): a format rule cannot stop English
+  riding kebab-case.
 - **INV14** — Every transition's postconditions shall name at least one
   record whose absence is entailed by its preconditions — a property
   INV13's validation checks mechanically, never trusts.
@@ -846,8 +851,9 @@ Stop hook is registered.
 **Given** a `transitions.toml` containing a `next`, `then`, `phase`, or any
 undeclared key; a transition with an empty `preconditions` list (a bare
 `event → agent` pair); a transition whose postconditions name
-`record(r, $s)` without `no-record(r, $s)` among its preconditions; or a
-transition whose postconditions name no record at all
+`record(r, $s)` without `no-record(r, $s)` among its preconditions; a
+transition whose postconditions name no record at all; or a malformed or
+duplicate `id`
 **When** validation runs
 **Then** it rejects the file naming the offending transition.
 
@@ -912,12 +918,14 @@ its criterion's label.
    directory, or the change-request verdict report is dropped as owed.
 8. **AC8 — rules are data, not an itinerary** [mechanical; the
    no-next-step property of authored skill/hook/extract text — **and of the
-   `fire` string, the rules file's one free-text field** — behavioral: no
-   named check reads meaning from authored prose, so a sequence written
-   into a skill body, the charter's floor span, or a `fire` value validates
-   green and is caught by review, not machinery. `transitions.toml`'s
-   *structure* is itinerary-proof by its closed schema and the pointer
-   block by its template; its `fire` text is not]
+   `fire` and `id` strings, the rules file's two free-text fields** —
+   behavioral: no named check reads meaning from authored prose, so a
+   sequence written into a skill body, the charter's floor span, a `fire`
+   value, or an `id` validates green and is caught by review, not
+   machinery. `transitions.toml`'s *structure* is itinerary-proof by its
+   closed schema and the pointer block by its template; its `fire` and
+   `id` text is not — `id`'s format and uniqueness are mechanical
+   (INV13), its meaning is not]
    (INV13–INV15; S15): red if an undeclared key or predicate form
    validates, an empty precondition set validates, or a transition that is
    not self-disabling validates.
