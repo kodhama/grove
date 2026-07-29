@@ -1,7 +1,7 @@
 ---
 id: adr-0047-host-native-review-instruments
 type: adr
-status: gated  # drafted by the agent; awaits the maintainer's intent act
+status: approved  # maintainer's intent act in-session (D5 channel), 2026-07-29: "I approve adr-0047". Author (agent) != approver (maintainer). Three independent adversary rounds: NEEDS-REVISION, NEEDS-REVISION, NEEDS-REVISION-on-presentation (the decision content ruled correct, six orphaned references to the withdrawn narrowing fixed). The maintainer refuted Decision 1's subtraction directly; that refutation and the earlier over-reading of adr-0007 D6 are both recorded in-record rather than smoothed. The PR merge is the ship act.
 depends_on: [adr-0007-code-reviewer-agent, adr-0009-security-specialist-parked, adr-0015-reviewer-machine-boundary, adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now, adr-0041-separate-support-from-operational-availability, adr-0046-how-dispatch-rules-reach-a-session]
 owner: agent
 updated: 2026-07-28

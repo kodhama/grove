@@ -50,9 +50,7 @@ updated: 2026-07-12
 > door. Ratified text below unedited (append-only).
 
 > **Partially superseded by `adr-0047-host-native-review-instruments`
-> (2026-07-28; append-only pointer). `adr-0047` is `gated` — this pointer
-> records a draft, not a ratified change, and is void if that record is not
-> approved.** Scope: **Decision 6's "not a mandate" clause only.** Where a host
+> (approved 2026-07-29; append-only pointer).** Scope: **Decision 6's "not a mandate" clause only.** Where a host
 > instrument reports, invoking one is required rather than optional, and every
 > reporting instrument runs by default. **The rest of D6 stands and is
 > reaffirmed** — the charter still charters the frame, not the technique.
