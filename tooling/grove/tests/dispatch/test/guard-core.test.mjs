@@ -1491,6 +1491,17 @@ test('AC14/D7 — every construct the whitelist refused, with the class it reach
     'sequence item after a blank line': [
       '---\nimplements:\n\n- a\ntype: research\n---\n', ['reviewless', 'implements-bearing'],
     ],
+    // grove#180 item 3, the MEDIUM: the old reader read `implements:` as bearing
+    // only when its first sequence item was the very next line, so a COMMENT
+    // between them classified not-bearing — the fail-open direction. The blank
+    // line above pinned one axis of that; the comment axis was the reported one
+    // and was unpinned. Both are legal YAML and both bear.
+    'sequence item after a comment': [
+      '---\nimplements:\n# note\n- a\ntype: research\n---\n', ['reviewless', 'implements-bearing'],
+    ],
+    'sequence item after a comment AND a blank line': [
+      '---\nimplements:\n\n# note\n\n- a\ntype: research\n---\n', ['reviewless', 'implements-bearing'],
+    ],
     'sequence item that is not a plain scalar': [
       '---\nid: x\ntype: spec\nimplements:\n- "a"\n---\n', ['spec', 'implements-bearing'],
     ],
