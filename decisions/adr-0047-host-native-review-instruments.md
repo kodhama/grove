@@ -7,7 +7,7 @@ owner: agent
 updated: 2026-07-28
 ---
 
-# ADR-0047: the code-quality role disaggregated — host instruments generate findings, the charter keeps the frame and narrows to what only it does
+# ADR-0047: the code-quality role disaggregated — host instruments become the primary finding-generators, the charter keeps the frame, keeps the fallback, and gains test discrimination
 
 ## What this record does, stated against the thing it is not
 
@@ -32,7 +32,11 @@ The maintainer's observation, 2026-07-28, is the hinge: **D6 treats the charter
 and the instrument as comparable members of one set.** They are not the same kind
 of thing. D6 itself says the charter charters *"the **frame**, not the technique"*
 and enumerates the frame: independence, sequencing, standards source, and the
-gate-and-reporting contract. Finding-generation was never the charter's to own.
+gate-and-reporting contract. Generic finding-generation is **shared**: the
+charter has always owned it (`adr-0007` D2's fundamentals), and this record makes
+host instruments its **primary** producer without taking it away. *An earlier
+draft asserted "finding-generation was never the charter's to own" — false
+against D2, and it was the sentence that licensed the withdrawn narrowing.*
 
 Separating the two halves:
 
@@ -43,7 +47,13 @@ Separating the two halves:
 | finding-generation, test discrimination | `charter-code-reviewer`, **sole owner** | **yes** — a duty it gains, on every host |
 
 **Scope of the supersession: `adr-0007` Decision 6's "not a mandate" clause,
-and nothing else.** Where a host instrument reports, invoking one becomes
+and nothing else.** *(Two qualifiers, so "nothing else" is literally true. This
+record separately **corrects a factual statement** in D6's context — that the
+built-in ships "severity-graded findings", which the measured version does not —
+and a correction supersedes nothing. And per Decision 4, an unmapped finding is
+**provisionally graded ≥ `high` pending mapping**, which preserves D3's
+"`BLOCK` iff any finding is ≥ `high`" biconditional rather than adding a new
+blocking condition beside it.)* Where a host instrument reports, invoking one becomes
 required rather than optional. Everything else in D6 stands and is reaffirmed —
 the charter still charters the frame, not the technique.
 
@@ -88,7 +98,7 @@ shallow sampling. The stronger evidence is qualitative and held across every run
 collision), **Claude's were contract-and-consistency** ("this comment claims X,
 the code does Y"). Decision 2 rests on the weaker ground and says so.
 
-**The grove charter reviewer earned a specific, narrow keep.** It reported that
+**The grove charter reviewer earned a specific new duty.** It reported that
 deleting each of four equality conjuncts left the suite at **119/119 green** —
 it mutation-tested the change's *tests* and found they did not discriminate.
 No host instrument did this, in any of seven passes. That is grove's own test
@@ -204,16 +214,22 @@ drift.
 
 ## Considered and rejected
 
-- **Reversing primacy — instruments primary, charter fallback.** Rejected: it
+- **Reversing primacy of the ROLE — making the charter subordinate to the
+  instruments.** Rejected. *(Distinction, since Decision 1 does make instruments
+  primary for generic finding-generation: what is rejected is inverting the
+  role's ordering — treating the charter as a degraded instrument rather than as
+  the owner of the frame. The charter remains the role; the instruments are
+  producers it is defined around.)* It
   requires reading D6 as something it does not say, and it leaves the D2
   standards-source contract undischarged. Disaggregation gets the same practical
   result while keeping D6 intact.
 - **Fail-open on unmapped findings.** Rejected — Decision 4.
-- **Keeping the charter as a general-purpose fallback reviewer.** Rejected on the
-  maintainer's call: seven passes produced no evidence it competes on generic
-  quality, and one clear axis where it is unique. A fallback that is worse at the
-  same job invites reimplementing the plugin's fan-out in charter prose — a worse
-  copy that we then maintain.
+- ~~**Keeping the charter as a general-purpose fallback reviewer.**~~
+  **Not rejected — adopted, by Decision 1.** This bullet previously rejected it,
+  citing "seven passes produced no evidence it competes on generic quality" —
+  absence of evidence from a measurement never designed to compare them, and the
+  same claim Open 8 disowns. It is struck rather than deleted because the record
+  argued it.
 - **Narrowing the charter to test discrimination alone.** Rejected by the
   maintainer, 2026-07-29, on a ground the drafting agent had missed while
   arguing both sides of it: the charter's other role is the **fallback** for
@@ -235,8 +251,13 @@ drift.
   non-mandate clause, matching the corpus norm (`adr-0003`, `adr-0031`, others).
   Note `adr-0007` currently lacks this key for `adr-0026` despite a body pointer
   claiming partial supersession; that pre-existing gap is **not** repaired here.
-- The charter gains a test-discrimination section and loses generic-quality
-  scope.
+- The charter **gains a test-discrimination section and loses nothing.** Its
+  generic-quality scope and `adr-0007` D2's fundamentals stay, now as the
+  fallback for hosts where no instrument reports.
+- **Execution constraint the record owes the executor:** `adr-0007` AC3 forbids
+  "any tech-stack-specific noun … outside placeholder examples — checkable by
+  grep", so the new section must describe mutation-testing without naming a test
+  runner.
 
 ## Open questions
 
@@ -259,24 +280,39 @@ drift.
    instrument at a handover — still gets a generic review from the fallback, plus
    test discrimination. This was the hole an earlier Decision 1 opened; not
    opening it is the answer. **Still open and narrower:** how findings from
-   multiple reporting instruments aggregate, and whether overlapping findings are
-   deduplicated.
+   multiple reporting instruments aggregate; whether overlapping findings are
+   deduplicated; and — a distinction this record has not drawn — whether a host
+   with **no candidates** (Decision 1's fallback case) yields a different verdict
+   from a host where a candidate was **attempted and failed** (Decision 3's
+   "never a clean review"). Both can be true at once (the review happens, the
+   verdict discloses the failure), but the record does not say so.
 8. ~~**Is the subtractive half of Decision 1 carried by evidence?**~~
    **Dissolved — there is no subtractive half.** The question existed only while
    Decision 1 dropped generic review, and it was the right question: the
    mutation-gap observation supported *keeping* test discrimination and was no
    evidence at all for *removing* generic review. Two different claims, and the
    record had leaned the absence of one onto the other.
-9. **Can a test-discrimination finding reach a blocking tier at all?**
-   `charters/code-reviewer.md` §Boundaries: *"Taste never blocks… if you cannot
-   demonstrate the harm, the finding is `medium` at most"*, and §Method 4 files
-   *test quality* as advisory quality debt. If a non-discriminating test is
-   advisory rather than demonstrable harm, **the capability this record narrows
-   the charter to cannot block the gate** — the charter would keep the frame and
-   lose all teeth. This record asked exactly that question of foreign findings in
-   Decision 4 and did not ask it of its own. **No longer gates the supersession scope** — Decision 1 narrows nothing, so
-   the scope is settled regardless. It still decides whether the charter's sole
-   duty can gate, or only advise.
+9. **Can a test-discrimination finding reach a blocking tier?** **Proposed
+   answer: yes, and it should be decided here rather than parked.** Review's
+   closing point is taken — an Open question is the wrong container when the
+   answer determines whether a decided duty can function.
+
+   `charters/code-reviewer.md` §Boundaries caps a finding at `medium` where harm
+   is not demonstrable, and §Method 4 currently files *test quality* as advisory
+   debt. But a non-discriminating test is **demonstrable by construction**:
+   revert the behaviour the test claims to pin, observe the suite stay green.
+   That is a demonstration, not taste. The harm is specific — **a suite that
+   reports safety it does not provide** — and it is the mechanism by which
+   defects reach production behind a passing gate. On grove#181 four equality
+   comparisons could each be deleted with the suite at 119/119 green.
+
+   So a mutation-demonstrated non-discriminating test meets the objective-harm
+   anchor and may be graded into a blocking tier; an *unproven* suspicion about
+   test quality stays advisory, exactly as §Method 4 has it. **The charter's new
+   sole duty can gate.** The stake stated in an earlier version of this
+   question — that the charter would "lose all teeth" — was false regardless,
+   since Decision 1 leaves generic review and its objective-harm findings in
+   place.
 10. **Does `adr-0023` D3 conflict?** It holds that *"the reviewer decides how
    deep"*. Decision 2 makes instrument count a maintainer dial. Two readings
    exist — count as a *whether* question (maintainer) or a *depth* question
@@ -300,7 +336,7 @@ not silently passed.
 | 9 | Decision 2 does not exceed its evidence | **PARTIAL FAIL, disclosed** — the evidence supports "one is not enough"; "run all" rests on the qualitative split and is declared a dial, not a finding |
 | 10 | Fail-direction matches corpus posture | **PASS** — Decision 4 is fail-closed with the D3 override |
 | 11 | Circularity | **PASS** — an earlier draft defined "available" in terms of running and then required all available to run; Decision 3 now binds *attempts* |
-| 12 | Acceptance criteria | **ABSENT, deliberately** — per grove#172 and the `adr-0046` precedent, a decision of this shape carries none; the charter narrowing and the report field are testable at execution |
+| 12 | Acceptance criteria | **ABSENT, deliberately** — per grove#172 and the `adr-0046` precedent, a decision of this shape carries none; the charter's new test-discrimination section and the report field are testable at execution |
 | 13 | Propagation traced | **PASS** — three regenerating surfaces named in §Consequences |
 | 14 | Scope leaks named | **PARTIAL FAIL** — `/security-review` is genuinely excluded by name (grove#184). But an earlier version of this row certified that aggregation, dedup and the fallback trigger were "flagged here" when **row 14 was the only place in the record those words appeared** — a row certifying itself. They are now Open 7 |
 

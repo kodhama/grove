@@ -58,8 +58,13 @@ updated: 2026-07-12
 > reaffirmed** — the charter still charters the frame, not the technique.
 > `adr-0047` disaggregates this role rather than reversing it: the frame stays
 > here, generic finding-generation moves to host instruments, and this charter's
-> own finding-generation narrows to grove-specific discipline (test
-> discrimination) plus Decision 2's standards-source contract.
+> own finding-generation **keeps generic code-quality review as the fallback**
+> for hosts where no instrument reports, and **gains** grove-specific test
+> discrimination as a duty no instrument performs. **Decision 2 and AC1 are
+> untouched** — an earlier version of this pointer said the charter "narrows to"
+> test discrimination, which the maintainer refuted (a fallback that does not do
+> basic code review is not a fallback) before ratification; the narrowing was
+> never decided and this pointer must not record it.
 > Two corrections `adr-0047` records against this record: **no *host-native*
 > instrument emits Decision 3's severity grammar** (this charter's reviewer
 > does), so D3 becomes a mapping target and an unmappable finding blocks under
