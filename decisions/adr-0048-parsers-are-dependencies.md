@@ -183,6 +183,27 @@ good": it applies exactly where a second party defines correctness.
    notice. `smol-toml`'s BSD-3 notice survived only because upstream happens to
    place it in a source banner. That is luck, not compliance.
 
+10. **This is a release event; `plugins/grove/VERSION` moves `0.3.0` → `0.4.0`.**
+    *(Maintainer: "new version yeah.")*
+
+    The number is a **choice, not a derivation.** Per `charters/versioning.md`,
+    the form "fits what 'conform' means" for the artifact — a spectrum, not
+    semver — and for a *human-cut release* the form is a git tag, which
+    `release-tag.yml` materialises as `grove-v<VERSION>`. Nothing in grove
+    derives a version from the shape of a change, so `0.4.0` is recorded as a
+    decision rather than computed.
+
+    It is warranted on substance: seven runtime modules replaced, roughly
+    **+282 KB** of new package bytes, and a classification behaviour change. A
+    stale `VERSION` would leave the tag no longer describing the tree.
+
+    **It also discharges a standing debt.** `grove#169` records that the plugin
+    cache is **version-keyed** and `VERSION` never moved past `0.3.0`, so two
+    different builds answer to one cache directory — verified by sha, with one
+    project loading another's bytes — and it asks for a bump *before any refresh
+    wave*. This bump satisfies that precondition. The cache defect itself is not
+    fixed here and `grove#169` stays open.
+
 ## Amendment obligation this record now carries
 
 Independent review found that **`spec-0006` needs an amendment after all**, and
