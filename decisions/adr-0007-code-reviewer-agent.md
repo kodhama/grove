@@ -3,6 +3,7 @@ id: adr-0007-code-reviewer-agent
 type: adr
 status: approved  # self-checked (gated) then approved in-PR by the maintainer, 2026-07-12, under the revised approval process (in-PR approval; supersedes merge-as-ratification for this decision — process change to be recorded in the trellis profile)
 depends_on: [adr-0002-agent-vocabulary, adr-0005-tdd-and-artifact-gated-dispatch]
+superseded_in_part_by: [adr-0026-thin-vendor-boundary, adr-0047-host-native-review-instruments]  # 2026-07-29, field added late — both supersessions were recorded as in-body pointer blocks (:38, :52) when they landed, but the frontmatter edge they each ordered was never added. adr-0026 Propagation 3 / D3: Decision 2's install-time placeholder door only (tokens now resolve at use from .grove/config.toml). adr-0047 Decision 1 (:67): Decision 6's "not a mandate" clause only — the charter's frame, its generic-quality fallback and D2's fundamentals are untouched, and D2's rubric-source contract stands.
 owner: agent
 updated: 2026-07-12
 ---

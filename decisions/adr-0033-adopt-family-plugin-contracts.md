@@ -2,6 +2,7 @@
 id: adr-0033-adopt-family-plugin-contracts
 type: adr
 status: superseded
+superseded_by: [adr-0034-narrow-stewards-marketplace-provisioning]  # 2026-07-29, field added late — the body pointer at :12 has named adr-0034 since this record retired, so no reader was stranded; only the machine-readable edge that decisions/README.md:32 requires was missing. Full supersession, not partial: consistent with status.
 depends_on: [adr-0028-plugin-release-tagging, adr-0029-non-interactive-loading, adr-0031-multi-host-distribution, stewards/kodhama-0015-family-plugin-release-and-surface-contract, stewards/kodhama-0016-distribution-availability-and-effective-support]
 owner: agent
 updated: 2026-07-24
