@@ -3,6 +3,7 @@ id: adr-0048-parsers-are-dependencies
 type: adr
 status: gated  # drafted by the agent; awaits the maintainer's intent act
 depends_on: [adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0043-structured-test-dependency-canary]
+changes: [spec-0006-voluntary-dispatch@v3]  # adr-0044 pairing; v3 carries both queued amendments
 owner: agent
 updated: 2026-07-29
 ---
@@ -75,8 +76,39 @@ good": it applies exactly where a second party defines correctness.
    with the same header and digest, and `--check` catches drift. **No new
    machinery, and no third-party source committed by hand.**
 
-3. **Both hand-rolled parsers are replaced** — `guard-core.mjs`'s frontmatter
-   reader and `toml.mjs`.
+3. **Every hand-rolled reader and writer of an external format is replaced.**
+   *(Maintainer, 2026-07-29: "replace every parser or writer." An earlier version
+   of this clause named two, while Decision 1's rule reaches four — ratifying that
+   would have shipped code violating this record's own D1 on day one.)*
+
+   The complete audit, classified by Decision 1's boundary:
+
+   | site | format | disposition |
+   |---|---|---|
+   | `dispatch/lib/toml.mjs` (4 functions) | TOML | **replace** |
+   | `gates/lib/profile.mjs` — `parseGatesToml`, `parseValue` | TOML | **replace** |
+   | `lifecycle/lib/lifecycle.mjs` — `parseProfile` | TOML | **replace** |
+   | `dispatch/lib/guard-core.mjs` — `readFrontmatter` | YAML | **replace** (delimiter excepted, below) |
+   | `dispatch/lib/cursor.mjs` — `serializeCursor` | TOML | **replace** |
+   | `lifecycle/lib/lifecycle.mjs` — `serializeConfig` | TOML | **replace** |
+   | `dispatch/lib/run.mjs` — `editCursorText` | TOML | **replace** — see below |
+   | `dispatch/lib/transitions.mjs` — `parsePredicate`, `parsePredicateList` | grove's predicate grammar | **keep** — D1 |
+   | `cursor.mjs` / `transitions.mjs` schema validation | grove's schema | **keep** — D1 |
+   | `guard-core.mjs` — `parseStatusZ` | git `status -z` | **keep, flagged** — Open 5 |
+
+   **`editCursorText` is replaced rather than widened.** It is a surgical line
+   edit whose tolerance is documented as derived from `toml.mjs` "mechanism by
+   mechanism" — a derivation that cannot survive its basis, because **a line
+   regex is not derivable from full TOML at all**: a legal value spans lines and
+   a legal key may be quoted. Review demonstrated five spellings that become
+   schema-valid, open, and un-editable, leaving a run **unclosable and
+   unabortable**. Read-modify-write through the library removes the regex, and
+   with it the class.
+
+   **The frontmatter delimiter stays hand-written**, and this is a boundary, not
+   an exception: the `---` block convention is grove's, only the inner document
+   is YAML. Delegating the delimiter measurably fails eight inputs open into
+   `code`, which owes 2 and is invisible to observer mode.
 
    An earlier draft of this reasoning kept `toml.mjs` on the argument that grove
    writes the TOML it reads, making it closed input. **That argument is withdrawn
@@ -92,6 +124,91 @@ good": it applies exactly where a second party defines correctness.
 5. **This does not license dependencies generally.** Decision 1's boundary is the
    whole of it. A dependency proposed for anything grove specifies itself does
    not follow from this record and needs its own.
+
+## Maintainer decisions, 2026-07-29
+
+6. **YAML 1.2 core schema**, recorded here and written into `spec-0006` so INV16
+   is satisfiable. *(Maintainer: "let's target yaml 1.2 and go from there.")*
+
+   This resolves the round-eight residual rather than leaving it open, and by a
+   cleaner route than 1.1 would have. That residual was never a defect in the
+   reader — it was **ambiguity about which YAML grove implements.** Under 1.2,
+   `y` and `yes` are two distinct strings, so there is no collision to detect and
+   grove's reader agrees with a conforming 1.2 reader exactly. The numeric case
+   still closes: at its 1.2 default the chosen library **throws** on `1:` / `0x1:`,
+   because both resolve to the integer 1. Declaring the version *is* the fix.
+
+   It also removes two hazards 1.1 would have introduced: the `implements`
+   under-owing on `no`/`y`/`on`/`off`, and the merge-key (`<<:`) class. What
+   remains — `implements: null` / `true` — is caught fail-closed by the schema
+   clause (a non-string, non-sequence value is schema-invalid → `unclaimed`).
+
+7. **The coverage reduction is accepted.** *(Maintainer.)* At least 19 measured
+   inputs fall from four owed records to zero, and at least 15 leave observer
+   scope. Recorded as **a lower bound, not a bound** — the battery was authored
+   from the same model of the format as the code it pinned, which is this
+   record's own thesis applied to its own evidence.
+
+8. **Bundler authority: `esbuild` is authorized by this record**, and Decision 5
+   is read accordingly. D5 exists to stop this record being taken as blanket
+   permission for dependencies inside grove's *own* domain. A bundler is in no
+   domain — it is the delivery mechanism D2 already mandates, so authorizing the
+   tool that performs it is implied rather than extended.
+
+   **The cost is named rather than smuggled:** `esbuild` installs a
+   **platform-specific prebuilt native binary** through optional dependencies,
+   executed in CI on every run. Two platforms resolved from one lockfile are two
+   different programs — which is both a supply-chain surface and the mechanism
+   behind the cross-platform reproducibility question. It is pinned exact, and a
+   linux-vs-darwin byte comparison gates the design.
+
+9. **Licence policy for bundled code: permissive only.** *(Maintainer asked for a
+   recommendation; this is it.)* MIT, ISC, BSD-2-Clause or BSD-3-Clause may be
+   bundled. Anything else — copyleft especially — needs its own decision, because
+   copyleft reaches grove's own code where permissive licences never do. That is
+   the ground `@ltd/j-toml` (LGPL-3.0) was excluded on.
+
+   The whole obligation these licences impose is reproducing the copyright notice
+   and licence text wherever the bytes travel. **Discharged mechanically:**
+   `plugins/grove/reference/licenses/NOTICES.md` is **generated from the
+   lockfile** at build time and allowlisted — `reference/` is a permitted
+   package-root entry, so this needs no `spec-0004` amendment, unlike the
+   package-root file the obvious approach would have put there. The same text is
+   emitted as a bundle banner so it survives separation from the file, and **a
+   test fails if any lockfile dependency has no notice.** Generated, never
+   hand-written: a hand-written notice file drifts on the first version bump.
+
+   Measured, and the reason this is a decision rather than a detail: the bundle
+   as first configured shipped `yaml` with **zero** occurrences of its ISC
+   notice. `smol-toml`'s BSD-3 notice survived only because upstream happens to
+   place it in a source banner. That is luck, not compliance.
+
+## Amendment obligation this record now carries
+
+Independent review found that **`spec-0006` needs an amendment after all**, and
+the agent's earlier reading that it did not was wrong. The spec's own precedent
+at `:54-63` ruled a class change moving a subject from **2 owed to 4** to be *"a
+widening that needs an amendment rather than a reading of existing text."* This
+record moves 19 measured inputs from **4 owed to 0** — the opposite direction,
+and it is close-blocking. Additionally, **INV16** requires classification be
+"deterministic per the tables in this spec", and four inputs classify differently
+under YAML 1.1 than 1.2 — so the class would be fixed by a build flag no spec
+text mentions.
+
+**Resolved by the maintainer, 2026-07-29: `spec-0006` goes to `v3`, dependants
+are re-pinned, and the result goes to conformance review.**
+
+`v3` carries **both** queued amendments — the non-regular-entry rows already
+drafted at `spec-0006:44-76` and awaiting an act, and this record's
+classification change — in a single version and a single intent act rather than
+two bumps. This record declares the `adr-0044` pairing in its frontmatter
+(`changes: [spec-0006-voluntary-dispatch@v3]`).
+
+Consequences that follow mechanically and are owed in the same change: every
+`@v2` pin in the test-dependency ledgers advances to `@v3`; the YAML version
+chosen above is written into the spec so INV16 is satisfiable; and no
+classification code lands before the amendment resolves, because the pins depend
+on it.
 
 ## Consequences
 
@@ -137,8 +254,23 @@ good": it applies exactly where a second party defines correctness.
    governs what grove pushes into consumer repositories. A bundled parser inside
    the plugin is not a consumer-repo artifact, so it plausibly sits outside —
    but the adjacency is close enough to name rather than wave past.
-4. **Is anything else in the runtime parsing an externally specified format?**
-   Decision 1 implies an audit that this record does not perform.
+4. ~~**Is anything else parsing an externally specified format?**~~ **Answered**
+   — the audit is performed in Decision 3. Four readers and three writers.
+5. **Does `parseStatusZ` come along?** It reads git's `status -z` format, which
+   is externally specified, so Decision 1's rule reaches it — but no dependency
+   is proposed and the format is NUL-delimited and stable. Flagged rather than
+   resolved; keeping it is an exemption, and this record names it as one.
+6. **Is `esbuild` authorized?** Decision 5 says a dependency for anything grove
+   specifies itself needs its own record. A bundler reads no external format, so
+   Decision 1 does not reach it — and it installs a **platform-specific prebuilt
+   binary** through optional dependencies, executed in CI. That is a larger
+   supply-chain surface than the transitive dependency this record's planning
+   used to exclude a YAML candidate. It needs deciding, not assuming.
+7. **Where do third-party licence notices live?** ISC and BSD-3-Clause both
+   require the notice be reproduced in redistribution, and grove redistributes
+   these bytes to every consumer. `spec-0004:238` — "these are the only permitted
+   package-root entries" — **forbids a package-root `THIRD-PARTY-NOTICES.md`**,
+   so the obvious home is unavailable and the conforming one must be chosen.
 
 ## Self-check (gate)
 
