@@ -53,8 +53,15 @@ async function writeCursor(dir, runId, body) {
   await writeFile(join(dir, '.grove', 'runs', runId, 'cursor.toml'), body);
 }
 
+// §Run cursor contract: the run-id prefix IS the open moment and `opened`
+// is its RFC 3339 duplicate. Derived here so a fixture cannot state two
+// different open moments — several did, which is what round nine found.
+const openedFor = (runId) => `${runId.slice(0, 4)}-${runId.slice(4, 6)}-`
+  + `${runId.slice(6, 8)}T${runId.slice(9, 11)}:${runId.slice(11, 13)}:`
+  + `${runId.slice(13, 15)}Z`;
+
 function openCursor(runId, subjects) {
-  return `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+  return `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
     + `intent = "fixture run"\nsubjects = [${subjects.map((s) => JSON.stringify(s)).join(', ')}]\n`
     + 'status = "open"\n';
 }
@@ -457,7 +464,7 @@ test('a multi-line parse-error token cannot break a defect line', async () => {
 // for mode selection") never fired and the hook left supervisor mode.
 
 const SMUGGLED_STATUS = (runId, smuggled) =>
-  `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+  `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
   + 'intent = "root status is missing"\nsubjects = ["specs/changed.md"]\n'
   + `\n[[claims]]\nstatus = "${smuggled}"\n`;
 

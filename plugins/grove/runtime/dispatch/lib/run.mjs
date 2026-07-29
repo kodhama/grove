@@ -20,6 +20,7 @@ import {
   oneLineFailure,
   parseCursor,
   probeStatus,
+  runInstantMismatch,
   serializeCursor,
   statusLinePattern,
   timestampFailure,
@@ -73,6 +74,8 @@ export async function planOpenRun(input) {
   }
   const intentInvalid = oneLineFailure('intent', intent);
   if (intentInvalid) return fail(plan, `open-run refused: ${intentInvalid}`);
+  const instantMismatch = runInstantMismatch(runId, opened);
+  if (instantMismatch) return fail(plan, `open-run refused: ${instantMismatch}`);
   if (!Array.isArray(subjects) || subjects.length === 0) {
     return fail(plan, 'open-run requires a non-empty subjects list of repo-relative file paths');
   }

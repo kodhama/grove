@@ -1575,3 +1575,139 @@ test('R8 — leading whitespace stays structural: comment stripping must not eat
     ['unclaimed'], 'tab indentation too',
   );
 });
+
+
+// --- R9: bytes become text exactly once, and fatally ---
+// Buffer.toString('utf8') repairs malformed bytes to U+FFFD, so a file
+// carrying byte 0xff in a comment or an unread value decoded to a well-formed
+// document and classified by its `type` — reaching `reviewless`, which owes
+// nothing and is observer-invisible — while a conforming YAML reader rejects
+// the stream. The digest is unaffected because it binds RAW bytes (round two),
+// so a subject that cannot decode still binds records normally.
+
+test('R9 — a subject whose bytes are not valid UTF-8 is unclaimed, not classified', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'grove-r9-utf8-'));
+  scratch.push(dir);
+  const invalid = Buffer.from([0xff]);
+  const cases = {
+    'in a comment': Buffer.concat([
+      Buffer.from('---\n# note '), invalid, Buffer.from('\nid: x\ntype: research\n---\n'),
+    ]),
+    'in an unread value': Buffer.concat([
+      Buffer.from('---\nid: x\nnote: a'), invalid, Buffer.from('b\ntype: research\n---\n'),
+    ]),
+    'in the body': Buffer.concat([
+      Buffer.from('---\nid: x\ntype: research\n---\n\nbody '), invalid, Buffer.from('\n'),
+    ]),
+    'a lone continuation byte': Buffer.concat([
+      Buffer.from('---\nid: x\ntype: research\nnote: '), Buffer.from([0x80]), Buffer.from('\n---\n'),
+    ]),
+    'a truncated sequence': Buffer.concat([
+      Buffer.from('---\nid: x\ntype: research\nnote: '), Buffer.from([0xe2, 0x82]), Buffer.from('\n---\n'),
+    ]),
+  };
+  for (const [name, bytes] of Object.entries(cases)) {
+    await writeFile(join(dir, 'subject.md'), bytes);
+    const bound = await bindSubject({ repoRoot: dir, path: 'subject.md', changeSet: new Set() });
+    assert.deepEqual(
+      bound.classes, ['unclaimed'],
+      `${name}: invalid UTF-8 must not be repaired into a classification`,
+    );
+  }
+  // Valid UTF-8 above the ASCII range still classifies normally.
+  await writeFile(join(dir, 'subject.md'), '---\nid: x\ntype: research\nnote: café — ok\n---\n');
+  assert.deepEqual(
+    (await bindSubject({ repoRoot: dir, path: 'subject.md', changeSet: new Set() })).classes,
+    ['reviewless'], 'multi-byte UTF-8 is not the same thing as invalid UTF-8',
+  );
+});
+
+test('R9 — a subject that cannot decode still binds records by its raw-byte digest', async () => {
+  // The interaction with round two: the digest never decodes, so the record
+  // contract is unaffected — such a subject simply owes the full set.
+  const dir = await mkdtemp(join(tmpdir(), 'grove-r9-digest-'));
+  scratch.push(dir);
+  const bytes = Buffer.concat([
+    Buffer.from('---\nid: x\ntype: research\nnote: '), Buffer.from([0xff]), Buffer.from('\n---\n'),
+  ]);
+  await writeFile(join(dir, 's.md'), bytes);
+  const bound = await bindSubject({ repoRoot: dir, path: 's.md', changeSet: new Set() });
+  assert.deepEqual(bound.classes, ['unclaimed']);
+  assert.equal(bound.sha256, subjectDigest('file', bytes), 'the digest is of the raw bytes');
+  const made = record({ subject: 's.md', record_type: 'code-review', subject_sha256: bound.sha256 });
+  assert.equal(
+    recordSatisfies({ record: made, subject: 's.md', state: 'present', sha256: bound.sha256 }),
+    true, 'a record taken on the undecodable bytes still binds',
+  );
+  await writeFile(join(dir, 's.md'), Buffer.concat([bytes, Buffer.from('x')]));
+  const after = await bindSubject({ repoRoot: dir, path: 's.md', changeSet: new Set() });
+  assert.equal(
+    recordSatisfies({ record: made, subject: 's.md', state: 'present', sha256: after.sha256 }),
+    false, 'and sheds on edit exactly as a decodable subject does',
+  );
+});
+
+test('R9 — a verdict record whose bytes are not valid UTF-8 is a defect, not a satisfier', async () => {
+  // Found by the bounded byte-level audit rather than reported: `verdict`, `by`
+  // and `date` are only checked for non-emptiness, so a record with malformed
+  // bytes repaired to U+FFFD VALIDATED and silenced owed work.
+  const dir = await mkdtemp(join(tmpdir(), 'grove-r9-record-'));
+  scratch.push(dir);
+  const runId = '20260728-140000-utf8';
+  await mkdir(join(dir, '.grove', 'runs', runId, 'records'), { recursive: true });
+  await writeFile(
+    join(dir, '.grove', 'runs', runId, 'records', 'bad.toml'),
+    Buffer.concat([
+      Buffer.from('schema = 1\nrecord_type = "code-review"\nsubject = "a.md"\n'
+        + 'subject_state = "present"\nsubject_sha256 = "'),
+      Buffer.from('a'.repeat(64)),
+      Buffer.from('"\nverdict = "PASS"\nby = "r'),
+      Buffer.from([0xff]),
+      Buffer.from('"\ndate = "2026-07-28"\n'),
+    ]),
+  );
+  const { records, defects } = await collectRecords({ repoRoot: dir });
+  assert.deepEqual(records, [], 'it must not become a usable record');
+  assert.equal(defects.length, 1);
+  assert.match(defects[0].reason, /UTF-8/, defects[0].reason);
+});
+
+test('R9 — tabs are forbidden in indentation; a tab after the indicator is separation', () => {
+  const TAB = String.fromCharCode(9);
+  // Indentation: rejected.
+  assert.deepEqual(
+    classifyContent(`---\nid: x\nowner:\n${TAB}- me\ntype: research\n---\n`).classes,
+    ['unclaimed'], 'a tab-indented sequence item is not YAML indentation',
+  );
+  assert.deepEqual(
+    classifyContent(`---\nid: x\ntype: spec\nimplements:\n${TAB}- adr-1\n---\n`).classes,
+    ['unclaimed'], 'the same on a read key',
+  );
+  assert.deepEqual(
+    classifyContent(`---\nid: x\nowner:\n ${TAB} - me\ntype: research\n---\n`).classes,
+    ['unclaimed'], 'a tab mixed into the indentation counts too',
+  );
+  // Separation: allowed.
+  assert.deepEqual(
+    classifyContent(`---\nid: x\ntype: spec\nimplements:\n-${TAB}adr-1\n---\n`).classes,
+    ['spec', 'implements-bearing'], 'a tab AFTER the indicator is s-separate-in-line',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements:\n  - adr-1\n---\n').classes,
+    ['spec', 'implements-bearing'], 'space indentation is still accepted',
+  );
+  // The other whitespace sites, checked rather than assumed: a tab may not
+  // indent a KEY, but is legal before a comment and on a blank line.
+  assert.deepEqual(
+    classifyContent(`---\nid: x\n${TAB}owner: me\ntype: research\n---\n`).classes,
+    ['unclaimed'], 'a tab-indented key is still a continuation',
+  );
+  assert.deepEqual(
+    classifyContent(`---\n${TAB}# comment\nid: x\ntype: research\n---\n`).classes,
+    ['reviewless'], 'a tab before a comment is separation, which YAML allows',
+  );
+  assert.deepEqual(
+    classifyContent(`---\nid: x\n${TAB}\ntype: research\n---\n`).classes,
+    ['reviewless'], 'a whitespace-only line is empty, not indentation',
+  );
+});

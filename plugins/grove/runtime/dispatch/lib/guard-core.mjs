@@ -30,6 +30,23 @@ const RECORD_KEYS = Object.freeze([
 ]);
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
+// Bytes become text in exactly one way on the classification path: a FATAL
+// decode. Buffer.toString('utf8') silently replaces malformed bytes with
+// U+FFFD, so a file carrying byte 0xff in a comment or an unread value
+// decoded to a well-formed document and classified by its `type` — reaching
+// `reviewless`, which owes nothing and is observer-invisible — while a
+// conforming YAML reader rejects the stream outright. Returns null when the
+// bytes are not valid UTF-8; every caller maps null to the fail-closed
+// outcome for its own path.
+const UTF8_STRICT = new TextDecoder('utf-8', { fatal: true });
+export function decodeUtf8Strict(bytes) {
+  try {
+    return UTF8_STRICT.decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
 export function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -215,7 +232,11 @@ const FM_DELIMITER = /^---$/;
 const FM_DELIMITER_LOOKALIKE = /^\s*---\s*$/;
 const FM_BLANK = /^[ \t]*$/;
 const FM_KEY = /^([A-Za-z0-9_-]+):(?:[ \t]+(.*))?$/;
-const FM_ITEM = /^[ \t]*-[ \t]+(.*)$/;
+// YAML forbids TABS IN INDENTATION. A tab before the `-` is indentation and
+// is rejected; a tab AFTER it is separation (s-separate-in-line) and is
+// allowed. Accepting a tab before the indicator let `owner:` + a
+// tab-indented item reach a document no conforming reader accepts.
+const FM_ITEM = /^ *-[ \t]+(.*)$/;
 const FM_INDICATOR = /^[-?:,[\]{}#&*!|>'"%@`]/;
 // A ":" followed by space or tab is a mapping-value indicator. Testing only
 // ": " missed the tab spelling, so `implements: a:<TAB>b` was recorded as a
@@ -549,9 +570,20 @@ export async function collectRecords({ repoRoot }) {
         defects.push({ path: relative, reason: 'record filename fails the filename grammar' });
         continue;
       }
+      // Same mechanism as the subject decode, found by the bounded byte-level
+      // audit rather than reported: a record read with 'utf8' had its malformed
+      // bytes repaired to U+FFFD, and since `verdict`, `by` and `date` are only
+      // checked for non-emptiness, such a record VALIDATED and satisfied a
+      // transition — silencing owed work a conforming reader would refuse to
+      // parse at all.
+      const decoded = decodeUtf8Strict(await readFile(join(recordsDir, name)));
+      if (decoded == null) {
+        defects.push({ path: relative, reason: 'record is not valid UTF-8' });
+        continue;
+      }
       let parsed;
       try {
-        parsed = parseToml(await readFile(join(recordsDir, name), 'utf8'));
+        parsed = parseToml(decoded);
       } catch (error) {
         defects.push({ path: relative, reason: `unparseable record: ${error.message}` });
         continue;
@@ -683,11 +715,15 @@ export async function bindSubject({ repoRoot, path, changeSet }) {
   }
   if (entry.isFile()) {
     const bytes = await readRegularFile(target); // raw Buffer, no decoding
+    // The digest binds the RAW bytes either way, so a subject that fails to
+    // decode still has a stable digest and a verdict record can still bind to
+    // it — it simply owes the full set until it decodes.
+    const text = decodeUtf8Strict(bytes);
     return {
       path,
       state: 'present',
       sha256: subjectDigest('file', bytes),
-      classes: classifyContent(bytes.toString('utf8')).classes,
+      classes: text == null ? ['unclaimed'] : classifyContent(text).classes,
       changed,
     };
   }

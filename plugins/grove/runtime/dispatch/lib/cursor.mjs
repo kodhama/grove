@@ -83,7 +83,7 @@ export function probeStatus(text) {
 // spellings of one instant compare unequal as strings, and the cursor compares
 // them as strings. Leap seconds (`:60`) are rejected — a narrowing of RFC 3339
 // stated rather than hidden, matching the run id's wall-clock instant.
-export const RFC3339_UTC = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+export const RFC3339_UTC = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/;
 
 export function timestampFailure(field, value) {
   const match = typeof value === 'string' ? RFC3339_UTC.exec(value) : null;
@@ -152,6 +152,26 @@ export function validateSubjectPath(subject) {
   return null;
 }
 
+// §Run cursor contract: the run id is "UTC `YYYYMMDD-HHMMSS` open moment plus
+// a slug", and `opened` is its "deliberate duplicate of the run-id instant".
+// Validated in isolation, each field passed while the pair disagreed, so a
+// cursor could claim to open at two different moments — and an impossible date
+// carried only in the run id was never checked at all, because nothing parsed
+// that prefix as a date. Comparing the two enforces both: the prefix must equal
+// an `opened` that has already passed the calendar spell-back.
+export function runInstantMismatch(runId, opened) {
+  const instant = RFC3339_UTC.exec(String(opened));
+  if (instant == null) return null; // timestampFailure reports this
+  const [, year, month, day, hour, minute, second] = instant;
+  const expected = `${year}${month}${day}-${hour}${minute}${second}`;
+  const prefix = String(runId).slice(0, expected.length);
+  if (prefix !== expected) {
+    return `run id ${JSON.stringify(runId)} opens at ${prefix}, but opened is `
+      + `${JSON.stringify(opened)} (${expected}); the run-id prefix IS the open moment`;
+  }
+  return null;
+}
+
 export function parseCursor(text, { runId } = {}) {
   let root;
   try {
@@ -186,6 +206,8 @@ export function parseCursor(text, { runId } = {}) {
     if (openedInvalid) return { ok: false, reason: openedInvalid };
     const intentInvalid = oneLineFailure('intent', root.intent);
     if (intentInvalid) return { ok: false, reason: intentInvalid };
+    const instantMismatch = runInstantMismatch(root.run, root.opened);
+    if (instantMismatch) return { ok: false, reason: instantMismatch };
     if (!Array.isArray(root.subjects)) {
       return { ok: false, reason: 'open cursor requires subjects as repo-relative file paths' };
     }

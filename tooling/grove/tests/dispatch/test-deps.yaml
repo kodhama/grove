@@ -116,6 +116,14 @@ groups:
           - title:
               - "R8 — trimming is YAML s-white, not JS trim(): the whole 13-character class"
           - title:
+              - "R9 — a subject that cannot decode still binds records by its raw-byte digest"
+          - title:
+              - "R9 — a subject whose bytes are not valid UTF-8 is unclaimed, not classified"
+          - title:
+              - "R9 — a verdict record whose bytes are not valid UTF-8 is a defect, not a satisfier"
+          - title:
+              - "R9 — tabs are forbidden in indentation; a tab after the indicator is separation"
+          - title:
               - "a block-style implements list classifies implements-bearing; an empty key does not"
           - title:
               - "a digest-matched record never satisfies a different subject (sentinel collision)"
@@ -203,6 +211,8 @@ groups:
               - "R4 — the status line is counted in the root table only: a [[claims]] status never wedges abort"
           - title:
               - "R6 — open-run refuses beside a cursor whose ROOT status is missing but a table carries one"
+          - title:
+              - "R9 — the run-id prefix must equal opened, in cursor validation and in planning"
           - title:
               - "S11 — guard and run operations behave identically with a deleted or mangled managed block"
           - title:

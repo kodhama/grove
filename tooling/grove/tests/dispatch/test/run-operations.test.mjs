@@ -49,20 +49,30 @@ async function repoFixture() {
   return dir;
 }
 
+// §Run cursor contract: the run-id prefix IS the open moment and `opened`
+// is its RFC 3339 duplicate. Derived here so a fixture cannot state two
+// different open moments — several did, which is what round nine found.
+const openedFor = (runId) => `${runId.slice(0, 4)}-${runId.slice(4, 6)}-`
+  + `${runId.slice(6, 8)}T${runId.slice(9, 11)}:${runId.slice(11, 13)}:`
+  + `${runId.slice(13, 15)}Z`;
+
 const SPEC_BODY = '---\nid: fixture-spec\ntype: spec\nimplements: adr-0001-x\nstatus: gated\n---\n\nbody\n';
 const RUN_ID = '20260728-140000-fixture';
 
 function openRequest(dir, overrides = {}) {
-  return {
+  const merged = {
     repoRoot: dir,
     packageRoot: PACKAGE_ROOT,
     host: 'claude',
     runId: RUN_ID,
-    opened: '2026-07-28T14:00:00Z',
     intent: 'land the fixture',
     subjects: ['specs/changed.md'],
     ...overrides,
   };
+  // `opened` is DERIVED from whichever run id ends up in the request, so a
+  // caller that overrides the run id cannot leave the two disagreeing. Only a
+  // test deliberately probing the timestamp passes `opened` explicitly.
+  return merged.opened == null ? { ...merged, opened: openedFor(merged.runId) } : merged;
 }
 
 async function openedRun(dir) {
@@ -276,7 +286,7 @@ test('INV8 — on a well-formed cursor the whole-file replacement path is unreac
   const content = plan.actions[0].content;
   assert.match(content, /intent = "land the fixture"/);
   assert.match(content, /subjects = \["specs\/changed\.md"\]/);
-  assert.match(content, /opened = "2026-07-28T14:00:00Z"/);
+  assert.match(content, new RegExp(`opened = "${openedFor(RUN_ID)}"`));
 });
 
 test('close of a non-open or missing run fails pre-write; abort of a closed run fails too', async () => {
@@ -384,27 +394,27 @@ test('S11 — guard and run operations behave identically with a deleted or mang
 // AND trailing whitespace; key/value trimmed around '=' -> inner spacing.
 const NON_CANONICAL_CURSORS = {
   'indented status line (leading trim)': (runId) =>
-    `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
       + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
       + `  status = "open"\n`,
   'trailing whitespace (trailing trim)': (runId) =>
-    `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
       + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
       + `status = "open"  \t\n`,
   'indented + comment + CRLF combined': (runId) =>
-    `schema = 1\r\nrun = "${runId}"\r\nopened = "2026-07-28T14:00:00Z"\r\n`
+    `schema = 1\r\nrun = "${runId}"\r\nopened = "${openedFor(runId)}"\r\n`
       + `intent = "land the fixture"\r\nsubjects = ["specs/changed.md"]\r\n`
       + `\t status = "open" \t# opened by fixture\r\n`,
   'crlf line endings': (runId) =>
-    `schema = 1\r\nrun = "${runId}"\r\nopened = "2026-07-28T14:00:00Z"\r\n`
+    `schema = 1\r\nrun = "${runId}"\r\nopened = "${openedFor(runId)}"\r\n`
       + `intent = "land the fixture"\r\nsubjects = ["specs/changed.md"]\r\n`
       + `status = "open"\r\n`,
   'comment on the status line': (runId) =>
-    `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
       + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
       + `status = "open" # opened by fixture\n`,
   'extra spaces around the assignment': (runId) =>
-    `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
       + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
       + `status   =   "open"\n`,
 };
@@ -859,7 +869,7 @@ test('L3 — a cursor edited between plan and apply is reported as drift, never 
 // exception, which stays pinned to the unparseable-or-schema-invalid row.
 
 function claimsTableCursor(runId, { statusInsideTable = false } = {}) {
-  return `schema = 1\nrun = "${runId}"\nopened = "2026-07-28T14:00:00Z"\n`
+  return `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
     + 'intent = "land the fixture"\nsubjects = ["specs/changed.md"]\nstatus = "open"\n'
     + '\n[[claims]]\nnote = "written by no shipped path"\n'
     + (statusInsideTable ? 'status = "open"\n' : '');
@@ -1008,7 +1018,9 @@ test('R4 — every planner enforces the RFC 3339 UTC timestamp contract, not jus
   // The contract admits what it should: the canonical spelling and fractional
   // seconds both plan.
   const dir = await repoFixture();
-  const good = await planOpenRun(openRequest(dir, { opened: '2026-07-28T14:00:00.250Z' }));
+  const good = await planOpenRun(openRequest(dir, {
+    opened: `${openedFor(RUN_ID).slice(0, -1)}.250Z`,
+  }));
   assert.equal(good.ok, true, good.summary);
 });
 
@@ -1076,12 +1088,14 @@ test('R6 — open-run refuses beside a cursor whose ROOT status is missing but a
     await mkdir(join(dir, '.grove', 'runs', stale), { recursive: true });
     await writeFile(
       join(dir, '.grove', 'runs', stale, 'cursor.toml'),
-      `schema = 1\nrun = "${stale}"\nopened = "2026-07-28T14:00:00Z"\n`
+      `schema = 1\nrun = "${stale}"\nopened = "${openedFor(stale)}"\n`
         + 'intent = "root status is missing"\nsubjects = ["specs/changed.md"]\n'
         + `\n[[claims]]\nstatus = "${smuggled}"\n`,
     );
 
-    const plan = await planOpenRun(openRequest(dir, { runId: '20260728-160000-second' }));
+    const plan = await planOpenRun(openRequest(dir, {
+      runId: '20260728-160000-second', opened: openedFor('20260728-160000-second'),
+    }));
     assert.equal(
       plan.ok, false,
       `${smuggled}: a malformed cursor is open for mode selection, so open-run must refuse`,
@@ -1090,4 +1104,63 @@ test('R6 — open-run refuses beside a cursor whose ROOT status is missing but a
     assert.match(plan.summary, new RegExp(stale), plan.summary);
     assert.match(plan.summary, /adopt|abort/i, plan.summary);
   }
+});
+
+
+// --- R9: the run-id instant and `opened` are one fact, checked as one ---
+// §Run cursor contract: the run id is the "UTC `YYYYMMDD-HHMMSS` open moment
+// plus a slug", and `opened` is its "deliberate duplicate of the run-id
+// instant". Validated in isolation each field passed while the pair disagreed,
+// so a cursor could claim two different open moments — and an impossible date
+// carried only in the run id was never checked at all, because nothing parsed
+// that prefix as a date.
+
+test('R9 — the run-id prefix must equal opened, in cursor validation and in planning', async () => {
+  const mismatched = (runId, opened) =>
+    `schema = 1\nrun = "${runId}"\nopened = "${opened}"\n`
+    + 'intent = "fixture"\nsubjects = ["specs/a.md"]\nstatus = "open"\n';
+
+  const bad = parseCursor(mismatched('20260728-140322-r', '1999-01-01T00:00:00Z'), {
+    runId: '20260728-140322-r',
+  });
+  assert.equal(bad.ok, false, 'a disagreeing pair is not a valid cursor');
+  assert.match(bad.reason, /open moment/, bad.reason);
+
+  // Agreement passes, fractional seconds included.
+  for (const opened of ['2026-07-28T14:03:22Z', '2026-07-28T14:03:22.250Z']) {
+    assert.equal(
+      parseCursor(mismatched('20260728-140322-r', opened), { runId: '20260728-140322-r' }).ok,
+      true, `${opened} agrees with the run id`,
+    );
+  }
+
+  // An impossible date carried ONLY in the run id: the prefix must equal an
+  // `opened` that has already passed the calendar spell-back, so this cannot
+  // pass whatever `opened` says.
+  assert.equal(
+    parseCursor(mismatched('20260230-140322-r', '2026-02-28T14:03:22Z'), {
+      runId: '20260230-140322-r',
+    }).ok,
+    false, 'February 30th cannot be smuggled in through the run id',
+  );
+
+  // The planner refuses the same pair pre-write.
+  const dir = await repoFixture();
+  const plan = await planOpenRun(openRequest(dir, {
+    runId: '20260728-150000-second', opened: '2026-07-28T14:00:00Z',
+  }));
+  assert.equal(plan.ok, false);
+  assert.deepEqual(plan.actions, []);
+  assert.match(plan.summary, /open moment/, plan.summary);
+  // The planner's own check is behaviourally redundant with its round-trip
+  // gate — parseCursor would refuse these bytes anyway — so what it buys is an
+  // ACCURATE refusal naming the disagreement, rather than "planned cursor does
+  // not round-trip (...)", which sends the reader hunting for a serialization
+  // fault that is not there. Measured: that is the only difference, so that is
+  // what is asserted.
+  assert.doesNotMatch(plan.summary, /round-trip/, plan.summary);
+
+  // And the agreeing request this fixture normally builds still plans.
+  const good = await planOpenRun(openRequest(dir));
+  assert.equal(good.ok, true, good.summary);
 });
