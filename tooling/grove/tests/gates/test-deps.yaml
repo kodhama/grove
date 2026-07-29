@@ -1,5 +1,25 @@
 schema: 2
 groups:
+  "adr-0048-parsers-are-dependencies":
+    precision: exact
+    tests:
+      - file: "test/profile.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 — a byte-order mark now makes gates.toml UNREADABLE, disclosed rather than stripped"
+          - title:
+              - "adr-0048 D1 — a TOML-legal document outside the declared gates.toml shape THROWS at parse"
+          - title:
+              - "adr-0048 D3 — a legal TOML spelling the line reader could not read is now read correctly"
+          - title:
+              - "adr-0048 D3/F1 — the floor is the floor however the profile is spelled"
+          - title:
+              - "adr-0048 D8 — a TOML-legal but schema-invalid profile still routes through the LOUD guardian fallback"
+          - title:
+              - "parseGatesToml rejects a DUPLICATE key within a section (fail-closed, now by the PARSER)"
+    decisions:
+      - "adr-0048-parsers-are-dependencies"
+    notes: "The declarations touched or added when the hand-rolled gates.toml line reader was replaced by the bundled TOML parser plus a grove-owned shape check (adr-0043: a touched declaration may not rely on coarse scope). The rest of this package stays coarse as untouched legacy."
   "legacy-package":
     precision: coarse
     tests:

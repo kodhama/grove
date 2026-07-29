@@ -241,7 +241,10 @@ test("all projections are marked, source-addressed, and native ids are unique un
     assert.match(content, /GENERATED/);
     assert.match(
       content,
-      /charters\/|plugins\/grove\/runtime\/lifecycle\/lib\/lifecycle\.mjs|tooling\/grove\/build\/config\.mjs/,
+      // adr-0048 added the fourth canonical source: the parser bundle's entry
+      // module, which is the canonical source of BOTH the bundle and its
+      // generated notices.
+      /charters\/|plugins\/grove\/runtime\/lifecycle\/lib\/lifecycle\.mjs|tooling\/grove\/build\/config\.mjs|tooling\/grove\/build\/sources\/parsers\.mjs/,
     );
     if (name.endsWith(".toml")) {
       assert.fail(`plugin projection unexpectedly contains custom-agent TOML: ${name}`);
@@ -572,10 +575,17 @@ test("configured roots are explicit and do not include plugin custom-agent TOML"
     "plugins/grove/reference/charters",
   ]);
   assert.equal(GENERATED_ROOTS.some((root) => root === ".codex/agents"), false);
+  // adr-0048 D2: the parser bundle and its notices are registered HERE, not in
+  // STATIC_PACKAGE_FILES. STATIC_PACKAGE_FILES is consumed only by
+  // packageAllowlist() and never enters `outputs`, so checkProjectionSet would
+  // never compare their bytes — the allowlist would name them while the drift
+  // gate silently stopped covering them.
   assert.deepEqual(GENERATED_FILES, [
     "plugins/grove/reference/lifecycle.md",
     "plugins/grove/reference/relations.md",
     "plugins/grove/reference/versioning.md",
+    "plugins/grove/reference/licenses/NOTICES.md",
+    "plugins/grove/runtime/dispatch/lib/parsers.mjs",
   ]);
 });
 

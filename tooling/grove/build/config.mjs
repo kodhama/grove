@@ -16,9 +16,47 @@ export const COMPANION_PROJECTIONS = Object.freeze([
   },
 ]);
 
-export const GENERATED_FILES = Object.freeze(
-  COMPANION_PROJECTIONS.map(({ output }) => output),
-);
+// --- adr-0048: the generated third-party parser bundle ---
+
+// Repo-relative, and the ONLY use of this constant is the generated header's
+// `canonical-source:` field.
+export const PARSER_BUNDLE_SOURCE = "tooling/grove/build/sources/parsers.mjs";
+// Package-relative, and the only path the bundler RESOLVES from. The bundle's
+// module graph roots in this package's declared dependencies, so it resolves
+// from the build package's own directory and never from the repoRoot under
+// generation — measured: esbuild cannot resolve "yaml" from a fixture root
+// that carries no node_modules, so a repoRoot-relative entry would make every
+// fixture-based test fail for a reason unrelated to what it tests.
+export const PARSER_BUNDLE_ENTRY = "sources/parsers.mjs";
+// spec-0004:270 fixes the installable package root to an exact top-level entry
+// list and :238 calls it exhaustive. A bundle at a NEW root (runtime/vendor/)
+// would amend spec-0004, dragging an adr-0044 paired amendment and a version
+// bump touching every @v8 pin. Inside runtime/dispatch/ and reference/ it needs
+// neither. Constraint, not preference.
+export const PARSER_BUNDLE_PATH =
+  "plugins/grove/runtime/dispatch/lib/parsers.mjs";
+export const NOTICES_PATH = "plugins/grove/reference/licenses/NOTICES.md";
+// The redistributed set — permissive-only per adr-0048 D9. `esbuild` is NOT
+// here: it is build-only and its bytes never ship, so it carries no
+// reproduction obligation. It is pinned exact all the same (D8), because the
+// bundle's bytes depend on the bundler's version.
+export const BUNDLED_DEPENDENCIES = Object.freeze(["smol-toml", "yaml"]);
+export const BUNDLER_PACKAGE = "esbuild";
+// adr-0048 D9: MIT, ISC, BSD-2-Clause and BSD-3-Clause may be bundled.
+// Anything else — copyleft especially — needs its own decision.
+export const PERMITTED_BUNDLE_LICENCES = Object.freeze([
+  "0BSD",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "MIT",
+]);
+
+export const GENERATED_FILES = Object.freeze([
+  ...COMPANION_PROJECTIONS.map(({ output }) => output),
+  NOTICES_PATH,
+  PARSER_BUNDLE_PATH,
+]);
 
 export const LAUNCHER_BUNDLE_PATH =
   "plugins/grove/metadata/codex-launchers.json";
@@ -152,7 +190,6 @@ export const STATIC_PACKAGE_FILES = Object.freeze([
   "plugins/grove/runtime/dispatch/lib/cursor.mjs",
   "plugins/grove/runtime/dispatch/lib/guard-core.mjs",
   "plugins/grove/runtime/dispatch/lib/run.mjs",
-  "plugins/grove/runtime/dispatch/lib/toml.mjs",
   "plugins/grove/runtime/dispatch/lib/transitions.mjs",
   "plugins/grove/runtime/gates/bin/resolve-profile.mjs",
   "plugins/grove/runtime/gates/lib/profile.mjs",

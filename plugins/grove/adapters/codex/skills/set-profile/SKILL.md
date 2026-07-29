@@ -2,7 +2,7 @@
 name: set-profile
 description: "Plan and explicitly apply a named Grove gate preset through the shared lifecycle core. Use when the user asks to switch, set, or reset their Grove gate profile."
 ---
-<!-- GENERATED — DO NOT EDIT; canonical-source: plugins/grove/runtime/lifecycle/lib/lifecycle.mjs; sha256: c76dc782573abef543b5576ac8682e669f42b97448c50699e0bf980fdca558f2 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: plugins/grove/runtime/lifecycle/lib/lifecycle.mjs; sha256: 5b9ef5b9be0635d6a9d023e90dd5ba0fd50a1b90d8aa522acecdec02d2b6cbb0 -->
 
 # Grove set-profile adapter
 

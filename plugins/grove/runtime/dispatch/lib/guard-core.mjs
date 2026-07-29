@@ -10,7 +10,7 @@ import { lstat, open, readFile, readdir, readlink, realpath } from 'node:fs/prom
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
-import { parseToml } from './toml.mjs';
+import { parseTomlDocument, parseYamlDocument } from './parsers.mjs';
 import { RECORD_TYPES } from './transitions.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -85,14 +85,13 @@ export function classifyContent(content) {
   else if (type === 'charter') base = 'charter';
   else if (type === 'research' || type === 'feedback') base = 'reviewless';
   else base = 'unclaimed';
-  // The grammar returns a flow sequence as a real array, so the old
-  // `!== '[]'` string comparison — which existed because `implements: []`
-  // used to arrive as the two-character string — is now unreachable and has
-  // been dropped rather than left to imply a case that cannot occur.
-  // No trim() here either: an accepted value cannot carry leading or trailing
-  // YAML whitespace (yamlTrim removed it) and cannot be empty (the grammar
-  // rejects an empty scalar; an empty value means a BARE KEY, which is the
-  // only way a field holds '').
+  // UNCHANGED by the v3 amendment, which says so explicitly: "This amendment
+  // does not change the `implements-bearing` row. Its non-empty test stands as
+  // written, applied now only to the values the schema clause admits." Those
+  // values are exactly a string or an array of strings — every other spelling
+  // was already refused above and took the whole document to `unclaimed` — so
+  // the two branches below are the complete case analysis, and no trim or
+  // string comparison is needed to reach it.
   const implementsValue = frontmatter.fields.get('implements');
   const implementsBearing = Array.isArray(implementsValue)
     ? implementsValue.length > 0
@@ -102,217 +101,164 @@ export function classifyContent(content) {
 }
 
 // ============================================================================
-// THE ACCEPTED FRONTMATTER GRAMMAR - a closed whitelist, not a skip list.
+// FRONTMATTER: GROVE'S DELIMITER, THE LIBRARY'S DOCUMENT
 // ============================================================================
-// Six rounds of review each added one rule for a malformed shape nobody had
-// thought of, because this reader had BLACKLIST semantics: it enumerated the
-// shapes that were safe to discard and accepted whatever failed to trip a
-// rule. That accepting set is unbounded, so it cannot converge by patching -
-// and it did not. `type: research` followed by an indented `  garbage` is the
-// YAML value "research garbage", outside the enum, yet a "safe to skip"
-// continuation rule preserved `research` and classified the file `reviewless`,
-// which owes nothing and is invisible to observer mode.
+// spec-0006 §Frontmatter reading (v3), INV16's parse clause and INV28;
+// adr-0048 D1/D3/D6/D7. What stood here was a ~270-line hand-rolled YAML
+// grammar — a closed whitelist of line and value forms that converged over
+// eight rounds of review. It is gone, and the replacement is the boundary the
+// spec draws rather than a smaller version of the same thing:
 //
-// The polarity is inverted below. This classifier reads exactly ONE field
-// (`type`, plus `implements`), so it does not need to parse YAML. It accepts
-// the closed list of line forms grove's own frontmatter uses and treats
-// EVERYTHING else as malformed. There are no skip branches: a line matches an
-// accepted form, or the block is malformed.
+//   THE DELIMITER IS GROVE'S. Whether a file bears artifact frontmatter is
+//   decided by the `---` block convention below, hand-written, on the RAW
+//   lines. This is a boundary, not an exception: the block convention is a
+//   format grove defines, and only the document between the delimiters is a
+//   format it borrows. Measured basis (adr-0048 D3): handing the delimiter to
+//   the parser too regressed EIGHT inputs — byte-order-mark-prefixed, padded
+//   `--- `, unterminated — from `unclaimed` into `code`, which owes 2 records
+//   instead of 4 and is not in the guard's observer-mode class set at all.
+//   Under-owing AND invisible, which is the one direction fail-closed typing
+//   exists to prevent.
 //
-// ACCEPTED LINE FORMS (tested after comment stripping; nothing else is accepted):
-//   B  blank            zero or more spaces/tabs and nothing else
-//   D  close delimiter  exactly `---`
-//   K  key with value   `key: <VALUE>` - key in [A-Za-z0-9_-]+, one or more
-//                       spaces/tabs after the colon
-//   E  bare key         `key:` with no value; may be followed by I lines
-//   I  sequence item    optional indent, `-`, one or more spaces/tabs, <SCALAR>
-//                       - accepted ONLY directly under an E line or another I
+//   THE DOCUMENT IS YAML 1.2, CORE SCHEMA, read by the bundled parser. The
+//   version is named in the spec because four measured inputs classify
+//   differently under 1.1, so without it the class of a subject would be
+//   fixed by a build flag no spec text mentions (INV16). It is fixed once, at
+//   the parser boundary in the bundle's entry module, so no call site can
+//   choose a different dialect.
 //
-// ACCEPTED VALUES (nothing else is accepted). The rules split on whether the
-// classifier READS the key, because that is exactly where byte-equivalence
-// with a conforming YAML reader has to be a property rather than an argument:
-//   S  plain scalar     non-empty; first character is not a YAML indicator
-//                       (-?:,[]{}#&*!|>'"%@` ); contains no ":" followed by a
-//                       space or tab and does not end in ":" (either is a
-//                       mapping-value indicator); in FLOW context contains no
-//                       [ ] { } (forbidden in a flow plain scalar); contains
-//                       no ambiguous character (below); and
-//   N  narrow scalar    for a READ key (`type`, `implements`) additionally
-//                       matches [A-Za-z0-9_-]+ exactly
-//   F  flow sequence    `[` + comma-separated S/N items (possibly none) + `]`
+//   EVERY FAILURE IS `unclaimed`, NEVER `code`. Three routes reach it and all
+//   three are the same class: the delimiter rules refuse the block, the parse
+//   throws, or the schema clause rejects what parsed. `readFrontmatter` could
+//   not throw; a library reader can, and `stop-guard.sh` maps a guard-internal
+//   error to exit 4 while promising it "shall NEVER exit 2" — so a throwing
+//   parser at Stop would not hold the session, it would just fail. The parse
+//   call is therefore wrapped: a parse failure becomes a CLASSIFICATION, never
+//   an internal error.
 //
-// WHY THE SPLIT, stated because it is the load-bearing design choice. A value
-// this classifier reads must mean the same thing to every reader, and
-// [A-Za-z0-9_-]+ delivers that as a property: such a scalar has no whitespace
-// to trim, no indicator, no flow delimiter, no comment marker, no escape, and
-// no character whose line-break class differs between YAML 1.1 and 1.2. A
-// value it does NOT read only has to be structurally equivalent — one mapping
-// entry ending at the line break — which the S rules plus the line grammar's
-// refusal of indented continuations already guarantee. Measured: requiring the
-// narrow class of EVERY value would reclassify 31 tracked files, because
-// unread keys legitimately carry prose and cross-repository ids
-// (`trellis/decision-0045`, `spec-0004-dual-host-distribution@v6`); requiring
-// it of read keys alone reclassifies none, because the corpus's 7 distinct
-// `type` values and 7 distinct `implements` values are already within it.
+//   THE SCHEMA CLAUSE IS GROVE'S, CHECKED AFTER THE PARSE, NEVER COERCING.
+//   The document shall be a mapping; `type` when present a string;
+//   `implements` when present a string or a sequence of strings. Anything else
+//   — including a successful parse to a NON-MAPPING — is schema-invalid and
+//   classifies `unclaimed`. This is the D1 split applied one level down: the
+//   parser decides what is legal YAML, grove's schema decides which legal
+//   documents are an artifact header.
 //
-// WHITESPACE IS YAML'S, NOT JAVASCRIPT'S. Values are trimmed with s-white —
-// space and tab, and nothing else. JS trim() also strips 13 characters YAML
-// treats as ordinary scalar content (NBSP U+00A0, the U+2000 block, U+FEFF,
-// VT, FF, LS, PS, ...), so `type: research<NBSP>` was trimmed to `research`,
-// matched the enum, and classified reviewless — owing nothing and invisible to
-// observer mode — while every conforming reader keeps the NBSP and reads a
-// value that is NOT `research`. That was one instance of a 13-member class,
-// closed at the mechanism: yamlTrim below is the only trim on the path.
+// WHAT THIS CHANGES, accepted by adr-0048 D7 and recorded as a LOWER BOUND
+// rather than a bound: legal-but-exotic YAML — quoted scalars, block scalars,
+// nested maps, anchors, aliases, flow collections, quoted KEYS — used to
+// classify `unclaimed` REGARDLESS of its `type`, which the spec calls "a
+// divergence from this table, not a reading of it". It now classifies by its
+// `type` like any other document. At least 19 measured inputs fall from four
+// owed records to zero and at least 15 leave observer scope. That is a real
+// coverage reduction, and it is the decision's, not this module's.
 //
-// AMBIGUOUS CHARACTERS, rejected anywhere in a value: C0 controls except tab,
-// DEL, the C1 range (which contains NEL U+0085), LS U+2028, PS U+2029, and the
-// byte-order mark. The rationale is not taste: YAML 1.1 treats NEL/LS/PS as
-// line breaks and YAML 1.2 does not, so a document containing one is read
-// differently by two conforming parsers. Input whose meaning depends on which
-// parser reads it is what "ambiguous" means here, and ambiguous is malformed.
+// WHAT THE LIBRARY DOES NOT ENFORCE, AND GROVE THEREFORE CHECKS ITSELF.
+// `yaml@2.9.0` accepts characters YAML 1.2 excludes from its character set —
+// measured one code point at a time — so a raw ESC in a comment, an unread
+// key or an unread value produced a document the library was happy with and a
+// conforming 1.2 reader would refuse. In an unread position the file then
+// classified by its declared `type`, which for `research`/`feedback` is zero
+// owed records and outside observer scope: a fail-open reached by a byte no
+// conforming reader accepts. `frontmatterCharacterSetFailure` below closes it.
 //
-// THE PROPERTY THIS BUYS, in two halves that are now both properties:
-//   1. STRUCTURE. Any input not matching this grammar is malformed; malformed
-//      classifies `unclaimed`; `unclaimed` owes the full record set and is
-//      observer-visible. So no input outside the grammar can under-owe review.
-//      This holds by the shape of the code - every exit from readFrontmatter
-//      is `block` (every line matched) or `malformed`.
-//   2. CONTENT. For inputs INSIDE the grammar, a value the classifier reads is
-//      [A-Za-z0-9_-]+, and every conforming YAML reader produces exactly those
-//      bytes for such a plain scalar. Round seven left this as an argument and
-//      named it the residual; round eight found three defects in it and
-//      nothing outside half 1, so the residual was real and the structure was
-//      sound. It is now a property of the charset.
-//
-// WHAT REMAINS, stated precisely rather than declared closed. Two residuals,
-// both measured, neither claimed shut:
-//
-//   A. TAG RESOLUTION of values. YAML 1.1 resolves `no`, `y`, `on`, `null` to
-//      boolean/null where 1.2 keeps a string, and all of those spellings are
-//      inside the narrow class. This cannot change a `type` decision: no enum
-//      member (adr, spec, charter, research, feedback) is one of those
-//      spellings, and resolution changes a node's TYPE, never its spelling, so
-//      "is this value one of those five strings" has one answer under every
-//      reader. On `implements` it can only make the value MORE present, which
-//      over-owes. Fail-closed in both directions.
-//
-//   B. TAG RESOLUTION of KEYS, which the charset does NOT close. Two DISTINCT
-//      key spellings can resolve to one scalar under YAML 1.1 — `y:` and
-//      `yes:` both to true, `1:` and `0x1:` both to 1 — so a strict reader
-//      sees a duplicate key and rejects the document while this reader sees
-//      two ordinary keys and classifies by the declared `type`. Measured:
-//      `y: 1 / yes: 2 / type: research` classifies reviewless here. The
-//      duplicate-key check catches identical SPELLINGS only. Not closed, and
-//      deliberately not papered over: closing it means shipping YAML 1.1
-//      resolution tables for bools, nulls and octal/hex integers, which is
-//      more machinery than a two-field classifier justifies. It is bounded —
-//      it needs a hand-written key pair that no corpus file contains, and the
-//      two key names this classifier reads (`type`, `implements`) cannot
-//      participate, since no resolution produces those strings.
-//
-// A DIFFERENTIAL TEST against a real YAML implementation is NOT required and
-// is not being requested. Both residuals are semantic (tag resolution), not
-// syntactic; a parser comparison would re-derive exactly the finite, published
-// spelling sets named above, at the cost of this repository's first
-// dependency.
-//
-// THE COST, accepted deliberately: legal-but-exotic YAML that grove does not
-// use - quoted scalars, block scalars, nested maps, anchors, flow mappings,
-// multi-document streams - is malformed, so such a file classifies `unclaimed`
-// rather than by its type. That over-owes review instead of under-owing it,
-// which is the correct direction. Measured against the corpus before landing:
-// zero of the 233 tracked files change class.
+// THIS IS NOT GROVE BEING STRICTER THAN THE FORMAT — it is the difference
+// between the format and one implementation of it. spec-0006 promises "YAML
+// 1.2, core schema"; §5.1 of that specification is part of what was promised,
+// and the check enforces exactly that production and nothing else. It is the
+// narrow exception to the D1 rule, not a hole in it: where the library is
+// MORE PERMISSIVE than the named version, grove holds the named version.
 
 // YAML 1.2 b-char: line feed and carriage return, with CRLF as ONE break. The
 // previous split was /\r?\n/, which left a bare-CR document entirely in
 // lines[0] - a CR-terminated spec classified `code` and so was filtered out of
-// observer mode entirely.
+// observer mode entirely. Line splitting is DELIMITER logic, so it stays here.
 const FM_LINE_BREAK = /\r\n|\r|\n/;
 const FM_DELIMITER = /^---$/;
 const FM_DELIMITER_LOOKALIKE = /^\s*---\s*$/;
-const FM_BLANK = /^[ \t]*$/;
-const FM_KEY = /^([A-Za-z0-9_-]+):(?:[ \t]+(.*))?$/;
-// YAML forbids TABS IN INDENTATION. A tab before the `-` is indentation and
-// is rejected; a tab AFTER it is separation (s-separate-in-line) and is
-// allowed. Accepting a tab before the indicator let `owner:` + a
-// tab-indented item reach a document no conforming reader accepts.
-const FM_ITEM = /^ *-[ \t]+(.*)$/;
-const FM_INDICATOR = /^[-?:,[\]{}#&*!|>'"%@`]/;
-// A ":" followed by space or tab is a mapping-value indicator. Testing only
-// ": " missed the tab spelling, so `implements: a:<TAB>b` was recorded as a
-// plain scalar that no conforming reader would produce.
-const FM_MAPPING_INDICATOR = /:[ \t]/;
-// Forbidden inside a plain scalar in FLOW context only. The block-context
-// check tests the FIRST character, so it accepted `[a[b]` as the item `a[b`.
-const FM_FLOW_INDICATOR = /[[\]{}]/;
-// The keys whose value this classifier actually reads.
-const FM_READ_KEYS = new Set(['type', 'implements']);
-const FM_NARROW = /^[A-Za-z0-9_-]+$/;
-const FM_AMBIGUOUS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u2028\u2029\uFEFF]/;
-// YAML's comment rule: `#` begins a comment at the start of a line, or when
-// preceded by a space or tab. A `#` NOT preceded by whitespace belongs to the
-// scalar (`grove#101` stays whole), which is why this scans rather than
-// splitting on '#'.
-// YAML s-white: space and tab only. Never String.prototype.trim().
-function yamlTrim(value) {
-  return value.replace(/^[ \t]+/, '').replace(/[ \t]+$/, '');
+
+// YAML 1.2.2 §5.1, production [1], quoted so the next reader checks this
+// against the specification rather than trusting the regex below:
+//
+//   c-printable ::=   #x9 | #xA | #xD | [#x20-#x7E]          /* 8 bit */
+//                   | #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD] /* 16 bit */
+//                   | [#x10000-#x10FFFF]                     /* 32 bit */
+//
+// FM_NON_PRINTABLE is its exact complement, as a negated class. Verified
+// against the production code point by code point across the whole space
+// before landing: zero disagreements.
+//
+// THE THREE THINGS EASY TO GET WRONG HERE, each measured rather than reasoned:
+//   1. U+2028 and U+2029 ARE PRINTABLE. They sit inside [#xA0-#xD7FF]. They
+//      are line breaks in YAML 1.1 and the old hand-rolled reader called them
+//      "ambiguous", so the temptation is to exclude them — and excluding a
+//      legal character is the dangerous direction, because it sends real
+//      artifacts to `unclaimed`. U+0085 (NEL) is printable too, named by the
+//      production itself.
+//   2. U+FEFF IS PRINTABLE, inside [#xE000-#xFFFD]. YAML handles the
+//      byte-order mark through its own separate rules, and grove's delimiter
+//      half already handles a leading BOM above. This check does not touch it.
+//   3. The `u` flag is load-bearing. [#x10000-#x10FFFF] is a SURROGATE PAIR in
+//      a JavaScript string, so a class written over UTF-16 code units would
+//      see U+D83D in an emoji and refuse a legal document. With `u` the class
+//      matches code points, and D800-DFFF then match only LONE surrogates,
+//      which is correct: a lone surrogate is not a Unicode scalar value.
+//      (It is also unreachable from file bytes — `decodeUtf8Strict` is fatal
+//      and rejects the WTF-8 encoding first — but `classifyContent` also takes
+//      strings directly, so the class covers it.)
+const FM_NON_PRINTABLE = /[^\t\n\r\x20-\x7E\x85\u00A0-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/u;
+
+// ONE CHARACTER-SET TEST OVER THE INNER DOCUMENT, and deliberately nothing
+// more. It is CONTEXT-FREE: it does not know which characters are inside a
+// quoted scalar, where a comment begins, or where it is in the document, and
+// it must never learn — that would be a second parser beside the first.
+//
+// It does not need to. c-printable restricts the character STREAM, not the
+// decoded value, so a control character written as a YAML escape
+// (`note: "a\u001Bb"`) is a well-formed stream that stays legal and whose
+// VALUE holds the control character. That is the correct reading, and it is
+// exactly the case that would tempt a position-aware version into existence.
+// It is pinned as a test.
+function frontmatterCharacterSetFailure(document) {
+  const found = FM_NON_PRINTABLE.exec(document);
+  if (found == null) return null;
+  const point = found[0].codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
+  return `the frontmatter document contains U+${point}, which YAML 1.2 excludes `
+    + 'from its character set (§5.1 c-printable)';
 }
 
-function stripFrontmatterComment(line) {
-  if (/^[ \t]*#/.test(line)) return '';
-  const comment = /[ \t]#/.exec(line);
-  // TRAILING whitespace only, never yamlTrim. Leading whitespace is
-  // STRUCTURAL — it is what distinguishes an indented continuation from a
-  // column-0 key — and stripping it here made `  owner: me` match the key form
-  // and re-opened the continuation hole round seven closed. Caught by the
-  // round-seven battery when this function briefly used yamlTrim.
-  const body = comment == null ? line : line.slice(0, comment.index);
-  return body.replace(/[ \t]+$/, '');
-}
-
-// Forms S and N. Returns the scalar, or null when it is outside the grammar.
-// `read` selects the narrow charset; `inFlow` adds the flow-context rule.
-function acceptScalar(value, { read, inFlow }) {
-  if (value === '' || FM_AMBIGUOUS.test(value)) return null;
-  if (FM_INDICATOR.test(value)) return null;
-  if (FM_MAPPING_INDICATOR.test(value) || value.endsWith(':')) return null;
-  if (inFlow && FM_FLOW_INDICATOR.test(value)) return null;
-  if (read && !FM_NARROW.test(value)) return null;
-  return value;
-}
-
-// Form F. Items are scalars in FLOW context, so they carry the extra rule.
-function acceptFlowSequence(value, read) {
-  if (!value.startsWith('[') || !value.endsWith(']')) return null;
-  if (FM_AMBIGUOUS.test(value)) return null;
-  const inner = yamlTrim(value.slice(1, -1));
-  if (inner === '') return [];
-  const items = [];
-  for (const token of inner.split(',')) {
-    const item = acceptScalar(yamlTrim(token), { read, inFlow: true });
-    if (item == null) return null;
-    items.push(item);
+// The schema clause (spec-0006 §Frontmatter reading, fourth bullet). Returns
+// null when the document conforms, or the reason it does not.
+function frontmatterSchemaFailure(document) {
+  if (document === null || typeof document !== 'object' || Array.isArray(document)) {
+    const shape = document === null ? 'null' : Array.isArray(document) ? 'a sequence' : typeof document;
+    return `the frontmatter document is ${shape}, not a mapping`;
   }
-  return items;
-}
-
-function acceptValue(value, read) {
-  const scalar = acceptScalar(value, { read, inFlow: false });
-  return scalar == null ? acceptFlowSequence(value, read) : scalar;
+  if (Object.hasOwn(document, 'type') && typeof document.type !== 'string') {
+    return 'the frontmatter `type` is not a string';
+  }
+  if (Object.hasOwn(document, 'implements')) {
+    const value = document.implements;
+    const conforms = typeof value === 'string'
+      || (Array.isArray(value) && value.every((item) => typeof item === 'string'));
+    if (!conforms) {
+      return 'the frontmatter `implements` is neither a string nor a sequence of strings';
+    }
+  }
+  return null;
 }
 
 // Three outcomes, never two:
 //   { kind: 'none' }              no block was opened - genuinely code
 //   { kind: 'malformed', reason } a block was opened and is broken - unclaimed
-//   { kind: 'block', fields }     a block was opened AND closed, and EVERY
-//                                 line between them matched an accepted form
+//   { kind: 'block', fields }     a block was opened AND closed, its document
+//                                 parsed, and the schema clause admits it
 function readFrontmatter(text) {
   const malformed = (reason) => ({ kind: 'malformed', reason });
   // A BOM matters only when a block is actually present: a byte-order mark on
   // an ordinary source file is not frontmatter and must stay `code`. When a
   // block IS present the mark means the block does not begin at byte 0 - the
-  // same malformed class, and toml.mjs already rules a BOM invalid rather than
-  // silently strippable ("keys start at byte 0").
+  // same malformed class.
   const hasByteOrderMark = text.charCodeAt(0) === 0xfeff;
   const body = hasByteOrderMark ? text.slice(1) : text;
   const lines = body.split(FM_LINE_BREAK);
@@ -324,58 +270,42 @@ function readFrontmatter(text) {
     return malformed('a byte-order mark precedes the opening delimiter');
   }
 
-  const fields = new Map();
-  // The only state the grammar carries: which bare key, if any, the next
-  // sequence item belongs to. An item with no key above it matches no form.
-  let sequenceKey = null;
+  // The closing delimiter is matched on the RAW line, deliberately: anything
+  // that trimmed it first would turn a padded `--- ` back into a clean `---`
+  // and re-open the route round six of the old reader's review closed.
+  let close = -1;
   for (let index = 1; index < lines.length; index += 1) {
-    const at = `line ${index + 1}`;
-    // The delimiter is tested on the RAW line, deliberately and before comment
-    // stripping: the stripper also trims trailing whitespace, which would turn
-    // a padded `--- ` back into a clean `---` and re-open the exact route
-    // round six closed. Both delimiters are therefore compared against the raw
-    // bytes; everything else is compared after stripping.
-    if (FM_DELIMITER.test(lines[index])) return { kind: 'block', fields };
-    const line = stripFrontmatterComment(lines[index]);
-
-    if (FM_BLANK.test(line)) { sequenceKey = null; continue; }
-
-    const item = FM_ITEM.exec(line);
-    if (item) {
-      if (sequenceKey == null) {
-        return malformed(`${at}: a sequence item with no bare key above it`);
-      }
-      const scalar = acceptScalar(yamlTrim(item[1]), {
-        read: FM_READ_KEYS.has(sequenceKey), inFlow: false,
-      });
-      if (scalar == null) return malformed(`${at}: the sequence item is not an accepted scalar`);
-      const held = fields.get(sequenceKey);
-      fields.set(sequenceKey, Array.isArray(held) ? [...held, scalar] : [scalar]);
-      continue;
-    }
-
-    const key = FM_KEY.exec(line);
-    if (key == null) return malformed(`${at} matches no accepted frontmatter line form`);
-    const name = key[1];
-    // A duplicate key is ambiguous, and YAML forbids it outright. First-wins
-    // silently resolved that ambiguity in the writer's favour.
-    if (fields.has(name)) return malformed(`${at}: duplicate key "${name}"`);
-    const raw = yamlTrim(key[2] ?? '');
-    if (raw === '') {
-      fields.set(name, '');
-      sequenceKey = name;
-      continue;
-    }
-    const value = acceptValue(raw, FM_READ_KEYS.has(name));
-    if (value == null) {
-      return malformed(`${at}: the value of "${name}" is outside the accepted grammar`);
-    }
-    fields.set(name, value);
-    sequenceKey = null;
+    if (FM_DELIMITER.test(lines[index])) { close = index; break; }
   }
-  // Unterminated. A file that opened a block IS frontmatter-bearing; a block
-  // with no closing delimiter is malformed, and malformed owes the full set.
-  return malformed('the frontmatter block has no closing delimiter');
+  if (close === -1) {
+    // A file that opened a block IS frontmatter-bearing; a block with no
+    // closing delimiter is malformed, and malformed owes the full set.
+    return malformed('the frontmatter block has no closing delimiter');
+  }
+
+  // Only the inner document crosses the boundary, rejoined with LF because the
+  // split above already resolved grove's three line spellings into one.
+  const document = lines.slice(1, close).join('\n');
+  // BEFORE the parser, because the parser is the thing that gets this wrong.
+  const characterSet = frontmatterCharacterSetFailure(document);
+  if (characterSet != null) return malformed(characterSet);
+  let parsed;
+  try {
+    parsed = parseYamlDocument(document);
+  } catch (error) {
+    // EVERY throw, not one error class: the library signals a malformed
+    // document with a YAMLParseError but signals alias-expansion exhaustion
+    // with a plain ReferenceError, and frontmatter is open input, so both
+    // arrive here from a consumer's tree.
+    return malformed(`the frontmatter document does not parse: ${error && error.message}`);
+  }
+  const failure = frontmatterSchemaFailure(parsed);
+  if (failure != null) return malformed(failure);
+  // Own enumerable entries only. A `__proto__` key arrives from the library as
+  // an OWN data property (measured, and no prototype is written), and reading
+  // the fields through a Map keeps that true of every consumer of this result
+  // without bolting a prototype-nulling step onto the parser.
+  return { kind: 'block', fields: new Map(Object.entries(parsed)) };
 }
 
 // --- derived change set (one definition, both modes) ---
@@ -583,7 +513,7 @@ export async function collectRecords({ repoRoot }) {
       }
       let parsed;
       try {
-        parsed = parseToml(decoded);
+        parsed = parseTomlDocument(decoded);
       } catch (error) {
         defects.push({ path: relative, reason: `unparseable record: ${error.message}` });
         continue;

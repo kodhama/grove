@@ -1,5 +1,7 @@
-// Upstream: spec-0006-voluntary-dispatch@v2 INV11, INV16 (deterministic
-// classification and record matching); AC7 (mechanical half); S16.
+// Upstream: spec-0006-voluntary-dispatch@v3 INV11, INV16, INV28 (deterministic
+// classification and record matching); AC7 (mechanical half), AC14; S16, S17.
+// @v2 -> @v3: v3 rewrote INV16's determinism clause (delegated to YAML 1.2
+// core schema) and added INV28/S17/AC14, which this file covers.
 // Decision: adr-0046-how-dispatch-rules-reach-a-session.
 //
 // AC7's behavioral half — the change-request verdict report staying owed
@@ -109,10 +111,25 @@ test('classification: implements-bearing overlays the base class, only when non-
   );
   assert.deepEqual([...bearing.classes].sort(), ['implements-bearing', 'spec']);
 
-  const emptyImplements = classifyContent(
+  // INVERTED at spec-0006 v3, and the inversion is the decision's not this
+  // test's: a bare `implements:` is the YAML value `null`, and adr-0048 D6
+  // names it by hand — "What remains — `implements: null` / `true` — is caught
+  // fail-closed by the schema clause". It used to read as the empty string and
+  // leave the file `spec`; it is now schema-invalid and the whole document
+  // classifies `unclaimed`, which owes MORE, not less.
+  const nullImplements = classifyContent(
     '---\nid: x\ntype: spec\nimplements:\nstatus: gated\n---\nbody\n',
   );
-  assert.deepEqual(emptyImplements.classes, ['spec']);
+  assert.deepEqual(nullImplements.classes, ['unclaimed']);
+
+  // The empty values the schema clause DOES admit still do not bear, which is
+  // the row the amendment leaves alone.
+  for (const empty of ['""', '[]']) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: spec\nimplements: ${empty}\nstatus: gated\n---\nbody\n`).classes,
+      ['spec'], `implements: ${empty} is admitted and empty, so it does not bear`,
+    );
+  }
 
   const bearingCode = classifyContent(
     '---\nid: x\nimplements: adr-1\n---\nbody\n',
@@ -499,7 +516,7 @@ test('a subdirectory repoRoot is an internal error, not an empty-and-passing cha
 // (a block list read as an empty scalar was a fail-open in the exact
 // direction the spec exists to prevent).
 
-test('a block-style implements list classifies implements-bearing; an empty key does not', () => {
+test('a block-style implements list classifies implements-bearing; a null implements is schema-invalid', () => {
   const blockList = classifyContent(
     '---\nid: x\ntype: spec\nimplements:\n  - adr-0046-how-dispatch-rules-reach-a-session\nstatus: gated\n---\nbody\n',
   );
@@ -510,10 +527,15 @@ test('a block-style implements list classifies implements-bearing; an empty key 
   );
   assert.ok(multiItem.classes.includes('implements-bearing'));
 
-  const emptyKey = classifyContent(
+  // INVERTED at spec-0006 v3 (adr-0048 D6): a bare key is `null`, which the
+  // schema clause admits neither as a string nor as a sequence of strings, so
+  // the document is schema-invalid rather than a non-bearing spec. The
+  // fail-open this test was written against — a block list read as an empty
+  // scalar — is closed harder than before, not reopened.
+  const nullKey = classifyContent(
     '---\nid: x\ntype: spec\nimplements:\nstatus: gated\n---\nbody\n',
   );
-  assert.deepEqual(emptyKey.classes, ['spec'], 'a bare key with no items is not bearing');
+  assert.deepEqual(nullKey.classes, ['unclaimed'], 'a bare key is null, which is schema-invalid');
 });
 // --- BLOCK-2 residual: renames/copies in EITHER porcelain column ---
 // Case list DERIVED FROM git's status --porcelain v1 -z format (git-status
@@ -605,10 +627,13 @@ test('block-style implements lists classify bearing at every YAML-legal indentat
     );
     assert.ok(classified.classes.includes('spec'), name);
   }
-  // The frontmatter terminator is never consumed as an item: a bare key
-  // directly above --- stays non-bearing.
+  // The frontmatter terminator is never consumed as an item — that half is
+  // unchanged, and it is grove's delimiter rule that guarantees it: the block
+  // ends at the raw `---`, so the parser never sees it. What INVERTED at
+  // spec-0006 v3 is the resulting class: the key is then bare, a bare key is
+  // `null`, and `null` is schema-invalid for `implements` (adr-0048 D6).
   const terminator = classifyContent('---\nid: x\ntype: spec\nimplements:\n---\nbody\n');
-  assert.deepEqual(terminator.classes, ['spec']);
+  assert.deepEqual(terminator.classes, ['unclaimed']);
 });
 
 // --- P1-B: the digest binds the subject's ACTUAL bytes (INV11/AC7) ---
@@ -1160,17 +1185,17 @@ test('R6 — no malformed, truncated, or ambiguous block can reach the absorbing
   assert.deepEqual(classifyContent('---\nid: x\ntype: feedback\n---\n').classes, ['reviewless']);
 });
 
-test('R7 — the accepted grammar classifies grove frontmatter; exotic YAML is malformed by design', () => {
-  // R7 supersedes R6's "strictness stops at syntax". R6 accepted any indented
-  // line as a continuation belonging to the key above it, on the argument that
-  // it could not masquerade as a top-level key. It did not have to: an
-  // indented line CHANGES THE VALUE of the key above it, so `type: research`
-  // over `  garbage` is the YAML scalar "research garbage" — outside the enum,
-  // yet R6 preserved `research` and classified the file reviewless. The reader
-  // is now a closed whitelist, so the exotic-YAML rows below classify
-  // `unclaimed` rather than by their type. That is the deliberate cost: it
-  // over-owes review rather than under-owing it, and the corpus measurement
-  // says no real artifact is affected.
+test('AC14/D7 — grove frontmatter classifies by type, and so does the exotic YAML the whitelist refused', () => {
+  // REWRITTEN AT spec-0006 v3, premise withdrawn. This test used to assert
+  // that legal-but-exotic YAML was "malformed by design" — the deliberate cost
+  // of a closed whitelist. The spec now calls that "a divergence from this
+  // table, not a reading of it", so the second half below is INVERTED rather
+  // than deleted: every construct that used to be refused is listed with the
+  // class it reaches now, so the coverage change adr-0048 D7 accepts is
+  // visible in the suite instead of only in a review comment.
+  //
+  // The first half is unchanged and is what keeps the inversion honest: the
+  // forms grove's own artifacts actually use still classify exactly as before.
   const accepted = {
     'a comment': ['---\n# a comment\nid: x\ntype: charter\n---\n', ['charter']],
     'a blank line': ['---\n\nid: x\ntype: charter\n\n---\n', ['charter']],
@@ -1189,20 +1214,39 @@ test('R7 — the accepted grammar classifies grove frontmatter; exotic YAML is m
     );
   }
 
-  // The accepted cost, pinned so it is a decision and not a surprise.
-  const outsideTheGrammar = {
-    'a nested map': '---\nid: x\ntype: charter\nmeta:\n  owner: someone\n---\n',
-    'a deeply nested map': '---\nid: x\ntype: charter\na:\n  b:\n    c: 1\n---\n',
-    'a literal block scalar': '---\nid: x\ntype: charter\nnotes: |\n  line one\n---\n',
-    'a folded block scalar': '---\nid: x\ntype: charter\nnotes: >\n  folded\n---\n',
-    'a block scalar containing an indented ---': '---\nid: x\ntype: charter\nnotes: |\n  ---\n  more\n---\n',
-    'a tab-indented continuation': '---\nid: x\ntype: charter\nnotes:\n\tsomething\n---\n',
-    'a quoted value containing a colon': '---\nid: x\ntype: charter\ntitle: "a: b"\n---\n',
+  // THE INVERSION, each row measured. Every one of these classified
+  // `unclaimed` under the whitelist regardless of its declared `type`; each
+  // now classifies by the value a conforming YAML 1.2 reader produces. Five
+  // move from four owed records to zero — the coverage reduction adr-0048 D7
+  // accepts and records as a lower bound — and the two that stay `unclaimed`
+  // do so because the DOCUMENT genuinely does not parse, not because grove
+  // dislikes the construct.
+  const formerlyMalformed = {
+    'a nested map': ['---\nid: x\ntype: charter\nmeta:\n  owner: someone\n---\n', ['charter']],
+    'a deeply nested map': ['---\nid: x\ntype: charter\na:\n  b:\n    c: 1\n---\n', ['charter']],
+    'a literal block scalar': ['---\nid: x\ntype: charter\nnotes: |\n  line one\n---\n', ['charter']],
+    'a folded block scalar': ['---\nid: x\ntype: charter\nnotes: >\n  folded\n---\n', ['charter']],
+    'a quoted value containing a colon': ['---\nid: x\ntype: charter\ntitle: "a: b"\n---\n', ['charter']],
+    // Still `unclaimed`, and for a reason that survives the rewrite: a tab may
+    // not indent a YAML node, so the parser refuses the document outright.
+    'a tab-indented continuation': ['---\nid: x\ntype: charter\nnotes:\n\tsomething\n---\n', ['unclaimed']],
+    // MEASURED, because the obvious prediction was wrong: grove's closing
+    // delimiter is the RAW line `---`, and the `---` inside this block scalar
+    // is indented, so it is not one. The block ends at the real terminator and
+    // the parser receives the block scalar whole. (An UNindented `---` inside a
+    // block scalar WOULD end the block early — that is grove's convention
+    // winning over YAML's, and it fails toward `unclaimed`, never `code`.)
+    'a block scalar containing an indented ---': [
+      '---\nid: x\ntype: charter\nnotes: |\n  ---\n  more\n---\n', ['charter'],
+    ],
+    'a block scalar containing a column-0 ---': [
+      '---\nid: x\ntype: charter\nnotes: |\n---\n  more\n---\n', ['charter'],
+    ],
   };
-  for (const [name, text] of Object.entries(outsideTheGrammar)) {
+  for (const [name, [text, expected]] of Object.entries(formerlyMalformed)) {
     assert.deepEqual(
-      classifyContent(text).classes, ['unclaimed'],
-      `${name}: outside the grammar is malformed — over-owing, never under-owing`,
+      classifyContent(text).classes, expected,
+      `${name}: the whitelist called this malformed; a conforming reader does not`,
     );
   }
 });
@@ -1220,24 +1264,36 @@ test('R7 — the accepted grammar classifies grove frontmatter; exotic YAML is m
 
 const fmChar = (code) => String.fromCharCode(code);
 
-test('R7 — an indented continuation changes the value above it, so it is malformed', () => {
-  // The refutation of round six's safety argument. R6 skipped indented lines
-  // because they "cannot masquerade as a top-level type/implements". They do
-  // not need to: in YAML `type: research` over `  garbage` is the single
-  // scalar "research garbage", which is outside the enum — yet the skip
-  // preserved `research` and classified the file reviewless, owing nothing and
-  // invisible to observer mode.
+test('AC14 — an indented continuation changes the value above it, so the class follows the real value', () => {
+  // The defect this pins is unchanged and still closed, only the mechanism
+  // moved. An indented line does not have to masquerade as a top-level key to
+  // do damage: in YAML `type: research` over `  garbage` is the single scalar
+  // "research garbage", outside the enum — and an early reader that "skipped"
+  // the continuation preserved `research` and classified the file reviewless,
+  // owing nothing and invisible to observer mode. A conforming parser reads
+  // the same scalar the spec does, so the class follows the VALUE.
   for (const [name, text] of Object.entries({
     'after type': '---\nid: x\ntype: research\n  garbage\n---\n',
-    'after a non-type key': '---\nid: x\n  more-id\ntype: research\n---\n',
-    'tab-indented': '---\nid: x\ntype: research\n\tgarbage\n---\n',
     'deeply indented': '---\nid: x\ntype: research\n        garbage\n---\n',
+    // Not a continuation at all: a tab may not indent a YAML node, so the
+    // document does not parse — the same class by a different route.
+    'tab-indented': '---\nid: x\ntype: research\n\tgarbage\n---\n',
   })) {
     assert.deepEqual(
       classifyContent(text).classes, ['unclaimed'],
-      `${name}: a continuation is not a skippable line`,
+      `${name}: the continuation is part of the type value, which is off-enum`,
     );
   }
+  // INVERTED, and the inversion is the point of the amendment: a continuation
+  // under a key the classifier does NOT read changes only that key's value.
+  // `id` becomes "x more-id" and `type` is still exactly `research`, so
+  // `reviewless` is what the class table says. The whitelist called this
+  // malformed because it could not tell the two cases apart.
+  assert.deepEqual(
+    classifyContent('---\nid: x\n  more-id\ntype: research\n---\n').classes,
+    ['reviewless'],
+    'a continuation under an unread key leaves the declared type untouched',
+  );
 });
 
 test('R7 — line splitting follows YAML 1.2: LF, CR and CRLF each end a line', () => {
@@ -1270,11 +1326,13 @@ test('R7 — line splitting follows YAML 1.2: LF, CR and CRLF each end a line', 
   );
 });
 
-test('R7 — characters whose line-break meaning differs between YAML versions are malformed', () => {
-  // NEL, LS and PS are line breaks in YAML 1.1 and ordinary characters in
-  // YAML 1.2, so a document containing one is read differently by two
-  // conforming parsers. Input whose meaning depends on which parser reads it
-  // is ambiguous, and ambiguous is malformed rather than charitably accepted.
+test('AC14/INV16 — a character outside c-printable is unclaimed, in a read position or an unread one', () => {
+  // THE HALF THAT SURVIVES. NEL, LS and PS are line breaks in YAML 1.1 and
+  // ordinary characters in 1.2 — which is one of the four inputs INV16's
+  // version clause exists for. The dialect is fixed at 1.2, so each is content
+  // here, the `type` string is not `research`, and the file is `unclaimed`.
+  // The old reader reached the same class by calling the input ambiguous; the
+  // class is what the spec pins, so this half is unchanged.
   for (const [name, code] of Object.entries({
     NEL: 0x85, LS: 0x2028, PS: 0x2029,
   })) {
@@ -1283,65 +1341,212 @@ test('R7 — characters whose line-break meaning differs between YAML versions a
     assert.deepEqual(classifyContent(inside).classes, ['unclaimed'], `${name} inside a value`);
     assert.deepEqual(classifyContent(trailing).classes, ['unclaimed'], `${name} after a valid type`);
   }
-  // Control bytes are rejected on the same rule.
   for (const [name, code] of Object.entries({
     NUL: 0, VT: 11, ESC: 27, DEL: 127,
   })) {
     assert.deepEqual(
       classifyContent(`---\nid: x\ntype: rese${fmChar(code)}arch\n---\n`).classes, ['unclaimed'],
-      `${name} in a value`,
+      `${name} in a read value`,
     );
   }
+
+  // THE GAP THIS COMMIT CLOSES, and it was a real fail-open. YAML 1.2's
+  // `c-printable` production excludes the C0 controls (bar tab, LF and CR),
+  // DEL and most of the C1 range, so a conforming 1.2 reader refuses a stream
+  // containing one. `yaml@2.9.0` accepts them all as ordinary scalar content —
+  // measured one character at a time — so a file carrying a raw ESC anywhere
+  // the classifier does not READ classified by its declared `type`. In an
+  // UNREAD position that is `reviewless`: zero owed records and outside
+  // observer scope, reached by a byte no conforming reader accepts.
+  //
+  // The pre-parse character check closes it. Four unread positions are covered
+  // because the fail-open reached all four, measured before the fix.
+  for (const [name, code] of Object.entries({
+    NUL: 0, BEL: 7, VT: 11, FF: 12, ESC: 27, DEL: 127,
+    'C1 0x80': 0x80, 'C1 0x9F': 0x9f, 'noncharacter U+FFFE': 0xfffe,
+  })) {
+    const c = fmChar(code);
+    for (const [position, text] of Object.entries({
+      'an unread value': `---\nid: x\nnote: a${c}b\ntype: research\n---\n`,
+      'a comment': `---\nid: x\n# note a${c}b\ntype: research\n---\n`,
+      'an unread key': `---\nid: x\nno${c}te: y\ntype: research\n---\n`,
+      'a quoted unread value': `---\nid: x\nnote: "a${c}b"\ntype: research\n---\n`,
+    })) {
+      assert.deepEqual(
+        classifyContent(text).classes, ['unclaimed'],
+        `${name} in ${position}: a stream YAML 1.2 refuses is unclaimed, not reviewless`,
+      );
+    }
+  }
+  // And it still never reaches `code`: a block was opened, so the file bears
+  // frontmatter whatever its bytes say.
+  assert.equal(
+    classifyContent(`---\nid: x\nnote: a${fmChar(27)}b\ntype: research\n---\n`).base,
+    'unclaimed',
+  );
+
+  // THE CHECK'S SCOPE IS THE INNER DOCUMENT AND NOTHING ELSE. YAML 1.2 §5.1
+  // constrains the YAML stream; the body below a frontmatter block is not one,
+  // and a source file with no block is not one either. Widening the check to
+  // the whole file would send every artifact with a control byte in its PROSE
+  // to `unclaimed`, and every binary-ish source file from `code` to
+  // `unclaimed` — both large, both wrong, and neither caught by the corpus
+  // gate today because no tracked file carries such a byte.
+  const ESC = fmChar(27);
+  assert.deepEqual(
+    classifyContent(`---\nid: x\ntype: research\n---\nbody a${ESC}b\n`).classes,
+    ['reviewless'],
+    'a control character BELOW the block does not touch the class',
+  );
+  assert.deepEqual(
+    classifyContent(`const x = "a${ESC}b";\n`).classes, ['code'],
+    'and a file with no frontmatter at all is still code',
+  );
 });
 
-test('R7 — every YAML construct outside the accepted subset is malformed, never reviewless', () => {
-  // The whitelist property, exercised over constructs the grammar does not
-  // admit. None of these may reach `reviewless` (owes nothing, invisible) or
-  // `code` (filtered from observer mode).
-  const outside = {
-    'quoted scalar': '---\ntype: "research"\n---\n',
-    'single-quoted scalar': "---\ntype: 'research'\n---\n",
+test('AC14/INV16 — the excluded set is exactly the complement of c-printable, so legal text still classifies', () => {
+  // THE OVER-EXCLUSION GUARD, and it is the half that would do real damage:
+  // excluding a character YAML 1.2 permits would push legitimate artifacts to
+  // `unclaimed` and churn the corpus. Every character below sits INSIDE the
+  // production and must leave the class alone.
+  //
+  //   c-printable ::=   #x9 | #xA | #xD | [#x20-#x7E]
+  //                   | #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
+  //                   | [#x10000-#x10FFFF]                    — YAML 1.2.2 §5.1
+  //
+  // U+2028 and U+2029 are the two most likely to be wrongly excluded — they
+  // are line breaks in YAML 1.1 and were "ambiguous" to the old hand-rolled
+  // reader — but both sit inside [#xA0-#xD7FF] and ARE printable. So does
+  // U+0085 (NEL), named explicitly by the production, and so does U+FEFF,
+  // which YAML handles through its own byte-order-mark rules and which grove's
+  // delimiter half already handles separately.
+  for (const [name, code] of Object.entries({
+    'TAB U+0009': 0x09,
+    'NEL U+0085': 0x85,
+    'NBSP U+00A0': 0xa0,
+    'LS U+2028': 0x2028,
+    'PS U+2029': 0x2029,
+    'BOM U+FEFF inside the document': 0xfeff,
+    'the top of the low range, U+D7FF': 0xd7ff,
+    'the bottom of the private range, U+E000': 0xe000,
+    'the replacement character U+FFFD': 0xfffd,
+    'CJK U+4E00': 0x4e00,
+    'e-acute U+00E9': 0xe9,
+  })) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\nnote: a${fmChar(code)}b\ntype: research\n---\n`).classes,
+      ['reviewless'],
+      `${name} is c-printable: the declared type must still stand`,
+    );
+  }
+  // Astral characters are a surrogate PAIR in a JavaScript string, so a check
+  // written over UTF-16 code units would see U+D83D and refuse a legal file.
+  // This is the case that forces the check to be code-point aware.
+  assert.deepEqual(
+    classifyContent('---\nid: x\nnote: a\u{1F600}b\ntype: research\n---\n').classes,
+    ['reviewless'],
+    'an emoji is [#x10000-#x10FFFF], which is printable',
+  );
+  // THE BOUNDARY, pinned so the next reader does not "fix" it. c-printable
+  // restricts the character STREAM, not the decoded value, so a control
+  // character written as a YAML escape is a well-formed stream and stays
+  // legal — its VALUE holds the control character and that is correct. The
+  // check does not need to know it is inside a quoted scalar; it never looks
+  // at decoded values at all. Anything that made this case `unclaimed` would
+  // have had to become position-aware, which is the line this check does not
+  // cross.
+  assert.deepEqual(
+    classifyContent('---\nid: x\nnote: "a\\u001Bb"\ntype: research\n---\n').classes,
+    ['reviewless'],
+    'an ESCAPED control character is a printable stream and classifies normally',
+  );
+});
+
+test('AC14/D7 — every construct the whitelist refused, with the class it reaches now', () => {
+  // THE COVERAGE-REDUCTION LEDGER, and the reason it is a test rather than a
+  // paragraph. Every input below classified `unclaimed` under the hand-rolled
+  // whitelist — four owed records and inside observer scope — REGARDLESS of
+  // its declared type. adr-0048 D7 accepts the reduction and records it as a
+  // LOWER BOUND, not a bound; this table is the measured part of that bound
+  // for this file, so any future reader change that moves one of these rows
+  // has to say so out loud instead of shifting quietly.
+  //
+  // 13 of the 29 rows lose all four owed records and leave observer scope.
+  // 2 fall from four to two. 14 stay `unclaimed`, every one of them because
+  // the DOCUMENT does not parse or the schema clause refuses it — never
+  // because grove dislikes the construct.
+  const nowClassifiedByType = {
+    'quoted scalar': ['---\ntype: "research"\n---\n', ['reviewless']],
+    'single-quoted scalar': ["---\ntype: 'research'\n---\n", ['reviewless']],
+    'literal block scalar': ['---\nid: x\ntype: research\nnotes: |\n  text\n---\n', ['reviewless']],
+    'folded block scalar': ['---\nid: x\ntype: research\nnotes: >\n  text\n---\n', ['reviewless']],
+    'nested map': ['---\nid: x\ntype: research\nmeta:\n  owner: me\n---\n', ['reviewless']],
+    anchor: ['---\nid: x\ntype: &a research\n---\n', ['reviewless']],
+    tag: ['---\nid: x\ntype: !!str research\n---\n', ['reviewless']],
+    'flow mapping line': ['---\n{type: research}\n---\n', ['reviewless']],
+    'document-end marker': ['---\nid: x\ntype: research\n...\n---\n', ['reviewless']],
+    'explicit key indicator': ['---\n? type\n: research\n---\n', ['reviewless']],
+    'key containing a space': ['---\nmy key: x\ntype: research\n---\n', ['reviewless']],
+    'empty key': ['---\n: x\ntype: research\n---\n', ['reviewless']],
+    'sequence item after a blank line': [
+      '---\nimplements:\n\n- a\ntype: research\n---\n', ['reviewless', 'implements-bearing'],
+    ],
+    // grove#180 item 3, the MEDIUM: the old reader read `implements:` as bearing
+    // only when its first sequence item was the very next line, so a COMMENT
+    // between them classified not-bearing — the fail-open direction. The blank
+    // line above pinned one axis of that; the comment axis was the reported one
+    // and was unpinned. Both are legal YAML and both bear.
+    'sequence item after a comment': [
+      '---\nimplements:\n# note\n- a\ntype: research\n---\n', ['reviewless', 'implements-bearing'],
+    ],
+    'sequence item after a comment AND a blank line': [
+      '---\nimplements:\n\n# note\n\n- a\ntype: research\n---\n', ['reviewless', 'implements-bearing'],
+    ],
+    'sequence item that is not a plain scalar': [
+      '---\nid: x\ntype: spec\nimplements:\n- "a"\n---\n', ['spec', 'implements-bearing'],
+    ],
+    // A raw C1 control inside a value: `yaml@2.9.0` accepts characters YAML
+    // 1.2's c-printable production excludes, so this reads as an ordinary
+    // string and the spec bears. See the disclosure at the control-character
+    // test below — the class is NARROWER than it was, not closed.
+    'a C1 control inside an implements value': [
+      `---\nid: x\ntype: spec\nimplements: adr-1${fmChar(0x85)}junk\n---\n`, ['spec', 'implements-bearing'],
+    ],
+  };
+  for (const [name, [text, expected]] of Object.entries(nowClassifiedByType)) {
+    assert.deepEqual(
+      classifyContent(text).classes, expected,
+      `${name}: legal YAML classifies by its type — got ${JSON.stringify(classifyContent(text).classes)}`,
+    );
+  }
+
+  // The 14 that stay `unclaimed`, each for a reason a conforming reader gives.
+  const stillUnclaimed = {
     'unterminated quote': '---\nid: x\ntype: research\ntitle: "abc\n---\n',
-    'literal block scalar': '---\nid: x\ntype: research\nnotes: |\n  text\n---\n',
-    'folded block scalar': '---\nid: x\ntype: research\nnotes: >\n  text\n---\n',
-    'nested map': '---\nid: x\ntype: research\nmeta:\n  owner: me\n---\n',
-    anchor: '---\nid: x\ntype: &a research\n---\n',
     alias: '---\nid: x\ntype: *a\n---\n',
-    tag: '---\nid: x\ntype: !!str research\n---\n',
     'flow mapping value': '---\nid: x\ntype: {a: b}\n---\n',
-    'flow mapping line': '---\n{type: research}\n---\n',
     'nested flow sequence': '---\nid: x\ntype: research\nimplements: [[a]]\n---\n',
     'unterminated flow sequence': '---\nid: x\ntype: research\nimplements: [a, b\n---\n',
     'flow sequence with an empty item': '---\nid: x\ntype: spec\nimplements: [a, , b]\n---\n',
-    'document-end marker': '---\nid: x\ntype: research\n...\n---\n',
     'YAML directive': '---\n%YAML 1.2\nid: x\ntype: research\n---\n',
-    'explicit key indicator': '---\n? type\n: research\n---\n',
     'no space after the colon': '---\nid: x\ntype:research\n---\n',
     'value ending in a colon': '---\nid: x\ntype: research:\n---\n',
     'value containing a colon-space': '---\nid: x\ntype: a: b\n---\n',
     'type as a sequence': '---\nid: x\ntype:\n- research\n---\n',
     'sequence item with no key above it': '---\nid: x\n- research\ntype: research\n---\n',
-    'sequence item after a blank line': '---\nimplements:\n\n- a\ntype: research\n---\n',
-    'sequence item that is not a plain scalar': '---\nid: x\ntype: spec\nimplements:\n- "a"\n---\n',
-    'key containing a space': '---\nmy key: x\ntype: research\n---\n',
-    'empty key': '---\n: x\ntype: research\n---\n',
     'comment-only value': '---\nid: x\ntype: # note\n---\n',
-    // These two guard the value rules through `implements` rather than `type`,
-    // which is where they actually bite: a malformed implements value that is
-    // merely non-empty makes the file implements-bearing, and a bearing spec
-    // owes 2 records where unclaimed owes 4. Measured in both directions.
-    'ambiguous character in an implements value':
-      `---\nid: x\ntype: spec\nimplements: adr-1${fmChar(0x85)}junk\n---\n`,
     'colon-space in an implements value': '---\nid: x\ntype: spec\nimplements: a: b\n---\n',
   };
-  for (const [name, text] of Object.entries(outside)) {
+  for (const [name, text] of Object.entries(stillUnclaimed)) {
     const classified = classifyContent(text);
     assert.deepEqual(
       classified.classes, ['unclaimed'],
-      `${name}: outside the grammar must be malformed — got ${JSON.stringify(classified.classes)}`,
+      `${name}: still unclaimed — got ${JSON.stringify(classified.classes)}`,
     );
+    assert.notEqual(classified.base, 'code', `${name}: and never code`);
   }
 });
+
 
 test("R7 — the comment rule is YAML's, and a padded delimiter survives it", () => {
   // A `#` starts a comment at line start or after a space/tab; a `#` NOT
@@ -1392,11 +1597,17 @@ const JS_TRIMMED_NOT_YAML = [
   0xfeff, 0x2028, 0x2029,
 ];
 
-test('R8 — trimming is YAML s-white, not JS trim(): the whole 13-character class', () => {
+test('AC14 — the 13 characters JS trim() strips are ordinary YAML content, so none reaches the enum', () => {
+  // KEPT, and re-based rather than retired. Its subject used to be grove's own
+  // `yamlTrim`, which is gone with the whitelist; the PROPERTY it protects is
+  // the one that matters and it still holds under the library. The defect:
   // `type: research<NBSP>` was trimmed by JS to `research`, matched the enum
   // and classified reviewless — owing nothing, invisible to observer mode —
-  // while a conforming reader keeps the NBSP and reads a value that is not
-  // `research`. NBSP was one instance; the class has thirteen members.
+  // while YAML s-white is space and tab and NOTHING else, so a conforming
+  // reader keeps the NBSP and reads a value that is not `research`. NBSP was
+  // one instance; the class has thirteen members, and all thirteen are still
+  // checked because "the library trims correctly" is a claim about a
+  // dependency, which is exactly the kind of claim that needs a test here.
   for (const code of JS_TRIMMED_NOT_YAML) {
     const c = String.fromCharCode(code);
     const hex = `U+${code.toString(16).toUpperCase().padStart(4, '0')}`;
@@ -1408,10 +1619,20 @@ test('R8 — trimming is YAML s-white, not JS trim(): the whole 13-character cla
       classifyContent(`---\nid: x\ntype: ${c}research\n---\n`).classes, ['unclaimed'],
       `${hex} leading a type value must not be trimmed away`,
     );
+    // ON `implements` THE THIRTEEN SPLIT, and which side a character lands on
+    // is decided by YAML 1.2 §5.1, not by this test:
+    //   - VT (U+000B) and FF (U+000C) are OUTSIDE c-printable, so the document
+    //     is refused at the character-set gate and the file is `unclaimed` —
+    //     four owed records, the fail-closed direction.
+    //   - the other eleven are printable, so the value is a non-empty STRING
+    //     whatever it carries, the schema clause admits it, and the spec BEARS
+    //     — four owed records fall to two, which is the reduction D7 accepts.
+    //     It cannot fall further: a bearing spec is still in observer scope.
+    const printable = code !== 0x0b && code !== 0x0c;
     assert.deepEqual(
       classifyContent(`---\nid: x\ntype: spec\nimplements: adr-1${c}\n---\n`).classes,
-      ['unclaimed'],
-      `${hex} in an implements value must not be trimmed away`,
+      printable ? ['spec', 'implements-bearing'] : ['unclaimed'],
+      `${hex} in an implements value: ${printable ? 'printable string content' : 'outside c-printable'}`,
     );
   }
   // Space and tab ARE YAML whitespace and must still be trimmed.
@@ -1445,25 +1666,37 @@ test('R8 — a mapping-value indicator is a colon before space OR tab', () => {
   );
 });
 
-test('R8 — flow-context scalars forbid [ ] { } anywhere, not just first', () => {
-  // The block-context check tests the FIRST character only, so `[a[b]` was
-  // accepted as the item `a[b`, which YAML forbids in flow context.
+test('AC14 — a flow collection is legal YAML; what refuses it is the parser or the schema, not a charset', () => {
+  // REPLACES 'R8 — flow-context scalars forbid [ ] { } anywhere, not just
+  // first'. That test's subject was grove's hand-rolled flow rule, written
+  // because the old block-context check tested only the FIRST character and so
+  // accepted `[a[b]` as the item `a[b`. A conforming parser moots the rule —
+  // but not the inputs, which are kept here so the boundary is visible: the
+  // three malformed spellings are refused BY THE PARSER, the nested sequence
+  // is refused BY THE SCHEMA CLAUSE (a sequence of sequences is not a sequence
+  // of strings), and a bracket in ordinary prose is content in both readers.
   for (const [name, value] of Object.entries({
     'open bracket': '[a[b]',
     'close bracket': '[a]b]',
     'open brace': '[a{b]',
     'close brace': '[a}b]',
-    'nested flow': '[[a]]',
   })) {
     assert.deepEqual(
       classifyContent(`---\nid: x\ntype: spec\nimplements: ${value}\n---\n`).classes,
-      ['unclaimed'], `${name} in a read flow sequence`,
-    );
-    assert.deepEqual(
-      classifyContent(`---\nid: x\ntype: spec\ndepends_on: ${value}\nimplements: adr-1\n---\n`).classes,
-      ['unclaimed'], `${name} in an unread flow sequence`,
+      ['unclaimed'], `${name}: the document does not parse`,
     );
   }
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements: [[a]]\n---\n').classes,
+    ['unclaimed'], 'a nested sequence is schema-invalid for implements',
+  );
+  // INVERTED: the same nested sequence under a key the classifier does not
+  // read is ordinary legal YAML, and the file classifies by its type. The
+  // whitelist refused it because its flow rule applied to every value.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\ndepends_on: [[a]]\nimplements: adr-1\n---\n').classes,
+    ['spec', 'implements-bearing'], 'an unread key may hold any legal YAML value',
+  );
   // A bracket inside a BLOCK-context scalar is ordinary content and stays so.
   assert.deepEqual(
     classifyContent('---\nid: x\ntype: adr\nnote: are [artifacts] in sync\n---\n').classes,
@@ -1471,28 +1704,43 @@ test('R8 — flow-context scalars forbid [ ] { } anywhere, not just first', () =
   );
 });
 
-test('R8 — a value the classifier READS is [A-Za-z0-9_-]+; an unread value is not narrowed', () => {
-  // The split is the design choice, and it is measured rather than cautious:
-  // requiring the narrow class of EVERY value would reclassify 31 tracked
-  // files, because unread keys legitimately carry prose and cross-repository
-  // ids. Requiring it of read keys alone reclassifies none.
-  for (const value of ['resea.rch', 'resea/rch', 'resea@rch', 'resea rch', 'resea"rch', 'resea;rch']) {
+test('AC14 — the narrow [A-Za-z0-9_-]+ charset is GONE, and the enum is what narrows a type now', () => {
+  // REPLACES 'R8 — a value the classifier READS is [A-Za-z0-9_-]+; an unread
+  // value is not narrowed'. That charset existed to make byte-equivalence with
+  // a conforming YAML reader a property rather than an argument — round eight
+  // named it the residual and closed it that way. Delegating to a conforming
+  // reader closes it at the source, so the charset is deleted rather than
+  // ported, and this test pins what actually keeps `type` honest now: the
+  // five-member enum.
+  for (const value of ['resea.rch', 'resea/rch', 'resea@rch', 'resea rch', 'resea;rch']) {
     assert.deepEqual(
       classifyContent(`---\nid: x\ntype: ${value}\n---\n`).classes, ['unclaimed'],
-      `type ${JSON.stringify(value)} is outside the narrow class`,
+      `type ${JSON.stringify(value)} is a legal YAML string and still outside the enum`,
     );
   }
-  for (const value of ['trellis/decision-0045', 'spec-0004@v6', 'adr.1']) {
-    assert.deepEqual(
-      classifyContent(`---\nid: x\ntype: spec\nimplements: ${value}\n---\n`).classes, ['unclaimed'],
-      `implements ${JSON.stringify(value)} is outside the narrow class`,
-    );
-  }
-  // A leading dash is inside [A-Za-z0-9_-]+ but is still a YAML indicator.
+  // A leading dash is a YAML indicator, so this is a parse failure rather than
+  // an off-enum string — a different route to the same fail-closed class.
   assert.deepEqual(classifyContent('---\nid: x\ntype: -research\n---\n').classes, ['unclaimed']);
 
-  // The same characters on UNREAD keys stay accepted — this is what keeps the
-  // corpus at zero churn.
+  // INVERTED, and this is the row that used to cost the most: an id-shaped
+  // `implements` carrying a slash, an at-sign or a dot is an ordinary YAML
+  // string. The whitelist narrowed READ keys to [A-Za-z0-9_-]+, so every one
+  // of these classified `unclaimed` and owed four; each now bears and owes
+  // two. Cross-repository ids of exactly this shape are what the corpus
+  // carries, which is why the narrowing was measured against read keys only.
+  for (const value of ['trellis/decision-0045', 'spec-0004@v6', 'adr.1']) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: spec\nimplements: ${value}\n---\n`).classes,
+      ['spec', 'implements-bearing'],
+      `implements ${JSON.stringify(value)} is a string, so it bears`,
+    );
+  }
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements:\n- trellis/decision-1\n---\n').classes,
+    ['spec', 'implements-bearing'], 'and so does a sequence of them',
+  );
+
+  // Unchanged: an unread value was never narrowed, and still is not.
   const unread = {
     'a slash': '---\nid: x\ntype: adr\ndepends_on: [trellis/decision-0045]\n---\n',
     'an at sign': '---\nid: x\ntype: adr\nchanges: [spec-0004-dual-host@v6]\n---\n',
@@ -1505,75 +1753,46 @@ test('R8 — a value the classifier READS is [A-Za-z0-9_-]+; an unread value is 
       `${name}: an unread value is bounded, not narrowed`,
     );
   }
-  // But a READ key's block sequence is narrowed.
-  assert.deepEqual(
-    classifyContent('---\nid: x\ntype: spec\nimplements:\n- trellis/decision-1\n---\n').classes,
-    ['unclaimed'], 'a read key narrows its sequence items too',
-  );
 });
 
-test('R8 — tag-resolution spellings cannot under-owe', () => {
-  // What the charset does NOT settle, pinned rather than claimed closed: YAML
-  // 1.1 resolves `no`, `y`, `null` to boolean/null where 1.2 keeps a string.
-  // No enum member is one of those spellings, so `type` is unaffected; for
-  // `implements` a resolution difference can only make the value more present,
-  // which over-owes. Both directions are fail-closed.
-  for (const spelling of ['no', 'null', 'y', 'on', 'off', 'true']) {
+test('AC14/INV16 — 1.2 tag resolution cannot under-owe: a string bears, a non-string is unclaimed', () => {
+  // REPLACES 'R8 — tag-resolution spellings cannot under-owe', whose claim was
+  // measurably FALSE once a library read the document. It argued that a
+  // resolution difference on `implements` "can only make the value MORE
+  // present, which over-owes" — true of a reader that only ever produced
+  // strings, false as soon as `null` and `true` can arrive. What replaces the
+  // argument is the schema clause plus a fixed dialect, and both directions
+  // are checked below.
+  //
+  // Under 1.2 these six are STRINGS (adr-0048 D6: "under 1.2, `y` and `yes`
+  // are two distinct strings"), so each is a present, non-empty implements and
+  // the spec bears — two owed records. Under 1.1 `no`/`y`/`on`/`off` resolve
+  // to booleans, which the schema clause refuses, and the file would owe four:
+  // over-owing, so even a mis-set dialect cannot under-owe here.
+  for (const spelling of ['no', 'y', 'on', 'off', 'yes', 'n']) {
     assert.deepEqual(
       classifyContent(`---\nid: x\ntype: ${spelling}\n---\n`).classes, ['unclaimed'],
-      `type: ${spelling} is outside the enum under every reader`,
+      `type: ${spelling} is a string outside the enum under 1.2`,
     );
     const spec = classifyContent(`---\nid: x\ntype: spec\nimplements: ${spelling}\n---\n`);
-    assert.ok(
-      spec.classes.includes('spec'),
-      `implements: ${spelling} keeps the spec class`,
-    );
-    assert.equal(
-      spec.implementsBearing, true,
-      `implements: ${spelling} counts as present — over-owing, never under`,
+    assert.deepEqual(
+      spec.classes, ['spec', 'implements-bearing'],
+      `implements: ${spelling} is the string "${spelling}" under 1.2, so it bears`,
     );
   }
-});
-
-test('R8 — an accepted value is never empty; only a BARE key holds the empty string', () => {
-  // The grammar rejects an empty scalar, so a field holds '' if and only if
-  // its line was a bare key — which is also the only thing that opens a
-  // sequence. That is why the bearing test needs no trim and no '[]' case.
-  assert.deepEqual(
-    classifyContent('---\nid: x\ntype: spec\nimplements:\n---\n').classes, ['spec'],
-    'a bare implements key is present but not bearing',
-  );
-  assert.deepEqual(
-    classifyContent('---\nid: x\ntype: spec\nimplements:   \n---\n').classes, ['spec'],
-    'trailing s-white does not make it a value',
-  );
-  assert.deepEqual(
-    classifyContent('---\nid: x\ntype: spec\nimplements: []\n---\n').classes, ['spec'],
-    'an empty flow sequence is present but not bearing',
-  );
-  assert.deepEqual(
-    classifyContent('---\nid: x\ntype:\n---\n').classes, ['unclaimed'],
-    'a bare type key has no enum value',
-  );
-});
-
-test('R8 — leading whitespace stays structural: comment stripping must not eat it', () => {
-  // A regression this round introduced and the round-seven battery caught:
-  // routing the comment stripper through yamlTrim removed LEADING whitespace
-  // too, so `  owner: me` matched the key form and indented continuations were
-  // silently accepted again — reopening the hole round seven closed.
-  assert.deepEqual(
-    classifyContent('---\nid: x\ntype: research\nmeta:\n  owner: me\n---\n').classes,
-    ['unclaimed'], 'a nested map is an indented continuation, not two keys',
-  );
-  assert.deepEqual(
-    classifyContent('---\nid: x\ntype: research\n  owner: me\n---\n').classes,
-    ['unclaimed'], 'an indented key-shaped line is still a continuation',
-  );
-  assert.deepEqual(
-    classifyContent('---\nid: x\ntype: research\n\towner: me\n---\n').classes,
-    ['unclaimed'], 'tab indentation too',
-  );
+  // The two spellings that are NOT strings under 1.2 either, named by
+  // adr-0048 D6 as the residual the schema clause closes.
+  for (const spelling of ['null', '~', 'true', 'false', '7']) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: spec\nimplements: ${spelling}\n---\n`).classes,
+      ['unclaimed'],
+      `implements: ${spelling} is not a string, so the whole document is schema-invalid`,
+    );
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: ${spelling}\n---\n`).classes, ['unclaimed'],
+      `type: ${spelling} is not a string either`,
+    );
+  }
 });
 
 
@@ -1710,4 +1929,365 @@ test('R9 — tabs are forbidden in indentation; a tab after the indicator is sep
     classifyContent(`---\nid: x\n${TAB}\ntype: research\n---\n`).classes,
     ['reviewless'], 'a whitespace-only line is empty, not indentation',
   );
+});
+
+
+// --- spec-0006@v3 §Frontmatter reading: grove's delimiter, the library's
+// document (adr-0048 D1/D3/D6/D7; INV16's parse clause, INV28, S17, AC14) ---
+//
+// The clauses these pin are normative text, quoted at each test rather than
+// inferred from the implementation:
+//   - the `---` block delimiter convention is grove's own and stays
+//     hand-written; only the document BETWEEN the delimiters is handed to the
+//     parser (D3's measured basis: delegating the delimiter regressed eight
+//     inputs into `code`, which owes 2 and is invisible to observer mode);
+//   - the inner document is read as YAML 1.2, core schema;
+//   - a parse failure classifies `unclaimed`, NEVER `code`;
+//   - after the parse the document shall be a mapping, `type` when present a
+//     string, `implements` when present a string or a sequence of strings —
+//     anything else classifies `unclaimed`, with no value coerced.
+
+test('AC14 — a legal YAML spelling of a known type classifies by that type, whatever the spelling', () => {
+  // spec-0006 §Frontmatter reading: "A schema-valid document classifies by its
+  // `type` string, whatever legal YAML spelling produced it: quoted scalars,
+  // block scalars, nested maps, anchors and flow collections are ordinary YAML
+  // and classify by `type` like any other document."
+  const spellings = {
+    'a double-quoted scalar': ['---\nid: x\ntype: "research"\n---\n', ['reviewless']],
+    'a single-quoted scalar': ["---\nid: x\ntype: 'research'\n---\n", ['reviewless']],
+    'a quoted KEY': ['---\nid: x\n"type": research\n---\n', ['reviewless']],
+    'an escape inside a quoted scalar': ['---\nid: x\ntype: "resear\\u0063h"\n---\n', ['reviewless']],
+    'an anchor on the value': ['---\nid: x\ntype: &t research\n---\n', ['reviewless']],
+    'an alias to an earlier value': ['---\nt: &t research\ntype: *t\n---\n', ['reviewless']],
+    'an explicit key indicator': ['---\n? type\n: research\n---\n', ['reviewless']],
+    'a nested map elsewhere in the document': [
+      '---\nid: x\ntype: charter\nmeta:\n  owner: someone\n---\n', ['charter'],
+    ],
+    'a literal block scalar elsewhere': [
+      '---\nid: x\ntype: charter\nnotes: |\n  line one\n---\n', ['charter'],
+    ],
+    'a folded block scalar elsewhere': [
+      '---\nid: x\ntype: charter\nnotes: >\n  folded\n---\n', ['charter'],
+    ],
+    'a quoted value carrying a colon': [
+      '---\nid: x\ntype: charter\ntitle: "a: b"\n---\n', ['charter'],
+    ],
+    'a flow mapping elsewhere': ['---\nid: x\ntype: spec\nmeta: {a: b}\n---\n', ['spec']],
+    'the whole document as a flow mapping': ['---\n{type: research}\n---\n', ['reviewless']],
+    'a flow sequence implements': [
+      '---\nid: x\ntype: spec\nimplements: [adr-1, adr-2]\n---\n', ['spec', 'implements-bearing'],
+    ],
+    'a block sequence implements': [
+      '---\nid: x\ntype: spec\nimplements:\n  - adr-1\n---\n', ['spec', 'implements-bearing'],
+    ],
+    'a quoted sequence item': [
+      '---\nid: x\ntype: spec\nimplements:\n  - "adr-1"\n---\n', ['spec', 'implements-bearing'],
+    ],
+    'a tag on the value': ['---\nid: x\ntype: !!str research\n---\n', ['reviewless']],
+  };
+  for (const [name, [text, expected]] of Object.entries(spellings)) {
+    assert.deepEqual(
+      classifyContent(text).classes, expected,
+      `${name}: legal YAML classifies by its type string, not by the reader's taste`,
+    );
+  }
+});
+
+test('AC14/INV28 — a document that does not parse classifies unclaimed, and NEVER code', () => {
+  // spec-0006 §Frontmatter reading: "A file that bears frontmatter whose inner
+  // document does not parse classifies `unclaimed`. `code` is the class of a
+  // file with NO frontmatter; it owes two records and sits outside observer
+  // scope, so reaching it by parse failure would under-owe review in exactly
+  // the class fail-closed typing exists to protect."
+  const unparseable = {
+    'an unterminated quote': '---\nid: x\ntype: research\ntitle: "abc\n---\n',
+    'an unterminated flow sequence': '---\nid: x\ntype: research\nimplements: [a, b\n---\n',
+    'a tab-indented continuation': '---\nid: x\ntype: research\n\tgarbage\n---\n',
+    'a duplicate key': '---\nid: x\ntype: research\ntype: spec\n---\n',
+    'a colon-space inside a plain scalar': '---\nid: x\ntype: a: b\n---\n',
+    'an alias with no anchor': '---\nid: x\ntype: *nowhere\n---\n',
+    'two keys that resolve to one integer': '---\n1: a\n0x1: b\ntype: research\n---\n',
+  };
+  for (const [name, text] of Object.entries(unparseable)) {
+    const classified = classifyContent(text);
+    assert.deepEqual(
+      classified.classes, ['unclaimed'],
+      `${name}: a parse failure is unclaimed — got ${JSON.stringify(classified.classes)}`,
+    );
+    assert.equal(classified.base, 'unclaimed', `${name}: and never code`);
+  }
+});
+
+test('INV28 — a successful parse to a NON-MAPPING is schema-invalid, never coerced', () => {
+  // spec-0006 §Frontmatter reading: "The parsed document shall be a mapping …
+  // Anything else — INCLUDING A SUCCESSFUL PARSE TO A NON-MAPPING — is
+  // schema-invalid and classifies `unclaimed`."
+  const nonMappings = {
+    'a sequence document': '---\n- research\n- spec\n---\n',
+    'a flow sequence document': '---\n[research]\n---\n',
+    'a scalar document': '---\nresearch\n---\n',
+    'a quoted scalar document': '---\n"research"\n---\n',
+    'an integer document': '---\n7\n---\n',
+    'a boolean document': '---\ntrue\n---\n',
+    'an empty document': '---\n---\n',
+    'a blank-line document': '---\n\n\n---\n',
+    'a comment-only document': '---\n# nothing at all\n---\n',
+    'an explicit null document': '---\nnull\n---\n',
+  };
+  for (const [name, text] of Object.entries(nonMappings)) {
+    assert.deepEqual(
+      classifyContent(text).classes, ['unclaimed'],
+      `${name}: a non-mapping document is schema-invalid, which is unclaimed`,
+    );
+  }
+});
+
+test('INV28 — a non-string type is schema-invalid; no value is coerced to reach a class', () => {
+  // spec-0006 §Frontmatter reading: "`type`, when present, shall be a string …
+  // No value is coerced to a string, and no non-string is read as a `type`."
+  const nonStrings = {
+    'an integer': '---\nid: x\ntype: 7\n---\n',
+    'a float': '---\nid: x\ntype: 1.5\n---\n',
+    'a boolean': '---\nid: x\ntype: true\n---\n',
+    'an explicit null': '---\nid: x\ntype: ~\n---\n',
+    'a bare key (an empty value is null in YAML)': '---\nid: x\ntype:\n---\n',
+    'a nested mapping': '---\nid: x\ntype:\n  name: research\n---\n',
+    'a flow mapping': '---\nid: x\ntype: {a: b}\n---\n',
+    'a sequence': '---\nid: x\ntype:\n  - research\n---\n',
+    'a timestamp tag': '---\nid: x\ntype: !!timestamp 2020-01-01\n---\n',
+    'a binary tag': '---\nid: x\ntype: !!binary aGk=\n---\n',
+  };
+  for (const [name, text] of Object.entries(nonStrings)) {
+    assert.deepEqual(
+      classifyContent(text).classes, ['unclaimed'],
+      `${name}: a non-string type classifies unclaimed rather than being coerced`,
+    );
+  }
+  // The other direction, so this cannot pass by classifying everything
+  // unclaimed: a string `type` outside the enum is unclaimed too, but a string
+  // INSIDE it classifies by its row.
+  assert.deepEqual(classifyContent('---\nid: x\ntype: adr\n---\n').classes, ['decision']);
+  assert.deepEqual(classifyContent('---\nid: x\ntype: feedback\n---\n').classes, ['reviewless']);
+
+  // THE CASE THAT MAKES THE CLAUSE OBSERVABLE, and it took a mutation to find
+  // it. On `type` alone the clause changes no class — no non-string can equal
+  // an enum member, so a coerced document lands `unclaimed` either way, and
+  // deleting the clause turned nothing red. It bites where the document is
+  // rejected WHOLE: a non-string `type` beside a perfectly good `implements`
+  // is schema-invalid, so the overlay must not be applied either.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: 7\nimplements: adr-1\n---\n').classes,
+    ['unclaimed'],
+    'a schema-invalid document classifies unclaimed WHOLE, overlay included',
+  );
+});
+
+test('INV28 — an implements outside string-or-sequence-of-strings is schema-invalid', () => {
+  // spec-0006 §Frontmatter reading: "`implements`, when present, shall be a
+  // string or a sequence of strings." adr-0048 D6 names the two spellings this
+  // closes by hand: "What remains — `implements: null` / `true` — is caught
+  // fail-closed by the schema clause."
+  const invalid = {
+    'null (a bare key)': '---\nid: x\ntype: spec\nimplements:\n---\n',
+    'an explicit null': '---\nid: x\ntype: spec\nimplements: ~\n---\n',
+    'a boolean': '---\nid: x\ntype: spec\nimplements: true\n---\n',
+    'an integer': '---\nid: x\ntype: spec\nimplements: 7\n---\n',
+    'a mapping': '---\nid: x\ntype: spec\nimplements:\n  a: b\n---\n',
+    'a sequence containing an integer': '---\nid: x\ntype: spec\nimplements: [adr-1, 7]\n---\n',
+    'a sequence containing a null': '---\nid: x\ntype: spec\nimplements: [adr-1, ~]\n---\n',
+    'a nested sequence': '---\nid: x\ntype: spec\nimplements: [[adr-1]]\n---\n',
+    'a sequence of mappings': '---\nid: x\ntype: spec\nimplements:\n  - a: b\n---\n',
+  };
+  for (const [name, text] of Object.entries(invalid)) {
+    assert.deepEqual(
+      classifyContent(text).classes, ['unclaimed'],
+      `${name}: schema-invalid implements classifies unclaimed, whole document`,
+    );
+  }
+  // The bearing row itself is UNCHANGED by the amendment — "its non-empty test
+  // stands as written, applied now only to the values the schema clause
+  // admits" — so an admitted-but-empty value still does not bear.
+  assert.deepEqual(classifyContent('---\nid: x\ntype: spec\nimplements: ""\n---\n').classes, ['spec']);
+  assert.deepEqual(classifyContent('---\nid: x\ntype: spec\nimplements: []\n---\n').classes, ['spec']);
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements: adr-1\n---\n').classes,
+    ['spec', 'implements-bearing'],
+  );
+});
+
+test('S17 — a conforming parse, fail-closed: three subjects, three classes', () => {
+  // The scenario verbatim: "one whose frontmatter spells `type` as the quoted
+  // scalar `"research"`, one whose frontmatter block opens but whose inner
+  // document does not parse, and one whose inner document parses successfully
+  // to a sequence rather than a mapping … the first is `reviewless` — its
+  // `type` string is `research` however it was spelled — and the second and
+  // third are both `unclaimed`; neither reaches `code`."
+  const quoted = classifyContent('---\nid: a\ntype: "research"\n---\nbody\n');
+  const unparseable = classifyContent('---\nid: b\ntype: research\ntitle: "unclosed\n---\nbody\n');
+  const sequence = classifyContent('---\n- research\n---\nbody\n');
+  assert.deepEqual(quoted.classes, ['reviewless']);
+  assert.deepEqual(unparseable.classes, ['unclaimed']);
+  assert.deepEqual(sequence.classes, ['unclaimed']);
+  for (const [name, classified] of Object.entries({ unparseable, sequence })) {
+    assert.notEqual(classified.base, 'code', `${name} must not reach code`);
+  }
+});
+
+test('AC14/D3 — the `---` delimiter convention stays grove-owned, so no input falls open into code', () => {
+  // adr-0048 D3: "Delegating the delimiter measurably fails eight inputs open
+  // into `code`, which owes 2 and is invisible to observer mode." Each shape
+  // below is one a naive `split('---')` would hand whole to the parser; every
+  // one of them must stay frontmatter-bearing and land in `unclaimed`.
+  const CR = String.fromCharCode(13);
+  const BOM = String.fromCharCode(0xfeff);
+  const delimiterShapes = {
+    'a byte-order mark before the opening delimiter': `${BOM}---\nid: x\ntype: research\n---\n`,
+    'a padded opening delimiter': '--- \nid: x\ntype: research\n---\n',
+    'a tab-padded opening delimiter': '---\t\nid: x\ntype: research\n---\n',
+    'an indented opening delimiter': ' ---\nid: x\ntype: research\n---\n',
+    'a padded closing delimiter': '---\nid: x\ntype: research\n--- \n',
+    'no closing delimiter at all': '---\nid: x\ntype: research\n',
+    'a CR-terminated block with no close': `---${CR}id: x${CR}type: research${CR}`,
+    // `...` ends a YAML document but is NOT grove's closing delimiter, so the
+    // block is unterminated. A reader that delegated the delimiter would see
+    // one complete document here and classify it `reviewless`.
+    'a block closed by a document-end marker': '---\nid: x\ntype: research\n...\n',
+  };
+  for (const [name, text] of Object.entries(delimiterShapes)) {
+    const classified = classifyContent(text);
+    assert.equal(
+      classified.base, 'unclaimed',
+      `${name}: must stay unclaimed — got ${classified.base}, and code under-owes`,
+    );
+  }
+  // The opposite direction, so the delimiter rule cannot pass by calling
+  // everything malformed: a file that opens NO block is genuinely `code`, and
+  // a byte-order mark on such a file does not make it frontmatter-bearing.
+  assert.deepEqual(classifyContent('export const x = 1;\n').classes, ['code']);
+  assert.deepEqual(classifyContent(`${BOM}export const x = 1;\n`).classes, ['code']);
+  // And a well-formed block still classifies by its type, delimiters intact.
+  assert.deepEqual(classifyContent('---\nid: x\ntype: research\n---\n').classes, ['reviewless']);
+});
+
+test('AC14/INV16 — the dialect is fixed at YAML 1.2 core schema, not left to a build flag', () => {
+  // INV16 (v3): "four measured inputs classify differently under 1.1, so the
+  // class would be fixed by a build flag no spec text states." Each case below
+  // is one of those: the assertion is the 1.2 answer, so a build switched to
+  // 1.1 turns this red rather than silently moving a class.
+  //   `no` is the string "no" under 1.2 and the boolean false under 1.1, so
+  //   under 1.1 it is schema-invalid and the whole file goes unclaimed.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements: no\n---\n').classes,
+    ['spec', 'implements-bearing'], '1.2 reads `no` as a string, so it bears',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements: [y, on, off]\n---\n').classes,
+    ['spec', 'implements-bearing'], '1.2 reads y/on/off as strings, so the sequence bears',
+  );
+  //   `y:` and `yes:` are two distinct keys under 1.2 and both resolve to
+  //   `true` under 1.1, where the document is a duplicate key and fails to
+  //   parse. adr-0048 D6: "Under 1.2, `y` and `yes` are two distinct strings,
+  //   so there is no collision to detect."
+  assert.deepEqual(
+    classifyContent('---\ny: 1\nyes: 2\ntype: research\n---\n').classes,
+    ['reviewless'], '1.2 sees two keys, so the declared type stands',
+  );
+  //   A 1.1 merge key would fold `<<` into the mapping; under 1.2 core it is
+  //   an ordinary key, so it cannot inject a `type`.
+  assert.deepEqual(
+    classifyContent('---\nbase: &b {type: research}\n<<: *b\n---\n').classes,
+    ['unclaimed'], '1.2 core keeps `<<` an ordinary key, so no type is declared',
+  );
+});
+
+test('adr-0048 — a multi-document stream is a refusal, never classified by its first document', () => {
+  // The reader must use `parse()`, not `parseAllDocuments()`: a stream whose
+  // first document declares a harmless type and whose second declares another
+  // would otherwise classify by whichever the reader happened to pick. Grove's
+  // own delimiter rule already ends the block at the first `---`, so the only
+  // route in is the document-end marker — which is exactly why this is tested
+  // rather than assumed unreachable.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: research\n...\ntype: spec\n---\n').classes,
+    ['unclaimed'], 'two documents behind one delimiter pair is a parse failure',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: research\n...\nplain scalar\n---\n').classes,
+    ['unclaimed'], 'and so is a document followed by a bare scalar document',
+  );
+});
+
+test('adr-0048 — an alias-expansion bomb is a refusal, not an unbounded expansion', () => {
+  // Frontmatter is OPEN input — every file in the consumer's change set
+  // reaches this reader — so the classic YAML amplification attack is in
+  // scope. The library caps alias expansion and THROWS; the guard maps that
+  // to the same fail-closed class as any other parse failure. Note the throw
+  // is not a YAMLParseError, which is why the wrap catches every throw rather
+  // than one error class.
+  const bomb = [
+    '---',
+    'a: &a ["x","x","x","x","x","x","x","x","x"]',
+    'b: &b [*a,*a,*a,*a,*a,*a,*a,*a,*a]',
+    'c: &c [*b,*b,*b,*b,*b,*b,*b,*b,*b]',
+    'd: &d [*c,*c,*c,*c,*c,*c,*c,*c,*c]',
+    'e: &e [*d,*d,*d,*d,*d,*d,*d,*d,*d]',
+    'f: &f [*e,*e,*e,*e,*e,*e,*e,*e,*e]',
+    'type: research',
+    '---',
+    '',
+  ].join('\n');
+  assert.deepEqual(classifyContent(bomb).classes, ['unclaimed']);
+});
+
+test('adr-0048 — classifying emits no process warning, whatever the document says', () => {
+  // The guard's non-blocking channel IS stderr (stop-guard.sh maps guard 1 to
+  // "non-blocking stderr report"), and `process.emitWarning` writes there
+  // asynchronously — so a parser that logs warnings interleaves them into the
+  // operator report. The library's warning channel is therefore turned off at
+  // the parser boundary.
+  //
+  // MEASURED NEAR-MISS, recorded because the obvious fix is wrong: the
+  // library's `logLevel: 'silent'` ALSO suppresses errors, and under it a
+  // multi-document stream returns a value instead of throwing and a duplicate
+  // key resolves last-wins. Both fail-closed properties above would have gone
+  // silently. The setting must be `'error'`.
+  // The stub is `process.emitWarning` and NOT a `process.on('warning')`
+  // listener, and that is a correction a mutation forced: Node delivers the
+  // 'warning' event on a later tick, so the listener form was removed before
+  // the event arrived and the check passed on the mutated build. Stubbing the
+  // emitter is synchronous and cannot go vacuous that way.
+  const warnings = [];
+  const realEmitWarning = process.emitWarning;
+  process.emitWarning = (...args) => { warnings.push(String(args[0])); };
+  try {
+    classifyContent('---\nid: x\ntype: !unresolved research\n---\n');
+    classifyContent('---\n? [a, b]\n: 1\ntype: research\n---\n');
+  } finally {
+    process.emitWarning = realEmitWarning;
+  }
+  assert.deepEqual(warnings, [], 'no warning may reach the guard\'s report channel');
+});
+
+test('adr-0048 — a __proto__ key in frontmatter is own data and reaches no prototype', () => {
+  // The same ruling the TOML swap recorded, re-measured on the YAML side: the
+  // library returns ordinary objects, so the pinned assertion is NO PROTOTYPE
+  // WRITE rather than a null prototype. Every shape that could carry one is a
+  // case, so the property is pinned at least as tightly as the hand-rolled
+  // reader's Map was.
+  const shapes = {
+    'a scalar value': '---\n__proto__: pwned\ntype: research\n---\n',
+    'a nested mapping value': '---\n__proto__:\n  polluted: yes\ntype: research\n---\n',
+    'a flow mapping value': '---\n__proto__: {polluted: yes}\ntype: research\n---\n',
+    'a quoted key': '---\n"__proto__": pwned\ntype: research\n---\n',
+    'a sequence value': '---\n__proto__: [polluted]\ntype: research\n---\n',
+  };
+  for (const [name, text] of Object.entries(shapes)) {
+    assert.deepEqual(
+      classifyContent(text).classes, ['reviewless'],
+      `${name}: the document still classifies by its declared type`,
+    );
+    assert.equal({}.polluted, undefined, `${name}: no prototype was written`);
+    assert.equal({}.pwned, undefined, `${name}: no prototype was written`);
+    assert.equal(Object.prototype.polluted, undefined, `${name}: Object.prototype is clean`);
+  }
 });

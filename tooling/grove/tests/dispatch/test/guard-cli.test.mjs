@@ -1,4 +1,5 @@
-// Upstream: spec-0006-voluntary-dispatch@v2 INV7, INV9, INV16–INV20, INV27;
+// Upstream: spec-0006-voluntary-dispatch@v3 INV7, INV9, INV16–INV20, INV27;
+// @v2 -> @v3: the cited range spans INV16, which v3 rewrote.
 // AC1, AC2, AC5 (defect half), AC6 (mechanical); S8–S10.
 // Decision: adr-0046-how-dispatch-rules-reach-a-session.
 //

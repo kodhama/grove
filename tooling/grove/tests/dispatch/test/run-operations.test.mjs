@@ -1,4 +1,5 @@
-// Upstream: spec-0006-voluntary-dispatch@v2 INV5–INV10; AC4, AC5, AC6
+// Upstream: spec-0006-voluntary-dispatch@v3 INV5–INV10; AC4, AC5, AC6
+// (@v2 -> @v3: the cited range spans INV8, which v3 clarified in place.)
 // (mechanical); S2, S4–S7. Decision: adr-0046.
 //
 // Behavioral, untested here per the spec's labels: stale-resolution
@@ -230,7 +231,11 @@ test('S7 — abort writes status/closed/reason, deletes nothing, touches nothing
   assert.equal(parsed.ok, true, parsed.reason);
   assert.equal(parsed.cursor.status, 'aborted');
   assert.equal(parsed.cursor.reason, 'user aborted the fixture run');
-  assert.match(afterText, /subjects = \["specs\/changed\.md"\]/, 'subjects immutable');
+  // The array spelling is the LIBRARY's now — `[ "a" ]`, with inner spaces —
+  // because close/abort re-serialize the document (adr-0048 D3, INV8 v3:
+  // fields, not bytes). The value is what INV8 protects and the value is
+  // unchanged; the spacing is not grove's to choose.
+  assert.match(afterText, /subjects = \[ "specs\/changed\.md" \]/, 'subjects immutable');
   assert.match(afterText, /intent = "land the fixture"/, 'intent immutable');
   const beforeLines = before.split('\n');
   const afterLines = afterText.split('\n');
@@ -285,7 +290,7 @@ test('INV8 — on a well-formed cursor the whole-file replacement path is unreac
   // The planned content preserves every open-time field.
   const content = plan.actions[0].content;
   assert.match(content, /intent = "land the fixture"/);
-  assert.match(content, /subjects = \["specs\/changed\.md"\]/);
+  assert.match(content, /subjects = \[ "specs\/changed\.md" \]/);
   assert.match(content, new RegExp(`opened = "${openedFor(RUN_ID)}"`));
 });
 
@@ -388,10 +393,14 @@ test('S11 — guard and run operations behave identically with a deleted or mang
 // the close/abort field edit must carry the same tolerance (INV8 unwidened:
 // still a field edit on a well-formed cursor, never the whole-file path).
 
-// Variant list DERIVED FROM toml.mjs's line handling (one pin per parser
-// tolerance): split(/\r?\n/) -> optional trailing \r; stripComment() ->
-// #-comment to EOL outside strings; .trim() after comment-strip -> leading
-// AND trailing whitespace; key/value trimmed around '=' -> inner spacing.
+// Variant list RE-DERIVED FROM TOML ITSELF (adr-0048): the reader is a
+// conforming TOML parser now, so the set of legal spellings is the FORMAT's,
+// not a hand-rolled line handler's. The first six pin whitespace, comment and
+// line-ending tolerance as before; the six after them are spellings the
+// hand-rolled reader rejected as unparseable and a conforming reader accepts —
+// every one of which wedged close AND abort while the edit was a
+// `status = "open"` regex, because INV8's whole-file exception is deliberately
+// unreachable on a cursor that is well-formed. Measured, all six.
 const NON_CANONICAL_CURSORS = {
   'indented status line (leading trim)': (runId) =>
     `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
@@ -417,6 +426,31 @@ const NON_CANONICAL_CURSORS = {
     `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
       + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
       + `status   =   "open"\n`,
+  // --- the six the hand-rolled reader could not read (adr-0048 D3) ---
+  'literal-string status': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `status = 'open'\n`,
+  'multi-line basic string status': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `status = ${'"'.repeat(3)}open${'"'.repeat(3)}\n`,
+  'multi-line literal string status': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `status = ${"'".repeat(3)}open${"'".repeat(3)}\n`,
+  'quoted status key': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `"status" = "open"\n`,
+  'literal-quoted status key': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `'status' = "open"\n`,
+  'escape-spelled status value': (runId) =>
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
+      + `intent = "land the fixture"\nsubjects = ["specs/changed.md"]\n`
+      + `status = "\\u006fpen"\n`,
 };
 
 test('a well-formed non-canonical cursor closes cleanly (CRLF, comment, spacing)', async (t) => {
@@ -438,8 +472,14 @@ test('a well-formed non-canonical cursor closes cleanly (CRLF, comment, spacing)
       const parsed = parseCursor(after, { runId });
       assert.equal(parsed.ok, true, parsed.reason);
       assert.equal(parsed.cursor.status, 'closed');
+      // INVERTED with adr-0048, and pinned rather than dropped: close is a
+      // read-modify-write through the library now, so the document is
+      // re-serialized and the line-ending style NORMALIZES to LF. INV8 as
+      // clarified at v3 constrains which FIELDS change, not which bytes, so
+      // this is permitted — but it is a real byte-level behaviour change, and
+      // an assertion that quietly disappeared would hide it.
       if (text.includes('\r\n')) {
-        assert.ok(after.includes('\r\n'), 'line-ending style preserved');
+        assert.equal(after.includes('\r\n'), false, 'line endings normalize on re-serialization');
       }
     });
   }
@@ -910,7 +950,7 @@ test('R4 — abort edits the ROOT table: a trailing [[claims]] table cannot swal
   assert.equal(parsed.cursor.claims[0].reason, undefined);
   // INV8's immutability half: every open-time byte survives, table included.
   assert.match(text, /intent = "land the fixture"/);
-  assert.match(text, /subjects = \["specs\/changed\.md"\]/);
+  assert.match(text, /subjects = \[ "specs\/changed\.md" \]/);
   assert.match(text, /\[\[claims\]\]/);
   assert.match(text, /note = "written by no shipped path"/);
 });
@@ -1163,4 +1203,134 @@ test('R9 — the run-id prefix must equal opened, in cursor validation and in pl
   // And the agreeing request this fixture normally builds still plans.
   const good = await planOpenRun(openRequest(dir));
   assert.equal(good.ok, true, good.summary);
+});
+
+// --- INV8 (v3, clarified in place): FIELDS, not bytes ---
+//
+// This is what carries INV8 once the surgical line edit is gone. The old
+// implementation got the guarantee from its mechanism — it only ever rewrote
+// the one matched line — so nothing had to assert the guarantee itself, and
+// the mechanism's own tolerance became a wedge (six legal spellings above).
+// A read-modify-write cannot inherit that argument: it rewrites everything,
+// so the invariant has to be CHECKED. Re-parse both sides and diff the
+// documents.
+
+function documentDiff(before, after) {
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+  return keys.filter(
+    (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]),
+  );
+}
+
+test('INV8 — close changes EXACTLY status and closed; every other field survives byte-for-value', async () => {
+  const dir = await repoFixture();
+  const runId = '20260728-140000-fielddiff';
+  const cursorPath = join(dir, '.grove', 'runs', runId, 'cursor.toml');
+  await mkdir(join(dir, '.grove', 'runs', runId), { recursive: true });
+  // NOTE the deliberate absence of `claims` here, measured rather than
+  // assumed: a cursor carrying the reserved key is a DEFECT, so the guard
+  // exits 2 and close is denied outright (INV9/AC6). The reserved key can only
+  // ride the abort path, and the abort test below is where it is checked. The
+  // status is spelled as a literal string — a spelling the previous writer
+  // could not edit at all.
+  await writeFile(cursorPath, `schema = 1\nrun = "${runId}"\n`
+    + `opened = "${openedFor(runId)}"\nintent = "land the fixture"\n`
+    + `subjects = ["specs/changed.md", "specs/other.md"]\nstatus = 'open'\n`);
+  const before = parseCursor(await readFile(cursorPath, 'utf8'), { runId });
+  assert.equal(before.ok, true, before.reason);
+
+  const plan = await planCloseRun({ repoRoot: dir, runId, closed: '2026-07-28T18:00:00Z' });
+  assert.equal(plan.ok, true, plan.summary);
+  await applyRunPlan(plan, {});
+
+  const after = parseCursor(await readFile(cursorPath, 'utf8'), { runId });
+  assert.equal(after.ok, true, after.reason);
+  assert.deepEqual(
+    documentDiff(before.cursor, after.cursor),
+    ['closed', 'status'],
+    'exactly status and closed differ',
+  );
+  assert.equal(after.cursor.status, 'closed');
+  assert.deepEqual(after.cursor.subjects, ['specs/changed.md', 'specs/other.md']);
+});
+
+test('INV8 — abort changes EXACTLY status, closed and reason on a well-formed cursor', async () => {
+  const dir = await repoFixture();
+  const runId = '20260728-150000-fielddiff';
+  const cursorPath = join(dir, '.grove', 'runs', runId, 'cursor.toml');
+  await mkdir(join(dir, '.grove', 'runs', runId), { recursive: true });
+  await writeFile(cursorPath, `schema = 1\nrun = "${runId}"\n`
+    + `opened = "${openedFor(runId)}"\nintent = "land the fixture"\n`
+    + `subjects = ["specs/changed.md"]\nstatus = "open"\n`
+    + `\n[[claims]]\nwho = "someone"\n`);
+  const before = parseCursor(await readFile(cursorPath, 'utf8'), { runId });
+  assert.equal(before.ok, true, before.reason);
+
+  const plan = await planAbortRun({
+    repoRoot: dir, runId, closed: '2026-07-28T19:00:00Z', reason: 'fixture abort',
+  });
+  assert.equal(plan.ok, true, plan.summary);
+  assert.equal(plan.wholeFileReplacement, false, 'a well-formed cursor never takes the exception');
+  await applyRunPlan(plan, { confirmedActionIds: plan.actions.map((a) => a.id) });
+
+  const after = parseCursor(await readFile(cursorPath, 'utf8'), { runId });
+  assert.equal(after.ok, true, after.reason);
+  assert.deepEqual(
+    documentDiff(before.cursor, after.cursor),
+    ['closed', 'reason', 'status'],
+    'exactly status, closed and reason differ',
+  );
+  assert.deepEqual(after.cursor.claims, [{ who: 'someone' }], 'the reserved key survives');
+});
+
+// The parse/serialize asymmetry adr-0048's replacement introduced, found by an
+// independent reviewer on grove#186. `smol-toml` PARSES a table nested ~1000
+// deep and REFUSES to stringify it — limits the old hand-rolled surgical line
+// edit never had, because it never re-serialized the document at all. Both
+// close and abort read-modify-write through the library now, so the throw
+// escaped uncaught out of the plan call: not a refusal, a crash, on a cursor
+// that is schema-valid and OPEN. The `claims` table is the reachable carrier
+// because it is schema-reserved — its presence is a defect on a parseable
+// cursor, never a parse failure, so it survives into the document being
+// rewritten (cursor.mjs's rewriteCursorFields contract).
+async function deepClaimsRun(dir, runId) {
+  await mkdir(join(dir, '.grove', 'runs', runId), { recursive: true });
+  const path = Array.from({ length: 1200 }, (_, i) => `k${i}`).join('.');
+  await writeFile(
+    join(dir, '.grove', 'runs', runId, 'cursor.toml'),
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
+      + 'intent = "x"\nsubjects = [ "specs/changed.md" ]\nstatus = "open"\n'
+      + `[claims.${path}]\nx = 1\n`,
+  );
+}
+
+test('a cursor the library parses but cannot re-serialize is REFUSED, not thrown out of', async () => {
+  const dir = await repoFixture();
+  const runId = '20260728-180000-deep';
+  await deepClaimsRun(dir, runId);
+
+  // It really is the asymmetric case: parse and schema both accept it.
+  const parsed = parseCursor(
+    await readFile(join(dir, '.grove', 'runs', runId, 'cursor.toml'), 'utf8'),
+    { runId },
+  );
+  assert.equal(parsed.ok, true, 'precondition: the document parses and validates');
+  assert.equal(parsed.claimsPresent, true, 'precondition: the reserved table survives the parse');
+
+  const close = await planCloseRun({
+    repoRoot: dir, runId, closed: '2026-07-28T19:00:00Z',
+  });
+  assert.equal(close.ok, false);
+  assert.match(close.summary, /re-serialize|serializ/i,
+    'the refusal names serialization, not an unparseable cursor it is not');
+
+  const abort = await planAbortRun({
+    repoRoot: dir, runId, closed: '2026-07-28T19:00:00Z', reason: 'deep claims',
+  });
+  assert.equal(abort.ok, false);
+  assert.match(abort.summary, /re-serialize|serializ/i);
+  // INV8 still holds: this cursor IS well-formed, so the whole-file exception
+  // stays unreachable. The run is refused loudly rather than exited by widening
+  // a spec clause in code — see the Open question raised on grove#186.
+  assert.equal(abort.wholeFileReplacement, false);
 });

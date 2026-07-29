@@ -19,6 +19,13 @@
 // One unified rule for every bad state; the floor stays enforced (guardian has a
 // human intent gate) and non-silent (the warning).
 
+// The generated third-party parser bundle (adr-0048 D2). It lives under
+// runtime/dispatch/lib/ because spec-0004 fixes the installable package root
+// to an exact top-level entry list, so a new runtime/vendor/ root would need a
+// spec amendment; every runtime that reads a borrowed format imports it from
+// there, as lifecycle.mjs already does.
+import { parseTomlDocument } from '../../dispatch/lib/parsers.mjs';
+
 // The four gates, in pipeline order.
 export const GATE_ROWS = ['intent', 'spec', 'build', 'ship'];
 
@@ -85,46 +92,105 @@ export function validateFloor(gates) {
   return { ok: true };
 }
 
-// A minimal TOML reader for gates.toml's shape (D7): top-level scalars, `[section]`
-// headers, and per-key `"string"` / bool / `["a", "b"]` values. Deliberately
-// small — gates.toml is a fixed, grove-written shape, not arbitrary TOML.
-// Throws on a line it cannot parse (a malformed profile must NOT parse into a
-// half-populated object that could sneak past the floor; the guard treats a
-// throw as "unreadable" and falls back).
-export function parseGatesToml(text) {
-  if (typeof text !== 'string') throw new Error('gates.toml: no text to parse');
-  const root = {};
-  let section = root;
-  const lines = text.split(/\r\n?|\n/);
-  for (let i = 0; i < lines.length; i++) {
-    const raw = stripComment(lines[i]);
-    const line = raw.trim();
-    if (line === '') continue;
-    const sectionMatch = line.match(/^\[([A-Za-z0-9_]+)\]$/);
-    if (sectionMatch) {
-      const name = sectionMatch[1];
-      if (!(name in root)) root[name] = {};
-      section = root[name];
+// gates.toml is TOML, and TOML is read by the dependency now (adr-0048 D1/D3).
+// What stays hand-written is the SHAPE — and that is not a stylistic
+// preference, it is the security property this function used to carry in its
+// narrowness. The old reader accepted `"string"`, bool and `["a","b"]` and
+// nothing else, and its comment said why: "a malformed profile must NOT parse
+// into a half-populated object that could sneak past the floor; the guard
+// treats a throw as 'unreadable' and falls back". A permissive parser accepts
+// those same inputs SUCCESSFULLY, so swapping the syntax layer and stopping
+// there would stop the loud D8 fallback from ever firing on them.
+//
+// So the split is D1's, applied in two layers with the second one right behind
+// the first: the LIBRARY decides what is legal TOML, `assertGatesShape` decides
+// which legal documents are a gate profile, and it throws the same class of
+// error the line reader threw so `resolveProfile`'s fallback path is unchanged.
+//
+// WHAT THE SHAPE CONSTRAINS, and what it deliberately does not. It constrains
+// VALUE TYPES and NESTING DEPTH — the two things adr-0018 D7 actually declares
+// about this file ("an explicit full table", top-level scalars plus one level
+// of `[section]`). It does NOT constrain key or string SPELLING: a dotted key,
+// a quoted key, a quoted section header, a literal string and a multi-line
+// string are legal TOML spellings of documents already inside the shape, and
+// grove does not define TOML, so it does not get to be stricter than the parser
+// it delegates to. Those spellings used to throw and drop the consumer to
+// guardian; they are now read as what they say.
+//
+// MEASURED SCOPE, recorded so the claim is no larger than the evidence. The
+// FLOOR was never reachable past `validateFloor` under either reader: an
+// all-agent profile spelled with dotted keys, an inline table, quoted keys or
+// literal strings fell back to guardian both before and after, because the
+// floor validator reads the four rows whatever spelled them. What the
+// narrowness actually protected is CONSERVATISM ELSEWHERE IN THE FILE — a
+// `[trigger]` key holding a number forced the guardian fallback, and without
+// `assertGatesShape` it would silently stop doing so and honour whatever
+// weaker profile the file declares.
+
+// The values a gates.toml entry may hold (adr-0018 D7). Anything else — a
+// number, a float, a date or time, an inline table, a mixed or nested array —
+// is outside the declared shape.
+function isDeclaredValue(value) {
+  if (typeof value === 'string' || typeof value === 'boolean') return true;
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+// A `[section]`: a plain table, and plain is load-bearing. smol-toml returns a
+// TomlDate for every date and time form, and `typeof` reports that as an
+// object — so a prototype check, not a `typeof`, is what keeps a datetime from
+// being read as an empty section.
+function isSection(value) {
+  return value !== null
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function assertGatesShape(root) {
+  for (const [key, value] of Object.entries(root)) {
+    if (isDeclaredValue(value)) continue;
+    if (isSection(value)) {
+      for (const [inner, innerValue] of Object.entries(value)) {
+        if (isDeclaredValue(innerValue)) continue;
+        throw new Error(
+          `gates.toml: [${key}] ${inner} is outside the declared shape `
+            + '(a string, a boolean, or an array of strings)',
+        );
+      }
       continue;
     }
-    const kv = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+)$/);
-    if (!kv) throw new Error(`gates.toml: cannot parse line ${i + 1}: ${JSON.stringify(lines[i])}`);
-    // Reject a duplicate key within a section fail-closed (matching
-    // check/lib/toml.mjs): a last-wins overwrite is a parse-vs-display
-    // divergence — a human reads the first, the parser keeps the last.
-    if (Object.prototype.hasOwnProperty.call(section, kv[1])) {
-      throw new Error(`gates.toml: duplicate key "${kv[1]}" on line ${i + 1}`);
-    }
-    section[kv[1]] = parseValue(kv[2].trim(), i + 1);
+    throw new Error(
+      `gates.toml: ${key} is outside the declared shape (a string, a boolean, `
+        + 'an array of strings, or one level of table)',
+    );
   }
+}
+
+// Reads gates.toml (D7). Throws on anything the parser refuses AND on anything
+// outside the shape above — a malformed profile must NOT parse into a
+// half-populated object that could sneak past the floor; the guard treats a
+// throw as "unreadable" and falls back.
+export function parseGatesToml(text) {
+  if (typeof text !== 'string') throw new Error('gates.toml: no text to parse');
+  let root;
+  try {
+    root = parseTomlDocument(text);
+  } catch (error) {
+    // WRAPPED (adr-0048): every parse call site is wrapped, and this one is
+    // re-framed rather than re-thrown raw so the message keeps naming the file
+    // the operator has to fix. `resolveProfile` reports it as "unreadable".
+    throw new Error(`gates.toml: ${error && error.message}`);
+  }
+  assertGatesShape(root);
   // adr-0021 D2, fail-closed (code-review HIGH on 670759d): a DECLARED
   // top-level runtime_dir that is not a non-empty string (boolean, array,
   // empty/whitespace-only) is wrong-but-present — THROW so it routes through
   // the loud guardian fallback (exit 2 + warning), exactly the charter's
   // "wrong-but-present fails loudly" semantics. A silent narrow-to-null here
   // would make it indistinguishable from never-declared, defeating the
-  // declared-vs-missing distinction. (Numbers and duplicate keys already
-  // throw in parseValue / the duplicate guard.)
+  // declared-vs-missing distinction. (A NUMBER runtime_dir is refused one line
+  // earlier by the shape check, which names the shape rather than the key —
+  // still a throw, still the loud fallback.)
   if ('runtime_dir' in root) {
     if (typeof root.runtime_dir !== 'string' || root.runtime_dir.trim() === '') {
       throw new Error(
@@ -148,34 +214,6 @@ export function parseGatesToml(text) {
     trigger: root.trigger || {},
     intentExternal: root.intent_external || {},
   };
-}
-
-function stripComment(line) {
-  // Strip a `#` comment that is not inside a string. gates.toml carries only
-  // simple values, so a `#` outside quotes begins a comment.
-  let inString = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') inString = !inString;
-    else if (ch === '#' && !inString) return line.slice(0, i);
-  }
-  return line;
-}
-
-function parseValue(v, lineNo) {
-  if (v === 'true') return true;
-  if (v === 'false') return false;
-  if (v.startsWith('"') && v.endsWith('"') && v.length >= 2) return v.slice(1, -1);
-  if (v.startsWith('[') && v.endsWith(']')) {
-    const inner = v.slice(1, -1).trim();
-    if (inner === '') return [];
-    return inner.split(',').map((item) => {
-      const s = item.trim();
-      if (s.startsWith('"') && s.endsWith('"') && s.length >= 2) return s.slice(1, -1);
-      throw new Error(`gates.toml: non-string array item on line ${lineNo}: ${JSON.stringify(s)}`);
-    });
-  }
-  throw new Error(`gates.toml: unsupported value on line ${lineNo}: ${JSON.stringify(v)}`);
 }
 
 // The loud fallback warning (D8). Named so callers surface an identical message.

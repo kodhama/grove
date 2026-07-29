@@ -1,0 +1,16 @@
+{
+  "name": "grove-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Workspace root for Grove's maintainer packages (adr-0048 D4): one hoisted node_modules for the six suites and commands, never a published package and never part of the installable plugin.",
+  "license": "MIT",
+  "workspaces": [
+    "tooling/grove/build",
+    "tooling/grove/probes",
+    "tooling/grove/release",
+    "tooling/grove/tests/dispatch",
+    "tooling/grove/tests/gates",
+    "tooling/grove/tests/lifecycle"
+  ]
+}

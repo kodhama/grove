@@ -135,6 +135,42 @@ test('spec-0005 AC7/AC13/AC15 — stock ledgers and config use canonical schema-
   const expected = new Map([
     ['tooling/grove/build/test-deps.yaml', `schema: 2
 groups:
+  "adr-0048-dependency-delivery":
+    precision: exact
+    tests:
+      - file: "test/dependency-delivery.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 D2 — a hand edit to the committed parser bundle fails check mode"
+          - title:
+              - "adr-0048 D2 — the bundle imports and executes from a directory containing NO node_modules"
+          - title:
+              - "adr-0048 D2 — the bundle's only bare specifiers are node builtins"
+          - title:
+              - "adr-0048 D2 — two consecutive builds of the parser bundle are byte-identical"
+          - title:
+              - "adr-0048 D2/spec-0004 — the bundle and its notices are declared generated files inside the permitted package shape"
+          - title:
+              - "adr-0048 D4 — CI installs the workspace before any suite runs, and no longer claims no install is needed"
+          - title:
+              - "adr-0048 D4 — node_modules is ignored BY THE COMMITTED .gitignore, so the derived change set stays bounded"
+          - title:
+              - "adr-0048 D4 — the committed lockfile is the install authority npm ci requires"
+          - title:
+              - "adr-0048 D4 — the root manifest declares exactly the six workspace packages, and no package escapes it"
+          - title:
+              - "adr-0048 D9 — every bundled dependency carries its licence notice, in NOTICES.md AND in the bundle bytes"
+      - file: "test/generate.test.mjs"
+        cases:
+          - title:
+              - "all projections are marked, source-addressed, and native ids are unique underscore forms"
+          - title:
+              - "configured roots are explicit and do not include plugin custom-agent TOML"
+    specs:
+      - "spec-0004-dual-host-distribution@v8"
+    decisions:
+      - "adr-0048-parsers-are-dependencies"
+    notes: "The delivery machinery, and the two legacy declarations adr-0048 TOUCHED — the fourth canonical source and the GENERATED_FILES registration — which adr-0043 requires be selected exactly rather than left to coarse scope. The spec-0004 pin is the package-root shape that fixes where the bundle may land, not a claim that the spec governs the workspace root."
   "legacy-package":
     precision: coarse
     tests:
@@ -186,7 +222,7 @@ groups:
               - "spec-0005 AC7/S24 — structured canary contracts propagate from all six authored sources"
     specs:
       - "spec-0005-structured-test-dependency-canary@v1"
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0043-structured-test-dependency-canary"
     covers:
@@ -223,7 +259,7 @@ groups:
               - "entry skills join the host inventories as entry-class components"
     specs:
       - "spec-0004-dual-host-distribution@v8"
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
 `],
@@ -271,6 +307,26 @@ groups:
 `],
     ['tooling/grove/tests/gates/test-deps.yaml', `schema: 2
 groups:
+  "adr-0048-parsers-are-dependencies":
+    precision: exact
+    tests:
+      - file: "test/profile.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 — a byte-order mark now makes gates.toml UNREADABLE, disclosed rather than stripped"
+          - title:
+              - "adr-0048 D1 — a TOML-legal document outside the declared gates.toml shape THROWS at parse"
+          - title:
+              - "adr-0048 D3 — a legal TOML spelling the line reader could not read is now read correctly"
+          - title:
+              - "adr-0048 D3/F1 — the floor is the floor however the profile is spelled"
+          - title:
+              - "adr-0048 D8 — a TOML-legal but schema-invalid profile still routes through the LOUD guardian fallback"
+          - title:
+              - "parseGatesToml rejects a DUPLICATE key within a section (fail-closed, now by the PARSER)"
+    decisions:
+      - "adr-0048-parsers-are-dependencies"
+    notes: "The declarations touched or added when the hand-rolled gates.toml line reader was replaced by the bundled TOML parser plus a grove-owned shape check (adr-0043: a touched declaration may not rely on coarse scope). The rest of this package stays coarse as untouched legacy."
   "legacy-package":
     precision: coarse
     tests:
@@ -290,6 +346,28 @@ groups:
 `],
     ['tooling/grove/tests/lifecycle/test-deps.yaml', `schema: 2
 groups:
+  "adr-0048-toml-is-a-dependency":
+    precision: exact
+    tests:
+      - file: "test/surface-and-setup.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 — the config writer round-trips every declared token shape, scalar and list"
+          - title:
+              - "adr-0048 D3 — a config value TOML cannot express is a REFUSAL, never a broken file"
+          - title:
+              - "adr-0048 D3 — serializeConfig emits TOML, so a DEL byte is escaped instead of written raw"
+      - file: "test/refresh-profile-remove.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 — a quoted gate KEY reads fine and still fails at seedPreset: the writer is a NAMED remaining gap"
+          - title:
+              - "adr-0048 — an unparseable gates.toml is a reported REFUSAL, never a throw out of the planner"
+          - title:
+              - "adr-0048 — set-profile READS a gates.toml the old line reader called an invalid gate row"
+    decisions:
+      - "adr-0048-parsers-are-dependencies"
+    notes: "parseProfile reads the gate profile through the bundled TOML parser and serializeConfig writes .grove/config.toml through it; the closed gate-row enum, the value enum, the floor rule, the config-token contract and the pre-write round-trip probe stay hand-written (adr-0048 D1). One case records a gap rather than a pass: seedPreset is still a hand-rolled TOML writer, kept deliberately because re-serializing would delete the consumer-authoritative comments in .grove/gates.toml."
   "adr-0041-shipped-matrix":
     precision: exact
     tests:
@@ -324,7 +402,7 @@ groups:
           - title:
               - "BLOCK-1 — an action id that does not recompute from its own type and path is refused"
     specs:
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
     covers:
@@ -346,7 +424,7 @@ groups:
               - "Claude and Codex setup in either order share one floor and are idempotent"
     specs:
       - "spec-0004-dual-host-distribution@v8"
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
 `],

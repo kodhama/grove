@@ -2,7 +2,7 @@
 // aborted shape). Parse, validate, and serialize the committed per-run TOML
 // cursor at .grove/runs/<run-id>/cursor.toml. "Well-formed" throughout means
 // parseable AND schema-valid.
-import { parseToml } from './toml.mjs';
+import { parseTomlDocument, stringifyTomlDocument } from './parsers.mjs';
 
 export const RUN_ID = /^[0-9]{8}-[0-9]{6}-[a-z0-9][a-z0-9-]*$/;
 const STATUSES = Object.freeze(['open', 'closed', 'aborted']);
@@ -14,33 +14,41 @@ const DECLARED_KEYS = Object.freeze([
   'claims',
 ]);
 
-// THE single status-line grammar. Its tolerance is DERIVED FROM toml.mjs's
-// line handling, mechanism by mechanism — never from an example list:
-//   split(/\r?\n/)            -> an optional trailing \r on every line
-//   stripComment()            -> a #-comment to end of line, outside strings
-//   .trim() after that        -> leading AND trailing whitespace
-//   line.slice(0, eq).trim()  -> whitespace between the key and '='
-//   line.slice(eq + 1).trim() -> whitespace between '=' and the value
-// Every reader of a status line (the close/abort field edit, the two
-// status-unreadable probes) uses this one source so they cannot diverge.
+// THE single status-line grammar, RE-DERIVED FROM TOML (adr-0048). Its former
+// derivation was "from toml.mjs's line handling, mechanism by mechanism" — and
+// that basis is gone: the reader is a conforming TOML parser now, so the legal
+// spellings are the FORMAT's.
+//
+// This probe exists for exactly one situation: a cursor that FAILED to parse.
+// The library cannot help there, so the probe is a deliberately narrow textual
+// heuristic over the two single-line string forms TOML gives a scalar:
+//   status | "status" | 'status'   -> bare, basic-quoted, and literal-quoted keys
+//   "open" | 'open'                -> basic and literal string values
+//   surrounding whitespace, a trailing #-comment, an optional trailing \r
+// Everything else a conforming reader would accept — multi-line strings,
+// escape-spelled values — is deliberately NOT read here, because resolving an
+// escape inside a file that does not parse is guesswork. Those spellings come
+// back `null`, which every caller reads as "unreadable", which is "open".
+// FAIL CLOSED IS THE WHOLE DESIGN: an unreadable status keeps the session in
+// supervisor mode and blocks a second open cursor.
+//
+// It is no longer shared with the close/abort edit. That edit is a
+// read-modify-write through the parsed DOCUMENT now (INV8 v3: fields, not
+// bytes), so it has no grammar to diverge from — which is what removed the
+// wedge where six legal spellings were schema-valid, open, and un-editable.
 export function statusLinePattern(status, flags = '') {
   return new RegExp(
-    `^\\s*status\\s*=\\s*"${status}"\\s*(?:#.*)?\\r?$`,
+    `^\\s*(?:status|"status"|'status')\\s*=\\s*(?:"${status}"|'${status}')\\s*(?:#.*)?\\r?$`,
     flags,
   );
 }
 
-// THE table-header grammar, derived from toml.mjs the same way the status-line
-// pattern above is — mechanism by mechanism, never from an example list:
-//   stripComment() then .trim()   -> leading whitespace, and a trailing comment
-//   /^\[\[([^\]]+)\]\]$/          -> an array-of-tables header; every key AFTER
-//                                    it belongs to that table, not the root
-//   line.startsWith('[') -> throw -> any other '[' line is unparseable
-// Every cursor key the schema declares lives in the ROOT table, so the root
-// table is exactly the lines BEFORE the first line matching this. A reader
-// that appends a key without honouring the boundary writes it into the last
-// table instead of the root — which is how a field edit on a cursor carrying
-// a `[[claims]]` table produced a schema-invalid result.
+// THE table-header grammar, RE-DERIVED FROM TOML the same way. Every cursor key
+// the schema declares lives in the ROOT table, and in TOML the root table is
+// exactly the lines BEFORE the first table header — `[table]` or
+// `[[array-of-tables]]`. A line whose first non-space character is `[` opens
+// one. (A leading `[` can also begin an array VALUE, but only after `key =`,
+// which this anchors against by requiring `[` to lead the line.)
 export const TABLE_HEADER_LINE = /^\s*\[/;
 
 // Exactly one readable ROOT-TABLE status line -> that status; anything else
@@ -123,6 +131,23 @@ export function oneLineFailure(field, value) {
   if (/[\r\n]/.test(value)) {
     return `${field} must be one line; it contains a line break`;
   }
+  // WIDENED with adr-0048, and the reason is worth stating because it is a
+  // property that used to hold BY ACCIDENT. The hand-rolled reader accepted
+  // only \" \\ \n \t as escapes, so any other control character failed the
+  // pre-write round-trip probe and never reached a cursor. Real TOML has
+  // \uXXXX, so a conforming writer/reader pair round-trips ESC, NUL and the
+  // rest perfectly — the probe is working, and the incidental guard is gone.
+  //
+  // The guard is kept, moved to where it belongs: this is grove's own declared
+  // field contract over a borrowed format, which is the "keep, hand-written"
+  // side of adr-0048 D1. `intent` and `reason` are rendered into one-line
+  // operator reports, and a raw ESC in a value the guard prints is a terminal
+  // control sequence in someone's console.
+  const control = value.match(/[\u0000-\u001f\u007f]/);
+  if (control) {
+    return `${field} must be one line; it contains the control character `
+      + `U+${control[0].charCodeAt(0).toString(16).padStart(4, '0').toUpperCase()}`;
+  }
   return null;
 }
 
@@ -148,6 +173,15 @@ export function validateSubjectPath(subject) {
   // change-set path, so its owed work would silently never enable.
   if (subject.split('/').some((segment) => segment === '' || segment === '.')) {
     return `subject ${JSON.stringify(subject)} is not in canonical repo-relative form (no "./", "/./", "//", or trailing "/")`;
+  }
+  // Same widening, same reason as oneLineFailure above: the old parser's narrow
+  // escape set rejected a control character in a subject path as a side effect
+  // of its round-trip probe, and a conforming parser round-trips it fine. Every
+  // subject is printed in the guard's stderr report.
+  const control = subject.match(/[\u0000-\u001f\u007f]/);
+  if (control) {
+    return `subject ${JSON.stringify(subject)} contains the control character `
+      + `U+${control[0].charCodeAt(0).toString(16).padStart(4, '0').toUpperCase()}; subjects are printable repo-relative file paths`;
   }
   return null;
 }
@@ -175,7 +209,7 @@ export function runInstantMismatch(runId, opened) {
 export function parseCursor(text, { runId } = {}) {
   let root;
   try {
-    root = parseToml(text);
+    root = parseTomlDocument(text);
   } catch (error) {
     return { ok: false, reason: `unparseable cursor: ${error.message}` };
   }
@@ -250,17 +284,44 @@ export function parseCursor(text, { runId } = {}) {
   };
 }
 
+// Serialization goes through the library too (adr-0048 D3: every hand-rolled
+// WRITER of an external format is replaced, not only the readers). The declared
+// key order is preserved by insertion order; the visible byte change from the
+// hand-rolled writer is the array form, `[ "a.md" ]` rather than `["a.md"]`,
+// which is the library's spacing and not grove's to choose.
 export function serializeCursor(cursor) {
-  const lines = [`schema = ${cursor.schema}`, `run = ${quote(cursor.run)}`];
-  if (cursor.opened != null) lines.push(`opened = ${quote(cursor.opened)}`);
-  if (cursor.intent != null) lines.push(`intent = ${quote(cursor.intent)}`);
-  if (cursor.subjects != null) {
-    lines.push(`subjects = [${cursor.subjects.map(quote).join(', ')}]`);
-  }
-  lines.push(`status = ${quote(cursor.status)}`);
-  if (cursor.closed != null) lines.push(`closed = ${quote(cursor.closed)}`);
-  if (cursor.reason != null) lines.push(`reason = ${quote(cursor.reason)}`);
-  return `${lines.join('\n')}\n`;
+  const document = { schema: cursor.schema, run: String(cursor.run) };
+  if (cursor.opened != null) document.opened = String(cursor.opened);
+  if (cursor.intent != null) document.intent = String(cursor.intent);
+  if (cursor.subjects != null) document.subjects = cursor.subjects.map(String);
+  document.status = String(cursor.status);
+  if (cursor.closed != null) document.closed = String(cursor.closed);
+  if (cursor.reason != null) document.reason = String(cursor.reason);
+  return stringifyTomlDocument(document);
+}
+
+// THE close/abort write (INV8 as clarified at v3: the invariant constrains
+// which FIELDS change, not which bytes). Read the parsed document, set exactly
+// the named fields, re-serialize the whole thing.
+//
+// This REPLACES a surgical line edit rather than widening it (adr-0048 D3). The
+// line edit's tolerance was documented as derived from the old reader "mechanism
+// by mechanism", and that derivation could not survive its basis: a line regex
+// is not derivable from full TOML at all, because a legal value spans lines and
+// a legal key may be quoted. Six measured spellings were schema-valid, open, and
+// un-editable, leaving a run unclosable AND unabortable — INV8's whole-file
+// exception is deliberately unreachable on a well-formed cursor. Rewriting
+// through the document removes the regex and the whole class with it.
+//
+// EVERY other key survives, including a `claims` key already present: `claims`
+// is schema-reserved and its presence is a defect on a parseable cursor, never
+// a parse failure, so dropping it here would violate INV8's immutability while
+// looking like it only wrote `status`. Root scalars are emitted before tables by
+// the library, which is what the old edit had to arrange by hand.
+export function rewriteCursorFields(document, changes) {
+  const next = { ...document };
+  for (const [key, value] of Object.entries(changes)) next[key] = value;
+  return stringifyTomlDocument(next);
 }
 
 // INV8's one named exception: a confirmed abort-run on an unparseable or
@@ -285,8 +346,4 @@ export function minimalAbortedCursor({ runId, closed, reason }) {
     closed,
     reason,
   });
-}
-
-function quote(value) {
-  return JSON.stringify(String(value));
 }

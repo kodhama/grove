@@ -1,0 +1,13 @@
+# grove — the repository's only ignore file (adr-0048 D4).
+#
+# Grove carried no .gitignore at all while it had no dependencies. It needs one
+# now, and the reason is mechanical rather than tidiness: the guard derives its
+# change set from `git status --porcelain -uall` (guard-core.mjs
+# `deriveChangeSet`), which lists every untracked file individually. An
+# unignored hoisted install would put thousands of third-party paths into the
+# change set of every run in this repository.
+#
+# The install is hoisted to the root by the workspace declaration in
+# package.json, but npm may still place a nested tree beside a workspace
+# member, so the rule is depth-independent.
+node_modules/

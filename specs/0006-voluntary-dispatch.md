@@ -1,12 +1,12 @@
 ---
 id: spec-0006-voluntary-dispatch
 type: spec
-status: gated  # spec gate ratified 2026-07-28 under the `spec = agent` profile row: spec-adversary APPROVE-READY at round eight of an eight-round convergence (rounds 1-3, 5-8 spec-adversary; round 4 fresh-eyes decision-adversary, concurring). The verdict record with the convergence table, mechanical-vs-behavioral ledger and residual risks is on PR #177. `approved` remains a human act; ship = human stands.
+status: approved  # maintainer's intent act, 2026-07-29, in-session: asked to batch the wave's pending ratifications and answered "Voluntary dispatch spec" among them, on a summary stating this is the gated -> approved flip. Author (agent) != approver (maintainer). The flip RECORDS the act; it does not perform it, and the PR merge is the separate ship act. Prior gate history: ratified 2026-07-28 under the `spec = agent` profile row: spec-adversary APPROVE-READY at round eight of an eight-round convergence (rounds 1-3, 5-8 spec-adversary; round 4 fresh-eyes decision-adversary, concurring). The verdict record with the convergence table, mechanical-vs-behavioral ledger and residual risks is on PR #177. `approved` remains a human act; ship = human stands.
 implements: adr-0046-how-dispatch-rules-reach-a-session
-depends_on: [adr-0046-how-dispatch-rules-reach-a-session, spec-0004-dual-host-distribution@v8, adr-0035-plugin-and-consumer-boundary]  # @v7 -> @v8 advanced in the landing commit per §Propagation and landing pairing
+depends_on: [adr-0046-how-dispatch-rules-reach-a-session, spec-0004-dual-host-distribution@v8, adr-0035-plugin-and-consumer-boundary, adr-0048-parsers-are-dependencies]  # @v7 -> @v8 advanced in the landing commit per §Propagation and landing pairing; adr-0048 is v3's amendment contract (adr-0044: it declares `changes: [spec-0006-voluntary-dispatch@v3]`)
 owner: agent
-updated: 2026-07-28
-version: 2
+updated: 2026-07-29
+version: 3
 ---
 
 # spec-0006 — voluntary dispatch
@@ -41,8 +41,8 @@ version: 2
 > from the retained convergence verdicts; the v2 re-review is downstream and
 > not claimed here.
 
-> **PROPOSED AMENDMENT 2026-07-28 — awaiting the maintainer's intent act; NOT
-> ratified, and deliberately NOT versioned as `v3`.**
+> **AMENDMENT 2026-07-28, RATIFIED 2026-07-29 — folded into `v3` (see the
+> `v2 → v3` note below).**
 > **WHAT:** Two clauses, both marked in place: a new §Subject binding by entry
 > kind (symbolic link, directory, fifo/socket/device, and the hard-link case),
 > and INV20's scope clause reconciled with `unclaimed`; INV11 gains a pointer
@@ -61,19 +61,86 @@ version: 2
 > the table's. Measured against `92f68e0`, a symlink subject went from owing 2
 > records to owing 4 in supervisor mode: a close-blocking change, which is why
 > it is stated rather than absorbed.
-> **STATUS — read this before citing the clauses:** the marked clauses are a
-> **draft**. Ratifying them is the maintainer's act, and it decides the
-> version too: this amendment carries **no `version:` bump and no `changes:`
-> pairing**, because `adr-0044` makes a behavioral version bump depend on an
-> approved amendment decision declaring `changes: [spec-0006-...@vN]`, and no
-> such decision exists — an agent-minted `v3` would be a version no approved
-> decision accounts for, and would silently invalidate every `@v2` pin in the
-> test-dependency ledgers. The three unmarked options are the maintainer's:
-> ratify as a clarification at `v2`, shape the paired amendment decision and
-> bump to `v3`, or reject the clauses and send the implementation back.
+> **STATUS — resolved.** When drafted, these clauses carried no `version:`
+> bump and no `changes:` pairing, because `adr-0044` makes a behavioral
+> version bump depend on an approved amendment decision declaring
+> `changes: [spec-0006-...@vN]` and no such decision existed; three options
+> were left standing for the maintainer. **The maintainer took the second on
+> 2026-07-29: shape the paired amendment decision and bump to `v3`** ("V3
+> yes, repin dependants and conformance review"). The paired decision is
+> `adr-0048-parsers-are-dependencies` (`status: approved`,
+> `changes: [spec-0006-voluntary-dispatch@v3]`), which carries **both**
+> queued amendments in one version and one intent act; the `@v2` pins in the
+> test-dependency ledgers advance to `@v3` in this same change. The clauses
+> below are no longer a draft — they are `v3` requirements, and the in-place
+> *(v3 amendment)* markers are locators for delta-scoped review (`adr-0044`),
+> not disclaimers.
 > **SCOPE:** No entry verb, cursor field, rule shape, guard mode, exit code,
 > or host behavior changes. Nothing outside the three marked clauses is
 > touched.
+
+> **AMENDED 2026-07-29 — v2 → v3 (paired amendment decision:
+> `adr-0048-parsers-are-dependencies`, `status: approved`, declaring
+> `changes: [spec-0006-voluntary-dispatch@v3]`)**
+> **WHAT:** Two amendments, folded in one version. **(1)** The entry-kind
+> amendment drafted 2026-07-28 and ratified with this bump — §Subject binding
+> by entry kind, INV20's scope clause, INV11's pointer — is now operative
+> text (see its own note above). **(2)** A new §Frontmatter reading fixes how
+> the class table's `type` is obtained: grove's `---` delimiter convention
+> stays grove's own and hand-written, the document between the delimiters is
+> read as **YAML 1.2, core schema**, a parse failure classifies `unclaimed`
+> and never `code`, and a post-parse schema clause (mapping; `type` a string;
+> `implements` a string or a sequence of strings; no coercion) sends anything
+> else to `unclaimed`. INV16 gains the YAML-version clause; INV28, S17 and
+> AC14 are new. **(3)** INV8 is clarified in place: it constrains which
+> **fields** change, not which bytes, and a conforming close or abort may
+> re-serialize the whole document.
+> **WHY:** `adr-0048` replaces grove's hand-rolled frontmatter reader with a
+> conforming parser, and two things in this spec had to move for that. First,
+> **the class table and the implementation currently disagree**: the
+> hand-rolled reader classifies legal-but-exotic YAML — quoted scalars, block
+> scalars, nested maps, anchors, flow collections — as `unclaimed` *regardless
+> of its `type`* (`guard-core.mjs`, "THE COST, accepted deliberately"), which
+> is a divergence from the table rather than a reading of it. Ending it moves
+> at least 19 measured inputs from four owed records to zero and takes at
+> least 15 out of observer scope (`adr-0048` D7, which accepts the reduction
+> and records it as a lower bound). This spec's own precedent — a subject
+> going from **2 owed to 4** was ruled "a widening that needs an amendment
+> rather than a reading of existing text" — makes the opposite and larger
+> move amendment-shaped by the same standard. Second, **INV16 was not
+> satisfiable as written**: it requires classification "deterministic per the
+> tables in this spec", yet four measured inputs classify differently under
+> YAML 1.1 than 1.2, so the class was fixed by a build flag no spec text
+> mentioned. `adr-0048` D6 chose 1.2 core schema; naming it here is what
+> closes INV16.
+> **SCOPE:** Behavioral version `v3`. No entry verb, cursor field or schema,
+> rule shape, predicate form, guard mode, exit code, hook channel, host
+> behavior, or record contract changes. The subject-class *table* is
+> unchanged — what changes is that a conforming reader now delivers the
+> `type` the table has always keyed on, and the fail-closed direction is
+> stated rather than left to the reader. `adr-0048` attributes the **whole**
+> `v3` delta — both folded amendments — to itself, so every behavior-changing
+> clause in this version has a named amendment contract (`adr-0044`).
+> **POINTER:** The `v3` requirements live in §Transition rules
+> (**Frontmatter reading**, and **Subject binding by entry kind**), INV8,
+> INV11, INV16, INV20, INV28, S17 and AC14. Everything else is `v2` text
+> unchanged.
+> **VALUE:** An implementer can replace the reader without deciding, on its
+> own authority, which YAML grove implements or which way an unparseable
+> artifact falls — the two questions eight rounds of review kept re-opening.
+> **CONFIDENCE:** `verified` for provenance, with one inference named rather
+> than buried. Stated by `adr-0048`: the delimiter boundary and its measured
+> eight-input basis (D1, D3), YAML 1.2 core schema and the schema clause with
+> its `unclaimed` fail-closed routing (D6), the accepted coverage reduction
+> (D7), and the whole entry-kind amendment above. **Inferred:** "a parse
+> failure classifies `unclaimed`, never `code`" is not a verbatim clause of
+> `adr-0048` — it applies D3's own stated ground (a frontmatter-bearing file
+> falling to `code` under-owes and is observer-invisible, which is *why* the
+> delimiter stays grove's) to the parse step, in the same direction D6's
+> schema clause takes. Flagged so delta-scoped review judges the inference
+> rather than inheriting it. The conformance review of `v3` is downstream and
+> is **not** claimed here; neither is any measurement of the replacement,
+> which is execution.
 
 This contract realizes approved `adr-0046-how-dispatch-rules-reach-a-session`:
 voluntary session entry through two verbs, a committed per-run cursor,
@@ -389,10 +456,53 @@ when all its preconditions hold under one binding.
 | `code` | no artifact frontmatter (code and tests collapse: their owed sets are identical) |
 | `implements-bearing` | any artifact whose frontmatter carries a non-empty `implements` (overlays the classes above) |
 
-**Subject binding by entry kind** *(PROPOSED AMENDMENT — not yet ratified;
-see the amendment note at the head of this spec)*. The table above reads a
-subject's **bytes**, and every row above assumes the path names a regular
-file. A subject path can name an entry that has no readable bytes, and
+**Frontmatter reading** *(v3 amendment — `adr-0048` D1/D3/D6/D7; see the head
+notes)*. The table above keys on exactly one frontmatter field, `type`, and the
+`implements-bearing` overlay on one more. **How that document is obtained is
+fixed here**, because INV16 requires classification to be deterministic *per
+these tables* — and a hand-rolled reader made the class depend on the reader
+instead:
+
+- **The delimiter is grove's; the document is YAML.** Whether a file bears
+  artifact frontmatter is decided by grove's own `---` block convention, which
+  **stays hand-written**. This is a boundary, not an exception: the block
+  convention is a format grove defines, and only the document *between* the
+  delimiters is a format it borrows. Only that inner document is handed to the
+  parser. (Measured basis for the boundary: handing the delimiter to the parser
+  too regressed eight inputs into `code` — `adr-0048` D3.)
+- **The inner document is read as YAML 1.2, core schema** (`adr-0048` D6).
+  Naming the version is what makes INV16 satisfiable: four measured inputs
+  classify differently under 1.1 than under 1.2, so without this clause the
+  class of a subject is fixed by a build flag no spec text states.
+- **Failure is fail-closed to `unclaimed`, never to `code`.** A file that bears
+  frontmatter whose inner document does not parse classifies `unclaimed`.
+  `code` is the class of a file with **no** frontmatter; it owes two records and
+  sits outside observer scope, so reaching it by parse failure would under-owe
+  review in exactly the class fail-closed typing exists to protect.
+- **Schema, checked after the parse and never coerced.** The parsed document
+  shall be a **mapping**; `type`, when present, shall be a **string**;
+  `implements`, when present, shall be a **string or a sequence of strings**.
+  Anything else — **including a successful parse to a non-mapping** — is
+  schema-invalid and classifies `unclaimed`. No value is coerced to a string,
+  and no non-string is read as a `type`.
+- **Under those clauses the class table means what it says.** A schema-valid
+  document classifies by its `type` **string**, whatever legal YAML spelling
+  produced it: quoted scalars, block scalars, nested maps, anchors and flow
+  collections are ordinary YAML and classify by `type` like any other document.
+  The hand-rolled reader classified that whole family `unclaimed` *regardless of
+  `type`* — a divergence from this table, not a reading of it — and this
+  amendment ends it. The measured consequence is a **coverage reduction the
+  decision accepts** (`adr-0048` D7): at least 19 inputs fall from four owed
+  records to zero and at least 15 leave observer scope, recorded there as a
+  lower bound rather than a bound.
+- This amendment does **not** change the `implements-bearing` row. Its
+  non-empty test stands as written, applied now only to the values the schema
+  clause admits.
+
+**Subject binding by entry kind** *(v3 amendment — ratified 2026-07-29; see the
+head notes)*. The subject-class table reads a subject's **bytes**, and every
+row of it assumes the path names a regular file. A subject path can name an
+entry that has no readable bytes, and
 presence is established **without dereferencing** (`lstat`, never `stat`), so
 the entry's kind — never its target's — decides:
 
@@ -667,13 +777,22 @@ commit** as the spec's landing:
    `reference/dispatch/`, and the hook files; the lifecycle inventory stays
    exactly four), under adr-0044's paired-record amendment discipline (the
    reciprocal `changes: [<spec-id>@vN]` pairing) with its version bump to
-   `vN`. This spec's own `depends_on` pin
-   `spec-0004-dual-host-distribution@v7` advances to that same `@vN` in the
-   same commit.
+   `vN`. This spec's own `depends_on` pin advanced from
+   `spec-0004-dual-host-distribution@v7` to `@v8` in that commit. **Discharged:**
+   `spec-0004` is at `version: 8` and this spec's frontmatter pins `@v8`.
 2. adr-0046's `changes:` entry appended with that exact `@vN` pin — the
-   frontmatter pointer-completion the decision itself sanctions.
+   frontmatter pointer-completion the decision itself sanctions. **Discharged:**
+   `adr-0046:6` reads `changes: [spec-0004-dual-host-distribution@v8]`.
 3. adr-0035's declared `.grove/` tree annotated with the scoped
    `.grove/runs/` note (adr-0046 clause 4: "when the spec lands").
+   **Discharged:** the scoped annotation is at `adr-0035:102-108`.
+
+**All three obligations above are discharged in the tree.** They are kept in
+place rather than deleted because AC13 binds them to the landing commit and a
+reader checking that criterion needs to see what was owed, not only that nothing
+is outstanding. An earlier version of this section left item 1 in future tense
+after the advance had happened, so a reader landed on `@v7` while the frontmatter
+pinned `@v8`; corrected 2026-07-29.
 
 The adr-0003 forward pointer, the adr-0031 scoped `superseded_in_part_by`
 pointer, and the dispatcher charter's scoped-narrowing annotation (the
@@ -739,6 +858,21 @@ this contract.
   a file that fails parse or schema is undefined, and the exception is
   reachable only through that defect row, never on a well-formed (parseable
   and schema-valid) cursor.
+  *(v3, clarified in place)* **This invariant constrains FIELDS, not bytes.**
+  "Write only `status`, `closed`, and `reason`" means the written document
+  shall parse to the same value for every other declared key it carried
+  before — including a `claims` key already present, which close and abort
+  shall preserve rather than drop. It does **not** require the write be a
+  textual edit of the pre-image's bytes, and a conforming implementation may
+  re-serialize the whole document. AC5 already states the test in field
+  terms; this sentence removes the reading that a byte-level diff was
+  additionally owed. The clarification is stated because an implementation
+  achieved the guarantee by a surgical line edit and its prose described
+  *that mechanism* as the invariant — which made a legal cursor spelling the
+  edit's regex did not admit (a literal-string `status`) unclosable **and**
+  unabortable, since the whole-file exception above is deliberately
+  unreachable on a well-formed cursor. Nothing about which fields may change
+  is relaxed here.
 - **INV9** — No shipped path shall write the `claims` key; the guard shall
   report a cursor carrying it as a schema defect.
 - **INV10** — A stale cursor shall be surfaced at both entry verbs and every
@@ -749,10 +883,9 @@ this contract.
   field**, only while its `subject_state` matches that subject's current
   state, and — for `present` — only while its `subject_sha256` matches the
   subject's current bytes. Record lookup shall span every run's records
-  directory in both modes. *(Proposed amendment, unratified:* for a subject
-  whose entry is not a regular file, "current bytes" is the domain-tagged
-  binding of §Subject binding by entry kind, and the entry's kind is read
-  without dereferencing.*)*
+  directory in both modes. *(v3)* For a subject whose entry is not a regular
+  file, "current bytes" shall be the domain-tagged binding of §Subject binding
+  by entry kind, and the entry's kind shall be read without dereferencing.
 - **INV12** — The record file shall not substitute for the change-request
   verdict report (adr-0027 D2), which remains owed.
 - **INV13** — `transitions.toml` shall ship at
@@ -776,7 +909,14 @@ this contract.
   only.
 - **INV16** — The guard shall be zero-model and read-only: no model call, no
   network, no file writes; its subject classification and record matching
-  shall be deterministic per the tables in this spec.
+  shall be deterministic per the tables in this spec. *(v3)* Frontmatter
+  shall be read per §Frontmatter reading — grove's own `---` delimiter
+  convention decides whether a file bears frontmatter, and the document
+  between the delimiters shall be parsed as **YAML 1.2, core schema**. The
+  version is named because without it the class of a subject is not
+  determined by these tables at all: four measured inputs classify
+  differently under 1.1, so the class would be fixed by a build flag no spec
+  text states.
 - **INV17** — The guard shall run at run start, at every handover (a duty
   stated in both entry-skill bodies), and at Stop via the registered hook,
   and shall exit `0` only when no enabled-and-unfired instance exists.
@@ -795,12 +935,11 @@ this contract.
   `unclaimed` subject** — which includes the non-regular entries of §Subject
   binding by entry kind, whose bytes cannot be read and which therefore carry
   no frontmatter to govern them — over the derived change set defined in
-  §Transition rules. *(The `unclaimed` half of that scope clause is the
-  proposed amendment: `OBSERVER_CLASSES` has always carried `unclaimed`, and
-  the class table's `unclaimed` was frontmatter-governed by definition until
-  the non-regular rows widened it. `code` and `missing` remain out of
-  observer scope; supervisor mode covers them through the cursor's subject
-  list.)*
+  §Transition rules. *(The `unclaimed` half of that scope clause is the v3
+  amendment: `OBSERVER_CLASSES` has always carried `unclaimed`, and the class
+  table's `unclaimed` was frontmatter-governed by definition until the
+  non-regular rows widened it. `code` and `missing` remain out of observer
+  scope; supervisor mode covers them through the cursor's subject list.)*
 - **INV21** — The Claude plugin shall register the guard on the `Stop` hook
   event; any hold shall use the documented block decision as single-line
   JSON; any context-injecting output shall use the nested
@@ -830,6 +969,13 @@ this contract.
   with direct-CLI exit `2`, shall deny close while any defect stands, shall
   continue supervisor evaluation per that section's table, and shall route
   defect reports through the same hold and non-hold channels as owed work.
+- **INV28** *(v3)* — A subject that bears frontmatter shall classify
+  `unclaimed`, never `code`, when its inner document fails to parse, when it
+  parses to anything other than a mapping, when a present `type` is not a
+  string, or when a present `implements` is neither a string nor a sequence
+  of strings; no value shall be coerced to reach a class. A schema-valid
+  document shall classify by its `type` string per the §Transition rules
+  class table, whatever legal YAML spelling produced that string.
 
 ## Scenarios (GWT)
 
@@ -939,6 +1085,16 @@ duplicate `id`
 **Then** the guard reports `t-conformance` enabled for it again, because the
 record's `subject_sha256` no longer matches.
 
+### S17 — a conforming parse, fail-closed *(v3)*
+**Given** three subjects in the derived change set: one whose frontmatter
+spells `type` as the quoted scalar `"research"`, one whose frontmatter block
+opens but whose inner document does not parse, and one whose inner document
+parses successfully to a sequence rather than a mapping
+**When** the guard classifies them
+**Then** the first is `reviewless` — its `type` string is `research` however
+it was spelled — and the second and third are both `unclaimed`; neither
+reaches `code`, and no value was coerced to produce either class.
+
 ## Acceptance criteria
 
 Each criterion names the mutation that turns it red, and carries an honesty
@@ -1033,6 +1189,16 @@ its criterion's label.
     spec's own `depends_on` pin to that resulting `@vN`, the `@vN` append
     to adr-0046's `changes:` entry, and adr-0035's scoped `.grove/runs/`
     note — all in that same commit.
+14. **AC14 — frontmatter is a conforming YAML 1.2 parse, fail-closed**
+    [mechanical] *(v3)* (INV16's parse clause, INV28; S17): red if a legal
+    YAML spelling of a known `type` classifies as anything but that `type`'s
+    row; if a parse failure or a schema-invalid document reaches `code`; if a
+    non-mapping document, a non-string `type`, or an `implements` outside
+    string-or-sequence-of-strings is accepted or coerced instead of
+    classifying `unclaimed`; if the reader's YAML version is left to the
+    build rather than fixed at 1.2 core schema; or if the `---` delimiter
+    convention is handed to the YAML parser (adr-0048 D3's measured
+    regression: eight inputs fall from `unclaimed` into `code`).
 
 ## Open questions
 
@@ -1069,17 +1235,28 @@ criteria.
 
 | Check | Result | Evidence |
 |---|---|---|
-| Approved upstream | PASS | `adr-0046-how-dispatch-rules-reach-a-session` is `status: approved` (in-session intent act, 2026-07-28); declared as `implements` and deliberate `depends_on`, beside pinned `spec-0004@v7` and `adr-0035`. |
+| Approved upstream | PASS | `adr-0046-how-dispatch-rules-reach-a-session` is `status: approved` (in-session intent act, 2026-07-28); declared as `implements` and deliberate `depends_on`, beside pinned `spec-0004@v8` and `adr-0035`. |
 | Artifact contract | PASS | Frontmatter carries id/type/status/depends_on/implements/owner/updated/version; Acceptance criteria and Open questions sections exist. |
 | Decision fidelity | PASS | Clauses 1–8 map to §Non-goals (1), §Entry (2), §Floor extract + §Transition rules (3), §Run cursor (4), §The guard (5), §Managed pointer block (6), §Host scope (7), §Propagation (8). The three ratified draft choices are honored: model-invocable skills with the confirm gate, generated floor extract with a source-side marker convention, minimal cursor schema. |
 | Open-question ownership | PASS | Open 9 is resolved here as the decision orders; Open 7 is explicitly not advanced; genuinely open items are listed, none load-bearing for implementation. |
-| Testable grammars | PASS | INV1–INV27 are shall-form; S1–S16 are Given/When/Then; AC1–AC13 map both, each names its red-turning mutation, and each carries a mechanical/behavioral honesty label. |
+| Amendment pairing (adr-0044) | PASS | Scalar `implements:` still names `adr-0046` (never retargeted). `depends_on` gains `adr-0048-parsers-are-dependencies`, which is `status: approved` and declares `changes: [spec-0006-voluntary-dispatch@v3]` — the exact reciprocal, version-matched pair for the reviewed subject. `adr-0048` attributes the whole `v3` delta to itself, both folded amendments included, so no behavior-changing clause in this version is unowned. |
+| Testable grammars | PASS | INV1–INV28 are shall-form; S1–S17 are Given/When/Then; AC1–AC14 map both, each names its red-turning mutation, and each carries a mechanical/behavioral honesty label. |
 | Boundaries | PASS | No net engine, itinerary, claims activation, forge hold, or Codex guard; nothing beyond the decision's scope — additions the decision does not name (`subject_sha256` and its absence sentinel, run-id grammar, budgets, guard exit codes and defect classes) are concretizations flagged in place. |
-| Ambiguity | HONEST NOTE | Two mechanics rest on host-documented but locally unmeasured behavior: the Stop block-decision JSON and the observer stderr channel. The spec does not guess them silently — INV21/AC12 make pre-release measurement a hard requirement, following the trellis flat-envelope incident. |
+| Ambiguity | HONEST NOTE | Two mechanics rest on host-documented but locally unmeasured behavior: the Stop block-decision JSON and the observer stderr channel. The spec does not guess them silently — INV21/AC12 make pre-release measurement a hard requirement, following the trellis flat-envelope incident. *(v3 adds a third, named rather than hidden:* INV16's determinism is now **delegated** to a published format version — YAML 1.2 core schema — so the spec is determinate while whether a chosen implementation actually conforms is an execution measurement. `adr-0048` **does** choose the implementations and **has** measured the strictness — its erratum 7 records that Opens 1 and 2 are answered by Decisions 9 and 6, and D6 asserts the chosen library throws on `1:`/`0x1:` at its 1.2 default. This spec still fixes the target rather than the library: the delegation is to the **format version**, so a conforming substitute satisfies INV16 and no clause here names a package. What remains an execution measurement is whether the chosen implementation conforms in the general case, not whether one was chosen.*)* |
 | Propagation | PASS | The spec-0004 pairing, adr-0046 `@vN` append, and adr-0035 note are bound to the landing commit by AC13. |
 
-Self-check passes with the honest note above. Status stays `draft`: v2
-folds the first convergence round (spec-adversary `NEEDS-REVISION`,
-conformance `PASS` with pre-gate defects) in one revision; the re-review of
-v2 and the profile's spec-gate ratification are downstream of this pass and
-are not claimed here.
+Self-check passes with the honest notes above. **Status stays `gated`** — the
+spec gate ratified at v2 (frontmatter) is not re-earned or re-claimed by this
+pass, and `approved` remains the maintainer's separate act, which this author
+does not perform. v3 folds two amendments in one version under one approved
+amendment decision: the entry-kind clauses drafted at v2 and ratified
+2026-07-29, and `adr-0048`'s frontmatter-reading change. The conformance
+review of v3 — the delta-scoped review `adr-0044` requires, against
+`adr-0048` as amendment contract and `adr-0046` as original contract — is
+downstream of this pass and is **not** claimed here.
+
+*(Superseded self-check note, retained for history: the v2 pass recorded
+"Status stays `draft`" while v2 folded the first convergence round. The
+frontmatter's spec-gate ratification, also dated 2026-07-28, moved the status
+to `gated`; the sentence was stale from that moment and is corrected rather
+than silently dropped.)*

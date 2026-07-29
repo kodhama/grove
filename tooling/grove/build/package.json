@@ -9,5 +9,12 @@
     "check": "node bin/generate.mjs --check",
     "test": "node --test",
     "typecheck": "node --check config.mjs && node --check lib/*.mjs && node --check bin/*.mjs && node --check test/*.mjs"
+  },
+  "dependencies": {
+    "smol-toml": "1.7.1",
+    "yaml": "2.9.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
   }
 }

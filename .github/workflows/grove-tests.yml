@@ -10,9 +10,12 @@
 # pass. Normal review and the maintainer's merge decision still gate the
 # merge; this does not displace review, it backstops it.
 #
-# All packages are zero-dependency (`type: module`, no deps): `npm test` is
-# `node --test`, `npm run typecheck` is `node --check` over the .mjs sources —
-# so no install step is needed.
+# The six packages are npm workspaces of the repository root (adr-0048 D4), so
+# the install is ONE hoisted `npm ci` at the root from the committed
+# package-lock.json — never a per-package install. `npm test` is still
+# `node --test` and `npm run typecheck` is still `node --check` over the .mjs
+# sources; what changed is that grove now declares dependencies at all, and a
+# suite that resolves them from an ambient node_modules would prove nothing.
 
 name: grove tests
 
@@ -52,6 +55,13 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: "22"
+
+      # Root-level and exact: the lockfile lives at the workspace root, so
+      # `npm ci` runs there once and hoists for every matrix leg. `ci` rather
+      # than `install` — it fails on a lockfile that disagrees with the
+      # manifests instead of quietly rewriting it.
+      - name: Install the workspace
+        run: npm ci
 
       - name: Test
         working-directory: ${{ matrix.package }}

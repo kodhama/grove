@@ -27,9 +27,14 @@ import {
   LAUNCHER_BUNDLE_PATH,
   LIFECYCLE_SKILLS,
   LIFECYCLE_SOURCE,
+  NOTICES_PATH,
   PACKAGE_ALLOWLIST_PATH,
+  PARSER_BUNDLE_PATH,
+  PARSER_BUNDLE_SOURCE,
   STATIC_PACKAGE_FILES,
 } from "../config.mjs";
+import { buildParserBundle } from "./bundle.mjs";
+import { generatedHeader } from "./header.mjs";
 
 const INSTRUCTION_FIELDS = new Set([
   "instruction",
@@ -62,13 +67,6 @@ const EXPOSURE_CLASSES = new Set([
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
-}
-
-function generatedHeader(source, digest, prefix = "<!--") {
-  if (prefix === "#") {
-    return `# GENERATED — DO NOT EDIT; canonical-source: ${source}; sha256: ${digest}`;
-  }
-  return `<!-- GENERATED — DO NOT EDIT; canonical-source: ${source}; sha256: ${digest} -->`;
 }
 
 function yamlScalar(value) {
@@ -709,6 +707,26 @@ export async function buildProjectionSet({
       canonical_digest: entryDigest,
     });
   }
+
+  // adr-0048 D2: the third-party parser bundle and its notices join the SAME
+  // generate-and-commit set every projection is in, so `--check` compares their
+  // bytes like any other. They are registered in GENERATED_FILES rather than
+  // STATIC_PACKAGE_FILES on purpose: STATIC_PACKAGE_FILES is consumed only by
+  // packageAllowlist() and never enters `outputs`, so checkProjectionSet would
+  // never compare the bundle's bytes at all — registering it there would have
+  // allowlisted the file while silently removing the drift gate D2 depends on.
+  //
+  // The bundler resolves from the BUILD PACKAGE, never from repoRoot: its
+  // module graph roots in this package's declared dependencies, which exist at
+  // one place in the workspace and nowhere else.
+  const parsers = await buildParserBundle({
+    buildPackageRoot: path.resolve(import.meta.dirname, ".."),
+    workspaceRoot: path.resolve(import.meta.dirname, "..", "..", "..", ".."),
+  });
+  validateOutput(PARSER_BUNDLE_PATH, PARSER_BUNDLE_SOURCE);
+  validateOutput(NOTICES_PATH, PARSER_BUNDLE_SOURCE);
+  outputs.set(PARSER_BUNDLE_PATH, parsers.code);
+  outputs.set(NOTICES_PATH, parsers.notices);
 
   outputs.set(LAUNCHER_BUNDLE_PATH, launcherBundle(launchers));
   outputs.set(CLAUDE_INVENTORY_PATH, hostInventory({

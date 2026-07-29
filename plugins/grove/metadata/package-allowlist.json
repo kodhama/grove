@@ -300,6 +300,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/reference/licenses/NOTICES.md",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/reference/lifecycle.md",
       "kind": "file"
     },
@@ -352,11 +356,11 @@
       "kind": "file"
     },
     {
-      "path": "plugins/grove/runtime/dispatch/lib/run.mjs",
+      "path": "plugins/grove/runtime/dispatch/lib/parsers.mjs",
       "kind": "file"
     },
     {
-      "path": "plugins/grove/runtime/dispatch/lib/toml.mjs",
+      "path": "plugins/grove/runtime/dispatch/lib/run.mjs",
       "kind": "file"
     },
     {

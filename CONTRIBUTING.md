@@ -97,7 +97,10 @@ pointer chain).
 1. Branch off `main`, edit the charter file directly.
 2. Re-run the self-check: the edited charter still names every required
    section, still cites provenance, still passes the zero-nouns grep.
-3. Run `npm run generate --prefix tooling/grove/build`, then
+3. Run `npm ci` once at the repository root — the six packages are npm
+   workspaces and generation now bundles third-party parsers (`adr-0048`), so
+   an uninstalled tree cannot generate. Then
+   `npm run generate --prefix tooling/grove/build`, then
    `npm run check --prefix tooling/grove/build`. Host payloads are generated
    from the charter and inventory metadata; do not edit them directly.
 4. Open the PR describing what changed and why (a charter edit is

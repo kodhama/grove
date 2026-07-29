@@ -1,5 +1,27 @@
 schema: 2
 groups:
+  "adr-0048-toml-is-a-dependency":
+    precision: exact
+    tests:
+      - file: "test/surface-and-setup.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 — the config writer round-trips every declared token shape, scalar and list"
+          - title:
+              - "adr-0048 D3 — a config value TOML cannot express is a REFUSAL, never a broken file"
+          - title:
+              - "adr-0048 D3 — serializeConfig emits TOML, so a DEL byte is escaped instead of written raw"
+      - file: "test/refresh-profile-remove.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 — a quoted gate KEY reads fine and still fails at seedPreset: the writer is a NAMED remaining gap"
+          - title:
+              - "adr-0048 — an unparseable gates.toml is a reported REFUSAL, never a throw out of the planner"
+          - title:
+              - "adr-0048 — set-profile READS a gates.toml the old line reader called an invalid gate row"
+    decisions:
+      - "adr-0048-parsers-are-dependencies"
+    notes: "parseProfile reads the gate profile through the bundled TOML parser and serializeConfig writes .grove/config.toml through it; the closed gate-row enum, the value enum, the floor rule, the config-token contract and the pre-write round-trip probe stay hand-written (adr-0048 D1). One case records a gap rather than a pass: seedPreset is still a hand-rolled TOML writer, kept deliberately because re-serializing would delete the consumer-authoritative comments in .grove/gates.toml."
   "adr-0041-shipped-matrix":
     precision: exact
     tests:
@@ -34,7 +56,7 @@ groups:
           - title:
               - "BLOCK-1 — an action id that does not recompute from its own type and path is refused"
     specs:
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
     covers:
@@ -56,6 +78,6 @@ groups:
               - "Claude and Codex setup in either order share one floor and are idempotent"
     specs:
       - "spec-0004-dual-host-distribution@v8"
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
