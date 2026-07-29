@@ -72,10 +72,14 @@ export function classifyContent(content) {
   // `!== '[]'` string comparison — which existed because `implements: []`
   // used to arrive as the two-character string — is now unreachable and has
   // been dropped rather than left to imply a case that cannot occur.
+  // No trim() here either: an accepted value cannot carry leading or trailing
+  // YAML whitespace (yamlTrim removed it) and cannot be empty (the grammar
+  // rejects an empty scalar; an empty value means a BARE KEY, which is the
+  // only way a field holds '').
   const implementsValue = frontmatter.fields.get('implements');
   const implementsBearing = Array.isArray(implementsValue)
-    ? implementsValue.some((item) => String(item).trim() !== '')
-    : typeof implementsValue === 'string' && implementsValue.trim() !== '';
+    ? implementsValue.length > 0
+    : typeof implementsValue === 'string' && implementsValue !== '';
   const classes = implementsBearing ? [base, 'implements-bearing'] : [base];
   return { classes, base, implementsBearing };
 }
@@ -107,12 +111,41 @@ export function classifyContent(content) {
 //   I  sequence item    optional indent, `-`, one or more spaces/tabs, <SCALAR>
 //                       - accepted ONLY directly under an E line or another I
 //
-// ACCEPTED VALUES (nothing else is accepted):
+// ACCEPTED VALUES (nothing else is accepted). The rules split on whether the
+// classifier READS the key, because that is exactly where byte-equivalence
+// with a conforming YAML reader has to be a property rather than an argument:
 //   S  plain scalar     non-empty; first character is not a YAML indicator
-//                       (-?:,[]{}#&*!|>'"%@` ); contains no ": " and does not
-//                       end in ":" (either would make it a nested mapping);
-//                       contains no ambiguous character (below)
-//   F  flow sequence    `[` + comma-separated S items (possibly none) + `]`
+//                       (-?:,[]{}#&*!|>'"%@` ); contains no ":" followed by a
+//                       space or tab and does not end in ":" (either is a
+//                       mapping-value indicator); in FLOW context contains no
+//                       [ ] { } (forbidden in a flow plain scalar); contains
+//                       no ambiguous character (below); and
+//   N  narrow scalar    for a READ key (`type`, `implements`) additionally
+//                       matches [A-Za-z0-9_-]+ exactly
+//   F  flow sequence    `[` + comma-separated S/N items (possibly none) + `]`
+//
+// WHY THE SPLIT, stated because it is the load-bearing design choice. A value
+// this classifier reads must mean the same thing to every reader, and
+// [A-Za-z0-9_-]+ delivers that as a property: such a scalar has no whitespace
+// to trim, no indicator, no flow delimiter, no comment marker, no escape, and
+// no character whose line-break class differs between YAML 1.1 and 1.2. A
+// value it does NOT read only has to be structurally equivalent — one mapping
+// entry ending at the line break — which the S rules plus the line grammar's
+// refusal of indented continuations already guarantee. Measured: requiring the
+// narrow class of EVERY value would reclassify 31 tracked files, because
+// unread keys legitimately carry prose and cross-repository ids
+// (`trellis/decision-0045`, `spec-0004-dual-host-distribution@v6`); requiring
+// it of read keys alone reclassifies none, because the corpus's 7 distinct
+// `type` values and 7 distinct `implements` values are already within it.
+//
+// WHITESPACE IS YAML'S, NOT JAVASCRIPT'S. Values are trimmed with s-white —
+// space and tab, and nothing else. JS trim() also strips 13 characters YAML
+// treats as ordinary scalar content (NBSP U+00A0, the U+2000 block, U+FEFF,
+// VT, FF, LS, PS, ...), so `type: research<NBSP>` was trimmed to `research`,
+// matched the enum, and classified reviewless — owing nothing and invisible to
+// observer mode — while every conforming reader keeps the NBSP and reads a
+// value that is NOT `research`. That was one instance of a 13-member class,
+// closed at the mechanism: yamlTrim below is the only trim on the path.
 //
 // AMBIGUOUS CHARACTERS, rejected anywhere in a value: C0 controls except tab,
 // DEL, the C1 range (which contains NEL U+0085), LS U+2028, PS U+2029, and the
@@ -121,16 +154,50 @@ export function classifyContent(content) {
 // differently by two conforming parsers. Input whose meaning depends on which
 // parser reads it is what "ambiguous" means here, and ambiguous is malformed.
 //
-// THE PROPERTY THIS BUYS, which is the point of the rewrite:
-//   Any input that does not match this grammar is malformed; malformed
-//   classifies `unclaimed`; `unclaimed` owes the full record set and is
-//   observer-visible. Therefore no input outside this grammar can under-owe
-//   review.
-// That holds by the structure of the code - every exit from readFrontmatter is
-// `block` (every line matched) or `malformed` - and needs no enumeration of
-// cases. What it does NOT cover is stated rather than implied: it says nothing
-// about inputs INSIDE the grammar, where correctness rests on the accepted
-// forms meaning in YAML what this reader computes them to mean.
+// THE PROPERTY THIS BUYS, in two halves that are now both properties:
+//   1. STRUCTURE. Any input not matching this grammar is malformed; malformed
+//      classifies `unclaimed`; `unclaimed` owes the full record set and is
+//      observer-visible. So no input outside the grammar can under-owe review.
+//      This holds by the shape of the code - every exit from readFrontmatter
+//      is `block` (every line matched) or `malformed`.
+//   2. CONTENT. For inputs INSIDE the grammar, a value the classifier reads is
+//      [A-Za-z0-9_-]+, and every conforming YAML reader produces exactly those
+//      bytes for such a plain scalar. Round seven left this as an argument and
+//      named it the residual; round eight found three defects in it and
+//      nothing outside half 1, so the residual was real and the structure was
+//      sound. It is now a property of the charset.
+//
+// WHAT REMAINS, stated precisely rather than declared closed. Two residuals,
+// both measured, neither claimed shut:
+//
+//   A. TAG RESOLUTION of values. YAML 1.1 resolves `no`, `y`, `on`, `null` to
+//      boolean/null where 1.2 keeps a string, and all of those spellings are
+//      inside the narrow class. This cannot change a `type` decision: no enum
+//      member (adr, spec, charter, research, feedback) is one of those
+//      spellings, and resolution changes a node's TYPE, never its spelling, so
+//      "is this value one of those five strings" has one answer under every
+//      reader. On `implements` it can only make the value MORE present, which
+//      over-owes. Fail-closed in both directions.
+//
+//   B. TAG RESOLUTION of KEYS, which the charset does NOT close. Two DISTINCT
+//      key spellings can resolve to one scalar under YAML 1.1 — `y:` and
+//      `yes:` both to true, `1:` and `0x1:` both to 1 — so a strict reader
+//      sees a duplicate key and rejects the document while this reader sees
+//      two ordinary keys and classifies by the declared `type`. Measured:
+//      `y: 1 / yes: 2 / type: research` classifies reviewless here. The
+//      duplicate-key check catches identical SPELLINGS only. Not closed, and
+//      deliberately not papered over: closing it means shipping YAML 1.1
+//      resolution tables for bools, nulls and octal/hex integers, which is
+//      more machinery than a two-field classifier justifies. It is bounded —
+//      it needs a hand-written key pair that no corpus file contains, and the
+//      two key names this classifier reads (`type`, `implements`) cannot
+//      participate, since no resolution produces those strings.
+//
+// A DIFFERENTIAL TEST against a real YAML implementation is NOT required and
+// is not being requested. Both residuals are semantic (tag resolution), not
+// syntactic; a parser comparison would re-derive exactly the finite, published
+// spelling sets named above, at the cost of this repository's first
+// dependency.
 //
 // THE COST, accepted deliberately: legal-but-exotic YAML that grove does not
 // use - quoted scalars, block scalars, nested maps, anchors, flow mappings,
@@ -150,44 +217,67 @@ const FM_BLANK = /^[ \t]*$/;
 const FM_KEY = /^([A-Za-z0-9_-]+):(?:[ \t]+(.*))?$/;
 const FM_ITEM = /^[ \t]*-[ \t]+(.*)$/;
 const FM_INDICATOR = /^[-?:,[\]{}#&*!|>'"%@`]/;
+// A ":" followed by space or tab is a mapping-value indicator. Testing only
+// ": " missed the tab spelling, so `implements: a:<TAB>b` was recorded as a
+// plain scalar that no conforming reader would produce.
+const FM_MAPPING_INDICATOR = /:[ \t]/;
+// Forbidden inside a plain scalar in FLOW context only. The block-context
+// check tests the FIRST character, so it accepted `[a[b]` as the item `a[b`.
+const FM_FLOW_INDICATOR = /[[\]{}]/;
+// The keys whose value this classifier actually reads.
+const FM_READ_KEYS = new Set(['type', 'implements']);
+const FM_NARROW = /^[A-Za-z0-9_-]+$/;
 const FM_AMBIGUOUS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u2028\u2029\uFEFF]/;
 // YAML's comment rule: `#` begins a comment at the start of a line, or when
 // preceded by a space or tab. A `#` NOT preceded by whitespace belongs to the
 // scalar (`grove#101` stays whole), which is why this scans rather than
 // splitting on '#'.
+// YAML s-white: space and tab only. Never String.prototype.trim().
+function yamlTrim(value) {
+  return value.replace(/^[ \t]+/, '').replace(/[ \t]+$/, '');
+}
+
 function stripFrontmatterComment(line) {
   if (/^[ \t]*#/.test(line)) return '';
   const comment = /[ \t]#/.exec(line);
-  return (comment == null ? line : line.slice(0, comment.index)).replace(/[ \t]+$/, '');
+  // TRAILING whitespace only, never yamlTrim. Leading whitespace is
+  // STRUCTURAL — it is what distinguishes an indented continuation from a
+  // column-0 key — and stripping it here made `  owner: me` match the key form
+  // and re-opened the continuation hole round seven closed. Caught by the
+  // round-seven battery when this function briefly used yamlTrim.
+  const body = comment == null ? line : line.slice(0, comment.index);
+  return body.replace(/[ \t]+$/, '');
 }
 
-// Form S. Returns the scalar, or null when the value is outside the grammar.
-function acceptPlainScalar(value) {
+// Forms S and N. Returns the scalar, or null when it is outside the grammar.
+// `read` selects the narrow charset; `inFlow` adds the flow-context rule.
+function acceptScalar(value, { read, inFlow }) {
   if (value === '' || FM_AMBIGUOUS.test(value)) return null;
   if (FM_INDICATOR.test(value)) return null;
-  if (value.includes(': ') || value.endsWith(':')) return null;
+  if (FM_MAPPING_INDICATOR.test(value) || value.endsWith(':')) return null;
+  if (inFlow && FM_FLOW_INDICATOR.test(value)) return null;
+  if (read && !FM_NARROW.test(value)) return null;
   return value;
 }
 
-// Form F. A nested `[` fails as an item because `[` is an indicator, so this
-// never recurses.
-function acceptFlowSequence(value) {
+// Form F. Items are scalars in FLOW context, so they carry the extra rule.
+function acceptFlowSequence(value, read) {
   if (!value.startsWith('[') || !value.endsWith(']')) return null;
   if (FM_AMBIGUOUS.test(value)) return null;
-  const inner = value.slice(1, -1).trim();
+  const inner = yamlTrim(value.slice(1, -1));
   if (inner === '') return [];
   const items = [];
   for (const token of inner.split(',')) {
-    const item = acceptPlainScalar(token.trim());
+    const item = acceptScalar(yamlTrim(token), { read, inFlow: true });
     if (item == null) return null;
     items.push(item);
   }
   return items;
 }
 
-function acceptValue(value) {
-  const scalar = acceptPlainScalar(value);
-  return scalar == null ? acceptFlowSequence(value) : scalar;
+function acceptValue(value, read) {
+  const scalar = acceptScalar(value, { read, inFlow: false });
+  return scalar == null ? acceptFlowSequence(value, read) : scalar;
 }
 
 // Three outcomes, never two:
@@ -234,7 +324,9 @@ function readFrontmatter(text) {
       if (sequenceKey == null) {
         return malformed(`${at}: a sequence item with no bare key above it`);
       }
-      const scalar = acceptPlainScalar(item[1].trim());
+      const scalar = acceptScalar(yamlTrim(item[1]), {
+        read: FM_READ_KEYS.has(sequenceKey), inFlow: false,
+      });
       if (scalar == null) return malformed(`${at}: the sequence item is not an accepted scalar`);
       const held = fields.get(sequenceKey);
       fields.set(sequenceKey, Array.isArray(held) ? [...held, scalar] : [scalar]);
@@ -247,13 +339,13 @@ function readFrontmatter(text) {
     // A duplicate key is ambiguous, and YAML forbids it outright. First-wins
     // silently resolved that ambiguity in the writer's favour.
     if (fields.has(name)) return malformed(`${at}: duplicate key "${name}"`);
-    const raw = (key[2] ?? '').trim();
+    const raw = yamlTrim(key[2] ?? '');
     if (raw === '') {
       fields.set(name, '');
       sequenceKey = name;
       continue;
     }
-    const value = acceptValue(raw);
+    const value = acceptValue(raw, FM_READ_KEYS.has(name));
     if (value == null) {
       return malformed(`${at}: the value of "${name}" is outside the accepted grammar`);
     }

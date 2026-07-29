@@ -1374,3 +1374,204 @@ test("R7 — the comment rule is YAML's, and a padded delimiter survives it", ()
     'nor a padded opening delimiter',
   );
 });
+
+
+// --- R8: the whitelist applied one level down, to VALUES ---
+// Round seven closed the LINE class and named one residual: within an accepted
+// line the value was still a near-arbitrary plain scalar, so its meaning rested
+// on YAML subtleties no test here could check. Round eight found three defects
+// and every one of them was inside that residual — nothing was found outside
+// the line grammar. The residual is now closed the same way the line class was:
+// a value the classifier READS must match [A-Za-z0-9_-]+, which every
+// conforming YAML reader produces byte-for-byte as a plain scalar.
+
+// Every character JS trim() strips that YAML does NOT treat as whitespace.
+// YAML s-white is space and tab, and nothing else.
+const JS_TRIMMED_NOT_YAML = [
+  0x0b, 0x0c, 0x00a0, 0x1680, 0x2000, 0x2003, 0x2009, 0x202f, 0x205f, 0x3000,
+  0xfeff, 0x2028, 0x2029,
+];
+
+test('R8 — trimming is YAML s-white, not JS trim(): the whole 13-character class', () => {
+  // `type: research<NBSP>` was trimmed by JS to `research`, matched the enum
+  // and classified reviewless — owing nothing, invisible to observer mode —
+  // while a conforming reader keeps the NBSP and reads a value that is not
+  // `research`. NBSP was one instance; the class has thirteen members.
+  for (const code of JS_TRIMMED_NOT_YAML) {
+    const c = String.fromCharCode(code);
+    const hex = `U+${code.toString(16).toUpperCase().padStart(4, '0')}`;
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: research${c}\n---\n`).classes, ['unclaimed'],
+      `${hex} trailing a type value must not be trimmed away`,
+    );
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: ${c}research\n---\n`).classes, ['unclaimed'],
+      `${hex} leading a type value must not be trimmed away`,
+    );
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: spec\nimplements: adr-1${c}\n---\n`).classes,
+      ['unclaimed'],
+      `${hex} in an implements value must not be trimmed away`,
+    );
+  }
+  // Space and tab ARE YAML whitespace and must still be trimmed.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype:   research  \n---\n').classes, ['reviewless'],
+    'space and tab are s-white and are still trimmed',
+  );
+});
+
+test('R8 — a mapping-value indicator is a colon before space OR tab', () => {
+  // The check tested only ": ", so `implements: a:<TAB>b` was recorded as a
+  // plain scalar no conforming reader would produce: on a spec that yielded
+  // implements-bearing, owing 2 where unclaimed owes 4.
+  const TAB = String.fromCharCode(9);
+  for (const [name, gap] of Object.entries({ space: ' ', tab: TAB })) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: spec\nimplements: a:${gap}b\n---\n`).classes,
+      ['unclaimed'],
+      `colon-${name} in a read value`,
+    );
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: spec\nnote: a:${gap}b\nimplements: adr-1\n---\n`).classes,
+      ['unclaimed'],
+      `colon-${name} in an unread value is still a structural break`,
+    );
+  }
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nnote: trailing:\nimplements: adr-1\n---\n').classes,
+    ['unclaimed'],
+    'a value ending in a colon is a mapping key',
+  );
+});
+
+test('R8 — flow-context scalars forbid [ ] { } anywhere, not just first', () => {
+  // The block-context check tests the FIRST character only, so `[a[b]` was
+  // accepted as the item `a[b`, which YAML forbids in flow context.
+  for (const [name, value] of Object.entries({
+    'open bracket': '[a[b]',
+    'close bracket': '[a]b]',
+    'open brace': '[a{b]',
+    'close brace': '[a}b]',
+    'nested flow': '[[a]]',
+  })) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: spec\nimplements: ${value}\n---\n`).classes,
+      ['unclaimed'], `${name} in a read flow sequence`,
+    );
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: spec\ndepends_on: ${value}\nimplements: adr-1\n---\n`).classes,
+      ['unclaimed'], `${name} in an unread flow sequence`,
+    );
+  }
+  // A bracket inside a BLOCK-context scalar is ordinary content and stays so.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: adr\nnote: are [artifacts] in sync\n---\n').classes,
+    ['decision'], 'block context is not flow context',
+  );
+});
+
+test('R8 — a value the classifier READS is [A-Za-z0-9_-]+; an unread value is not narrowed', () => {
+  // The split is the design choice, and it is measured rather than cautious:
+  // requiring the narrow class of EVERY value would reclassify 31 tracked
+  // files, because unread keys legitimately carry prose and cross-repository
+  // ids. Requiring it of read keys alone reclassifies none.
+  for (const value of ['resea.rch', 'resea/rch', 'resea@rch', 'resea rch', 'resea"rch', 'resea;rch']) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: ${value}\n---\n`).classes, ['unclaimed'],
+      `type ${JSON.stringify(value)} is outside the narrow class`,
+    );
+  }
+  for (const value of ['trellis/decision-0045', 'spec-0004@v6', 'adr.1']) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: spec\nimplements: ${value}\n---\n`).classes, ['unclaimed'],
+      `implements ${JSON.stringify(value)} is outside the narrow class`,
+    );
+  }
+  // A leading dash is inside [A-Za-z0-9_-]+ but is still a YAML indicator.
+  assert.deepEqual(classifyContent('---\nid: x\ntype: -research\n---\n').classes, ['unclaimed']);
+
+  // The same characters on UNREAD keys stay accepted — this is what keeps the
+  // corpus at zero churn.
+  const unread = {
+    'a slash': '---\nid: x\ntype: adr\ndepends_on: [trellis/decision-0045]\n---\n',
+    'an at sign': '---\nid: x\ntype: adr\nchanges: [spec-0004-dual-host@v6]\n---\n',
+    'prose with punctuation': '---\nid: x\ntype: adr\nstatus_note: shaped from the call (2026-07-12); folded\n---\n',
+    'a block sequence of ids': '---\nid: x\ntype: adr\ndepends_on:\n- trellis/decision-1\n---\n',
+  };
+  for (const [name, text] of Object.entries(unread)) {
+    assert.deepEqual(
+      classifyContent(text).classes, ['decision'],
+      `${name}: an unread value is bounded, not narrowed`,
+    );
+  }
+  // But a READ key's block sequence is narrowed.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements:\n- trellis/decision-1\n---\n').classes,
+    ['unclaimed'], 'a read key narrows its sequence items too',
+  );
+});
+
+test('R8 — tag-resolution spellings cannot under-owe', () => {
+  // What the charset does NOT settle, pinned rather than claimed closed: YAML
+  // 1.1 resolves `no`, `y`, `null` to boolean/null where 1.2 keeps a string.
+  // No enum member is one of those spellings, so `type` is unaffected; for
+  // `implements` a resolution difference can only make the value more present,
+  // which over-owes. Both directions are fail-closed.
+  for (const spelling of ['no', 'null', 'y', 'on', 'off', 'true']) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: ${spelling}\n---\n`).classes, ['unclaimed'],
+      `type: ${spelling} is outside the enum under every reader`,
+    );
+    const spec = classifyContent(`---\nid: x\ntype: spec\nimplements: ${spelling}\n---\n`);
+    assert.ok(
+      spec.classes.includes('spec'),
+      `implements: ${spelling} keeps the spec class`,
+    );
+    assert.equal(
+      spec.implementsBearing, true,
+      `implements: ${spelling} counts as present — over-owing, never under`,
+    );
+  }
+});
+
+test('R8 — an accepted value is never empty; only a BARE key holds the empty string', () => {
+  // The grammar rejects an empty scalar, so a field holds '' if and only if
+  // its line was a bare key — which is also the only thing that opens a
+  // sequence. That is why the bearing test needs no trim and no '[]' case.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements:\n---\n').classes, ['spec'],
+    'a bare implements key is present but not bearing',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements:   \n---\n').classes, ['spec'],
+    'trailing s-white does not make it a value',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: spec\nimplements: []\n---\n').classes, ['spec'],
+    'an empty flow sequence is present but not bearing',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype:\n---\n').classes, ['unclaimed'],
+    'a bare type key has no enum value',
+  );
+});
+
+test('R8 — leading whitespace stays structural: comment stripping must not eat it', () => {
+  // A regression this round introduced and the round-seven battery caught:
+  // routing the comment stripper through yamlTrim removed LEADING whitespace
+  // too, so `  owner: me` matched the key form and indented continuations were
+  // silently accepted again — reopening the hole round seven closed.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: research\nmeta:\n  owner: me\n---\n').classes,
+    ['unclaimed'], 'a nested map is an indented continuation, not two keys',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: research\n  owner: me\n---\n').classes,
+    ['unclaimed'], 'an indented key-shaped line is still a continuation',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: research\n\towner: me\n---\n').classes,
+    ['unclaimed'], 'tab indentation too',
+  );
+});

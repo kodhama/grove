@@ -102,6 +102,20 @@ groups:
           - title:
               - "R7 — the comment rule is YAML's, and a padded delimiter survives it"
           - title:
+              - "R8 — a mapping-value indicator is a colon before space OR tab"
+          - title:
+              - "R8 — a value the classifier READS is [A-Za-z0-9_-]+; an unread value is not narrowed"
+          - title:
+              - "R8 — an accepted value is never empty; only a BARE key holds the empty string"
+          - title:
+              - "R8 — flow-context scalars forbid [ ] { } anywhere, not just first"
+          - title:
+              - "R8 — leading whitespace stays structural: comment stripping must not eat it"
+          - title:
+              - "R8 — tag-resolution spellings cannot under-owe"
+          - title:
+              - "R8 — trimming is YAML s-white, not JS trim(): the whole 13-character class"
+          - title:
               - "a block-style implements list classifies implements-bearing; an empty key does not"
           - title:
               - "a digest-matched record never satisfies a different subject (sentinel collision)"
