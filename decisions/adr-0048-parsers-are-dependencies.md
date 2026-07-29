@@ -1,7 +1,7 @@
 ---
 id: adr-0048-parsers-are-dependencies
 type: adr
-status: gated  # drafted by the agent; awaits the maintainer's intent act
+status: approved  # maintainer's intent act in-session (D5 channel), 2026-07-29: "I approved the spec in both decisions", clarified as adr-0047 and adr-0048. Author (agent) != approver (maintainer). Reviewed by an independent conformance pass at plan stage (FAIL, folded) before any code. The nine maintainer decisions are recorded in-record with their reasoning. The PR merge is the separate ship act and is NOT performed by this flip; spec-0006@v3 is caused by this record per adr-0044 and is not yet minted.
 depends_on: [adr-0026-thin-vendor-boundary, adr-0028-plugin-release-tagging, adr-0031-multi-host-distribution, adr-0043-structured-test-dependency-canary]
 changes: [spec-0006-voluntary-dispatch@v3]  # adr-0044 pairing; v3 carries both queued amendments
 owner: agent
