@@ -201,13 +201,14 @@ export async function planCloseRun(input) {
 // report the SAME refusal reason, and the post-edit validity gate below needs
 // to name which of the two failures it hit.
 function buildCloseAction(cursorText, runId, closed) {
-  const content = editCursorFields(cursorText, {
+  const edit = editCursorFields(cursorText, {
     status: 'closed',
     closed,
   });
-  if (content == null) {
-    return { ok: false, reason: `cannot rewrite an unparseable cursor for ${runId}` };
+  if (!edit.ok) {
+    return { ok: false, reason: `${edit.reason} for ${runId}` };
   }
+  const { content } = edit;
   // The gate planOpenRun already has, on the edit path too: bytes are planned
   // only if they parse AND validate. Refusing is the fail-closed choice here
   // and costs nothing — close-run already refuses a malformed cursor outright
@@ -266,14 +267,22 @@ export async function planAbortRun(input) {
     }
     // Well-formed: the whole-file replacement path is UNREACHABLE — this is
     // a field edit preserving every open-time byte (INV8).
-    content = editCursorFields(cursor.text, {
+    const edit = editCursorFields(cursor.text, {
       status: 'aborted',
       closed,
       reason,
     });
-    if (content == null) {
-      return fail(plan, `abort-run cannot rewrite an unparseable cursor for ${runId}`);
+    // Both failures refuse HERE rather than falling through to the whole-file
+    // shape below. INV8 pins that exception to the unparseable-or-schema-invalid
+    // row, and a cursor that parses and validates is neither — it is well-formed
+    // by the spec's own definition, whatever the serializer thinks of its depth.
+    // Widening the exception to cover it would be a spec amendment written in
+    // code; the residual (such a run has no exit) is raised as an open question
+    // on grove#186 instead of resolved silently.
+    if (!edit.ok) {
+      return fail(plan, `abort-run ${edit.reason} for ${runId}`);
     }
+    content = edit.content;
     // Same pre-write gate as close's, and REFUSAL rather than a fall-through
     // to the whole-file shape below — deliberately. INV8 pins that exception
     // to the unparseable-or-schema-invalid input row and AC5 reds it if it
@@ -466,16 +475,36 @@ async function readCursor(repoRoot, runId) {
 // with INV8's whole-file exception deliberately unreachable on a cursor that is
 // well-formed. The run had no exit at all.
 //
-// Returns null only when the bytes do not parse — which both callers have
-// already ruled out, and which is a refusal rather than an internal error.
+// Returns a result, never bare bytes, because there are TWO ways to fail and
+// they are not the same refusal. Parsing is the one both callers already ruled
+// out. **Serializing is the one the dependency introduced**: `smol-toml`
+// accepts a table nested ~1000 deep and refuses to stringify it, an asymmetry
+// the hand-rolled surgical line edit could not have — it never re-serialized
+// the document at all. Unhandled, that throw left `planCloseRun` and
+// `planAbortRun` as a crash rather than a refusal on a cursor that is
+// schema-valid and OPEN. The reachable carrier is the reserved `claims` table,
+// which survives the parse by contract.
+//
+// This is a cost of `adr-0048` D3's replacement, and it is priced here rather
+// than argued away: read-modify-write inherits the writer's limits as well as
+// the reader's, and only the reader's were measured.
 function editCursorFields(cursorText, changes) {
   let document;
   try {
     document = parseTomlDocument(cursorText);
   } catch {
-    return null;
+    return { ok: false, unparseable: true, reason: 'cannot rewrite an unparseable cursor' };
   }
-  return rewriteCursorFields(document, changes);
+  try {
+    return { ok: true, content: rewriteCursorFields(document, changes) };
+  } catch (error) {
+    return {
+      ok: false,
+      unparseable: false,
+      reason: 'the cursor parses but cannot be re-serialized '
+        + `(${error.message}); nothing was written`,
+    };
+  }
 }
 
 async function listOpenCursors(repoRoot) {

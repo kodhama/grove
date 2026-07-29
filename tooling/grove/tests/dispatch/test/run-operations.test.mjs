@@ -1282,3 +1282,55 @@ test('INV8 — abort changes EXACTLY status, closed and reason on a well-formed 
   );
   assert.deepEqual(after.cursor.claims, [{ who: 'someone' }], 'the reserved key survives');
 });
+
+// The parse/serialize asymmetry adr-0048's replacement introduced, found by an
+// independent reviewer on grove#186. `smol-toml` PARSES a table nested ~1000
+// deep and REFUSES to stringify it — limits the old hand-rolled surgical line
+// edit never had, because it never re-serialized the document at all. Both
+// close and abort read-modify-write through the library now, so the throw
+// escaped uncaught out of the plan call: not a refusal, a crash, on a cursor
+// that is schema-valid and OPEN. The `claims` table is the reachable carrier
+// because it is schema-reserved — its presence is a defect on a parseable
+// cursor, never a parse failure, so it survives into the document being
+// rewritten (cursor.mjs's rewriteCursorFields contract).
+async function deepClaimsRun(dir, runId) {
+  await mkdir(join(dir, '.grove', 'runs', runId), { recursive: true });
+  const path = Array.from({ length: 1200 }, (_, i) => `k${i}`).join('.');
+  await writeFile(
+    join(dir, '.grove', 'runs', runId, 'cursor.toml'),
+    `schema = 1\nrun = "${runId}"\nopened = "${openedFor(runId)}"\n`
+      + 'intent = "x"\nsubjects = [ "specs/changed.md" ]\nstatus = "open"\n'
+      + `[claims.${path}]\nx = 1\n`,
+  );
+}
+
+test('a cursor the library parses but cannot re-serialize is REFUSED, not thrown out of', async () => {
+  const dir = await repoFixture();
+  const runId = '20260728-180000-deep';
+  await deepClaimsRun(dir, runId);
+
+  // It really is the asymmetric case: parse and schema both accept it.
+  const parsed = parseCursor(
+    await readFile(join(dir, '.grove', 'runs', runId, 'cursor.toml'), 'utf8'),
+    { runId },
+  );
+  assert.equal(parsed.ok, true, 'precondition: the document parses and validates');
+  assert.equal(parsed.claimsPresent, true, 'precondition: the reserved table survives the parse');
+
+  const close = await planCloseRun({
+    repoRoot: dir, runId, closed: '2026-07-28T19:00:00Z',
+  });
+  assert.equal(close.ok, false);
+  assert.match(close.summary, /re-serialize|serializ/i,
+    'the refusal names serialization, not an unparseable cursor it is not');
+
+  const abort = await planAbortRun({
+    repoRoot: dir, runId, closed: '2026-07-28T19:00:00Z', reason: 'deep claims',
+  });
+  assert.equal(abort.ok, false);
+  assert.match(abort.summary, /re-serialize|serializ/i);
+  // INV8 still holds: this cursor IS well-formed, so the whole-file exception
+  // stays unreachable. The run is refused loudly rather than exited by widening
+  // a spec clause in code — see the Open question raised on grove#186.
+  assert.equal(abort.wholeFileReplacement, false);
+});
