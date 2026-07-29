@@ -2,7 +2,7 @@
 id: adr-0048-parsers-are-dependencies
 type: adr
 status: gated  # drafted by the agent; awaits the maintainer's intent act
-depends_on: [adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution, adr-0043-structured-test-dependency-canary]
+depends_on: [adr-0026-thin-vendor-boundary, adr-0028-plugin-release-tagging, adr-0031-multi-host-distribution, adr-0043-structured-test-dependency-canary]
 changes: [spec-0006-voluntary-dispatch@v3]  # adr-0044 pairing; v3 carries both queued amendments
 owner: agent
 updated: 2026-07-29
@@ -186,12 +186,30 @@ good": it applies exactly where a second party defines correctness.
 10. **This is a release event; `plugins/grove/VERSION` moves `0.3.0` → `0.4.0`.**
     *(Maintainer: "new version yeah.")*
 
-    The number is a **choice, not a derivation.** Per `charters/versioning.md`,
-    the form "fits what 'conform' means" for the artifact — a spectrum, not
-    semver — and for a *human-cut release* the form is a git tag, which
-    `release-tag.yml` materialises as `grove-v<VERSION>`. Nothing in grove
-    derives a version from the shape of a change, so `0.4.0` is recorded as a
-    decision rather than computed.
+    **`0.4.0` is a derivation, not a choice — and an earlier version of this
+    clause said the opposite, which was wrong.** It asserted that nothing in
+    grove derives a version from the shape of a change. `adr-0028` **D3**
+    (approved 2026-07-22) does exactly that, and the maintainer caught the
+    error:
+
+    > **minor** — a new capability or a meaningfully changed role behavior
+    > (and, while pre-`1.0` at `0.x`, **a breaking change rides the minor slot
+    > by semver convention**); **major** — reserved for post-`1.0` breaking
+    > changes.
+
+    This change is breaking — seven runtime modules replaced and a
+    classification behaviour change — so pre-`1.0` it takes the **minor** slot:
+    `0.3.0` → `0.4.0`. The level is *judged by the maintainer at merge* per D3;
+    the slot is not.
+
+    **Authority, since D1 and the tree appear to disagree and do not.**
+    `adr-0028` D1 named `plugin.json` the single source of truth. `adr-0031`
+    moved the locus to the host-neutral `plugins/grove/VERSION` when grove went
+    dual-host and there were two manifests, **preserving D2 (the human-cut
+    release form) and D3 (the semver levels)** — stated at
+    `.github/workflows/release-tag.yml:26`, *"VERSION is the sole release
+    authority (adr-0031/spec-0004)."* So `VERSION` is authoritative and both
+    manifests derive from it. All three read `0.3.0` today and move together.
 
     It is warranted on substance: seven runtime modules replaced, roughly
     **+282 KB** of new package bytes, and a classification behaviour change. A
