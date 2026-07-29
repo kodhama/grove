@@ -222,6 +222,22 @@ good": it applies exactly where a second party defines correctness.
     wave*. This bump satisfies that precondition. The cache defect itself is not
     fixed here and `grove#169` stays open.
 
+## Errata (append-only; the ratified text below is unedited)
+
+**D10's file count is wrong. Four files carry the version, not three.**
+Recorded 2026-07-29, after the bump was executed. D10 names `plugins/grove/VERSION`
+and the two host manifests. The tree also has **`plugins/grove/metadata/surfaces.json`**,
+whose `version` `validate-release.mjs` (`release.mjs:1260`) checks against `VERSION`
+on the same rule as the manifests.
+
+Found the way it should have been: by bumping `VERSION` alone and reading what
+broke, not by re-reading the record. The bump to `0.4.0` moved all four.
+
+This corrects a fact, not a decision — D10's ruling (this is a release event; the
+level is derived, and pre-`1.0` a breaking change takes the minor slot per
+`adr-0028` D3) stands unchanged. Appended rather than edited, per the
+append-only rule this corpus runs on.
+
 ## Amendment obligation this record now carries
 
 Independent review found that **`spec-0006` needs an amendment after all**, and
