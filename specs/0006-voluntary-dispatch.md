@@ -1,7 +1,7 @@
 ---
 id: spec-0006-voluntary-dispatch
 type: spec
-status: gated  # spec gate ratified 2026-07-28 under the `spec = agent` profile row: spec-adversary APPROVE-READY at round eight of an eight-round convergence (rounds 1-3, 5-8 spec-adversary; round 4 fresh-eyes decision-adversary, concurring). The verdict record with the convergence table, mechanical-vs-behavioral ledger and residual risks is on PR #177. `approved` remains a human act; ship = human stands.
+status: approved  # maintainer's intent act, 2026-07-29, in-session: asked to batch the wave's pending ratifications and answered "Voluntary dispatch spec" among them, on a summary stating this is the gated -> approved flip. Author (agent) != approver (maintainer). The flip RECORDS the act; it does not perform it, and the PR merge is the separate ship act. Prior gate history: ratified 2026-07-28 under the `spec = agent` profile row: spec-adversary APPROVE-READY at round eight of an eight-round convergence (rounds 1-3, 5-8 spec-adversary; round 4 fresh-eyes decision-adversary, concurring). The verdict record with the convergence table, mechanical-vs-behavioral ledger and residual risks is on PR #177. `approved` remains a human act; ship = human stands.
 implements: adr-0046-how-dispatch-rules-reach-a-session
 depends_on: [adr-0046-how-dispatch-rules-reach-a-session, spec-0004-dual-host-distribution@v8, adr-0035-plugin-and-consumer-boundary, adr-0048-parsers-are-dependencies]  # @v7 -> @v8 advanced in the landing commit per §Propagation and landing pairing; adr-0048 is v3's amendment contract (adr-0044: it declares `changes: [spec-0006-voluntary-dispatch@v3]`)
 owner: agent
