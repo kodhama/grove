@@ -48,6 +48,13 @@ jobs:
         with:
           node-version: "22"
 
+      # Required since adr-0048: `npm run check` below regenerates the parser
+      # bundle to compare its bytes, and the bundler and the bundled parsers
+      # are workspace dependencies. Without this the check step cannot resolve
+      # esbuild and the job fails before it validates anything.
+      - name: Install the workspace
+        run: npm ci
+
       - name: Check generated adapters
         run: npm run check --prefix tooling/grove/build
 

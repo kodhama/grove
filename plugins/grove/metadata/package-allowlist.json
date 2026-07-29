@@ -300,6 +300,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/reference/licenses/NOTICES.md",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/reference/lifecycle.md",
       "kind": "file"
     },
@@ -349,6 +353,10 @@
     },
     {
       "path": "plugins/grove/runtime/dispatch/lib/guard-core.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/lib/parsers.mjs",
       "kind": "file"
     },
     {

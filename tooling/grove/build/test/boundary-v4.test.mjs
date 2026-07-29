@@ -141,6 +141,16 @@ groups:
       - file: "test/dependency-delivery.test.mjs"
         cases:
           - title:
+              - "adr-0048 D2 — a hand edit to the committed parser bundle fails check mode"
+          - title:
+              - "adr-0048 D2 — the bundle imports and executes from a directory containing NO node_modules"
+          - title:
+              - "adr-0048 D2 — the bundle's only bare specifiers are node builtins"
+          - title:
+              - "adr-0048 D2 — two consecutive builds of the parser bundle are byte-identical"
+          - title:
+              - "adr-0048 D2/spec-0004 — the bundle and its notices are declared generated files inside the permitted package shape"
+          - title:
               - "adr-0048 D4 — CI installs the workspace before any suite runs, and no longer claims no install is needed"
           - title:
               - "adr-0048 D4 — node_modules is ignored BY THE COMMITTED .gitignore, so the derived change set stays bounded"
@@ -148,9 +158,19 @@ groups:
               - "adr-0048 D4 — the committed lockfile is the install authority npm ci requires"
           - title:
               - "adr-0048 D4 — the root manifest declares exactly the six workspace packages, and no package escapes it"
+          - title:
+              - "adr-0048 D9 — every bundled dependency carries its licence notice, in NOTICES.md AND in the bundle bytes"
+      - file: "test/generate.test.mjs"
+        cases:
+          - title:
+              - "all projections are marked, source-addressed, and native ids are unique underscore forms"
+          - title:
+              - "configured roots are explicit and do not include plugin custom-agent TOML"
+    specs:
+      - "spec-0004-dual-host-distribution@v8"
     decisions:
       - "adr-0048-parsers-are-dependencies"
-    notes: "The delivery machinery adr-0048 needs before any parser is swapped. No spec pin: workspaces, the ignore rule, and the CI install all sit outside the installable package, so no versioned fidelity contract governs them."
+    notes: "The delivery machinery, and the two legacy declarations adr-0048 TOUCHED — the fourth canonical source and the GENERATED_FILES registration — which adr-0043 requires be selected exactly rather than left to coarse scope. The spec-0004 pin is the package-root shape that fixes where the bundle may land, not a claim that the spec governs the workspace root."
   "legacy-package":
     precision: coarse
     tests:
