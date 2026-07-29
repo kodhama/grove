@@ -26,9 +26,16 @@ existence.
 Baseline green: build 32 · release 45 · gates 40 · lifecycle 82 · dispatch 200 ·
 probes 2 = **401 passing**, and `npm run check` reports 60 generated files clean.
 
-## 1. Spec impact — no spec-0006 amendment, but a location constraint
+## 1. ~~Spec impact — no spec-0006 amendment~~ **SUPERSEDED** — it does, and the location constraint
 
-**Confirmed by grep.** spec-0006 names YAML once (line 104, Terms) and specifies
+> **This section's conclusion is REVERSED.** Conformance review found spec-0006's
+> own precedent at `:54-63` — a 2-owed→4-owed move ruled "a widening that needs an
+> amendment rather than a reading" — and this change moves 19 inputs 4→0, the
+> opposite direction. The maintainer ratified **v3**. The sub-claims below were each
+> verified and remain true; the inference from them was wrong. Kept, struck, rather
+> than deleted, because the reasoning error is the point.
+
+~~**Confirmed by grep.**~~ spec-0006 names YAML once (line 104, Terms) and specifies
 **no grammar and no parser**. The class table (383–390) is purely semantic.
 INV16 requires classification be "deterministic per the tables in this spec" — a
 conforming parser satisfies that.
@@ -93,7 +100,7 @@ Both TOML candidates match `toml.mjs` on what the tests pin: BOM rejected,
 duplicate keys rejected, unsafe integers rejected, `__proto__` inert.
 
 **Clone-size cost** (adr-0048 deferred this): bundled yaml 263,589 B + smol-toml
-25,711 B = **289,219 B**, minus deleted `toml.mjs` (7,541 B) ⇒ **≈ +282 KB on a
+25,711 B = **289,300 B**, minus deleted `toml.mjs` (7,541 B) ⇒ **≈ +282 KB on a
 ~720 KB tree, ~39% growth.** Recommend **unminified** — minification halves size
 but makes shipped third-party code unreviewable, cutting against the audit
 consequence, and makes the digest far more sensitive to bundler churn.
@@ -189,7 +196,10 @@ Frontmatter reader reaches everything via `classifyContent` → `bindSubject` �
 ADR posed and did not perform: `runtime/gates/lib/profile.mjs:94`
 (`parseGatesToml`, reading **consumer-editable** `.grove/gates.toml` — the exact
 open-input argument Decision 3 used) and `runtime/lifecycle/lib/lifecycle.mjs:1270`.
-**Recommend out of scope, recorded loudly.**
+~~**Recommend out of scope, recorded loudly.**~~ **OVERTAKEN at ratification.**
+adr-0048 D3's audit table names both sites **replace**, and both are implemented
+on this PR. `seedPreset` is the one remaining hand-rolled writer, kept
+deliberately and carried by a failing-shaped test rather than by prose.
 
 **There is no `.gitignore` in this repository at all.** Adding root
 `node_modules` leaves thousands of untracked files visible to
@@ -300,7 +310,9 @@ it avoids the `implements` under-owing and the merge-key class that 1.1 opens.
 reading of "non-empty" the spec does not define, which `spec-0004:530` forbids a
 plan from doing. The schema clause in spec-0006 v3 replaces it.
 
-**Q2 — is F1's 13-input coverage reduction acceptable?** Spec-conformant, a real
+~~**Q2 — is F1's 13-input coverage reduction acceptable?**~~ **DECIDED** —
+adr-0048 D7 records it accepted, at the aggregate figure (≥19 inputs to zero
+owed, ≥15 out of observer scope) rather than F1's narrower 13. Spec-conformant, a real
 loss, and not mitigable inside this change without re-diverging from the table.
 
 **Q3 — does `parseGatesToml` come along, or wait?** Decision 1's principle covers

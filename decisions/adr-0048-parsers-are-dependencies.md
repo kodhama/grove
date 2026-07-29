@@ -224,7 +224,11 @@ good": it applies exactly where a second party defines correctness.
 
 ## Errata (append-only; the ratified text below is unedited)
 
-**D10's file count is wrong. Four files carry the version, not three.**
+Corrections recorded after ratification, each quoting the text it corrects. The
+ratified body is unedited. Found by an independent reviewer on grove#186 except
+where noted.
+
+**1. D10's file count is wrong. Four files carry the version, not three.**
 Recorded 2026-07-29, after the bump was executed. D10 names `plugins/grove/VERSION`
 and the two host manifests. The tree also has **`plugins/grove/metadata/surfaces.json`**,
 whose `version` `validate-release.mjs` (`release.mjs:1260`) checks against `VERSION`
@@ -237,6 +241,37 @@ This corrects a fact, not a decision — D10's ruling (this is a release event; 
 level is derived, and pre-`1.0` a breaking change takes the minor slot per
 `adr-0028` D3) stands unchanged. Appended rather than edited, per the
 append-only rule this corpus runs on.
+
+**2. The frontmatter's "spec-0006@v3 ... is not yet minted" is spent.** True when
+written; grove#186 mints v3. The `changes:` pairing on the next line is now in
+effect rather than declared.
+
+**3. Decision 2's "lands ... as a git clone" is inaccurate.** Measured: there is
+**no `.git`** anywhere under the installed plugin cache — it is a materialized
+tree. This *strengthens* D2's argument (no install step, no package manager, no
+metadata) and changes no conclusion, but the word is wrong and self-check row 3
+marked it "PASS — verified".
+
+**4. Consequences' "loses most of its 774 lines" is wrong twice.** The file was
+810 lines when the sentence was written, not 774; it lost ~270 (≈35%), not
+"most", and stands at 740 after the replacement. The paired plan corrected the
+figure and cited a stale line number while doing so.
+
+**5. The "186 cases" figure is not derivable from this tree.** Instrumented, the
+battery is 231 invocations over 220 distinct inputs. Self-check row 6 already
+marked the round-by-round table PARTIAL for this reason; the figure appears
+elsewhere unqualified.
+
+**6. Self-check row 2 is false.** It reads "all three verified present" while
+`depends_on` carries **four** ids — `adr-0028` was added after the row was
+written and the row was never re-derived. This is the fourth false self-check row
+produced in this workstream, in the artifact added specifically to catch that
+class. The check is only as good as its re-derivation, and re-derivation is the
+step that keeps getting skipped.
+
+**7. Open questions 1, 2, 6 and 7 are answered by this record's own Decisions**
+(6, 7 and 8) and were never struck, though the record has a working convention
+for it — Open 4 is struck and marked Answered.
 
 ## Amendment obligation this record now carries
 
