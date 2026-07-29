@@ -18,7 +18,26 @@ import { parse as smolTomlParse, stringify as smolTomlStringify } from "smol-tom
 import { parse as yamlParse } from "yaml";
 
 // spec-0006 §Frontmatter reading, second clause; adr-0048 D6.
-const YAML_1_2_CORE = Object.freeze({ version: "1.2", schema: "core" });
+//
+// `logLevel` belongs here for the same reason the dialect does: it is the
+// parser's OWN output channel, not a classification policy, and a call site
+// that forgot it would write into the guard's report channel. The library
+// logs warnings — an unresolved tag, a collection used as a mapping key —
+// through `process.emitWarning`, which lands on stderr, which is exactly the
+// guard's non-blocking channel (`stop-guard.sh`: "guard 1 -> 1, non-blocking
+// stderr report"). A warning interleaved there corrupts an operator report.
+//
+// MEASURED, and the reason this is `"error"` rather than the obvious
+// `"silent"`: at `"silent"` the library stops THROWING as well as logging.
+// Under it a multi-document stream returns its first document instead of
+// throwing, and a duplicate key resolves last-wins — the two fail-closed
+// properties spec-0006 INV28 and §Frontmatter reading depend on, both lost
+// silently. `"error"` suppresses the warning log and keeps every throw.
+const YAML_1_2_CORE = Object.freeze({
+  version: "1.2",
+  schema: "core",
+  logLevel: "error",
+});
 
 /** Parse one YAML 1.2 core-schema document. Throws on a malformed document. */
 export function parseYamlDocument(text) {

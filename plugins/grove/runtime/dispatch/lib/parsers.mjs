@@ -1,4 +1,4 @@
-// GENERATED — DO NOT EDIT; canonical-source: tooling/grove/build/sources/parsers.mjs; sha256: 79ab598899e6d44cd7361f24557678650e52940e673f63cf47de1069a1cf52e1
+// GENERATED — DO NOT EDIT; canonical-source: tooling/grove/build/sources/parsers.mjs; sha256: d3073212e8368a8745f0beb789345e23da2985247e7af6cacb0e6e38d366c60a
 // BUNDLED — smol-toml 1.7.1 (BSD-3-Clause), yaml 2.9.0 (ISC); bundler esbuild 0.28.1. The canonical digest above does not determine these bytes on its own.
 /*
 Third-party notices, reproduced so they travel with the bytes (adr-0048 D9).
@@ -8484,7 +8484,11 @@ function stringify(obj, { maxDepth = 1e3, numbersAsFloat = false } = {}) {
 
 // tooling/grove/build/sources/parsers.mjs
 var import_yaml = __toESM(require_dist(), 1);
-var YAML_1_2_CORE = Object.freeze({ version: "1.2", schema: "core" });
+var YAML_1_2_CORE = Object.freeze({
+  version: "1.2",
+  schema: "core",
+  logLevel: "error"
+});
 function parseYamlDocument(text) {
   return (0, import_yaml.parse)(text, YAML_1_2_CORE);
 }

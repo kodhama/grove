@@ -56,7 +56,37 @@ groups:
       - file: "test/guard-core.test.mjs"
         cases:
           - title:
+              - "AC14 — a control character in a READ value keeps it off-enum; in an unread value it does NOT, and that is disclosed"
+          - title:
+              - "AC14 — a flow collection is legal YAML; what refuses it is the parser or the schema, not a charset"
+          - title:
+              - "AC14 — a legal YAML spelling of a known type classifies by that type, whatever the spelling"
+          - title:
+              - "AC14 — an indented continuation changes the value above it, so the class follows the real value"
+          - title:
+              - "AC14 — the 13 characters JS trim() strips are ordinary YAML content, so none reaches the enum"
+          - title:
+              - "AC14 — the narrow [A-Za-z0-9_-]+ charset is GONE, and the enum is what narrows a type now"
+          - title:
+              - "AC14/D3 — the `---` delimiter convention stays grove-owned, so no input falls open into code"
+          - title:
+              - "AC14/D7 — every construct the whitelist refused, with the class it reaches now"
+          - title:
+              - "AC14/D7 — grove frontmatter classifies by type, and so does the exotic YAML the whitelist refused"
+          - title:
+              - "AC14/INV16 — 1.2 tag resolution cannot under-owe: a string bears, a non-string is unclaimed"
+          - title:
+              - "AC14/INV16 — the dialect is fixed at YAML 1.2 core schema, not left to a build flag"
+          - title:
+              - "AC14/INV28 — a document that does not parse classifies unclaimed, and NEVER code"
+          - title:
               - "BLOCK-2 — a symlink target binds its RAW bytes: distinct invalid UTF-8 targets never collide"
+          - title:
+              - "INV28 — a non-string type is schema-invalid; no value is coerced to reach a class"
+          - title:
+              - "INV28 — a successful parse to a NON-MAPPING is schema-invalid, never coerced"
+          - title:
+              - "INV28 — an implements outside string-or-sequence-of-strings is schema-invalid"
           - title:
               - "L1 — the regular-file read goes through one O_NOFOLLOW handle, not a second path lookup"
           - title:
@@ -94,31 +124,11 @@ groups:
           - title:
               - "R6 — no malformed, truncated, or ambiguous block can reach the absorbing reviewless class"
           - title:
-              - "R7 — an indented continuation changes the value above it, so it is malformed"
-          - title:
-              - "R7 — characters whose line-break meaning differs between YAML versions are malformed"
-          - title:
-              - "R7 — every YAML construct outside the accepted subset is malformed, never reviewless"
-          - title:
               - "R7 — line splitting follows YAML 1.2: LF, CR and CRLF each end a line"
-          - title:
-              - "R7 — the accepted grammar classifies grove frontmatter; exotic YAML is malformed by design"
           - title:
               - "R7 — the comment rule is YAML's, and a padded delimiter survives it"
           - title:
               - "R8 — a mapping-value indicator is a colon before space OR tab"
-          - title:
-              - "R8 — a value the classifier READS is [A-Za-z0-9_-]+; an unread value is not narrowed"
-          - title:
-              - "R8 — an accepted value is never empty; only a BARE key holds the empty string"
-          - title:
-              - "R8 — flow-context scalars forbid [ ] { } anywhere, not just first"
-          - title:
-              - "R8 — leading whitespace stays structural: comment stripping must not eat it"
-          - title:
-              - "R8 — tag-resolution spellings cannot under-owe"
-          - title:
-              - "R8 — trimming is YAML s-white, not JS trim(): the whole 13-character class"
           - title:
               - "R9 — a subject that cannot decode still binds records by its raw-byte digest"
           - title:
@@ -128,7 +138,9 @@ groups:
           - title:
               - "R9 — tabs are forbidden in indentation; a tab after the indicator is separation"
           - title:
-              - "a block-style implements list classifies implements-bearing; an empty key does not"
+              - "S17 — a conforming parse, fail-closed: three subjects, three classes"
+          - title:
+              - "a block-style implements list classifies implements-bearing; a null implements is schema-invalid"
           - title:
               - "a digest-matched record never satisfies a different subject (sentinel collision)"
           - title:
@@ -145,6 +157,14 @@ groups:
               - "a subdirectory repoRoot is an internal error, not an empty-and-passing change set"
           - title:
               - "a worktree-side rename (mv + add -N) puts BOTH halves in the derived change set"
+          - title:
+              - "adr-0048 — a __proto__ key in frontmatter is own data and reaches no prototype"
+          - title:
+              - "adr-0048 — a multi-document stream is a refusal, never classified by its first document"
+          - title:
+              - "adr-0048 — an alias-expansion bomb is a refusal, not an unbounded expansion"
+          - title:
+              - "adr-0048 — classifying emits no process warning, whatever the document says"
           - title:
               - "block-style implements lists classify bearing at every YAML-legal indentation"
           - title:
