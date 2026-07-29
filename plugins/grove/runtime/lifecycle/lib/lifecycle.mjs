@@ -15,7 +15,7 @@ import { createHash } from 'node:crypto';
 // the package's top-level entries and a new root would amend it — a directory
 // name, not a layering claim. There is no module cycle: the bundle imports
 // nothing of grove's.
-import { parseTomlDocument } from '../../dispatch/lib/parsers.mjs';
+import { parseTomlDocument, stringifyTomlDocument } from '../../dispatch/lib/parsers.mjs';
 
 const PRESETS = Object.freeze({
   steward: Object.freeze({ intent: 'human', spec: 'agent', build: 'agent', ship: 'human' }),
@@ -1332,23 +1332,76 @@ function serializeConfig(config, tokenConfig) {
   for (const key of listTokens) {
     if (!known.has(key)) throw new Error(`list token ${key} is absent from tokens`);
   }
-  const lines = [
-    '# .grove/config.toml — consumer-authoritative shared Grove role config.',
-    '# Values are verified priors; Grove lifecycle operations never refresh this file.',
-    '',
-  ];
+  // The token contract is grove's and stays hand-written: which keys exist,
+  // which are lists, and that a list token holds an array. What is NOT grove's
+  // is TOML string escaping, and that is what this function used to get wrong.
+  //
+  // MEASURED DEFECT, and it is why this is a replacement rather than a tidy-up.
+  // The values were built with `JSON.stringify`, which is a JSON escaper. The
+  // two escape sets differ in one direction that reaches a consumer's disk:
+  // TOML forbids a raw U+007F (DEL) inside a basic string and JSON.stringify
+  // does not escape it, so a config value carrying a DEL wrote a
+  // `.grove/config.toml` that grove's own reader cannot parse — through the
+  // confirm gate, discovered only on the next read. The library escapes it.
+  //
+  // WHAT THE LIBRARY DOES NOT FIX, measured rather than assumed: a lone
+  // surrogate is not a Unicode scalar value, so no TOML string can hold one —
+  // and smol-toml emits `"\ud800"` anyway, exactly as JSON.stringify did. The
+  // swap alone leaves that hole open, so the round-trip probe below closes it,
+  // hand-written because it is grove's own contract ("never write a config
+  // this repository's own reader cannot read"), and the same shape run.mjs
+  // already uses before writing a cursor field.
+  const document = {};
   for (const key of Object.keys(config).sort()) {
     if (!known.has(key)) throw new Error(`unknown config token: ${key}`);
     const value = config[key];
     if (listTokens.has(key)) {
       if (!Array.isArray(value)) throw new Error(`list token ${key} requires an array`);
-      lines.push(`${key} = [${value.map((item) => JSON.stringify(String(item))).join(', ')}]`);
+      document[key] = value.map((item) => String(item));
     } else {
       if (Array.isArray(value)) throw new Error(`scalar token ${key} does not accept an array`);
-      lines.push(`${key} = ${JSON.stringify(String(value))}`);
+      document[key] = String(value);
     }
   }
-  return lines.join('\n') + '\n';
+  // Keys are inserted in sorted order because smol-toml emits them in
+  // insertion order, so the sort that used to live in the line loop still
+  // decides the file's byte order.
+  let body;
+  try {
+    body = stringifyTomlDocument(document);
+  } catch (error) {
+    // WRAPPED (adr-0048): every serialize call site is wrapped, and this one
+    // names the file so the refusal reaching the operator says what to fix.
+    throw new Error(`config.toml cannot be written as TOML: ${error && error.message}`);
+  }
+  // THE ROUND-TRIP PROBE. Serializing is only half a contract; a writer that
+  // emits bytes its own reader refuses has written a broken file through the
+  // confirm gate. Parse the emitted document back and compare it to what was
+  // asked for, so a value TOML cannot express is a REFUSAL before any write
+  // rather than a defect discovered on the next read.
+  let readBack;
+  try {
+    readBack = parseTomlDocument(body);
+  } catch (error) {
+    throw new Error(`config.toml does not read back as TOML: ${error && error.message}`);
+  }
+  for (const [key, value] of Object.entries(document)) {
+    const returned = readBack[key];
+    const same = Array.isArray(value)
+      ? Array.isArray(returned)
+        && returned.length === value.length
+        && value.every((item, index) => returned[index] === item)
+      : returned === value;
+    if (!same) throw new Error(`config token ${key} does not survive a TOML round trip`);
+  }
+  // The two header lines are grove's own provenance text, not a value, so they
+  // are not the serializer's to emit and are prepended here.
+  const header = [
+    '# .grove/config.toml — consumer-authoritative shared Grove role config.',
+    '# Values are verified priors; Grove lifecycle operations never refresh this file.',
+    '',
+  ].join('\n');
+  return `${header}\n${body}`;
 }
 
 function isConsumerFloorPath(path) {

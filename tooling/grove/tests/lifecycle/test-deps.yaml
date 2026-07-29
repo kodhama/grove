@@ -3,6 +3,14 @@ groups:
   "adr-0048-toml-is-a-dependency":
     precision: exact
     tests:
+      - file: "test/surface-and-setup.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 — the config writer round-trips every declared token shape, scalar and list"
+          - title:
+              - "adr-0048 D3 — a config value TOML cannot express is a REFUSAL, never a broken file"
+          - title:
+              - "adr-0048 D3 — serializeConfig emits TOML, so a DEL byte is escaped instead of written raw"
       - file: "test/refresh-profile-remove.test.mjs"
         cases:
           - title:
@@ -13,7 +21,7 @@ groups:
               - "adr-0048 — set-profile READS a gates.toml the old line reader called an invalid gate row"
     decisions:
       - "adr-0048-parsers-are-dependencies"
-    notes: "parseProfile reads the gate profile through the bundled TOML parser; the closed gate-row enum, the value enum and the floor rule stay hand-written (adr-0048 D1). The third case records a gap rather than a pass: seedPreset is still a hand-rolled TOML writer, kept deliberately because re-serializing would delete the consumer-authoritative comments in .grove/gates.toml."
+    notes: "parseProfile reads the gate profile through the bundled TOML parser and serializeConfig writes .grove/config.toml through it; the closed gate-row enum, the value enum, the floor rule, the config-token contract and the pre-write round-trip probe stay hand-written (adr-0048 D1). One case records a gap rather than a pass: seedPreset is still a hand-rolled TOML writer, kept deliberately because re-serializing would delete the consumer-authoritative comments in .grove/gates.toml."
   "adr-0041-shipped-matrix":
     precision: exact
     tests:

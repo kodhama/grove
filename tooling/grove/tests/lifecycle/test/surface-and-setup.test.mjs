@@ -8,6 +8,7 @@ import {
   applyPlan,
   planSetup,
 } from '../../../../../plugins/grove/runtime/lifecycle/lib/lifecycle.mjs';
+import { parseTomlDocument } from '../../../../../plugins/grove/runtime/dispatch/lib/parsers.mjs';
 import { fixture, claudeInvocation, codexInvocation } from './helpers.mjs';
 
 const exists = async (path) => stat(path).then(() => true, () => false);
@@ -266,4 +267,82 @@ test('apply refuses a symlinked managed parent before any write can escape the r
   );
   assert.equal(await exists(join(outside, 'grove_executor.toml')), false);
   assert.equal(await exists(join(repoRoot, '.grove', 'README.md')), false);
+});
+
+
+// --- adr-0048 D1/D3: the config writer is the library's, not a JSON escaper ---
+
+test('adr-0048 D3 — serializeConfig emits TOML, so a DEL byte is escaped instead of written raw', async () => {
+  // THE MEASURED DEFECT. `serializeConfig` built its strings with
+  // `JSON.stringify`, which is a JSON escaper, not a TOML one. The sets differ
+  // in exactly one direction that matters here: TOML forbids raw U+007F (DEL)
+  // inside a basic string and JSON.stringify does NOT escape it, so a config
+  // value carrying a DEL produced a `.grove/config.toml` that grove's own
+  // reader cannot parse — written to the consumer's repository through the
+  // confirm gate, and only discovered on the next read.
+  const { packageRoot, repoRoot } = await fixture();
+  const value = `npm test${String.fromCharCode(0x7f)}--silent`;
+  const plan = await planSetup({
+    packageRoot,
+    repoRoot,
+    ...claudeInvocation,
+    choices: { preset: 'steward', config: { TEST_CMD: value } },
+  });
+  assert.equal(plan.ok, true, plan.summary);
+  const write = plan.actions.find((action) => action.path === '.grove/config.toml');
+  assert.ok(write, 'setup plans a config.toml write');
+  const parsed = parseTomlDocument(write.content);
+  assert.equal(parsed.TEST_CMD, value, 'the DEL survives the round trip verbatim');
+});
+
+test('adr-0048 D3 — a config value TOML cannot express is a REFUSAL, never a broken file', async () => {
+  // A CORRECTION TO THIS COMMIT'S OWN FIRST CLAIM, kept rather than quietly
+  // rewritten. The swap was expected to close this class by itself: a lone
+  // surrogate is not a Unicode scalar value, so no TOML string can hold one.
+  // MEASURED: smol-toml emits `"\ud800"` anyway, exactly as JSON.stringify
+  // did, so the library alone leaves the same broken file on disk. What closes
+  // it is the hand-written round-trip probe — serialize, parse the result
+  // back, compare — which is grove's own contract, not the format's, and the
+  // same shape run.mjs already uses before writing a cursor field. The plan
+  // refuses BEFORE any write.
+  const { packageRoot, repoRoot } = await fixture();
+  const plan = await planSetup({
+    packageRoot,
+    repoRoot,
+    ...claudeInvocation,
+    choices: { preset: 'steward', config: { TEST_CMD: `a${String.fromCharCode(0xd800)}b` } },
+  });
+  assert.equal(plan.ok, false);
+  assert.match(plan.summary, /config/i);
+  assert.deepEqual(plan.actions, []);
+  assert.deepEqual(await readdir(repoRoot), []);
+});
+
+test('adr-0048 — the config writer round-trips every declared token shape, scalar and list', async () => {
+  const { packageRoot, repoRoot } = await fixture();
+  const config = {
+    // Deliberately unsorted at the call site: the writer sorts, and the round
+    // trip must not depend on the caller's key order.
+    TEST_CMD: 'npm test && echo "done" \\ path\tafter\nline',
+    ARTIFACT_DIRS: ['decisions/', 'specs/', 'a "quoted" dir/'],
+  };
+  const plan = await planSetup({
+    packageRoot,
+    repoRoot,
+    ...claudeInvocation,
+    choices: { preset: 'steward', config },
+  });
+  assert.equal(plan.ok, true, plan.summary);
+  const write = plan.actions.find((action) => action.path === '.grove/config.toml');
+  const parsed = parseTomlDocument(write.content);
+  assert.equal(parsed.TEST_CMD, config.TEST_CMD);
+  assert.deepEqual(parsed.ARTIFACT_DIRS, config.ARTIFACT_DIRS);
+  // The two header comments are grove's own text and survive the swap: the
+  // library serializes values, and the file's provenance note is not a value.
+  assert.match(write.content, /^# \.grove\/config\.toml/m);
+  assert.match(write.content, /consumer-authoritative/);
+  // Keys stay sorted, so two setups with the same config produce one byte
+  // sequence whatever order the caller built the object in.
+  const keyOrder = [...write.content.matchAll(/^([A-Z_]+) = /gm)].map((m) => m[1]);
+  assert.deepEqual(keyOrder, [...keyOrder].sort());
 });
