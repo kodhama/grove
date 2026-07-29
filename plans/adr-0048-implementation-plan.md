@@ -272,14 +272,14 @@ bundle → `--check` red.
 **retitle every renamed R5–R8 case** (≥11 change or disappear — adr-0043 requires
 the selector update in the same change); add exact selectors for all new tests;
 prefer **a new exact group keyed to adr-0048** rather than growing the spec-0006
-group. **The `spec-0006@v2` pin does NOT advance** — adr-0048 changes no spec.
+group. ~~**The `spec-0006@v2` pin does NOT advance** — adr-0048 changes no spec.~~ **SUPERSEDED.** adr-0048 *does* change the spec; conformance review reversed this conclusion and the maintainer ratified **v3**. **Nine** `@v2` occurrences advanced, not five — four are byte-exact ledger copies in `build/test/boundary-v4.test.mjs` asserted with `assert.equal`, so advancing only the five would have turned that test red.
 
 `build/test-deps.yaml`: new exact group for the bundling tests, `decisions:
 [adr-0048]`. `spec-0004@v8` pin does **not** advance provided §1's location holds.
 
 `release/test-deps.yaml`: probably untouched — **verify, don't assume**.
 
-adr-0048 gains **no `changes:`** — no spec version bump exists.
+~~adr-0048 gains **no `changes:`**~~ **SUPERSEDED.** Its frontmatter declares `changes: [spec-0006-voluntary-dispatch@v3]`, the `adr-0044` pairing.
 
 **Fold into adr-0048 at ratification:** Open 1 answered by §4; Open 2 answered —
 *the residual does not close by default*, stronger than "it depends"; Open 3
@@ -288,11 +288,17 @@ inside the plugin is the same side of that line); Open 4 answered by §7.
 
 ## 11. Decisions required of the maintainer
 
-**Q1 — YAML 1.1 or 1.2?** The one genuine fork. **1.1 closes the round-eight key
-residual** (the only configuration that does) **and opens F2 on four more
-spellings.** 1.2 leaves the residual open, keeps `implements` narrower. Planner's
-inclination: **1.1 plus the explicit bearing rule**, noting mild tension with
-Decision 1's spirit (a hand-written rule atop a conforming parser).
+~~**Q1 — YAML 1.1 or 1.2?**~~ **DECIDED: 1.2 core schema** (maintainer,
+2026-07-29), recorded in `adr-0048` D6 and written into `spec-0006` v3 so INV16
+is satisfiable. This plan inclined to 1.1; the reasoning was wrong. The
+round-eight residual was never a reader defect but **ambiguity about which YAML
+grove implements** — under 1.2, `y` and `yes` are two distinct strings, so no
+collision exists to detect, and the numeric case still closes because the library
+throws on `1:`/`0x1:` at its 1.2 default. Declaring the version *is* the fix, and
+it avoids the `implements` under-owing and the merge-key class that 1.1 opens.
+**The F2 bearing-rule mitigation this plan proposed is withdrawn** — it invented a
+reading of "non-empty" the spec does not define, which `spec-0004:530` forbids a
+plan from doing. The schema clause in spec-0006 v3 replaces it.
 
 **Q2 — is F1's 13-input coverage reduction acceptable?** Spec-conformant, a real
 loss, and not mitigable inside this change without re-diverging from the table.
