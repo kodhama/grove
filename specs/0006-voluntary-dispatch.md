@@ -777,13 +777,22 @@ commit** as the spec's landing:
    `reference/dispatch/`, and the hook files; the lifecycle inventory stays
    exactly four), under adr-0044's paired-record amendment discipline (the
    reciprocal `changes: [<spec-id>@vN]` pairing) with its version bump to
-   `vN`. This spec's own `depends_on` pin
-   `spec-0004-dual-host-distribution@v7` advances to that same `@vN` in the
-   same commit.
+   `vN`. This spec's own `depends_on` pin advanced from
+   `spec-0004-dual-host-distribution@v7` to `@v8` in that commit. **Discharged:**
+   `spec-0004` is at `version: 8` and this spec's frontmatter pins `@v8`.
 2. adr-0046's `changes:` entry appended with that exact `@vN` pin — the
-   frontmatter pointer-completion the decision itself sanctions.
+   frontmatter pointer-completion the decision itself sanctions. **Discharged:**
+   `adr-0046:6` reads `changes: [spec-0004-dual-host-distribution@v8]`.
 3. adr-0035's declared `.grove/` tree annotated with the scoped
    `.grove/runs/` note (adr-0046 clause 4: "when the spec lands").
+   **Discharged:** the scoped annotation is at `adr-0035:102-108`.
+
+**All three obligations above are discharged in the tree.** They are kept in
+place rather than deleted because AC13 binds them to the landing commit and a
+reader checking that criterion needs to see what was owed, not only that nothing
+is outstanding. An earlier version of this section left item 1 in future tense
+after the advance had happened, so a reader landed on `@v7` while the frontmatter
+pinned `@v8`; corrected 2026-07-29.
 
 The adr-0003 forward pointer, the adr-0031 scoped `superseded_in_part_by`
 pointer, and the dispatcher charter's scoped-narrowing annotation (the
@@ -1233,7 +1242,7 @@ criteria.
 | Amendment pairing (adr-0044) | PASS | Scalar `implements:` still names `adr-0046` (never retargeted). `depends_on` gains `adr-0048-parsers-are-dependencies`, which is `status: approved` and declares `changes: [spec-0006-voluntary-dispatch@v3]` — the exact reciprocal, version-matched pair for the reviewed subject. `adr-0048` attributes the whole `v3` delta to itself, both folded amendments included, so no behavior-changing clause in this version is unowned. |
 | Testable grammars | PASS | INV1–INV28 are shall-form; S1–S17 are Given/When/Then; AC1–AC14 map both, each names its red-turning mutation, and each carries a mechanical/behavioral honesty label. |
 | Boundaries | PASS | No net engine, itinerary, claims activation, forge hold, or Codex guard; nothing beyond the decision's scope — additions the decision does not name (`subject_sha256` and its absence sentinel, run-id grammar, budgets, guard exit codes and defect classes) are concretizations flagged in place. |
-| Ambiguity | HONEST NOTE | Two mechanics rest on host-documented but locally unmeasured behavior: the Stop block-decision JSON and the observer stderr channel. The spec does not guess them silently — INV21/AC12 make pre-release measurement a hard requirement, following the trellis flat-envelope incident. *(v3 adds a third, named rather than hidden:* INV16's determinism is now **delegated** to a published format version — YAML 1.2 core schema — so the spec is determinate while whether a chosen implementation actually conforms is an execution measurement. `adr-0048` leaves the implementation unchosen (its Open 1) and its strictness unmeasured (its Open 2); this spec fixes the target, not the library.*)* |
+| Ambiguity | HONEST NOTE | Two mechanics rest on host-documented but locally unmeasured behavior: the Stop block-decision JSON and the observer stderr channel. The spec does not guess them silently — INV21/AC12 make pre-release measurement a hard requirement, following the trellis flat-envelope incident. *(v3 adds a third, named rather than hidden:* INV16's determinism is now **delegated** to a published format version — YAML 1.2 core schema — so the spec is determinate while whether a chosen implementation actually conforms is an execution measurement. `adr-0048` **does** choose the implementations and **has** measured the strictness — its erratum 7 records that Opens 1 and 2 are answered by Decisions 9 and 6, and D6 asserts the chosen library throws on `1:`/`0x1:` at its 1.2 default. This spec still fixes the target rather than the library: the delegation is to the **format version**, so a conforming substitute satisfies INV16 and no clause here names a package. What remains an execution measurement is whether the chosen implementation conforms in the general case, not whether one was chosen.*)* |
 | Propagation | PASS | The spec-0004 pairing, adr-0046 `@vN` append, and adr-0035 note are bound to the landing commit by AC13. |
 
 Self-check passes with the honest notes above. **Status stays `gated`** — the

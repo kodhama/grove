@@ -1,5 +1,7 @@
-// Upstream: spec-0006-voluntary-dispatch@v2 INV11, INV16 (deterministic
-// classification and record matching); AC7 (mechanical half); S16.
+// Upstream: spec-0006-voluntary-dispatch@v3 INV11, INV16, INV28 (deterministic
+// classification and record matching); AC7 (mechanical half), AC14; S16, S17.
+// @v2 -> @v3: v3 rewrote INV16's determinism clause (delegated to YAML 1.2
+// core schema) and added INV28/S17/AC14, which this file covers.
 // Decision: adr-0046-how-dispatch-rules-reach-a-session.
 //
 // AC7's behavioral half — the change-request verdict report staying owed

@@ -1,4 +1,5 @@
-// Upstream: spec-0006-voluntary-dispatch@v2 INV5–INV10; AC4, AC5, AC6
+// Upstream: spec-0006-voluntary-dispatch@v3 INV5–INV10; AC4, AC5, AC6
+// (@v2 -> @v3: the cited range spans INV8, which v3 clarified in place.)
 // (mechanical); S2, S4–S7. Decision: adr-0046.
 //
 // Behavioral, untested here per the spec's labels: stale-resolution

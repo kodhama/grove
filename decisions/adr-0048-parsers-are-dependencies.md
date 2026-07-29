@@ -285,10 +285,26 @@ Decision 8 names `esbuild` and authorizes it by name; Decision 9 names
 `@ltd/j-toml` as excluded and its discharge prose names `yaml` and `smol-toml` at
 `:182-183`. **Behaviour:** Decision 6 asserts "the chosen library **throws** on
 `1:` / `0x1:`" — a measured behavioural claim about a specific implementation.
-Only the size claim holds. The row was written when the record deferred all three
-to Open questions and was never re-derived after the maintainer decisions of
-2026-07-29 were folded in. Same failure as erratum 6, in the same table, on the
-same day.
+~~Only the size claim holds.~~ *[Corrected same day, see erratum 9: **none of the
+three holds.** `:214` asserts "roughly **+282 KB** of new package bytes", which is
+the bundled parsers' size. Erratum 8 as first written undercounted by one — a
+correction that failed to re-derive its own last clause, which is the fourth
+occurrence of that pattern in this record.]* The row was written when the record
+deferred all three to Open questions and was never re-derived after the maintainer
+decisions of 2026-07-29 were folded in. Same failure as erratum 6, in the same
+table, on the same day.
+
+**9. The record contradicts itself on size, and both sides are ratified.**
+`:214` — "roughly **+282 KB** of new package bytes" — against Consequences
+`:326-327` — "Clone size grows by the bundled parsers. **Not yet measured**;
+measuring it is part of execution, not a reason to defer the decision." Both
+statements are in the ratified body and no reading reconciles them: either the
+bytes were measured or they were not. **The `+282 KB` figure is the one to trust**
+— it is derived in the same paragraph from the bundle sizes the record cites, and
+the plan's arithmetic pass corrected it (289,300 B, minus the deleted `toml.mjs`
+at 7,541 B). The Consequences sentence is the older text, written before the
+measurement, and was never revisited when the figure landed. It is *not* edited
+here — this erratum is the correction, per the append-only rule.
 
 ## Amendment obligation this record now carries
 
