@@ -49,6 +49,27 @@ updated: 2026-07-12
 > only the mechanism moves — inline placeholders → the D3 config-token
 > door. Ratified text below unedited (append-only).
 
+> **Partially superseded by `adr-0047-host-native-review-instruments`
+> (approved 2026-07-29; append-only pointer).** Scope: **Decision 6's "not a mandate" clause only.** Where a host
+> instrument reports, invoking one is required rather than optional, and every
+> reporting instrument runs by default. **The rest of D6 stands and is
+> reaffirmed** — the charter still charters the frame, not the technique.
+> `adr-0047` disaggregates this role rather than reversing it: the frame stays
+> here, generic finding-generation moves to host instruments, and this charter's
+> own finding-generation **keeps generic code-quality review as the fallback**
+> for hosts where no instrument reports, and **gains** grove-specific test
+> discrimination as a duty no instrument performs. **Decision 2 and AC1 are
+> untouched** — an earlier version of this pointer said the charter "narrows to"
+> test discrimination, which the maintainer refuted (a fallback that does not do
+> basic code review is not a fallback) before ratification; the narrowing was
+> never decided and this pointer must not record it.
+> Two corrections `adr-0047` records against this record: **no *host-native*
+> instrument emits Decision 3's severity grammar** (this charter's reviewer
+> does), so D3 becomes a mapping target and an unmappable finding blocks under
+> D3's own recorded-override; and D6's context describes the built-in as
+> shipping "severity-graded findings", which the measured version does not.
+> Ratified text below unedited (append-only).
+
 ## Decision
 
 1. **Charter a new role, `code-reviewer` — the independent code-quality
