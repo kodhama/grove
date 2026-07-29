@@ -186,7 +186,7 @@ groups:
               - "spec-0005 AC7/S24 — structured canary contracts propagate from all six authored sources"
     specs:
       - "spec-0005-structured-test-dependency-canary@v1"
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0043-structured-test-dependency-canary"
     covers:
@@ -223,7 +223,7 @@ groups:
               - "entry skills join the host inventories as entry-class components"
     specs:
       - "spec-0004-dual-host-distribution@v8"
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
 `],
@@ -324,7 +324,7 @@ groups:
           - title:
               - "BLOCK-1 — an action id that does not recompute from its own type and path is refused"
     specs:
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
     covers:
@@ -346,7 +346,7 @@ groups:
               - "Claude and Codex setup in either order share one floor and are idempotent"
     specs:
       - "spec-0004-dual-host-distribution@v8"
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
 `],

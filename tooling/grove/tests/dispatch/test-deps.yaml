@@ -330,7 +330,7 @@ groups:
           - title:
               - "the shipped file carries exactly the four initial rules with the spec content"
     specs:
-      - "spec-0006-voluntary-dispatch@v2"
+      - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
     notes: "This package tests the voluntary-dispatch machinery shipped at plugins/grove/runtime/dispatch/, plugins/grove/reference/dispatch/, and plugins/grove/hooks/: the strict TOML subset, transition-rule validation, the deterministic guard in both modes, the confirm-gated run operations, and the Stop-hook wrapper exit mapping."
