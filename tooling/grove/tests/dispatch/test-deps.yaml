@@ -7,6 +7,10 @@ groups:
         cases:
           - title:
               - "AC11 — a Codex Stop-hook-vocabulary evidence record exists, result either way"
+      - file: "test/corpus-classification.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 — every tracked file classifies exactly as the committed baseline says"
       - file: "test/guard-cli.test.mjs"
         cases:
           - title:
