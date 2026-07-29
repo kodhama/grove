@@ -1160,30 +1160,217 @@ test('R6 — no malformed, truncated, or ambiguous block can reach the absorbing
   assert.deepEqual(classifyContent('---\nid: x\ntype: feedback\n---\n').classes, ['reviewless']);
 });
 
-test('R6 — legal YAML inside a complete block stays legal; the strictness stops at syntax', () => {
-  // The over-correction guard. Round five deliberately left comments and blank
-  // lines non-fatal; this keeps that and extends it to every indented shape,
-  // because an indented line belongs to the key above it and can never
-  // masquerade as a top-level type/implements.
-  const legal = {
+test('R7 — the accepted grammar classifies grove frontmatter; exotic YAML is malformed by design', () => {
+  // R7 supersedes R6's "strictness stops at syntax". R6 accepted any indented
+  // line as a continuation belonging to the key above it, on the argument that
+  // it could not masquerade as a top-level key. It did not have to: an
+  // indented line CHANGES THE VALUE of the key above it, so `type: research`
+  // over `  garbage` is the YAML scalar "research garbage" — outside the enum,
+  // yet R6 preserved `research` and classified the file reviewless. The reader
+  // is now a closed whitelist, so the exotic-YAML rows below classify
+  // `unclaimed` rather than by their type. That is the deliberate cost: it
+  // over-owes review rather than under-owing it, and the corpus measurement
+  // says no real artifact is affected.
+  const accepted = {
     'a comment': ['---\n# a comment\nid: x\ntype: charter\n---\n', ['charter']],
     'a blank line': ['---\n\nid: x\ntype: charter\n\n---\n', ['charter']],
     'an indented comment': ['---\n   # indented\nid: x\ntype: charter\n---\n', ['charter']],
-    'a nested map': ['---\nid: x\ntype: charter\nmeta:\n  owner: someone\n---\n', ['charter']],
-    'a deeply nested map': ['---\nid: x\ntype: charter\na:\n  b:\n    c: 1\n---\n', ['charter']],
-    'a literal block scalar': ['---\nid: x\ntype: charter\nnotes: |\n  line one\n  line two\n---\n', ['charter']],
-    'a folded block scalar': ['---\nid: x\ntype: charter\nnotes: >\n  folded\n---\n', ['charter']],
-    'a block scalar containing an indented ---': ['---\nid: x\ntype: charter\nnotes: |\n  ---\n  more\n---\n', ['charter']],
-    'a tab-indented continuation': ['---\nid: x\ntype: charter\nnotes:\n\tsomething\n---\n', ['charter']],
-    'a quoted value containing a colon': ['---\nid: x\ntype: charter\ntitle: "a: b"\n---\n', ['charter']],
     'trailing whitespace on a value': ['---\nid: x\ntype: research   \n---\n', ['reviewless']],
-    'a column-0 list value': ['---\nid: x\ntype: spec\nimplements:\n- adr-0001-a\n---\n', ['spec', 'implements-bearing']],
-    'an indented list value': ['---\nid: x\ntype: spec\nimplements:\n  - adr-0001-a\n---\n', ['spec', 'implements-bearing']],
+    'a trailing comment on a value': ['---\nid: x\ntype: research  # note\n---\n', ['reviewless']],
+    'a column-0 sequence value': ['---\nid: x\ntype: spec\nimplements:\n- adr-0001-a\n---\n', ['spec', 'implements-bearing']],
+    'an indented sequence value': ['---\nid: x\ntype: spec\nimplements:\n  - adr-0001-a\n---\n', ['spec', 'implements-bearing']],
+    'a flow sequence value': ['---\nid: x\ntype: spec\ndepends_on: [a, b]\nimplements: adr-1\n---\n', ['spec', 'implements-bearing']],
+    'an empty flow sequence': ['---\nid: x\ntype: spec\nimplements: []\n---\n', ['spec']],
   };
-  for (const [name, [text, expected]] of Object.entries(legal)) {
+  for (const [name, [text, expected]] of Object.entries(accepted)) {
     assert.deepEqual(
       classifyContent(text).classes, expected,
-      `${name}: legal frontmatter must not be made malformed`,
+      `${name}: this form is IN the accepted grammar and must classify by type`,
     );
   }
+
+  // The accepted cost, pinned so it is a decision and not a surprise.
+  const outsideTheGrammar = {
+    'a nested map': '---\nid: x\ntype: charter\nmeta:\n  owner: someone\n---\n',
+    'a deeply nested map': '---\nid: x\ntype: charter\na:\n  b:\n    c: 1\n---\n',
+    'a literal block scalar': '---\nid: x\ntype: charter\nnotes: |\n  line one\n---\n',
+    'a folded block scalar': '---\nid: x\ntype: charter\nnotes: >\n  folded\n---\n',
+    'a block scalar containing an indented ---': '---\nid: x\ntype: charter\nnotes: |\n  ---\n  more\n---\n',
+    'a tab-indented continuation': '---\nid: x\ntype: charter\nnotes:\n\tsomething\n---\n',
+    'a quoted value containing a colon': '---\nid: x\ntype: charter\ntitle: "a: b"\n---\n',
+  };
+  for (const [name, text] of Object.entries(outsideTheGrammar)) {
+    assert.deepEqual(
+      classifyContent(text).classes, ['unclaimed'],
+      `${name}: outside the grammar is malformed — over-owing, never under-owing`,
+    );
+  }
+});
+
+
+// --- R7: the frontmatter reader is a closed WHITELIST grammar ---
+// Six rounds each added a rule for a malformed shape nobody had thought of,
+// because the reader enumerated what was safe to SKIP and accepted whatever
+// failed to trip a rule — an unbounded accepting set that cannot converge by
+// patching. The reader now accepts a closed list of line forms and treats
+// everything else as malformed, which turns the fail-open argument into a
+// property of the grammar: any input outside it is malformed, malformed is
+// `unclaimed`, and `unclaimed` owes the full set and is observer-visible, so
+// nothing outside the grammar can under-owe review.
+
+const fmChar = (code) => String.fromCharCode(code);
+
+test('R7 — an indented continuation changes the value above it, so it is malformed', () => {
+  // The refutation of round six's safety argument. R6 skipped indented lines
+  // because they "cannot masquerade as a top-level type/implements". They do
+  // not need to: in YAML `type: research` over `  garbage` is the single
+  // scalar "research garbage", which is outside the enum — yet the skip
+  // preserved `research` and classified the file reviewless, owing nothing and
+  // invisible to observer mode.
+  for (const [name, text] of Object.entries({
+    'after type': '---\nid: x\ntype: research\n  garbage\n---\n',
+    'after a non-type key': '---\nid: x\n  more-id\ntype: research\n---\n',
+    'tab-indented': '---\nid: x\ntype: research\n\tgarbage\n---\n',
+    'deeply indented': '---\nid: x\ntype: research\n        garbage\n---\n',
+  })) {
+    assert.deepEqual(
+      classifyContent(text).classes, ['unclaimed'],
+      `${name}: a continuation is not a skippable line`,
+    );
+  }
+});
+
+test('R7 — line splitting follows YAML 1.2: LF, CR and CRLF each end a line', () => {
+  // b-char is LF or CR, and CRLF is ONE break. The previous split was
+  // /\r?\n/, so a bare-CR document stayed entirely in lines[0], matched no
+  // delimiter, and classified `code` — which is filtered out of observer mode,
+  // so a changed CR-terminated spec got no spec-adversary report at all.
+  const CR = fmChar(13);
+  assert.deepEqual(
+    classifyContent(`---${CR}id: x${CR}type: spec${CR}implements: adr-1${CR}---${CR}`).classes,
+    ['spec', 'implements-bearing'],
+    'a bare-CR document parses',
+  );
+  assert.deepEqual(
+    classifyContent('---\r\nid: x\r\ntype: spec\r\n---\r\n').classes, ['spec'],
+    'CRLF is one break, not two',
+  );
+  assert.deepEqual(
+    classifyContent(`---\r\nid: x${CR}type: spec\r\n---\n`).classes, ['spec'],
+    'the three spellings mix freely',
+  );
+  assert.deepEqual(
+    classifyContent(`---${CR}type: research${CR}`).classes, ['unclaimed'],
+    'and an unterminated CR document is still malformed',
+  );
+  // A lone CR inside a value is a line break, so the value ends there and the
+  // remainder matches no accepted form.
+  assert.deepEqual(
+    classifyContent(`---\nid: x\ntype: res${CR}earch\n---\n`).classes, ['unclaimed'],
+  );
+});
+
+test('R7 — characters whose line-break meaning differs between YAML versions are malformed', () => {
+  // NEL, LS and PS are line breaks in YAML 1.1 and ordinary characters in
+  // YAML 1.2, so a document containing one is read differently by two
+  // conforming parsers. Input whose meaning depends on which parser reads it
+  // is ambiguous, and ambiguous is malformed rather than charitably accepted.
+  for (const [name, code] of Object.entries({
+    NEL: 0x85, LS: 0x2028, PS: 0x2029,
+  })) {
+    const inside = `---\nid: x\ntype: res${fmChar(code)}earch\n---\n`;
+    const trailing = `---\nid: x\ntype: research${fmChar(code)}more\n---\n`;
+    assert.deepEqual(classifyContent(inside).classes, ['unclaimed'], `${name} inside a value`);
+    assert.deepEqual(classifyContent(trailing).classes, ['unclaimed'], `${name} after a valid type`);
+  }
+  // Control bytes are rejected on the same rule.
+  for (const [name, code] of Object.entries({
+    NUL: 0, VT: 11, ESC: 27, DEL: 127,
+  })) {
+    assert.deepEqual(
+      classifyContent(`---\nid: x\ntype: rese${fmChar(code)}arch\n---\n`).classes, ['unclaimed'],
+      `${name} in a value`,
+    );
+  }
+});
+
+test('R7 — every YAML construct outside the accepted subset is malformed, never reviewless', () => {
+  // The whitelist property, exercised over constructs the grammar does not
+  // admit. None of these may reach `reviewless` (owes nothing, invisible) or
+  // `code` (filtered from observer mode).
+  const outside = {
+    'quoted scalar': '---\ntype: "research"\n---\n',
+    'single-quoted scalar': "---\ntype: 'research'\n---\n",
+    'unterminated quote': '---\nid: x\ntype: research\ntitle: "abc\n---\n',
+    'literal block scalar': '---\nid: x\ntype: research\nnotes: |\n  text\n---\n',
+    'folded block scalar': '---\nid: x\ntype: research\nnotes: >\n  text\n---\n',
+    'nested map': '---\nid: x\ntype: research\nmeta:\n  owner: me\n---\n',
+    anchor: '---\nid: x\ntype: &a research\n---\n',
+    alias: '---\nid: x\ntype: *a\n---\n',
+    tag: '---\nid: x\ntype: !!str research\n---\n',
+    'flow mapping value': '---\nid: x\ntype: {a: b}\n---\n',
+    'flow mapping line': '---\n{type: research}\n---\n',
+    'nested flow sequence': '---\nid: x\ntype: research\nimplements: [[a]]\n---\n',
+    'unterminated flow sequence': '---\nid: x\ntype: research\nimplements: [a, b\n---\n',
+    'flow sequence with an empty item': '---\nid: x\ntype: spec\nimplements: [a, , b]\n---\n',
+    'document-end marker': '---\nid: x\ntype: research\n...\n---\n',
+    'YAML directive': '---\n%YAML 1.2\nid: x\ntype: research\n---\n',
+    'explicit key indicator': '---\n? type\n: research\n---\n',
+    'no space after the colon': '---\nid: x\ntype:research\n---\n',
+    'value ending in a colon': '---\nid: x\ntype: research:\n---\n',
+    'value containing a colon-space': '---\nid: x\ntype: a: b\n---\n',
+    'type as a sequence': '---\nid: x\ntype:\n- research\n---\n',
+    'sequence item with no key above it': '---\nid: x\n- research\ntype: research\n---\n',
+    'sequence item after a blank line': '---\nimplements:\n\n- a\ntype: research\n---\n',
+    'sequence item that is not a plain scalar': '---\nid: x\ntype: spec\nimplements:\n- "a"\n---\n',
+    'key containing a space': '---\nmy key: x\ntype: research\n---\n',
+    'empty key': '---\n: x\ntype: research\n---\n',
+    'comment-only value': '---\nid: x\ntype: # note\n---\n',
+    // These two guard the value rules through `implements` rather than `type`,
+    // which is where they actually bite: a malformed implements value that is
+    // merely non-empty makes the file implements-bearing, and a bearing spec
+    // owes 2 records where unclaimed owes 4. Measured in both directions.
+    'ambiguous character in an implements value':
+      `---\nid: x\ntype: spec\nimplements: adr-1${fmChar(0x85)}junk\n---\n`,
+    'colon-space in an implements value': '---\nid: x\ntype: spec\nimplements: a: b\n---\n',
+  };
+  for (const [name, text] of Object.entries(outside)) {
+    const classified = classifyContent(text);
+    assert.deepEqual(
+      classified.classes, ['unclaimed'],
+      `${name}: outside the grammar must be malformed — got ${JSON.stringify(classified.classes)}`,
+    );
+  }
+});
+
+test("R7 — the comment rule is YAML's, and a padded delimiter survives it", () => {
+  // A `#` starts a comment at line start or after a space/tab; a `#` NOT
+  // preceded by whitespace belongs to the scalar. Both directions matter: the
+  // first keeps `type: research # note` classifying by its real value, the
+  // second keeps `grove#101` whole.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: research # note\n---\n').classes, ['reviewless'],
+    'YAML says the value here IS research; classifying it reviewless is correct, not charitable',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: research\t# note\n---\n').classes, ['reviewless'],
+    'a tab separates a comment too',
+  );
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: research#note\n---\n').classes, ['unclaimed'],
+    'no whitespace before the hash: it stays in the scalar, which is off-enum',
+  );
+  // Regression on a defect this rewrite introduced and the adversarial pass
+  // caught: the comment stripper also trims trailing whitespace, so testing
+  // the delimiter on the STRIPPED line turned `--- ` back into a clean `---`
+  // and re-opened the padded-delimiter route round six closed. Both delimiters
+  // are compared against the raw line.
+  assert.deepEqual(
+    classifyContent('---\nid: x\ntype: research\n--- \n').classes, ['unclaimed'],
+    'a padded closing delimiter must not be rescued by comment stripping',
+  );
+  assert.deepEqual(
+    classifyContent('--- \nid: x\ntype: research\n---\n').classes, ['unclaimed'],
+    'nor a padded opening delimiter',
+  );
 });

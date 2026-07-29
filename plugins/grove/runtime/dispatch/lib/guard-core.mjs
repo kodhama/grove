@@ -68,120 +68,201 @@ export function classifyContent(content) {
   else if (type === 'charter') base = 'charter';
   else if (type === 'research' || type === 'feedback') base = 'reviewless';
   else base = 'unclaimed';
+  // The grammar returns a flow sequence as a real array, so the old
+  // `!== '[]'` string comparison — which existed because `implements: []`
+  // used to arrive as the two-character string — is now unreachable and has
+  // been dropped rather than left to imply a case that cannot occur.
   const implementsValue = frontmatter.fields.get('implements');
   const implementsBearing = Array.isArray(implementsValue)
     ? implementsValue.some((item) => String(item).trim() !== '')
-    : typeof implementsValue === 'string'
-      && implementsValue.trim() !== ''
-      && implementsValue.trim() !== '[]';
+    : typeof implementsValue === 'string' && implementsValue.trim() !== '';
   const classes = implementsBearing ? [base, 'implements-bearing'] : [base];
   return { classes, base, implementsBearing };
 }
 
-// ONE delimiter grammar, used at BOTH ends, and now STRICT: exactly `---`,
-// nothing around it. The previous revision matched `/^\s*---\s*$/` at both
-// ends, which removed the open/close asymmetry but opened a new route into
-// `reviewless`: `--- ` + `type: research` moved a file from code (owes 2) to
-// reviewless (owes 0, and observer-EXCLUDED). Making the pad strict-fail
-// instead of strict-reject is what closes it in BOTH directions at once — a
-// padded delimiter is neither "a delimiter" (which would let a typo reach
-// reviewless) nor "not a delimiter" (which would let a padded-open artifact
-// classify `code` and vanish from observer mode). It is MALFORMED: unclaimed,
-// owes the full set, visible. `----` remains outside the grammar in either
-// position: it opens no block (genuinely code) and closes none (leaving the
-// block unterminated, hence unclaimed).
-const FRONTMATTER_DELIMITER = /^---$/;
-const DELIMITER_LOOKALIKE = /^\s*---\s*$/;
+// ============================================================================
+// THE ACCEPTED FRONTMATTER GRAMMAR - a closed whitelist, not a skip list.
+// ============================================================================
+// Six rounds of review each added one rule for a malformed shape nobody had
+// thought of, because this reader had BLACKLIST semantics: it enumerated the
+// shapes that were safe to discard and accepted whatever failed to trip a
+// rule. That accepting set is unbounded, so it cannot converge by patching -
+// and it did not. `type: research` followed by an indented `  garbage` is the
+// YAML value "research garbage", outside the enum, yet a "safe to skip"
+// continuation rule preserved `research` and classified the file `reviewless`,
+// which owes nothing and is invisible to observer mode.
+//
+// The polarity is inverted below. This classifier reads exactly ONE field
+// (`type`, plus `implements`), so it does not need to parse YAML. It accepts
+// the closed list of line forms grove's own frontmatter uses and treats
+// EVERYTHING else as malformed. There are no skip branches: a line matches an
+// accepted form, or the block is malformed.
+//
+// ACCEPTED LINE FORMS (tested after comment stripping; nothing else is accepted):
+//   B  blank            zero or more spaces/tabs and nothing else
+//   D  close delimiter  exactly `---`
+//   K  key with value   `key: <VALUE>` - key in [A-Za-z0-9_-]+, one or more
+//                       spaces/tabs after the colon
+//   E  bare key         `key:` with no value; may be followed by I lines
+//   I  sequence item    optional indent, `-`, one or more spaces/tabs, <SCALAR>
+//                       - accepted ONLY directly under an E line or another I
+//
+// ACCEPTED VALUES (nothing else is accepted):
+//   S  plain scalar     non-empty; first character is not a YAML indicator
+//                       (-?:,[]{}#&*!|>'"%@` ); contains no ": " and does not
+//                       end in ":" (either would make it a nested mapping);
+//                       contains no ambiguous character (below)
+//   F  flow sequence    `[` + comma-separated S items (possibly none) + `]`
+//
+// AMBIGUOUS CHARACTERS, rejected anywhere in a value: C0 controls except tab,
+// DEL, the C1 range (which contains NEL U+0085), LS U+2028, PS U+2029, and the
+// byte-order mark. The rationale is not taste: YAML 1.1 treats NEL/LS/PS as
+// line breaks and YAML 1.2 does not, so a document containing one is read
+// differently by two conforming parsers. Input whose meaning depends on which
+// parser reads it is what "ambiguous" means here, and ambiguous is malformed.
+//
+// THE PROPERTY THIS BUYS, which is the point of the rewrite:
+//   Any input that does not match this grammar is malformed; malformed
+//   classifies `unclaimed`; `unclaimed` owes the full record set and is
+//   observer-visible. Therefore no input outside this grammar can under-owe
+//   review.
+// That holds by the structure of the code - every exit from readFrontmatter is
+// `block` (every line matched) or `malformed` - and needs no enumeration of
+// cases. What it does NOT cover is stated rather than implied: it says nothing
+// about inputs INSIDE the grammar, where correctness rests on the accepted
+// forms meaning in YAML what this reader computes them to mean.
+//
+// THE COST, accepted deliberately: legal-but-exotic YAML that grove does not
+// use - quoted scalars, block scalars, nested maps, anchors, flow mappings,
+// multi-document streams - is malformed, so such a file classifies `unclaimed`
+// rather than by its type. That over-owes review instead of under-owing it,
+// which is the correct direction. Measured against the corpus before landing:
+// zero of the 233 tracked files change class.
 
-// The line shapes that are LEGAL inside a block and carry nothing this parser
-// needs to read. Everything not on this list, and not a column-0 `key:`, makes
-// the block malformed — a parser that silently discards syntax it cannot
-// interpret keeps a `type` it has no right to trust, which is how `- broken`
-// beside `type: research` classified reviewless and escaped review entirely.
-// An INDENTED line is the deliberate exception: it belongs to the key above it
-// (a nested map, a block scalar's body, an indented list item). Its content is
-// not read, and it cannot masquerade as a top-level `type`/`implements`, so
-// skipping it is safe — and it is what keeps a legal multi-line string whose
-// body happens to contain `---` from being read as a delimiter at all.
-const COMMENT_LINE = /^\s*#/;
-const INDENTED_CONTINUATION = /^\s+\S/;
+// YAML 1.2 b-char: line feed and carriage return, with CRLF as ONE break. The
+// previous split was /\r?\n/, which left a bare-CR document entirely in
+// lines[0] - a CR-terminated spec classified `code` and so was filtered out of
+// observer mode entirely.
+const FM_LINE_BREAK = /\r\n|\r|\n/;
+const FM_DELIMITER = /^---$/;
+const FM_DELIMITER_LOOKALIKE = /^\s*---\s*$/;
+const FM_BLANK = /^[ \t]*$/;
+const FM_KEY = /^([A-Za-z0-9_-]+):(?:[ \t]+(.*))?$/;
+const FM_ITEM = /^[ \t]*-[ \t]+(.*)$/;
+const FM_INDICATOR = /^[-?:,[\]{}#&*!|>'"%@`]/;
+const FM_AMBIGUOUS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u2028\u2029\uFEFF]/;
+// YAML's comment rule: `#` begins a comment at the start of a line, or when
+// preceded by a space or tab. A `#` NOT preceded by whitespace belongs to the
+// scalar (`grove#101` stays whole), which is why this scans rather than
+// splitting on '#'.
+function stripFrontmatterComment(line) {
+  if (/^[ \t]*#/.test(line)) return '';
+  const comment = /[ \t]#/.exec(line);
+  return (comment == null ? line : line.slice(0, comment.index)).replace(/[ \t]+$/, '');
+}
+
+// Form S. Returns the scalar, or null when the value is outside the grammar.
+function acceptPlainScalar(value) {
+  if (value === '' || FM_AMBIGUOUS.test(value)) return null;
+  if (FM_INDICATOR.test(value)) return null;
+  if (value.includes(': ') || value.endsWith(':')) return null;
+  return value;
+}
+
+// Form F. A nested `[` fails as an item because `[` is an indicator, so this
+// never recurses.
+function acceptFlowSequence(value) {
+  if (!value.startsWith('[') || !value.endsWith(']')) return null;
+  if (FM_AMBIGUOUS.test(value)) return null;
+  const inner = value.slice(1, -1).trim();
+  if (inner === '') return [];
+  const items = [];
+  for (const token of inner.split(',')) {
+    const item = acceptPlainScalar(token.trim());
+    if (item == null) return null;
+    items.push(item);
+  }
+  return items;
+}
+
+function acceptValue(value) {
+  const scalar = acceptPlainScalar(value);
+  return scalar == null ? acceptFlowSequence(value) : scalar;
+}
 
 // Three outcomes, never two:
-//   { kind: 'none' }              no block was opened — genuinely code
-//   { kind: 'malformed', reason } a block was opened and is broken — unclaimed
-//   { kind: 'block', fields }     a block was opened AND closed
+//   { kind: 'none' }              no block was opened - genuinely code
+//   { kind: 'malformed', reason } a block was opened and is broken - unclaimed
+//   { kind: 'block', fields }     a block was opened AND closed, and EVERY
+//                                 line between them matched an accepted form
 function readFrontmatter(text) {
+  const malformed = (reason) => ({ kind: 'malformed', reason });
   // A BOM matters only when a block is actually present: a byte-order mark on
   // an ordinary source file is not frontmatter and must stay `code`. When a
-  // block IS present the mark means the block does not begin at byte 0, which
-  // is the same malformed class — and toml.mjs already rules a BOM invalid
-  // rather than silently strippable ("keys start at byte 0"). Stripping it and
-  // reading the real `type` was the other candidate; it was rejected because
-  // it invents a repair the rest of the runtime refuses to make.
+  // block IS present the mark means the block does not begin at byte 0 - the
+  // same malformed class, and toml.mjs already rules a BOM invalid rather than
+  // silently strippable ("keys start at byte 0").
   const hasByteOrderMark = text.charCodeAt(0) === 0xfeff;
   const body = hasByteOrderMark ? text.slice(1) : text;
-  const lines = body.split(/\r?\n/);
-  if (!DELIMITER_LOOKALIKE.test(lines[0])) return { kind: 'none' };
-  if (!FRONTMATTER_DELIMITER.test(lines[0])) {
-    return { kind: 'malformed', reason: 'the opening delimiter is not exactly `---`' };
+  const lines = body.split(FM_LINE_BREAK);
+  if (!FM_DELIMITER_LOOKALIKE.test(lines[0])) return { kind: 'none' };
+  if (!FM_DELIMITER.test(lines[0])) {
+    return malformed('the opening delimiter is not exactly `---`');
   }
   if (hasByteOrderMark) {
-    return { kind: 'malformed', reason: 'a byte-order mark precedes the opening delimiter' };
+    return malformed('a byte-order mark precedes the opening delimiter');
   }
+
   const fields = new Map();
+  // The only state the grammar carries: which bare key, if any, the next
+  // sequence item belongs to. An item with no key above it matches no form.
+  let sequenceKey = null;
   for (let index = 1; index < lines.length; index += 1) {
-    const line = lines[index];
-    // Order is load-bearing. The clean close is tested FIRST so it always
-    // wins; the indented-continuation skip comes BEFORE anything that could
-    // read an indented `---` as a delimiter, so a block scalar whose body
-    // contains one stays legal. A COLUMN-0 padded close (`--- `) needs no case
-    // of its own: it is not a key, not a comment and not indented, so the
-    // unreadable-line rule below already makes the block malformed. A branch
-    // for it would differ only in the `reason` string, which classifyContent
-    // discards — measured, and removed rather than kept as untested weight.
-    if (FRONTMATTER_DELIMITER.test(line)) return { kind: 'block', fields };
-    if (line.trim() === '' || COMMENT_LINE.test(line)) continue;
-    if (INDENTED_CONTINUATION.test(line)) continue;
-    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (!match) {
-      return {
-        kind: 'malformed',
-        reason: `line ${index + 1} is neither a key, a comment, nor an indented continuation`,
-      };
-    }
-    let value = match[2].trim();
-    if (value === '') {
-      // YAML block-style list: continuation `- item` lines belong to this
-      // key. Per YAML's block-sequence rules for a column-0 mapping key,
-      // items are valid at column 0 AND at any deeper indentation (mixed
-      // per entry), so the lookahead is `^\s*` — requiring indentation made
-      // a column-0 list classify NOT-bearing, a fail-open in the exact
-      // direction the classification exists to prevent. (`---` never
-      // matches: the dash must be followed by whitespace then an item.)
-      const items = [];
-      while (
-        index + 1 < lines.length
-        && /^\s*-\s+\S/.test(lines[index + 1])
-      ) {
-        index += 1;
-        items.push(lines[index].replace(/^\s*-\s+/, '').trim());
+    const at = `line ${index + 1}`;
+    // The delimiter is tested on the RAW line, deliberately and before comment
+    // stripping: the stripper also trims trailing whitespace, which would turn
+    // a padded `--- ` back into a clean `---` and re-open the exact route
+    // round six closed. Both delimiters are therefore compared against the raw
+    // bytes; everything else is compared after stripping.
+    if (FM_DELIMITER.test(lines[index])) return { kind: 'block', fields };
+    const line = stripFrontmatterComment(lines[index]);
+
+    if (FM_BLANK.test(line)) { sequenceKey = null; continue; }
+
+    const item = FM_ITEM.exec(line);
+    if (item) {
+      if (sequenceKey == null) {
+        return malformed(`${at}: a sequence item with no bare key above it`);
       }
-      if (items.length > 0) value = items;
+      const scalar = acceptPlainScalar(item[1].trim());
+      if (scalar == null) return malformed(`${at}: the sequence item is not an accepted scalar`);
+      const held = fields.get(sequenceKey);
+      fields.set(sequenceKey, Array.isArray(held) ? [...held, scalar] : [scalar]);
+      continue;
     }
+
+    const key = FM_KEY.exec(line);
+    if (key == null) return malformed(`${at} matches no accepted frontmatter line form`);
+    const name = key[1];
     // A duplicate key is ambiguous, and YAML forbids it outright. First-wins
-    // silently resolved the ambiguity in the writer's favour: `type: research`
-    // above `type: spec` classified reviewless, and the reverse order
-    // classified spec. Ambiguous input never gets a class it can benefit from.
-    if (fields.has(match[1])) {
-      return { kind: 'malformed', reason: `duplicate key "${match[1]}" in the frontmatter block` };
+    // silently resolved that ambiguity in the writer's favour.
+    if (fields.has(name)) return malformed(`${at}: duplicate key "${name}"`);
+    const raw = (key[2] ?? '').trim();
+    if (raw === '') {
+      fields.set(name, '');
+      sequenceKey = name;
+      continue;
     }
-    fields.set(match[1], value);
+    const value = acceptValue(raw);
+    if (value == null) {
+      return malformed(`${at}: the value of "${name}" is outside the accepted grammar`);
+    }
+    fields.set(name, value);
+    sequenceKey = null;
   }
-  // Unterminated. The previous revision returned "not frontmatter" here and
-  // the caller mapped that to `code` — the charitable read the header comment
-  // forbids. A file that opened a block IS frontmatter-bearing; a block with
-  // no closing delimiter is malformed, and malformed owes the full set.
-  return { kind: 'malformed', reason: 'the frontmatter block has no closing delimiter' };
+  // Unterminated. A file that opened a block IS frontmatter-bearing; a block
+  // with no closing delimiter is malformed, and malformed owes the full set.
+  return malformed('the frontmatter block has no closing delimiter');
 }
 
 // --- derived change set (one definition, both modes) ---

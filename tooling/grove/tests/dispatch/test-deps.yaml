@@ -88,9 +88,19 @@ groups:
           - title:
               - "R6 — a padded delimiter is malformed at both ends, never a delimiter and never ignored"
           - title:
-              - "R6 — legal YAML inside a complete block stays legal; the strictness stops at syntax"
-          - title:
               - "R6 — no malformed, truncated, or ambiguous block can reach the absorbing reviewless class"
+          - title:
+              - "R7 — an indented continuation changes the value above it, so it is malformed"
+          - title:
+              - "R7 — characters whose line-break meaning differs between YAML versions are malformed"
+          - title:
+              - "R7 — every YAML construct outside the accepted subset is malformed, never reviewless"
+          - title:
+              - "R7 — line splitting follows YAML 1.2: LF, CR and CRLF each end a line"
+          - title:
+              - "R7 — the accepted grammar classifies grove frontmatter; exotic YAML is malformed by design"
+          - title:
+              - "R7 — the comment rule is YAML's, and a padded delimiter survives it"
           - title:
               - "a block-style implements list classifies implements-bearing; an empty key does not"
           - title:
