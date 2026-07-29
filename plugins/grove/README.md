@@ -140,7 +140,7 @@ is supported for release.
 <!-- grove-surface-matrix:begin (generated from plugins/grove/metadata/surfaces.json) -->
 | Surface | Grove writes here | Support | Release state | Load/bridge state | Disclosure |
 |---|---|---|---|---|---|
-| `claude-interactive` | Yes | Not claimed | Unsupported | host-native | The package has an established interactive load path, but Grove does not claim 0.3.0 support until the complete release record passes. |
+| `claude-interactive` | Yes | Not claimed | Unsupported | host-native | The package has an established interactive load path, but Grove does not claim 0.4.0 support until the complete release record passes. |
 | `claude-cloud` | No | Not claimed | Unsupported | host-native | Not enabled: a fresh cloud session has not yet proven the role-discovery contract. |
 | `claude-github-action` | No | Not claimed | Unsupported | host-native | Not enabled: runner role discovery is unverified on this surface. |
 | `claude-headless` | No | Not claimed | Unsupported | host-native | Not enabled: headless role discovery is unverified on this surface. |
