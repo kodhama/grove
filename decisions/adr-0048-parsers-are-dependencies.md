@@ -254,8 +254,8 @@ marked it "PASS — verified".
 
 **4. Consequences' "loses most of its 774 lines" is wrong twice.** The file was
 810 lines when the sentence was written, not 774; it lost ~270 (≈35%), not
-"most", and stands at 740 after the replacement. The paired plan corrected the
-figure and cited a stale line number while doing so.
+"most", and stands at 740 after the replacement. The advisory plan relayed on
+grove#186 corrected the figure and cited a stale line number while doing so.
 
 **5. The "186 cases" figure is not derivable from this tree.** Instrumented, the
 battery is 231 invocations over 220 distinct inputs. Self-check row 6 already
@@ -270,8 +270,25 @@ class. The check is only as good as its re-derivation, and re-derivation is the
 step that keeps getting skipped.
 
 **7. Open questions 1, 2, 6 and 7 are answered by this record's own Decisions**
-(6, 7 and 8) and were never struck, though the record has a working convention
-for it — Open 4 is struck and marked Answered.
+(**6, 8 and 9** — Open 2 by D6, Open 6 by D8, Opens 1 and 7 by D9, whose
+discharge prose also names the two implementations at `:182-183`) and were never
+struck, though the record has a working convention for it — Open 4 is struck and
+marked Answered. *[Citation corrected 2026-07-29: this erratum as first written
+cited "6, 7 and 8". D7 is the coverage-reduction acceptance and answers none of
+the four; D9 answers two of them. An erratum recording an unverified citation is
+the same defect one layer out.]*
+
+**8. Self-check row 11 is false — the fifth.** It reads "Nothing asserted about
+which library, its size, or its behaviour | **PASS** — all three are Open
+questions." Two of the three are asserted in the ratified text. **Which library:**
+Decision 8 names `esbuild` and authorizes it by name; Decision 9 names
+`@ltd/j-toml` as excluded and its discharge prose names `yaml` and `smol-toml` at
+`:182-183`. **Behaviour:** Decision 6 asserts "the chosen library **throws** on
+`1:` / `0x1:`" — a measured behavioural claim about a specific implementation.
+Only the size claim holds. The row was written when the record deferred all three
+to Open questions and was never re-derived after the maintainer decisions of
+2026-07-29 were folded in. Same failure as erratum 6, in the same table, on the
+same day.
 
 ## Amendment obligation this record now carries
 

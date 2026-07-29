@@ -88,7 +88,6 @@
     "decisions/adr-0048-parsers-are-dependencies.md": "decision",
     "package-lock.json": "code",
     "package.json": "code",
-    "plans/adr-0048-implementation-plan.md": "implements-bearing+unclaimed",
     "plugins/grove/.claude-plugin/plugin.json": "code",
     "plugins/grove/.codex-plugin/plugin.json": "code",
     "plugins/grove/README.md": "code",

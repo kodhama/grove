@@ -1226,7 +1226,7 @@ criteria.
 
 | Check | Result | Evidence |
 |---|---|---|
-| Approved upstream | PASS | `adr-0046-how-dispatch-rules-reach-a-session` is `status: approved` (in-session intent act, 2026-07-28); declared as `implements` and deliberate `depends_on`, beside pinned `spec-0004@v7` and `adr-0035`. |
+| Approved upstream | PASS | `adr-0046-how-dispatch-rules-reach-a-session` is `status: approved` (in-session intent act, 2026-07-28); declared as `implements` and deliberate `depends_on`, beside pinned `spec-0004@v8` and `adr-0035`. |
 | Artifact contract | PASS | Frontmatter carries id/type/status/depends_on/implements/owner/updated/version; Acceptance criteria and Open questions sections exist. |
 | Decision fidelity | PASS | Clauses 1–8 map to §Non-goals (1), §Entry (2), §Floor extract + §Transition rules (3), §Run cursor (4), §The guard (5), §Managed pointer block (6), §Host scope (7), §Propagation (8). The three ratified draft choices are honored: model-invocable skills with the confirm gate, generated floor extract with a source-side marker convention, minimal cursor schema. |
 | Open-question ownership | PASS | Open 9 is resolved here as the decision orders; Open 7 is explicitly not advanced; genuinely open items are listed, none load-bearing for implementation. |
