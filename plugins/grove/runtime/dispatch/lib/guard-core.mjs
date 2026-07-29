@@ -153,18 +153,21 @@ export function classifyContent(content) {
 // owed records to zero and at least 15 leave observer scope. That is a real
 // coverage reduction, and it is the decision's, not this module's.
 //
-// WHAT THE LIBRARY DOES NOT ENFORCE, named rather than left to be discovered.
-// YAML 1.2's `c-printable` production excludes the C0 controls (except tab,
-// LF and CR), DEL, and the C1 range; `yaml@2.9.0` accepts all of them as
-// ordinary scalar content. The old grammar rejected them as "ambiguous" and
-// so classified such a file `unclaimed`; it now classifies by its `type`,
-// which for `research`/`feedback` means zero owed records. Grove does not
-// define YAML and does not get to be stricter than the parser it delegates to
-// (the same ruling the TOML swap recorded for raw TAB), so this is DISCLOSED,
-// not patched here. It is bounded by what a control character can reach: the
-// classifier reads `type` and `implements` only, and neither is printed into
-// an operator report — the one-line report fields carry their own C0/DEL
-// refusal in `run.mjs`.
+// WHAT THE LIBRARY DOES NOT ENFORCE, AND GROVE THEREFORE CHECKS ITSELF.
+// `yaml@2.9.0` accepts characters YAML 1.2 excludes from its character set —
+// measured one code point at a time — so a raw ESC in a comment, an unread
+// key or an unread value produced a document the library was happy with and a
+// conforming 1.2 reader would refuse. In an unread position the file then
+// classified by its declared `type`, which for `research`/`feedback` is zero
+// owed records and outside observer scope: a fail-open reached by a byte no
+// conforming reader accepts. `frontmatterCharacterSetFailure` below closes it.
+//
+// THIS IS NOT GROVE BEING STRICTER THAN THE FORMAT — it is the difference
+// between the format and one implementation of it. spec-0006 promises "YAML
+// 1.2, core schema"; §5.1 of that specification is part of what was promised,
+// and the check enforces exactly that production and nothing else. It is the
+// narrow exception to the D1 rule, not a hole in it: where the library is
+// MORE PERMISSIVE than the named version, grove holds the named version.
 
 // YAML 1.2 b-char: line feed and carriage return, with CRLF as ONE break. The
 // previous split was /\r?\n/, which left a bare-CR document entirely in
@@ -173,6 +176,56 @@ export function classifyContent(content) {
 const FM_LINE_BREAK = /\r\n|\r|\n/;
 const FM_DELIMITER = /^---$/;
 const FM_DELIMITER_LOOKALIKE = /^\s*---\s*$/;
+
+// YAML 1.2.2 §5.1, production [1], quoted so the next reader checks this
+// against the specification rather than trusting the regex below:
+//
+//   c-printable ::=   #x9 | #xA | #xD | [#x20-#x7E]          /* 8 bit */
+//                   | #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD] /* 16 bit */
+//                   | [#x10000-#x10FFFF]                     /* 32 bit */
+//
+// FM_NON_PRINTABLE is its exact complement, as a negated class. Verified
+// against the production code point by code point across the whole space
+// before landing: zero disagreements.
+//
+// THE THREE THINGS EASY TO GET WRONG HERE, each measured rather than reasoned:
+//   1. U+2028 and U+2029 ARE PRINTABLE. They sit inside [#xA0-#xD7FF]. They
+//      are line breaks in YAML 1.1 and the old hand-rolled reader called them
+//      "ambiguous", so the temptation is to exclude them — and excluding a
+//      legal character is the dangerous direction, because it sends real
+//      artifacts to `unclaimed`. U+0085 (NEL) is printable too, named by the
+//      production itself.
+//   2. U+FEFF IS PRINTABLE, inside [#xE000-#xFFFD]. YAML handles the
+//      byte-order mark through its own separate rules, and grove's delimiter
+//      half already handles a leading BOM above. This check does not touch it.
+//   3. The `u` flag is load-bearing. [#x10000-#x10FFFF] is a SURROGATE PAIR in
+//      a JavaScript string, so a class written over UTF-16 code units would
+//      see U+D83D in an emoji and refuse a legal document. With `u` the class
+//      matches code points, and D800-DFFF then match only LONE surrogates,
+//      which is correct: a lone surrogate is not a Unicode scalar value.
+//      (It is also unreachable from file bytes — `decodeUtf8Strict` is fatal
+//      and rejects the WTF-8 encoding first — but `classifyContent` also takes
+//      strings directly, so the class covers it.)
+const FM_NON_PRINTABLE = /[^\t\n\r\x20-\x7E\x85\u00A0-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/u;
+
+// ONE CHARACTER-SET TEST OVER THE INNER DOCUMENT, and deliberately nothing
+// more. It is CONTEXT-FREE: it does not know which characters are inside a
+// quoted scalar, where a comment begins, or where it is in the document, and
+// it must never learn — that would be a second parser beside the first.
+//
+// It does not need to. c-printable restricts the character STREAM, not the
+// decoded value, so a control character written as a YAML escape
+// (`note: "a\u001Bb"`) is a well-formed stream that stays legal and whose
+// VALUE holds the control character. That is the correct reading, and it is
+// exactly the case that would tempt a position-aware version into existence.
+// It is pinned as a test.
+function frontmatterCharacterSetFailure(document) {
+  const found = FM_NON_PRINTABLE.exec(document);
+  if (found == null) return null;
+  const point = found[0].codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
+  return `the frontmatter document contains U+${point}, which YAML 1.2 excludes `
+    + 'from its character set (§5.1 c-printable)';
+}
 
 // The schema clause (spec-0006 §Frontmatter reading, fourth bullet). Returns
 // null when the document conforms, or the reason it does not.
@@ -233,6 +286,9 @@ function readFrontmatter(text) {
   // Only the inner document crosses the boundary, rejoined with LF because the
   // split above already resolved grove's three line spellings into one.
   const document = lines.slice(1, close).join('\n');
+  // BEFORE the parser, because the parser is the thing that gets this wrong.
+  const characterSet = frontmatterCharacterSetFailure(document);
+  if (characterSet != null) return malformed(characterSet);
   let parsed;
   try {
     parsed = parseYamlDocument(document);

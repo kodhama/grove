@@ -1324,7 +1324,7 @@ test('R7 — line splitting follows YAML 1.2: LF, CR and CRLF each end a line', 
   );
 });
 
-test('AC14 — a control character in a READ value keeps it off-enum; in an unread value it does NOT, and that is disclosed', () => {
+test('AC14/INV16 — a character outside c-printable is unclaimed, in a read position or an unread one', () => {
   // THE HALF THAT SURVIVES. NEL, LS and PS are line breaks in YAML 1.1 and
   // ordinary characters in 1.2 — which is one of the four inputs INV16's
   // version clause exists for. The dialect is fixed at 1.2, so each is content
@@ -1348,33 +1348,116 @@ test('AC14 — a control character in a READ value keeps it off-enum; in an unre
     );
   }
 
-  // THE DISCLOSED GAP, pinned here rather than left in a commit message.
-  // YAML 1.2's `c-printable` production EXCLUDES the C0 controls (except tab,
-  // LF and CR), DEL and the C1 range, so a conforming 1.2 reader rejects a
-  // stream containing one. `yaml@2.9.0` accepts them all as ordinary scalar
-  // content — measured, one character at a time. The old whitelist rejected
-  // them, so a file carrying a raw ESC in a comment or an unread value was
-  // `unclaimed` (four owed, in observer scope) and is now `reviewless` (zero
-  // owed, out of scope).
+  // THE GAP THIS COMMIT CLOSES, and it was a real fail-open. YAML 1.2's
+  // `c-printable` production excludes the C0 controls (bar tab, LF and CR),
+  // DEL and most of the C1 range, so a conforming 1.2 reader refuses a stream
+  // containing one. `yaml@2.9.0` accepts them all as ordinary scalar content —
+  // measured one character at a time — so a file carrying a raw ESC anywhere
+  // the classifier does not READ classified by its declared `type`. In an
+  // UNREAD position that is `reviewless`: zero owed records and outside
+  // observer scope, reached by a byte no conforming reader accepts.
   //
-  // It is NOT patched here. adr-0048 D1 puts the format's correctness with the
-  // dependency, and the same ruling was already recorded on the TOML side for
-  // raw TAB: grove does not define the format, so grove does not get to be
-  // stricter than the parser it delegates to. THE CLASS IS NARROWER, NOT
-  // CLOSED, and this test says so in the tree.
+  // The pre-parse character check closes it. Four unread positions are covered
+  // because the fail-open reached all four, measured before the fix.
   for (const [name, code] of Object.entries({
-    NUL: 0, BEL: 7, VT: 11, FF: 12, ESC: 27, DEL: 127, 'C1 0x9F': 0x9f,
+    NUL: 0, BEL: 7, VT: 11, FF: 12, ESC: 27, DEL: 127,
+    'C1 0x80': 0x80, 'C1 0x9F': 0x9f, 'noncharacter U+FFFE': 0xfffe,
+  })) {
+    const c = fmChar(code);
+    for (const [position, text] of Object.entries({
+      'an unread value': `---\nid: x\nnote: a${c}b\ntype: research\n---\n`,
+      'a comment': `---\nid: x\n# note a${c}b\ntype: research\n---\n`,
+      'an unread key': `---\nid: x\nno${c}te: y\ntype: research\n---\n`,
+      'a quoted unread value': `---\nid: x\nnote: "a${c}b"\ntype: research\n---\n`,
+    })) {
+      assert.deepEqual(
+        classifyContent(text).classes, ['unclaimed'],
+        `${name} in ${position}: a stream YAML 1.2 refuses is unclaimed, not reviewless`,
+      );
+    }
+  }
+  // And it still never reaches `code`: a block was opened, so the file bears
+  // frontmatter whatever its bytes say.
+  assert.equal(
+    classifyContent(`---\nid: x\nnote: a${fmChar(27)}b\ntype: research\n---\n`).base,
+    'unclaimed',
+  );
+
+  // THE CHECK'S SCOPE IS THE INNER DOCUMENT AND NOTHING ELSE. YAML 1.2 §5.1
+  // constrains the YAML stream; the body below a frontmatter block is not one,
+  // and a source file with no block is not one either. Widening the check to
+  // the whole file would send every artifact with a control byte in its PROSE
+  // to `unclaimed`, and every binary-ish source file from `code` to
+  // `unclaimed` — both large, both wrong, and neither caught by the corpus
+  // gate today because no tracked file carries such a byte.
+  const ESC = fmChar(27);
+  assert.deepEqual(
+    classifyContent(`---\nid: x\ntype: research\n---\nbody a${ESC}b\n`).classes,
+    ['reviewless'],
+    'a control character BELOW the block does not touch the class',
+  );
+  assert.deepEqual(
+    classifyContent(`const x = "a${ESC}b";\n`).classes, ['code'],
+    'and a file with no frontmatter at all is still code',
+  );
+});
+
+test('AC14/INV16 — the excluded set is exactly the complement of c-printable, so legal text still classifies', () => {
+  // THE OVER-EXCLUSION GUARD, and it is the half that would do real damage:
+  // excluding a character YAML 1.2 permits would push legitimate artifacts to
+  // `unclaimed` and churn the corpus. Every character below sits INSIDE the
+  // production and must leave the class alone.
+  //
+  //   c-printable ::=   #x9 | #xA | #xD | [#x20-#x7E]
+  //                   | #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD]
+  //                   | [#x10000-#x10FFFF]                    — YAML 1.2.2 §5.1
+  //
+  // U+2028 and U+2029 are the two most likely to be wrongly excluded — they
+  // are line breaks in YAML 1.1 and were "ambiguous" to the old hand-rolled
+  // reader — but both sit inside [#xA0-#xD7FF] and ARE printable. So does
+  // U+0085 (NEL), named explicitly by the production, and so does U+FEFF,
+  // which YAML handles through its own byte-order-mark rules and which grove's
+  // delimiter half already handles separately.
+  for (const [name, code] of Object.entries({
+    'TAB U+0009': 0x09,
+    'NEL U+0085': 0x85,
+    'NBSP U+00A0': 0xa0,
+    'LS U+2028': 0x2028,
+    'PS U+2029': 0x2029,
+    'BOM U+FEFF inside the document': 0xfeff,
+    'the top of the low range, U+D7FF': 0xd7ff,
+    'the bottom of the private range, U+E000': 0xe000,
+    'the replacement character U+FFFD': 0xfffd,
+    'CJK U+4E00': 0x4e00,
+    'e-acute U+00E9': 0xe9,
   })) {
     assert.deepEqual(
       classifyContent(`---\nid: x\nnote: a${fmChar(code)}b\ntype: research\n---\n`).classes,
       ['reviewless'],
-      `${name} in an UNREAD value: the library admits it, so the declared type stands`,
+      `${name} is c-printable: the declared type must still stand`,
     );
   }
-  // What bounds the gap: the classifier reads two fields and prints neither.
-  // The one-line operator report fields carry their own C0/DEL refusal in
-  // run.mjs (`oneLineFailure`), which is grove's OWN field contract and is
-  // where that guard belongs.
+  // Astral characters are a surrogate PAIR in a JavaScript string, so a check
+  // written over UTF-16 code units would see U+D83D and refuse a legal file.
+  // This is the case that forces the check to be code-point aware.
+  assert.deepEqual(
+    classifyContent('---\nid: x\nnote: a\u{1F600}b\ntype: research\n---\n').classes,
+    ['reviewless'],
+    'an emoji is [#x10000-#x10FFFF], which is printable',
+  );
+  // THE BOUNDARY, pinned so the next reader does not "fix" it. c-printable
+  // restricts the character STREAM, not the decoded value, so a control
+  // character written as a YAML escape is a well-formed stream and stays
+  // legal — its VALUE holds the control character and that is correct. The
+  // check does not need to know it is inside a quoted scalar; it never looks
+  // at decoded values at all. Anything that made this case `unclaimed` would
+  // have had to become position-aware, which is the line this check does not
+  // cross.
+  assert.deepEqual(
+    classifyContent('---\nid: x\nnote: "a\\u001Bb"\ntype: research\n---\n').classes,
+    ['reviewless'],
+    'an ESCAPED control character is a printable stream and classifies normally',
+  );
 });
 
 test('AC14/D7 — every construct the whitelist refused, with the class it reaches now', () => {
@@ -1523,15 +1606,20 @@ test('AC14 — the 13 characters JS trim() strips are ordinary YAML content, so 
       classifyContent(`---\nid: x\ntype: ${c}research\n---\n`).classes, ['unclaimed'],
       `${hex} leading a type value must not be trimmed away`,
     );
-    // INVERTED on `implements`, and the direction is the one D7 accepts: the
-    // value is a non-empty STRING whatever exotic character it carries, so the
-    // schema clause admits it and the spec BEARS — four owed records fall to
-    // two. Under the whitelist the same input was `unclaimed` and owed four.
-    // It cannot fall further: a bearing spec is still in observer scope.
+    // ON `implements` THE THIRTEEN SPLIT, and which side a character lands on
+    // is decided by YAML 1.2 §5.1, not by this test:
+    //   - VT (U+000B) and FF (U+000C) are OUTSIDE c-printable, so the document
+    //     is refused at the character-set gate and the file is `unclaimed` —
+    //     four owed records, the fail-closed direction.
+    //   - the other eleven are printable, so the value is a non-empty STRING
+    //     whatever it carries, the schema clause admits it, and the spec BEARS
+    //     — four owed records fall to two, which is the reduction D7 accepts.
+    //     It cannot fall further: a bearing spec is still in observer scope.
+    const printable = code !== 0x0b && code !== 0x0c;
     assert.deepEqual(
       classifyContent(`---\nid: x\ntype: spec\nimplements: adr-1${c}\n---\n`).classes,
-      ['spec', 'implements-bearing'],
-      `${hex} in an implements value is ordinary string content`,
+      printable ? ['spec', 'implements-bearing'] : ['unclaimed'],
+      `${hex} in an implements value: ${printable ? 'printable string content' : 'outside c-printable'}`,
     );
   }
   // Space and tab ARE YAML whitespace and must still be trimmed.

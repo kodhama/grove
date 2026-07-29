@@ -56,8 +56,6 @@ groups:
       - file: "test/guard-core.test.mjs"
         cases:
           - title:
-              - "AC14 — a control character in a READ value keeps it off-enum; in an unread value it does NOT, and that is disclosed"
-          - title:
               - "AC14 — a flow collection is legal YAML; what refuses it is the parser or the schema, not a charset"
           - title:
               - "AC14 — a legal YAML spelling of a known type classifies by that type, whatever the spelling"
@@ -76,7 +74,11 @@ groups:
           - title:
               - "AC14/INV16 — 1.2 tag resolution cannot under-owe: a string bears, a non-string is unclaimed"
           - title:
+              - "AC14/INV16 — a character outside c-printable is unclaimed, in a read position or an unread one"
+          - title:
               - "AC14/INV16 — the dialect is fixed at YAML 1.2 core schema, not left to a build flag"
+          - title:
+              - "AC14/INV16 — the excluded set is exactly the complement of c-printable, so legal text still classifies"
           - title:
               - "AC14/INV28 — a document that does not parse classifies unclaimed, and NEVER code"
           - title:
