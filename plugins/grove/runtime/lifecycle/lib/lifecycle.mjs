@@ -10,6 +10,13 @@ import {
 import { dirname, join, normalize, relative, resolve, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 
+// adr-0048 D1/D3: TOML is a format grove does not define, so it is read by a
+// dependency. The bundle lives under runtime/dispatch/ because spec-0004 fixes
+// the package's top-level entries and a new root would amend it — a directory
+// name, not a layering claim. There is no module cycle: the bundle imports
+// nothing of grove's.
+import { parseTomlDocument } from '../../dispatch/lib/parsers.mjs';
+
 const PRESETS = Object.freeze({
   steward: Object.freeze({ intent: 'human', spec: 'agent', build: 'agent', ship: 'human' }),
   guardian: Object.freeze({ intent: 'human', spec: 'human', build: 'agent', ship: 'human' }),
@@ -217,7 +224,16 @@ export async function planSetProfile(input) {
   } catch (error) {
     return fail(plan, `cannot apply preset "${preset}" to .grove/gates.toml: ${error.message}`);
   }
-  const verified = parseProfile(next);
+  // WRAPPED (adr-0048): readFrontmatter and the old parseProfile could not
+  // throw on shapes their callers had already screened; a library reader can
+  // throw on anything. An unwrapped parse here turned a malformed profile into
+  // an internal error escaping the planner instead of a reported refusal.
+  let verified;
+  try {
+    verified = parseProfile(next);
+  } catch (error) {
+    return fail(plan, `generated preset does not re-read as a gate profile: ${error.message}`);
+  }
   if (!verified.floor) return fail(plan, 'generated preset violates the Grove human intent floor');
   plan.changes = GATES
     .filter((gate) => parsed.gates[gate] !== PRESETS[preset][gate])
@@ -1267,25 +1283,34 @@ function seedPreset(text, preset) {
   return lines.join('\n');
 }
 
+// The gate profile is TOML, and TOML is read by the dependency now (adr-0048
+// D1/D3). What stays hand-written is everything BELOW the parse: the closed
+// gate-row enum, the value enum, and the floor rule are grove's own schema over
+// a borrowed format, which is exactly the boundary D1 draws.
+//
+// Two behaviour changes fall out of the format, and both are widenings toward
+// conformance rather than choices made here: a duplicate key is now rejected by
+// the PARSER (TOML forbids redefinition) rather than by the row check below, and
+// a legal spelling the old line regex could not read — a literal-quoted value,
+// a quoted key, a value carrying an escape — is now read correctly instead of
+// being reported as an invalid gate row.
 function parseProfile(text) {
+  let document;
+  try {
+    document = parseTomlDocument(text);
+  } catch (error) {
+    throw new Error(`gates.toml does not parse: ${error.message}`);
+  }
+  const gates = document.gates;
+  if (gates == null || typeof gates !== 'object' || Array.isArray(gates)) {
+    throw new Error('gates.toml requires a [gates] table');
+  }
   const result = { gates: {} };
-  let section = '';
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.replace(/#.*$/, '').trim();
-    if (!line) continue;
-    const header = line.match(/^\[([A-Za-z0-9_]+)\]$/);
-    if (header) {
-      section = header[1];
-      continue;
-    }
-    const kv = line.match(/^([A-Za-z0-9_]+)\s*=\s*"([^"]*)"$/);
-    if (section === 'gates') {
-      const key = line.match(/^([A-Za-z0-9_]+)\s*=/)?.[1];
-      if (key && !GATES.includes(key)) throw new Error(`unknown gate row ${key}`);
-      if (!kv) throw new Error(`invalid gate row ${line}`);
-      if (result.gates[kv[1]] != null) throw new Error(`duplicate gate row ${kv[1]}`);
-      result.gates[kv[1]] = kv[2];
-    }
+  for (const key of Object.keys(gates)) {
+    if (!GATES.includes(key)) throw new Error(`unknown gate row ${key}`);
+    const value = gates[key];
+    if (typeof value !== 'string') throw new Error(`invalid gate row ${key}`);
+    result.gates[key] = value;
   }
   for (const gate of GATES) {
     if (!['human', 'agent'].includes(result.gates[gate])) throw new Error(`missing or invalid gate row ${gate}`);

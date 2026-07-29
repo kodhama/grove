@@ -10,7 +10,7 @@ import { lstat, open, readFile, readdir, readlink, realpath } from 'node:fs/prom
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
-import { parseToml } from './toml.mjs';
+import { parseTomlDocument } from './parsers.mjs';
 import { RECORD_TYPES } from './transitions.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -311,8 +311,12 @@ function readFrontmatter(text) {
   // A BOM matters only when a block is actually present: a byte-order mark on
   // an ordinary source file is not frontmatter and must stay `code`. When a
   // block IS present the mark means the block does not begin at byte 0 - the
-  // same malformed class, and toml.mjs already rules a BOM invalid rather than
-  // silently strippable ("keys start at byte 0").
+  // same malformed class. RE-DERIVED for adr-0048: the old basis was
+  // "toml.mjs already rules a BOM invalid", and toml.mjs is gone. Re-measured
+  // against the replacement rather than assumed - smol-toml also rejects a
+  // leading BOM ("only letter, numbers, dashes and underscores are allowed"),
+  // so treating the mark as malformed rather than silently strippable still
+  // agrees with the TOML reader beside it.
   const hasByteOrderMark = text.charCodeAt(0) === 0xfeff;
   const body = hasByteOrderMark ? text.slice(1) : text;
   const lines = body.split(FM_LINE_BREAK);
@@ -583,7 +587,7 @@ export async function collectRecords({ repoRoot }) {
       }
       let parsed;
       try {
-        parsed = parseToml(decoded);
+        parsed = parseTomlDocument(decoded);
       } catch (error) {
         defects.push({ path: relative, reason: `unparseable record: ${error.message}` });
         continue;

@@ -172,6 +172,10 @@ groups:
       - file: "test/run-operations.test.mjs"
         cases:
           - title:
+              - "INV8 — abort changes EXACTLY status, closed and reason on a well-formed cursor"
+          - title:
+              - "INV8 — close changes EXACTLY status and closed; every other field survives byte-for-value"
+          - title:
               - "BLOCK-1 — a duplicate id in a confirmed open-run plan is refused; nothing is written"
           - title:
               - "BLOCK-1 — an UNFLAGGED action carrying the licensed id and a foreign path never applies"
@@ -279,16 +283,22 @@ groups:
               - "the whole matrix never exits 2"
           - title:
               - "wrapper failure (guard unreachable): \"grove-guard error:\", exit 4, never 2"
-      - file: "test/toml.test.mjs"
+      - file: "test/parsers.test.mjs"
         cases:
           - title:
               - "CRLF input parses identically to LF input"
           - title:
-              - "__proto__ keys are inert data, never a prototype write"
-          - title:
               - "a byte-order mark is rejected, never silently skipped"
           - title:
               - "a table-array header inside a string stays a string"
+          - title:
+              - "adr-0048 — a __proto__ key is own data and reaches no prototype, in every shape that could carry one"
+          - title:
+              - "adr-0048 — a document that does not parse is a REFUSAL, never an internal error"
+          - title:
+              - "adr-0048 — a raw TAB is legal inside a string and every other control character is not"
+          - title:
+              - "adr-0048 — the parser accepts all of TOML; grove's SCHEMA is what narrows it"
           - title:
               - "comma-less multi-line array items are rejected"
           - title:
@@ -296,13 +306,11 @@ groups:
           - title:
               - "empty array tokens are rejected; a single trailing comma is TOML-legal"
           - title:
-              - "escaped quotes and backslashes round the strict escape set"
+              - "escaped quotes and backslashes round the escape set"
           - title:
               - "integers outside Number.isSafeInteger are rejected"
           - title:
               - "mid-line comments strip outside strings only"
-          - title:
-              - "raw control characters inside strings are rejected; escaped forms are fine"
           - title:
               - "unterminated strings and arrays fail loudly"
       - file: "test/transitions.test.mjs"
@@ -333,4 +341,5 @@ groups:
       - "spec-0006-voluntary-dispatch@v3"
     decisions:
       - "adr-0046-how-dispatch-rules-reach-a-session"
-    notes: "This package tests the voluntary-dispatch machinery shipped at plugins/grove/runtime/dispatch/, plugins/grove/reference/dispatch/, and plugins/grove/hooks/: the strict TOML subset, transition-rule validation, the deterministic guard in both modes, the confirm-gated run operations, and the Stop-hook wrapper exit mapping."
+      - "adr-0048-parsers-are-dependencies"
+    notes: "This package tests the voluntary-dispatch machinery shipped at plugins/grove/runtime/dispatch/, plugins/grove/reference/dispatch/, and plugins/grove/hooks/: the parser boundary and grove-owned schema over it, transition-rule validation, the deterministic guard in both modes, the confirm-gated run operations, and the Stop-hook wrapper exit mapping."

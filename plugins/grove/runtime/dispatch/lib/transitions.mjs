@@ -2,7 +2,7 @@
 // INV13–INV15). The dispatcher charter remains authoritative for the rules'
 // meaning; this module validates their evaluable encoding with a closed
 // grammar and rejects — never trusts — every itinerary shape S15 names.
-import { parseToml } from './toml.mjs';
+import { parseTomlDocument } from './parsers.mjs';
 
 export const RECORD_TYPES = Object.freeze([
   'conformance',
@@ -151,7 +151,7 @@ function parsePredicateList(value, label, field) {
 export function loadTransitions(text) {
   let root;
   try {
-    root = parseToml(text);
+    root = parseTomlDocument(text);
   } catch (error) {
     throw new Error(`transitions.toml: ${error.message}`);
   }

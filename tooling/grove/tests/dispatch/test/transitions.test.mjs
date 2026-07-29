@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-import { parseToml } from '../../../../../plugins/grove/runtime/dispatch/lib/toml.mjs';
+import { parseTomlDocument as parseToml } from '../../../../../plugins/grove/runtime/dispatch/lib/parsers.mjs';
 import {
   RECORD_TYPES,
   SUBJECT_CLASSES,
@@ -237,15 +237,19 @@ postconditions = ["record(code-review, $s)"]
 test('INV13 — the parser is strict: unquoted values, unknown roots, and junk lines fail closed', () => {
   // Leniency here is the dangerous fail-open: a rule that silently parses to
   // something else is a rule nobody validated.
+  // RE-DERIVED for adr-0048, message by message: the assertions survive, the
+  // wordings are the library's. `duplicate` became `redefine`; an unquoted
+  // value and a junk line are both "unexpected character". What is pinned is
+  // that each STILL throws — leniency here is the dangerous fail-open.
   assert.throws(
     () => parseToml('id = t-alpha\n'),
-    /unquoted|invalid|unsupported/i,
+    /Invalid TOML/,
     'unquoted string value',
   );
-  assert.throws(() => parseToml('just some prose\n'), /invalid|unsupported/i);
+  assert.throws(() => parseToml('just some prose\n'), /Invalid TOML/);
   assert.throws(
     () => parseToml('schema = 1\nschema = 2\n'),
-    /duplicate/i,
+    /redefine|duplicate/i,
     'duplicate key',
   );
   assert.throws(

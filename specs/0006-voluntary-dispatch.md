@@ -92,7 +92,9 @@ version: 3
 > and never `code`, and a post-parse schema clause (mapping; `type` a string;
 > `implements` a string or a sequence of strings; no coercion) sends anything
 > else to `unclaimed`. INV16 gains the YAML-version clause; INV28, S17 and
-> AC14 are new.
+> AC14 are new. **(3)** INV8 is clarified in place: it constrains which
+> **fields** change, not which bytes, and a conforming close or abort may
+> re-serialize the whole document.
 > **WHY:** `adr-0048` replaces grove's hand-rolled frontmatter reader with a
 > conforming parser, and two things in this spec had to move for that. First,
 > **the class table and the implementation currently disagree**: the
@@ -120,8 +122,9 @@ version: 3
 > `v3` delta — both folded amendments — to itself, so every behavior-changing
 > clause in this version has a named amendment contract (`adr-0044`).
 > **POINTER:** The `v3` requirements live in §Transition rules
-> (**Frontmatter reading**, and **Subject binding by entry kind**), INV11,
-> INV16, INV20, INV28, S17 and AC14. Everything else is `v2` text unchanged.
+> (**Frontmatter reading**, and **Subject binding by entry kind**), INV8,
+> INV11, INV16, INV20, INV28, S17 and AC14. Everything else is `v2` text
+> unchanged.
 > **VALUE:** An implementer can replace the reader without deciding, on its
 > own authority, which YAML grove implements or which way an unparseable
 > artifact falls — the two questions eight rounds of review kept re-opening.
@@ -846,6 +849,21 @@ this contract.
   a file that fails parse or schema is undefined, and the exception is
   reachable only through that defect row, never on a well-formed (parseable
   and schema-valid) cursor.
+  *(v3, clarified in place)* **This invariant constrains FIELDS, not bytes.**
+  "Write only `status`, `closed`, and `reason`" means the written document
+  shall parse to the same value for every other declared key it carried
+  before — including a `claims` key already present, which close and abort
+  shall preserve rather than drop. It does **not** require the write be a
+  textual edit of the pre-image's bytes, and a conforming implementation may
+  re-serialize the whole document. AC5 already states the test in field
+  terms; this sentence removes the reading that a byte-level diff was
+  additionally owed. The clarification is stated because an implementation
+  achieved the guarantee by a surgical line edit and its prose described
+  *that mechanism* as the invariant — which made a legal cursor spelling the
+  edit's regex did not admit (a literal-string `status`) unclosable **and**
+  unabortable, since the whole-file exception above is deliberately
+  unreachable on a well-formed cursor. Nothing about which fields may change
+  is relaxed here.
 - **INV9** — No shipped path shall write the `claims` key; the guard shall
   report a cursor carrying it as a schema defect.
 - **INV10** — A stale cursor shall be surfaced at both entry verbs and every

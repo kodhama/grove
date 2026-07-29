@@ -326,6 +326,20 @@ groups:
 `],
     ['tooling/grove/tests/lifecycle/test-deps.yaml', `schema: 2
 groups:
+  "adr-0048-toml-is-a-dependency":
+    precision: exact
+    tests:
+      - file: "test/refresh-profile-remove.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 — a quoted gate KEY reads fine and still fails at seedPreset: the writer is a NAMED remaining gap"
+          - title:
+              - "adr-0048 — an unparseable gates.toml is a reported REFUSAL, never a throw out of the planner"
+          - title:
+              - "adr-0048 — set-profile READS a gates.toml the old line reader called an invalid gate row"
+    decisions:
+      - "adr-0048-parsers-are-dependencies"
+    notes: "parseProfile reads the gate profile through the bundled TOML parser; the closed gate-row enum, the value enum and the floor rule stay hand-written (adr-0048 D1). The third case records a gap rather than a pass: seedPreset is still a hand-rolled TOML writer, kept deliberately because re-serializing would delete the consumer-authoritative comments in .grove/gates.toml."
   "adr-0041-shipped-matrix":
     precision: exact
     tests:

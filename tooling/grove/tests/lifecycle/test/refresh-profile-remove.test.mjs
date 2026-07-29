@@ -391,3 +391,98 @@ test('the skip reason names each host its own set-profile command', async () => 
     }
   }
 });
+
+// --- adr-0048 D1/D3: the gate profile is read by the dependency ---
+
+test('adr-0048 — set-profile READS a gates.toml the old line reader called an invalid gate row', async () => {
+  const { packageRoot, repoRoot } = await fixture();
+  await setupBoth(packageRoot, repoRoot);
+  const path = join(repoRoot, '.grove', 'gates.toml');
+  // Literal-quoted values and an escape-spelled value are legal TOML, and none
+  // of them matched the old /^([A-Za-z0-9_]+)\s*=\s*"([^"]*)"$/ row regex,
+  // which reported each as "invalid gate row" and refused the switch.
+  await writeFile(path, [
+    '# consumer-authoritative',
+    'seeded_from = "steward"',
+    '',
+    '[gates]',
+    "intent = 'human'",
+    'spec = "agent"',
+    "build = 'agent'",
+    'ship = "hum\\u0061n"',
+    '',
+  ].join('\n'));
+
+  const plan = await planSetProfile({
+    packageRoot,
+    repoRoot,
+    ...codexInvocation,
+    preset: 'guardian',
+  });
+  assert.equal(plan.ok, true, plan.summary);
+  // Read correctly means the DELTA is computed against the real prior values:
+  // guardian differs from this profile only in `spec`.
+  assert.deepEqual(
+    plan.changes,
+    [{ gate: 'spec', from: 'agent', to: 'human' }],
+    'the prior profile was read, not guessed',
+  );
+});
+
+test('adr-0048 — a quoted gate KEY reads fine and still fails at seedPreset: the writer is a NAMED remaining gap', async () => {
+  // NOT a passing grade dressed as one. adr-0048 D3 requires every hand-rolled
+  // reader AND writer of an external format be replaced. `seedPreset` is a
+  // hand-rolled TOML WRITER that D3's audit table does not name, and it is
+  // still here: it rewrites the four gate rows by line regex, so a quoted key
+  // is invisible to it and its own precondition ("seeded_from and exactly four
+  // gate rows") fails.
+  //
+  // It is kept DELIBERATELY and the tradeoff is different from the cursor's:
+  // .grove/gates.toml is consumer-authoritative and carries comments the
+  // consumer reads, and a re-serializing writer would silently delete every
+  // one of them on each set-profile. The cursor has no comments to lose.
+  // Recorded here as a test rather than as prose so the gap cannot be
+  // mistaken for closed.
+  const { packageRoot, repoRoot } = await fixture();
+  await setupBoth(packageRoot, repoRoot);
+  const path = join(repoRoot, '.grove', 'gates.toml');
+  await writeFile(path, [
+    'seeded_from = "steward"',
+    '',
+    '[gates]',
+    '"intent" = "human"',
+    'spec = "agent"',
+    'build = "agent"',
+    'ship = "human"',
+    '',
+  ].join('\n'));
+
+  const plan = await planSetProfile({
+    packageRoot, repoRoot, ...codexInvocation, preset: 'guardian',
+  });
+  assert.equal(plan.ok, false);
+  // The refusal comes from the WRITER, not the reader — that is the whole
+  // point of the assertion.
+  assert.match(plan.summary, /cannot apply preset/, plan.summary);
+  assert.doesNotMatch(plan.summary, /unreadable gates\.toml/, 'the reader was fine');
+  assert.deepEqual(plan.actions, []);
+});
+
+test('adr-0048 — an unparseable gates.toml is a reported REFUSAL, never a throw out of the planner', async () => {
+  const { packageRoot, repoRoot } = await fixture();
+  await setupBoth(packageRoot, repoRoot);
+  const path = join(repoRoot, '.grove', 'gates.toml');
+  // A library reader can throw where the old line reader silently skipped:
+  // it ignored any line it did not recognize, so junk simply vanished. Both
+  // parseProfile call sites are wrapped, so this reports rather than escapes.
+  await writeFile(path, 'seeded_from = "steward"\n[gates\nintent = "human"\n');
+  const plan = await planSetProfile({
+    packageRoot,
+    repoRoot,
+    ...codexInvocation,
+    preset: 'guardian',
+  });
+  assert.equal(plan.ok, false);
+  assert.match(plan.summary, /unreadable gates\.toml|does not parse/i, plan.summary);
+  assert.deepEqual(plan.actions, []);
+});

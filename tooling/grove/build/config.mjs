@@ -190,7 +190,6 @@ export const STATIC_PACKAGE_FILES = Object.freeze([
   "plugins/grove/runtime/dispatch/lib/cursor.mjs",
   "plugins/grove/runtime/dispatch/lib/guard-core.mjs",
   "plugins/grove/runtime/dispatch/lib/run.mjs",
-  "plugins/grove/runtime/dispatch/lib/toml.mjs",
   "plugins/grove/runtime/dispatch/lib/transitions.mjs",
   "plugins/grove/runtime/gates/bin/resolve-profile.mjs",
   "plugins/grove/runtime/gates/lib/profile.mjs",

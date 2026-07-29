@@ -15,18 +15,17 @@ import { fileURLToPath } from 'node:url';
 import { applyPlan } from '../../lifecycle/lib/lifecycle.mjs';
 import {
   RUN_ID,
-  TABLE_HEADER_LINE,
   minimalAbortedCursor,
   oneLineFailure,
   parseCursor,
   probeStatus,
+  rewriteCursorFields,
   runInstantMismatch,
   serializeCursor,
-  statusLinePattern,
   timestampFailure,
   validateSubjectPath,
 } from './cursor.mjs';
-import { parseToml } from './toml.mjs';
+import { parseTomlDocument } from './parsers.mjs';
 
 const OPERATIONS = Object.freeze(['open-run', 'close-run', 'abort-run']);
 const GUARD = join(
@@ -149,7 +148,7 @@ function roundTripFailure({ runId, opened, intent, subjects }) {
 function fieldRoundTripFailure(field, value) {
   let parsed;
   try {
-    parsed = parseToml(`probe = ${JSON.stringify(String(value))}\n`);
+    parsed = parseTomlDocument(`probe = ${JSON.stringify(String(value))}\n`);
   } catch (error) {
     return `field ${field}: ${error.message}`;
   }
@@ -202,11 +201,12 @@ export async function planCloseRun(input) {
 // report the SAME refusal reason, and the post-edit validity gate below needs
 // to name which of the two failures it hit.
 function buildCloseAction(cursorText, runId, closed) {
-  const content = editCursorText(cursorText, 'closed', [
-    `closed = ${JSON.stringify(closed)}`,
-  ]);
+  const content = editCursorFields(cursorText, {
+    status: 'closed',
+    closed,
+  });
   if (content == null) {
-    return { ok: false, reason: `cannot locate the single root-table status line in ${runId}` };
+    return { ok: false, reason: `cannot rewrite an unparseable cursor for ${runId}` };
   }
   // The gate planOpenRun already has, on the edit path too: bytes are planned
   // only if they parse AND validate. Refusing is the fail-closed choice here
@@ -266,12 +266,13 @@ export async function planAbortRun(input) {
     }
     // Well-formed: the whole-file replacement path is UNREACHABLE — this is
     // a field edit preserving every open-time byte (INV8).
-    content = editCursorText(cursor.text, 'aborted', [
-      `closed = ${JSON.stringify(closed)}`,
-      `reason = ${JSON.stringify(reason)}`,
-    ]);
+    content = editCursorFields(cursor.text, {
+      status: 'aborted',
+      closed,
+      reason,
+    });
     if (content == null) {
-      return fail(plan, `abort-run cannot locate the single root-table status line in ${runId}`);
+      return fail(plan, `abort-run cannot rewrite an unparseable cursor for ${runId}`);
     }
     // Same pre-write gate as close's, and REFUSAL rather than a fall-through
     // to the whole-file shape below — deliberately. INV8 pins that exception
@@ -451,47 +452,30 @@ async function readCursor(repoRoot, runId) {
   return { ok: true, text, parsed: parseCursor(text, { runId }) };
 }
 
-// The open-status matcher is cursor.mjs's statusLinePattern — the ONE
-// grammar derived from toml.mjs's line handling (leading/trailing trim,
-// key/value trim around '=', trailing comment, trailing \r) — so a
-// well-formed non-canonical cursor can always close and abort through the
-// field edit (a stricter match here wedged such cursors against INV8's
-// deliberately unreachable whole-file path, twice). The matched line is
-// replaced with the canonical assignment; the file's line-ending style is
-// preserved for the replacement and the appended lines.
-const OPEN_STATUS_LINE = statusLinePattern('open');
-
-// The edit is scoped to the ROOT table — the lines before the first
-// TABLE_HEADER_LINE — because that is where every declared cursor key lives.
-// Both halves need the scope. Appending at end-of-file put `closed`/`reason`
-// inside a trailing `[[claims]]` table (a shape parseCursor accepts: `claims`
-// is declared, and its presence is a defect on a parseable cursor, never a
-// parse failure), so a well-formed open cursor was edited into a
-// schema-INVALID aborted one — "aborted cursor requires a closed timestamp".
-// Counting status lines file-wide had the mirror bug: a `status` key inside
-// such a table made the count 2 and wedged the edit. In a cursor with no table
-// header — everything any shipped path writes — the produced bytes are
-// unchanged.
-function editCursorText(text, newStatus, appendLines) {
-  const eol = text.includes('\r\n') ? '\r\n' : '\n';
-  const lines = text.split('\n');
-  const headerIndex = lines.findIndex((line) => TABLE_HEADER_LINE.test(line));
-  const rootEnd = headerIndex === -1 ? lines.length : headerIndex;
-  const matched = lines
-    .slice(0, rootEnd)
-    .map((line, index) => ({ line, index }))
-    .filter(({ line }) => OPEN_STATUS_LINE.test(line));
-  if (matched.length !== 1) return null;
-  const keepCR = matched[0].line.endsWith('\r') ? '\r' : '';
-  lines[matched[0].index] = `status = ${JSON.stringify(newStatus)}${keepCR}`;
-  if (rootEnd === lines.length) {
-    const next = lines.join('\n');
-    const trailing = next.endsWith('\n') ? '' : eol;
-    return `${next}${trailing}${appendLines.join(eol)}${eol}`;
+// THE close/abort write, through the parsed DOCUMENT (INV8 as clarified at
+// v3: fields, not bytes; adr-0048 D3 replaces the line edit rather than
+// widening it).
+//
+// What was here before was a regex over the status LINE, whose tolerance was
+// documented as derived from the old reader "mechanism by mechanism". That
+// derivation is gone with its basis, and it was never sound: a line regex is
+// not derivable from full TOML, because a legal value spans lines and a legal
+// key may be quoted. Six spellings measured — `status = 'open'`, both
+// multi-line forms, both quoted-key forms, and an escape-spelled value — were
+// schema-valid, OPEN, and un-editable, so close refused and abort refused too,
+// with INV8's whole-file exception deliberately unreachable on a cursor that is
+// well-formed. The run had no exit at all.
+//
+// Returns null only when the bytes do not parse — which both callers have
+// already ruled out, and which is a refusal rather than an internal error.
+function editCursorFields(cursorText, changes) {
+  let document;
+  try {
+    document = parseTomlDocument(cursorText);
+  } catch {
+    return null;
   }
-  const keepCRLF = eol === '\r\n' ? '\r' : '';
-  lines.splice(rootEnd, 0, ...appendLines.map((line) => `${line}${keepCRLF}`));
-  return lines.join('\n');
+  return rewriteCursorFields(document, changes);
 }
 
 async function listOpenCursors(repoRoot) {
