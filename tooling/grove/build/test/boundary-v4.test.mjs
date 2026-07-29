@@ -135,6 +135,22 @@ test('spec-0005 AC7/AC13/AC15 — stock ledgers and config use canonical schema-
   const expected = new Map([
     ['tooling/grove/build/test-deps.yaml', `schema: 2
 groups:
+  "adr-0048-dependency-delivery":
+    precision: exact
+    tests:
+      - file: "test/dependency-delivery.test.mjs"
+        cases:
+          - title:
+              - "adr-0048 D4 — CI installs the workspace before any suite runs, and no longer claims no install is needed"
+          - title:
+              - "adr-0048 D4 — node_modules is ignored BY THE COMMITTED .gitignore, so the derived change set stays bounded"
+          - title:
+              - "adr-0048 D4 — the committed lockfile is the install authority npm ci requires"
+          - title:
+              - "adr-0048 D4 — the root manifest declares exactly the six workspace packages, and no package escapes it"
+    decisions:
+      - "adr-0048-parsers-are-dependencies"
+    notes: "The delivery machinery adr-0048 needs before any parser is swapped. No spec pin: workspaces, the ignore rule, and the CI install all sit outside the installable package, so no versioned fidelity contract governs them."
   "legacy-package":
     precision: coarse
     tests:
