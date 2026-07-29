@@ -99,6 +99,15 @@ Ownership remains explicit:
 - `.grove/agents/<role>.md` is an optional consumer-authored addendum; and
 - `.grove/README.md` is a short Grove-managed explanation of those dials.
 
+> **Scoped annotation (2026-07-28, `adr-0046` clause 4 — "when the spec
+> lands"):** `spec-0006-voluntary-dispatch` adds `.grove/runs/` to this
+> consumer-owned class — per-run committed cursors at
+> `.grove/runs/<run-id>/cursor.toml` and verdict records under
+> `.grove/runs/<run-id>/records/`, written only through the confirm-gated
+> run operations. It is consumer-run-owned state, not a host-adapter
+> surface, and carries no executable or fixed enforcement data; everything
+> else this decision declares stands unchanged.
+
 No standard setup or refresh operation creates `.grove/internal/`. Fixed
 methodology data and executable behavior are plugin-owned and remain in the
 installed package.

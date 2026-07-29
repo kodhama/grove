@@ -597,7 +597,7 @@ export function validateLegacyOwnershipInventory(inventory) {
   return errors;
 }
 
-export function validateHostInventory(inventory, { host, roleInventory, lifecycleInventory }) {
+export function validateHostInventory(inventory, { host, roleInventory, lifecycleInventory, entryInventory }) {
   const errors = [];
   if (
     inventory?.schema_version !== 1
@@ -609,6 +609,10 @@ export function validateHostInventory(inventory, { host, roleInventory, lifecycl
   }
   const expectedIds = new Set([
     ...(lifecycleInventory?.operations ?? []).map((operation) => `grove:${operation}`),
+    // spec-0006: both hosts ship both entry verbs, declared in
+    // metadata/entry-inventory.json — a declared source, never an inference
+    // from the inventory under validation.
+    ...(entryInventory?.verbs ?? []).map((verb) => `grove:${verb}`),
     ...(roleInventory?.roles ?? [])
       .filter((role) => host === 'codex' || role.outputs?.claude_agent)
       .map((role) => host === 'codex' ? `grove:role-${role.id}` : `grove:${role.id}`),
@@ -630,15 +634,10 @@ export function validateHostInventory(inventory, { host, roleInventory, lifecycl
     if (!seen.has(id)) errors.push(`${host} inventory is missing ${id}`);
   }
   if (seen.size !== expectedIds.size) errors.push(`${host} inventory component count differs from authored inventory`);
-  for (const role of ['dispatcher', 'shaper']) {
-    const loader = inventory.driving_loaders?.[role];
-    if (
-      !loader
-      || loader.canonical_source !== `charters/${role}.md`
-      || !/^[0-9a-f]{64}$/.test(loader.canonical_digest ?? '')
-    ) {
-      errors.push(`${host} driving loader ${role} lacks exact source/digest`);
-    }
+  // spec-0006 retired the driving loaders (the managed block is a pointer to
+  // the entry skills); an inventory still carrying them is stale generation.
+  if (inventory.driving_loaders !== undefined) {
+    errors.push(`${host} inventory carries retired driving_loaders`);
   }
   return errors;
 }
@@ -1300,6 +1299,12 @@ export async function validateReleaseTree(root, {
       readJson(join(root, 'metadata', 'claude-inventory.json'), 'metadata/claude-inventory.json', errors),
       readJson(join(root, 'metadata', 'codex-inventory.json'), 'metadata/codex-inventory.json', errors),
     ]);
+    // spec-0006 entry verbs: declared, optional for legacy fixture packages —
+    // a host inventory carrying entry rows without this declaration fails as
+    // unexpected, so absence cannot hide shipped entry skills.
+    const entryInventory = await exists(join(root, 'metadata', 'entry-inventory.json'))
+      ? await readJson(join(root, 'metadata', 'entry-inventory.json'), 'metadata/entry-inventory.json', errors)
+      : null;
     if (legacy) errors.push(...validateLegacyOwnershipInventory(legacy));
     if (roleInventory && lifecycleInventory && claudeInventory) {
       if (version) errors.push(...validateClaudeManifest(claude, version, claudeInventory));
@@ -1307,6 +1312,7 @@ export async function validateReleaseTree(root, {
         host: 'claude',
         roleInventory,
         lifecycleInventory,
+        entryInventory,
       }));
     }
     if (roleInventory && lifecycleInventory && codexInventory) {
@@ -1314,6 +1320,7 @@ export async function validateReleaseTree(root, {
         host: 'codex',
         roleInventory,
         lifecycleInventory,
+        entryInventory,
       }));
     }
   }

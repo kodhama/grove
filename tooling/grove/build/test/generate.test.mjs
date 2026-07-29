@@ -12,7 +12,11 @@ import {
   writeProjectionSet,
 } from "../lib/generate.mjs";
 import {
+  CODEX_ENTRY_DISCLOSURE,
   COMPANION_PROJECTIONS,
+  ENTRY_BEHAVIOR_SOURCE,
+  ENTRY_SKILLS,
+  FLOOR_SLUGS,
   GENERATED_FILES,
   GENERATED_ROOTS,
   INVENTORY_PATH,
@@ -38,6 +42,13 @@ async function fixture() {
   await cp(
     path.join(REPO_ROOT, LIFECYCLE_SOURCE),
     path.join(root, LIFECYCLE_SOURCE),
+  );
+  await mkdir(path.dirname(path.join(root, ENTRY_BEHAVIOR_SOURCE)), {
+    recursive: true,
+  });
+  await cp(
+    path.join(REPO_ROOT, ENTRY_BEHAVIOR_SOURCE),
+    path.join(root, ENTRY_BEHAVIOR_SOURCE),
   );
   return root;
 }
@@ -566,4 +577,242 @@ test("configured roots are explicit and do not include plugin custom-agent TOML"
     "plugins/grove/reference/relations.md",
     "plugins/grove/reference/versioning.md",
   ]);
+});
+
+// --- spec-0006 (voluntary dispatch): floor extract + entry skills ---
+// Upstream: spec-0006-voluntary-dispatch@v2 INV1, INV22, INV23, INV26
+// (shipping clauses); AC3 mechanical half, AC9, AC11 mechanical half;
+// S12–S14 mechanical halves. Decision: adr-0046.
+// Behavioral, untested here per the spec's labels: AC3's core (enter writes
+// nothing in session conduct) and the Codex session actually STATING the
+// disclosure line (S14's conduct half).
+
+const FLOOR_BEGIN = "<!-- grove:floors:begin -->";
+const FLOOR_END = "<!-- grove:floors:end -->";
+
+function floorSpanOf(charter) {
+  const start = charter.indexOf(FLOOR_BEGIN);
+  const end = charter.indexOf(FLOOR_END);
+  assert.ok(start !== -1 && end !== -1, "fixture charter carries the floor span");
+  return charter.slice(start + FLOOR_BEGIN.length, end).replace(/^\n/, "").replace(/\n$/, "\n");
+}
+
+function skillParts(content) {
+  const frontmatterMatch = content.match(/^---\n[\s\S]*?\n---\n/);
+  assert.ok(frontmatterMatch, "entry skill has frontmatter");
+  const rest = content.slice(frontmatterMatch[0].length);
+  const headerEnd = rest.indexOf("\n");
+  return {
+    frontmatter: frontmatterMatch[0],
+    header: rest.slice(0, headerEnd),
+    body: rest.slice(headerEnd + 1),
+  };
+}
+
+test("INV1 — both hosts ship enter and start, model-invocable, config-declared descriptions", async () => {
+  const outputs = await buildProjectionSet({ repoRoot: REPO_ROOT });
+  assert.equal(ENTRY_SKILLS.length, 4);
+  for (const metadata of ENTRY_SKILLS) {
+    const content = outputs.get(metadata.output);
+    assert.equal(typeof content, "string", `missing ${metadata.output}`);
+    const { frontmatter } = skillParts(content);
+    assert.match(frontmatter, new RegExp(`^name: ${metadata.verb}$`, "m"));
+    assert.ok(
+      frontmatter.includes(`description: ${JSON.stringify(metadata.description)}`),
+      `${metadata.output} carries the config-declared description`,
+    );
+    assert.doesNotMatch(frontmatter, /disable-model-invocation/);
+    assert.match(content, /GENERATED — DO NOT EDIT/);
+  }
+  const start = ENTRY_SKILLS.find((item) => item.verb === "start");
+  assert.match(start.description, /committed run/);
+});
+
+test("INV22/INV23 — the floor extract is the marker span verbatim and the FIRST body content, both hosts both verbs", async () => {
+  const outputs = await buildProjectionSet({ repoRoot: REPO_ROOT });
+  const charter = await readFile(path.join(REPO_ROOT, "charters", "dispatcher.md"), "utf8");
+  const span = floorSpanOf(charter);
+  assert.ok(span.length <= 2500, "shipped span inside the 2,500 budget");
+  for (const slug of FLOOR_SLUGS) assert.match(span, new RegExp(`\`${slug}\``));
+
+  for (const metadata of ENTRY_SKILLS) {
+    const { body } = skillParts(outputs.get(metadata.output));
+    const trimmed = body.replace(/^\n+/, "");
+    assert.ok(
+      trimmed.startsWith(span.trimEnd()),
+      `${metadata.output}: floor extract is the first body content`,
+    );
+    assert.equal(trimmed.includes(FLOOR_BEGIN), false, "markers excluded");
+  }
+});
+
+test("INV26 — Codex entry skills carry the EXACT disclosure line; Claude do not; both carry the pointers and the per-handover guard duty", async () => {
+  const outputs = await buildProjectionSet({ repoRoot: REPO_ROOT });
+  for (const metadata of ENTRY_SKILLS) {
+    const content = outputs.get(metadata.output);
+    if (metadata.host === "codex") {
+      assert.ok(
+        content.includes(CODEX_ENTRY_DISCLOSURE),
+        `${metadata.output} carries the exact disclosure line byte-for-byte`,
+      );
+    } else {
+      assert.equal(
+        content.includes(CODEX_ENTRY_DISCLOSURE),
+        false,
+        `${metadata.output} must not carry the Codex disclosure`,
+      );
+    }
+    // Pointers: full dispatcher projection, transitions.toml, guard CLI,
+    // cursor contract — host-correct forms.
+    assert.match(content, /reference\/charters\/dispatcher\.md/);
+    assert.match(content, /reference\/dispatch\/transitions\.toml/);
+    assert.match(content, /runtime\/dispatch\/bin\/guard\.mjs/);
+    assert.match(content, /cursor\.toml/);
+    if (metadata.host === "claude") {
+      assert.match(content, /\$\{CLAUDE_PLUGIN_ROOT\}\/reference\/dispatch\/transitions\.toml/);
+    } else {
+      assert.match(content, /\.\.\/\.\.\/\.\.\/\.\.\/reference\/dispatch\/transitions\.toml/);
+    }
+    // INV17 carrier: the per-handover guard duty is stated in the body.
+    assert.match(content, /every handover/i);
+  }
+});
+
+test("S12 — editing the floor span changes all four entry skills; unrelated projections stay byte-identical", async () =>
+  withFixture(async (root) => {
+    const before = await buildProjectionSet({ repoRoot: root });
+    const charterPath = path.join(root, "charters", "dispatcher.md");
+    const charter = await readFile(charterPath, "utf8");
+    await writeFile(
+      charterPath,
+      charter.replace(
+        "never silent. `floor-recorded-skips`",
+        "never silent, fixture-edited. `floor-recorded-skips`",
+      ),
+    );
+    const after = await buildProjectionSet({ repoRoot: root });
+    for (const metadata of ENTRY_SKILLS) {
+      assert.notEqual(before.get(metadata.output), after.get(metadata.output), metadata.output);
+    }
+    assert.equal(
+      before.get("plugins/grove/adapters/claude/agents/executor.md"),
+      after.get("plugins/grove/adapters/claude/agents/executor.md"),
+      "unrelated projection unchanged",
+    );
+    assert.equal(
+      before.get("plugins/grove/adapters/codex/skills/role-executor/SKILL.md"),
+      after.get("plugins/grove/adapters/codex/skills/role-executor/SKILL.md"),
+    );
+  }));
+
+test("S12/INV23 — a direct edit to a generated entry skill fails check mode; two builds are byte-identical", async () =>
+  withFixture(async (root) => {
+    const first = await buildProjectionSet({ repoRoot: root });
+    const second = await buildProjectionSet({ repoRoot: root });
+    for (const [name, content] of first) {
+      assert.equal(content, second.get(name), `determinism: ${name}`);
+    }
+    await writeProjectionSet({ repoRoot: root, outputs: first });
+    const target = "plugins/grove/adapters/claude/skills/enter/SKILL.md";
+    await writeFile(
+      path.join(root, target),
+      `${first.get(target)}\nhand edit\n`,
+    );
+    const result = await checkProjectionSet({ repoRoot: root, outputs: first });
+    assert.equal(result.ok, false);
+    assert.ok(result.stale.includes(target));
+  }));
+
+test("S13/INV22 — marker, slug, and budget violations fail generation naming the violation", async () =>
+  withFixture(async (root) => {
+    const charterPath = path.join(root, "charters", "dispatcher.md");
+    const original = await readFile(charterPath, "utf8");
+    const span = floorSpanOf(original);
+    const cases = [
+      {
+        name: "zero marker pairs",
+        mutate: (text) => text.replace(FLOOR_BEGIN, "").replace(FLOOR_END, ""),
+        pattern: /marker|floors/i,
+      },
+      {
+        name: "two marker pairs",
+        mutate: (text) =>
+          `${text}\n${FLOOR_BEGIN}\n- duplicate span. \`floor-owed-reviews\`\n${FLOOR_END}\n`,
+        pattern: /marker|floors/i,
+      },
+      {
+        name: "missing slug",
+        mutate: (text) => text.replace(
+          /^- .*`floor-recorded-skips`$\n/m,
+          "",
+        ),
+        pattern: /floor-recorded-skips|slug/i,
+      },
+      {
+        name: "extra slug",
+        mutate: (text) => text.replace(
+          FLOOR_END,
+          "- an eleventh floor. `floor-novel-extra`\n" + FLOOR_END,
+        ),
+        pattern: /floor-novel-extra|slug/i,
+      },
+      {
+        name: "duplicate slug",
+        mutate: (text) => text.replace(
+          FLOOR_END,
+          "- said twice. `floor-recorded-skips`\n" + FLOOR_END,
+        ),
+        pattern: /duplicate|floor-recorded-skips/i,
+      },
+      {
+        name: "item not ending in backticked slug",
+        mutate: (text) => text.replace(
+          "never silent. `floor-recorded-skips`",
+          "never silent. floor-recorded-skips (unticked)",
+        ),
+        pattern: /backtick|slug|list item/i,
+      },
+      {
+        name: "span over 2,500 characters",
+        mutate: (text) => text.replace(
+          "never silent. `floor-recorded-skips`",
+          `never silent${" and loud".repeat(400)}. \`floor-recorded-skips\``,
+        ),
+        pattern: /2,?500|budget|extract/i,
+      },
+    ];
+    for (const item of cases) {
+      await writeFile(charterPath, item.mutate(original));
+      await assert.rejects(
+        buildProjectionSet({ repoRoot: root }),
+        item.pattern,
+        item.name,
+      );
+    }
+    await writeFile(charterPath, original);
+    assert.ok(span.length > 0);
+
+    // S13's second budget: an assembled entry-skill body over 12,000.
+    const behaviorPath = path.join(root, ENTRY_BEHAVIOR_SOURCE);
+    const behavior = await readFile(behaviorPath, "utf8");
+    await writeFile(behaviorPath, `${behavior}\n${"filler prose line\n".repeat(800)}`);
+    await assert.rejects(
+      buildProjectionSet({ repoRoot: root }),
+      /12,?000|body|budget/i,
+      "body budget breach",
+    );
+  }));
+
+test("entry skills join the host inventories as entry-class components", async () => {
+  const outputs = await buildProjectionSet({ repoRoot: REPO_ROOT });
+  const claude = JSON.parse(outputs.get("plugins/grove/metadata/claude-inventory.json"));
+  const codex = JSON.parse(outputs.get("plugins/grove/metadata/codex-inventory.json"));
+  for (const inventory of [claude, codex]) {
+    for (const verb of ["enter", "start"]) {
+      const row = inventory.components.find((item) => item.raw_id === `grove:${verb}`);
+      assert.ok(row, `${inventory.host} grove:${verb} row`);
+      assert.equal(row.class, "entry");
+      assert.match(row.canonical_digest, /^[0-9a-f]{64}$/);
+    }
+  }
 });

@@ -110,32 +110,8 @@ export async function fixture() {
       ],
     }, null, 2) + '\n',
   );
-  await writeFile(
-    join(packageRoot, 'metadata', 'claude-inventory.json'),
-    JSON.stringify({
-      schema_version: 1,
-      host: 'claude',
-      driving_loaders: {
-        dispatcher: {
-          raw_reference: '${CLAUDE_PLUGIN_ROOT}/reference/charters/dispatcher.md',
-        },
-        shaper: {
-          raw_reference: '${CLAUDE_PLUGIN_ROOT}/reference/charters/shaper.md',
-        },
-      },
-    }, null, 2) + '\n',
-  );
-  await writeFile(
-    join(packageRoot, 'metadata', 'codex-inventory.json'),
-    JSON.stringify({
-      schema_version: 1,
-      host: 'codex',
-      driving_loaders: {
-        dispatcher: { raw_skill_id: 'grove:role-dispatcher' },
-        shaper: { raw_skill_id: 'grove:role-shaper' },
-      },
-    }, null, 2) + '\n',
-  );
+  // spec-0006 retired the driving loaders: the lifecycle core no longer
+  // reads the host inventories, and the fixture ships none.
   return { root, packageRoot, repoRoot };
 }
 

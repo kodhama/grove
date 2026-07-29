@@ -21,6 +21,7 @@ test('INV23–INV25/S21 — the installable package has the exact permitted root
     'README.md',
     'VERSION',
     'adapters',
+    'hooks',
     'metadata',
     'reference',
     'runtime',
@@ -38,8 +39,8 @@ test('INV26–INV27 — generated host isolation is a precondition, not S22/S23 
     /^plugins\/grove\/adapters\/codex\/skills\/[^/]+\/SKILL\.md$/.test(path));
 
   assert.equal(claudeAgents.length, 13, 'Claude gets twelve cold-native agents and the scoped dispatcher');
-  assert.equal(claudeSkills.length, 4, 'Claude gets only the four lifecycle skills');
-  assert.equal(codexSkills.length, 18, 'Codex gets fourteen role skills and four lifecycle skills');
+  assert.equal(claudeSkills.length, 6, 'Claude gets the four lifecycle skills plus enter/start (spec-0006)');
+  assert.equal(codexSkills.length, 20, 'Codex gets fourteen role skills, four lifecycle skills, and enter/start');
   assert.equal(paths.some((path) => path.startsWith('plugins/grove/agents/')), false);
   assert.equal(paths.some((path) => path.startsWith('plugins/grove/skills/')), false);
 
@@ -65,8 +66,8 @@ test('INV26–INV27 — generated host isolation is a precondition, not S22/S23 
   const codexInventory = JSON.parse(
     outputs.get('plugins/grove/metadata/codex-inventory.json'),
   );
-  assert.equal(claudeInventory.components.length, 17);
-  assert.equal(codexInventory.components.length, 18);
+  assert.equal(claudeInventory.components.length, 19);
+  assert.equal(codexInventory.components.length, 20);
   for (const inventory of [claudeInventory, codexInventory]) {
     for (const component of inventory.components) {
       assert.match(component.raw_id, /^grove:/);
@@ -120,7 +121,9 @@ test('repository checks retain the five live suites and exclude retired bookkeep
     assert.match(text, /tooling\/grove\/probes/);
     assert.doesNotMatch(text, /retired\/review-bookkeeping/);
   }
-  assert.match(workflow, /five live suites/i);
+  // spec-0006 added the dispatch suite as the sixth; the test title keeps its
+  // historical name (retitling would churn the exact-pinned canary ledger).
+  assert.match(workflow, /six live suites/i);
   assert.match(gatesLedger, /tooling\/grove\/tests\/gates/);
   assert.doesNotMatch(gatesLedger, /plugins\/grove\/gates/);
   assert.match(probesLedger, /spec-0004-dual-host-distribution@v6/);
@@ -183,6 +186,7 @@ groups:
               - "spec-0005 AC7/S24 — structured canary contracts propagate from all six authored sources"
     specs:
       - "spec-0005-structured-test-dependency-canary@v1"
+      - "spec-0006-voluntary-dispatch@v2"
     decisions:
       - "adr-0043-structured-test-dependency-canary"
     covers:
@@ -192,6 +196,36 @@ groups:
       - "S23"
       - "S25"
       - "S26"
+  "spec-0006-entry-generation":
+    precision: exact
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+        cases:
+          - title:
+              - "INV23–INV25/S21 — the installable package has the exact permitted root shape"
+          - title:
+              - "INV26–INV27 — generated host isolation is a precondition, not S22/S23 live discovery evidence"
+      - file: "test/generate.test.mjs"
+        cases:
+          - title:
+              - "INV1 — both hosts ship enter and start, model-invocable, config-declared descriptions"
+          - title:
+              - "INV22/INV23 — the floor extract is the marker span verbatim and the FIRST body content, both hosts both verbs"
+          - title:
+              - "INV26 — Codex entry skills carry the EXACT disclosure line; Claude do not; both carry the pointers and the per-handover guard duty"
+          - title:
+              - "S12 — editing the floor span changes all four entry skills; unrelated projections stay byte-identical"
+          - title:
+              - "S12/INV23 — a direct edit to a generated entry skill fails check mode; two builds are byte-identical"
+          - title:
+              - "S13/INV22 — marker, slug, and budget violations fail generation naming the violation"
+          - title:
+              - "entry skills join the host inventories as entry-class components"
+    specs:
+      - "spec-0004-dual-host-distribution@v8"
+      - "spec-0006-voluntary-dispatch@v2"
+    decisions:
+      - "adr-0046-how-dispatch-rules-reach-a-session"
 `],
     ['tooling/grove/probes/test-deps.yaml', `schema: 2
 groups:
@@ -256,6 +290,14 @@ groups:
 `],
     ['tooling/grove/tests/lifecycle/test-deps.yaml', `schema: 2
 groups:
+  "adr-0041-shipped-matrix":
+    precision: exact
+    tests:
+      - file: "test/shipped-matrix.test.mjs"
+    specs:
+      - "spec-0004-dual-host-distribution@v8"
+    decisions:
+      - "adr-0041-separate-support-from-operational-availability"
   "legacy-package":
     precision: coarse
     tests:
@@ -272,6 +314,41 @@ groups:
       - "adr-0036-remove-retired-review-bookkeeping"
       - "adr-0037-pre-execution-planning"
     notes: "Technical orientation: these tests use the Node.js built-in test runner and filesystem APIs."
+  "spec-0006-confirm-gate":
+    precision: exact
+    tests:
+      - file: "test/surface-and-setup.test.mjs"
+        cases:
+          - title:
+              - "BLOCK-1 — a duplicated action id is refused: one confirmation never licenses two writes"
+          - title:
+              - "BLOCK-1 — an action id that does not recompute from its own type and path is refused"
+    specs:
+      - "spec-0006-voluntary-dispatch@v2"
+    decisions:
+      - "adr-0046-how-dispatch-rules-reach-a-session"
+    covers:
+      - "INV5"
+  "spec-0006-pointer-block":
+    precision: exact
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+        cases:
+          - title:
+              - "INV30/S26 — setup creates only the thin consumer floor and the invoking host loader"
+          - title:
+              - "spec-0006 INV24 — the pointer block is exactly four lines with host-correct invocations from adapter metadata"
+          - title:
+              - "spec-0006 INV24 — the pointer invocations come from adapter metadata, never a hardcoded literal"
+      - file: "test/surface-and-setup.test.mjs"
+        cases:
+          - title:
+              - "Claude and Codex setup in either order share one floor and are idempotent"
+    specs:
+      - "spec-0004-dual-host-distribution@v8"
+      - "spec-0006-voluntary-dispatch@v2"
+    decisions:
+      - "adr-0046-how-dispatch-rules-reach-a-session"
 `],
   ]);
 

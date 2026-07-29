@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "host": "claude",
+  "surface": "headless -p (claude CLI 2.1.220, macOS)",
+  "observed_at": "2026-07-28",
+  "method": "Project-settings Stop hook (sh script) logging verbatim stdin, then: first stop emits {\"decision\":\"block\",\"reason\":...} exit 0; second stop emits one stderr line, exit 1. One `claude -p \"Say only: PING\"` invocation, model haiku. Raw stdin log and CLI stderr capture retained beside this record at authoring time.",
+  "results": {
+    "stop_event_fires": "VERIFIED — hook_event_name \"Stop\" received with session_id, transcript_path, cwd, permission_mode, last_assistant_message.",
+    "block_decision_reaches_model": "VERIFIED — the reason instructed a one-word reply; the final model output was exactly that word (PONG). The block channel re-engages the model with the reason text.",
+    "stop_hook_active_flag": "VERIFIED — false on the first stop, true on the subsequent stop of the same turn; suitable as the single-hold bound.",
+    "exit_1_stderr_nonblocking": "VERIFIED non-blocking — the session completed normally (CLI exit 0, final output delivered) after the hook exited 1.",
+    "stderr_visibility_headless": "NOT VISIBLE — the hook's stderr line did not surface in the CLI's stderr in -p mode (0 bytes captured). The observer line's USER visibility on the headless surface is therefore unestablished; interactive-surface visibility not measured here."
+  },
+  "conclusion": "The supervisor channel (decision:block + reason, bounded by stop_hook_active) is fully verified on headless Claude. The observer channel is non-blocking as documented but its stderr text was not user-visible in -p mode - the wrapper's observer line must not be assumed user-visible on headless; interactive measurement remains owed before release if observer visibility is claimed there.",
+  "caveats": "Single CLI version and OS; interactive, IDE, desktop, cloud surfaces unmeasured; the flat-vs-nested additionalContext envelope question does not arise (no context-injecting output in this design)."
+}

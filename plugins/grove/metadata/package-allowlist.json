@@ -72,6 +72,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/adapters/claude/skills/enter/SKILL.md",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/adapters/claude/skills/refresh/SKILL.md",
       "kind": "file"
     },
@@ -85,6 +89,14 @@
     },
     {
       "path": "plugins/grove/adapters/claude/skills/setup/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/claude/skills/start/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/adapters/codex/skills/enter/SKILL.md",
       "kind": "file"
     },
     {
@@ -160,6 +172,18 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/adapters/codex/skills/start/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/hooks/hooks.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/hooks/stop-guard.sh",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/metadata/claude-inventory.json",
       "kind": "file"
     },
@@ -173,6 +197,10 @@
     },
     {
       "path": "plugins/grove/metadata/config-tokens.json",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/metadata/entry-inventory.json",
       "kind": "file"
     },
     {
@@ -260,6 +288,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/reference/dispatch/transitions.toml",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/reference/gates/enforcement.toml",
       "kind": "file"
     },
@@ -280,6 +312,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/reference/surfaces/claude-stop-hook-channels-2026-07-28.json",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/reference/surfaces/codex-bridge-spike-2026-07-23.json",
       "kind": "file"
     },
@@ -292,7 +328,39 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/reference/surfaces/codex-hook-vocabulary-2026-07-28.json",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/reference/versioning.md",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/bin/grove-run.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/bin/guard.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/lib/cursor.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/lib/guard-core.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/lib/run.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/lib/toml.mjs",
+      "kind": "file"
+    },
+    {
+      "path": "plugins/grove/runtime/dispatch/lib/transitions.mjs",
       "kind": "file"
     },
     {

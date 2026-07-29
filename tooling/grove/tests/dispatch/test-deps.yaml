@@ -1,0 +1,336 @@
+schema: 2
+groups:
+  "spec-0006-voluntary-dispatch":
+    precision: exact
+    tests:
+      - file: "test/codex-measurement-record.test.mjs"
+        cases:
+          - title:
+              - "AC11 — a Codex Stop-hook-vocabulary evidence record exists, result either way"
+      - file: "test/guard-cli.test.mjs"
+        cases:
+          - title:
+              - "R6 — a ROOT status still reads normally; the bound narrows nothing legitimate"
+          - title:
+              - "R6 — a status smuggled into a [[claims]] table cannot take the guard out of supervisor mode"
+          - title:
+              - "S10 — observer: exactly one prefixed line per stop, every stop, never a hold, no state"
+          - title:
+              - "S8 — the hook holds naming the exact transition, subject, record, and resolutions"
+          - title:
+              - "S9 — stop_hook_active bounds the hold: same gap reported on stderr, exit 1, no block"
+          - title:
+              - "a current record fires the token: only the unfired instance remains"
+          - title:
+              - "a multi-line parse-error token cannot break a defect line"
+          - title:
+              - "a newline in a run-directory name cannot break the stderr report lines"
+          - title:
+              - "a status-unreadable cursor is open for mode selection (fail closed): supervisor, defect"
+          - title:
+              - "exit 0 — no enabled instance and no defect: an untouched subject never blocks close"
+          - title:
+              - "exit 1 — internal: unresolvable base names the failure and reports no verdict"
+          - title:
+              - "exit 2 — a cursor carrying the reserved claims key is a defect; evaluation continues (AC6)"
+          - title:
+              - "exit 2 — an unknown record_type is a defect and satisfies nothing"
+          - title:
+              - "exit 2 — an unparseable cursor is skipped-with-defect while a parseable one evaluates"
+          - title:
+              - "exit 2 — more than one open cursor: union of subjects, every cursor named"
+          - title:
+              - "exit 3 — owed work: one stdout line per enabled instance naming id, subject, missing type"
+          - title:
+              - "hook clean path is silent exit 0"
+          - title:
+              - "observer direct CLI: owed work reports with exit 3; a current record silences its subject"
+          - title:
+              - "observer reports a changed non-ASCII governed artifact by its real path"
+          - title:
+              - "supervisor holds on a changed non-ASCII subject instead of passing over it"
+      - file: "test/guard-core.test.mjs"
+        cases:
+          - title:
+              - "BLOCK-2 — a symlink target binds its RAW bytes: distinct invalid UTF-8 targets never collide"
+          - title:
+              - "L1 — the regular-file read goes through one O_NOFOLLOW handle, not a second path lookup"
+          - title:
+              - "L4 — a non-regular entry digests a constant naming its exact kind"
+          - title:
+              - "M1 — a symlink digest is domain-separated from a regular file holding the same bytes"
+          - title:
+              - "P1-B — a dangling symlink is present, never absent; an absence record cannot satisfy it"
+          - title:
+              - "P1-B — a symlink subject hashes its link target, so retargeting sheds the record"
+          - title:
+              - "P1-B — entry-type rules are stated: directory stays absent/missing; symlink classifies unclaimed"
+          - title:
+              - "P1-B — invalid UTF-8 bytes bind exactly: different invalid bytes, different digests"
+          - title:
+              - "R4 — a regular file whose BYTES are the symlink tag cannot inherit the symlink verdict"
+          - title:
+              - "R4 — a regular-file digest is tagged, so an untagged pre-tag record is shed, never honoured"
+          - title:
+              - "R4 — parseCursor enforces the declared field contracts, not just non-emptiness"
+          - title:
+              - "R4 — the digest tags are mutually prefix-free, so no byte string reads as two kinds"
+          - title:
+              - "R4 — the minimal aborted shape validates all three fields it writes, not just the run id"
+          - title:
+              - "R4 — the same forgery through the non-regular tag fails too (never demonstrated, same mechanism)"
+          - title:
+              - "R5 — a block that opens and is then malformed classifies unclaimed, never code"
+          - title:
+              - "R5 — a complete block still classifies by its type; malformed never outranks it"
+          - title:
+              - "R5 — a file that opens NO block is still genuinely code, not swept into unclaimed"
+          - title:
+              - "R6 — a padded delimiter is malformed at both ends, never a delimiter and never ignored"
+          - title:
+              - "R6 — no malformed, truncated, or ambiguous block can reach the absorbing reviewless class"
+          - title:
+              - "R7 — an indented continuation changes the value above it, so it is malformed"
+          - title:
+              - "R7 — characters whose line-break meaning differs between YAML versions are malformed"
+          - title:
+              - "R7 — every YAML construct outside the accepted subset is malformed, never reviewless"
+          - title:
+              - "R7 — line splitting follows YAML 1.2: LF, CR and CRLF each end a line"
+          - title:
+              - "R7 — the accepted grammar classifies grove frontmatter; exotic YAML is malformed by design"
+          - title:
+              - "R7 — the comment rule is YAML's, and a padded delimiter survives it"
+          - title:
+              - "R8 — a mapping-value indicator is a colon before space OR tab"
+          - title:
+              - "R8 — a value the classifier READS is [A-Za-z0-9_-]+; an unread value is not narrowed"
+          - title:
+              - "R8 — an accepted value is never empty; only a BARE key holds the empty string"
+          - title:
+              - "R8 — flow-context scalars forbid [ ] { } anywhere, not just first"
+          - title:
+              - "R8 — leading whitespace stays structural: comment stripping must not eat it"
+          - title:
+              - "R8 — tag-resolution spellings cannot under-owe"
+          - title:
+              - "R8 — trimming is YAML s-white, not JS trim(): the whole 13-character class"
+          - title:
+              - "R9 — a subject that cannot decode still binds records by its raw-byte digest"
+          - title:
+              - "R9 — a subject whose bytes are not valid UTF-8 is unclaimed, not classified"
+          - title:
+              - "R9 — a verdict record whose bytes are not valid UTF-8 is a defect, not a satisfier"
+          - title:
+              - "R9 — tabs are forbidden in indentation; a tab after the indicator is separation"
+          - title:
+              - "a block-style implements list classifies implements-bearing; an empty key does not"
+          - title:
+              - "a digest-matched record never satisfies a different subject (sentinel collision)"
+          - title:
+              - "a non-ASCII subject path enters the derived change set intact"
+          - title:
+              - "a record counts only while path, state, and digest all bind (S16 digest shed)"
+          - title:
+              - "a record lacking subject_state — or otherwise schema-invalid — satisfies nothing"
+          - title:
+              - "a staged rename puts BOTH halves in the derived change set (R100-like and R050-like)"
+          - title:
+              - "a stale record (digest mismatch) leaves no-record true — S16 re-enables the transition"
+          - title:
+              - "a subdirectory repoRoot is an internal error, not an empty-and-passing change set"
+          - title:
+              - "a worktree-side rename (mv + add -N) puts BOTH halves in the derived change set"
+          - title:
+              - "block-style implements lists classify bearing at every YAML-legal indentation"
+          - title:
+              - "classification: every table row, missing before every byte-derived row"
+          - title:
+              - "classification: implements-bearing overlays the base class, only when non-empty"
+          - title:
+              - "cursor validation: run/directory mismatch, bad status, and undeclared keys fail; claims is flagged"
+          - title:
+              - "derived change set: no origin/HEAD and no local main is an internal error, never a guess"
+          - title:
+              - "derived change set: on the default branch itself only uncommitted changes remain"
+          - title:
+              - "derived change set: uncommitted changes plus commits off the merge-base with local main"
+          - title:
+              - "enabled-and-unfired: a missing subject owes the full set, fail closed"
+          - title:
+              - "enabled-and-unfired: changed implements-bearing spec owes conformance and spec-adversary"
+          - title:
+              - "parseStatusZ: every documented column case, both rename halves in the set"
+          - title:
+              - "record lookup spans every run records directory, closed and aborted runs included"
+          - title:
+              - "run-id grammar and cursor parse/validate/serialize round-trip"
+          - title:
+              - "state mismatch sheds: an absence record does not survive a zero-byte file at its path"
+          - title:
+              - "the minimal aborted replacement shape is schema-valid, never a standing defect"
+      - file: "test/run-operations.test.mjs"
+        cases:
+          - title:
+              - "BLOCK-1 — a duplicate id in a confirmed open-run plan is refused; nothing is written"
+          - title:
+              - "BLOCK-1 — an UNFLAGGED action carrying the licensed id and a foreign path never applies"
+          - title:
+              - "BLOCK-1 — the shipped CLI refuses a forged plan file, empty confirmation file included"
+          - title:
+              - "INV8 exception — abort on an unparseable cursor replaces the file whole with the minimal aborted shape"
+          - title:
+              - "INV8 — on a well-formed cursor the whole-file replacement path is unreachable"
+          - title:
+              - "L3 — a cursor edited between plan and apply is reported as drift, never as forgery"
+          - title:
+              - "P1-A — a hand-written close plan without the identifying fields is refused"
+          - title:
+              - "P1-A — a licensed action carrying no planned file precondition is refused (L2)"
+          - title:
+              - "P1-A — a licensed action pointing outside the named run is refused"
+          - title:
+              - "P1-A — a tampered plan whose only licensed action is a delete is refused"
+          - title:
+              - "P1-A — a tampered plan with an extra guardLicensed write is refused; nothing is written"
+          - title:
+              - "P1-A — each reconstruction conjunct discriminates: id, path, type, content"
+          - title:
+              - "P1-A — the legitimate close plan still reconstructs and applies"
+          - title:
+              - "R4 — a caller's malformed timestamp is named before repository state can mask it"
+          - title:
+              - "R4 — abort edits the ROOT table: a trailing [[claims]] table cannot swallow closed/reason"
+          - title:
+              - "R4 — close plans ROOT-table bytes on the same cursor; the planned edit must validate pre-write"
+          - title:
+              - "R4 — every planner enforces the RFC 3339 UTC timestamp contract, not just non-emptiness"
+          - title:
+              - "R4 — the one-line contract covers intent and reason, a lone CR as well as an LF"
+          - title:
+              - "R4 — the status line is counted in the root table only: a [[claims]] status never wedges abort"
+          - title:
+              - "R6 — open-run refuses beside a cursor whose ROOT status is missing but a table carries one"
+          - title:
+              - "R9 — the run-id prefix must equal opened, in cursor validation and in planning"
+          - title:
+              - "S11 — guard and run operations behave identically with a deleted or mangled managed block"
+          - title:
+              - "S2 — the confirmed open creates a schema-valid cursor with the run-id grammar"
+          - title:
+              - "S4 — apply with an unconfirmed cursor-create id throws naming the id; no file is written"
+          - title:
+              - "S5 — open-run fails pre-write while any open cursor exists, listing it, adopt/abort only"
+          - title:
+              - "S6 — close is refused while the guard is non-zero; after records land it writes only status/closed"
+          - title:
+              - "S7 — abort writes status/closed/reason, deletes nothing, touches nothing else"
+          - title:
+              - "a cursor whose subject path traverses or is absolute is schema-invalid"
+          - title:
+              - "a well-formed non-canonical cursor aborts cleanly through the field edit, never whole-file"
+          - title:
+              - "a well-formed non-canonical cursor closes cleanly (CRLF, comment, spacing)"
+          - title:
+              - "abort-run rejects a reason the parser cannot round-trip, naming the field"
+          - title:
+              - "close of a non-open or missing run fails pre-write; abort of a closed run fails too"
+          - title:
+              - "close-run rejects a closed timestamp the parser cannot round-trip, naming the field"
+          - title:
+              - "open-run fails pre-write without .grove/, naming the host setup command"
+          - title:
+              - "open-run rejects a planned cursor that does not round-trip, naming the offending field"
+          - title:
+              - "open-run rejects an empty subjects list"
+          - title:
+              - "open-run rejects non-canonical relative subject paths (./, /./, //, trailing /)"
+          - title:
+              - "open-run rejects traversal, absolute, and backslash subject paths, naming the offender"
+          - title:
+              - "run operations are runtime operations, not lifecycle skills; the lifecycle inventory stays four"
+          - title:
+              - "the grove-run CLI mirrors grove-operation.mjs (describe/plan/apply)"
+      - file: "test/stop-wrapper.test.mjs"
+        cases:
+          - title:
+              - "AC12 — the retained Claude channel measurement exists and verifies both channels"
+          - title:
+              - "INV21 envelope discipline: no context-injecting output exists; block JSON is the only hold form"
+          - title:
+              - "R4 — a missing lib module reaches the internal-error channel: exit 4, one line, no stack"
+          - title:
+              - "R4 — an internal-error report stays one line when the error message embeds newlines"
+          - title:
+              - "clean repository: silent exit 0"
+          - title:
+              - "guard internal error: \"grove-guard error:\" on stderr, exit 4"
+          - title:
+              - "hooks.json registers the guard on the Stop event through $CLAUDE_PLUGIN_ROOT"
+          - title:
+              - "observer context: one stderr line, exit 1"
+          - title:
+              - "stop_hook_active true: one stderr line, exit 1, no block"
+          - title:
+              - "supervisor defect without continuation flag: block decision too, never exit 2"
+          - title:
+              - "supervisor owed, continuation flag absent: single-line block decision, exit 0"
+          - title:
+              - "the whole matrix never exits 2"
+          - title:
+              - "wrapper failure (guard unreachable): \"grove-guard error:\", exit 4, never 2"
+      - file: "test/toml.test.mjs"
+        cases:
+          - title:
+              - "CRLF input parses identically to LF input"
+          - title:
+              - "__proto__ keys are inert data, never a prototype write"
+          - title:
+              - "a byte-order mark is rejected, never silently skipped"
+          - title:
+              - "a table-array header inside a string stays a string"
+          - title:
+              - "comma-less multi-line array items are rejected"
+          - title:
+              - "duplicate keys are rejected, per table"
+          - title:
+              - "empty array tokens are rejected; a single trailing comma is TOML-legal"
+          - title:
+              - "escaped quotes and backslashes round the strict escape set"
+          - title:
+              - "integers outside Number.isSafeInteger are rejected"
+          - title:
+              - "mid-line comments strip outside strings only"
+          - title:
+              - "raw control characters inside strings are rejected; escaped forms are fine"
+          - title:
+              - "unterminated strings and arrays fail loudly"
+      - file: "test/transitions.test.mjs"
+        cases:
+          - title:
+              - "INV13 — the parser is strict: unquoted values, unknown roots, and junk lines fail closed"
+          - title:
+              - "INV13 — the shipped transitions.toml parses, validates, and is in the package allowlist"
+          - title:
+              - "S15 — a duplicate id is rejected naming it"
+          - title:
+              - "S15 — a malformed id is rejected"
+          - title:
+              - "S15 — a record postcondition without its no-record precondition is rejected (self-disabling)"
+          - title:
+              - "S15 — an empty preconditions list (a bare event → agent pair) is rejected"
+          - title:
+              - "S15 — an undeclared predicate form is rejected naming the transition"
+          - title:
+              - "S15 — postconditions naming no record at all are rejected"
+          - title:
+              - "S15 — undeclared keys (next/then/phase and any other) are rejected naming the transition"
+          - title:
+              - "the closed vocabulary is exactly the spec enumerations"
+          - title:
+              - "the shipped file carries exactly the four initial rules with the spec content"
+    specs:
+      - "spec-0006-voluntary-dispatch@v2"
+    decisions:
+      - "adr-0046-how-dispatch-rules-reach-a-session"
+    notes: "This package tests the voluntary-dispatch machinery shipped at plugins/grove/runtime/dispatch/, plugins/grove/reference/dispatch/, and plugins/grove/hooks/: the strict TOML subset, transition-rule validation, the deterministic guard in both modes, the confirm-gated run operations, and the Stop-hook wrapper exit mapping."

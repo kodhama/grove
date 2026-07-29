@@ -1,0 +1,11 @@
+{
+  "name": "grove-dispatch-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Voluntary-dispatch machinery tests (spec-0006): transition rules as data, the zero-model guard, run operations, and the Claude Stop-hook wrapper.",
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "node --check ../../../../plugins/grove/runtime/dispatch/lib/*.mjs && node --check ../../../../plugins/grove/runtime/dispatch/bin/*.mjs && node --check test/*.mjs"
+  }
+}

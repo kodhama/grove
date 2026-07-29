@@ -3,7 +3,7 @@ id: adr-0046-how-dispatch-rules-reach-a-session
 type: adr
 status: approved  # maintainer's intent act in-session (D5 channel), 2026-07-28: "Approved!" — rider accepted (the narrowing not declined), all three draft choices standing
 depends_on: [adr-0003-managed-block-routing-rule, adr-0026-thin-vendor-boundary, adr-0031-multi-host-distribution]
-changes: [spec-0004-dual-host-distribution]  # §Driving-session loaders revised under clause 8; reciprocal edge lands with the amendment
+changes: [spec-0004-dual-host-distribution@v8]  # §Driving-session loaders revised under clause 8; the @v8 pin appended with spec-0006's implementation landing (the pointer-completion this decision sanctions)
 informed_by: [research-rule-delivery-and-activation, research-orchestrator-patterns]
 owner: agent
 updated: 2026-07-28

@@ -10,8 +10,17 @@ import path from "node:path";
 import {
   CANONICAL_ROLE_IDS,
   CLAUDE_INVENTORY_PATH,
+  CODEX_ENTRY_DISCLOSURE,
   CODEX_INVENTORY_PATH,
   COMPANION_PROJECTIONS,
+  ENTRY_BEHAVIOR_SOURCE,
+  ENTRY_SKILLS,
+  ENTRY_SKILL_BODY_BUDGET,
+  FLOOR_BEGIN_MARKER,
+  FLOOR_END_MARKER,
+  FLOOR_EXTRACT_BUDGET,
+  FLOOR_SLUGS,
+  FLOOR_SOURCE,
   GENERATED_FILES,
   GENERATED_ROOTS,
   INVENTORY_PATH,
@@ -429,7 +438,143 @@ function packageAllowlist(outputPaths) {
   }, null, 2)}\n`;
 }
 
-function hostInventory({ host, components, drivingLoaders }) {
+// --- spec-0006: floor extract + entry-skill assembly ---
+
+// The extract is the marker span VERBATIM, markers excluded — a
+// deterministic selection, never a hand-cut judgment. Validation fails on
+// marker-pair, slug-set, item-shape, and budget violations (INV22).
+export function extractFloorSpan(charter) {
+  const begins = charter.split("\n").filter((line) => line === FLOOR_BEGIN_MARKER).length;
+  const ends = charter.split("\n").filter((line) => line === FLOOR_END_MARKER).length;
+  if (begins !== 1 || ends !== 1) {
+    throw new Error(
+      `${FLOOR_SOURCE}: expected exactly one grove:floors marker pair, found ${begins}/${ends}`,
+    );
+  }
+  const start = charter.indexOf(FLOOR_BEGIN_MARKER) + FLOOR_BEGIN_MARKER.length;
+  const end = charter.indexOf(FLOOR_END_MARKER);
+  if (end < start) {
+    throw new Error(`${FLOOR_SOURCE}: grove:floors end marker precedes the begin marker`);
+  }
+  const span = charter.slice(start, end).replace(/^\n/, "");
+  if (span.length > FLOOR_EXTRACT_BUDGET) {
+    throw new Error(
+      `${FLOOR_SOURCE}: floor extract is ${span.length} characters, over the ${FLOOR_EXTRACT_BUDGET} budget`,
+    );
+  }
+  const slugs = [];
+  for (const line of span.split("\n")) {
+    if (line.trim() === "") continue;
+    const item = line.match(/^- .*`([a-z0-9-]+)`$/);
+    if (!item) {
+      throw new Error(
+        `${FLOOR_SOURCE}: floor span line is not one list item ending in a backticked slug: ${line}`,
+      );
+    }
+    slugs.push(item[1]);
+  }
+  const declared = new Set(FLOOR_SLUGS);
+  const seen = new Set();
+  for (const slug of slugs) {
+    if (seen.has(slug)) {
+      throw new Error(`${FLOOR_SOURCE}: duplicate floor slug \`${slug}\``);
+    }
+    seen.add(slug);
+    if (!declared.has(slug)) {
+      throw new Error(`${FLOOR_SOURCE}: undeclared floor slug \`${slug}\``);
+    }
+  }
+  for (const slug of FLOOR_SLUGS) {
+    if (!seen.has(slug)) {
+      throw new Error(`${FLOOR_SOURCE}: missing declared floor slug \`${slug}\``);
+    }
+  }
+  return span;
+}
+
+const ENTRY_SECTION_MARKERS = Object.freeze({
+  enter: "<!-- grove:entry:enter -->",
+  start: "<!-- grove:entry:start -->",
+  shared: "<!-- grove:entry:shared -->",
+});
+
+function entrySections(source) {
+  const positions = Object.entries(ENTRY_SECTION_MARKERS).map(([name, marker]) => {
+    const index = source.indexOf(marker);
+    if (index === -1 || source.indexOf(marker, index + 1) !== -1) {
+      throw new Error(
+        `${ENTRY_BEHAVIOR_SOURCE}: expected exactly one ${marker} section marker`,
+      );
+    }
+    return { name, marker, index };
+  }).sort((left, right) => left.index - right.index);
+  const sections = {};
+  positions.forEach((position, order) => {
+    const start = position.index + position.marker.length;
+    const end = order + 1 < positions.length ? positions[order + 1].index : source.length;
+    sections[position.name] = source.slice(start, end).replace(/^\n/, "").replace(/\n+$/, "\n");
+  });
+  return sections;
+}
+
+function entryPointerBlock(host) {
+  const prefix = host === "claude"
+    ? "${CLAUDE_PLUGIN_ROOT}/"
+    : "../../../../";
+  return [
+    "## Pointers",
+    "",
+    `- Full dispatcher projection: ${prefix}reference/charters/dispatcher.md`,
+    `- Transition rules (data): ${prefix}reference/dispatch/transitions.toml`,
+    `- Guard CLI: ${prefix}runtime/dispatch/bin/guard.mjs`,
+    `- Run operations CLI: ${prefix}runtime/dispatch/bin/grove-run.mjs`,
+    "- Cursor contract: `.grove/runs/<run-id>/cursor.toml` (schema and lifecycle in the dispatcher projection and spec-0006)",
+    "",
+  ].join("\n");
+}
+
+// Assembly order (spec-0006 §Floor extract and skill generation): the floor
+// extract is the FIRST body content after frontmatter and the generated
+// header; verb text follows, then the shared duties, the Codex disclosure
+// directive (Codex only), then the pointers.
+function entrySkillProjection(metadata, { span, sections, digest }) {
+  const parts = [
+    "---",
+    `name: ${metadata.verb}`,
+    `description: ${yamlScalar(metadata.description)}`,
+    "---",
+    generatedHeader(ENTRY_BEHAVIOR_SOURCE, digest),
+    "",
+    span.trimEnd(),
+    "",
+    sections[metadata.verb].trimEnd(),
+    "",
+    sections.shared.trimEnd(),
+    "",
+  ];
+  if (metadata.host === "codex") {
+    parts.push(
+      "## Guard-absence disclosure (Codex)",
+      "",
+      "At entry, state this exact line to the user:",
+      "",
+      CODEX_ENTRY_DISCLOSURE,
+      "",
+    );
+  }
+  parts.push(entryPointerBlock(metadata.host));
+  const content = parts.join("\n");
+  if (content.length > ENTRY_SKILL_BODY_BUDGET) {
+    throw new Error(
+      `${metadata.output}: assembled entry-skill body is ${content.length} characters, over the ${ENTRY_SKILL_BODY_BUDGET} budget`,
+    );
+  }
+  return content;
+}
+
+// spec-0006 retired the driving loaders: the managed block is a pointer to
+// the entry skills, and the host inventory carries components only.
+function hostInventory({ host, components }) {
   return `${JSON.stringify({
     generated: "GENERATED — DO NOT EDIT",
     schema_version: 1,
@@ -437,7 +582,6 @@ function hostInventory({ host, components, drivingLoaders }) {
     literal_prefix: "grove:",
     components: [...components].sort((left, right) =>
       left.raw_id.localeCompare(right.raw_id)),
-    driving_loaders: drivingLoaders,
   }, null, 2)}\n`;
 }
 
@@ -458,13 +602,11 @@ export async function buildProjectionSet({
   const launchers = [];
   const claudeComponents = [];
   const codexComponents = [];
-  const roleDigests = new Map();
   for (const role of [...inventory.roles].sort((left, right) =>
     left.id.localeCompare(right.id),
   )) {
     const canonical = await readCanonical(repoRoot, role.source);
     const digest = sha256(canonical);
-    roleDigests.set(role.id, digest);
     const sourceFragment = role.exposures.find(
       (item) => item.source_fragment,
     )?.source_fragment;
@@ -537,38 +679,45 @@ export async function buildProjectionSet({
       canonical_digest: lifecycleDigest,
     });
   }
+  // spec-0006: entry skills — floor extract + verb/shared body + pointers.
+  const dispatcherCharter = await readCanonical(repoRoot, FLOOR_SOURCE);
+  const floorSpan = extractFloorSpan(dispatcherCharter);
+  const entryBehavior = await readCanonical(repoRoot, ENTRY_BEHAVIOR_SOURCE);
+  const entryDigest = sha256(entryBehavior);
+  const entrySectionSet = entrySections(entryBehavior);
+  for (const metadata of ENTRY_SKILLS) {
+    validateOutput(metadata.output, `entry.${metadata.verb}`);
+    outputs.set(
+      metadata.output,
+      entrySkillProjection(metadata, {
+        span: floorSpan,
+        sections: entrySectionSet,
+        digest: entryDigest,
+      }),
+    );
+    const target = metadata.host === "claude" ? claudeComponents : codexComponents;
+    target.push({
+      raw_id: `grove:${metadata.verb}`,
+      path: metadata.output.slice("plugins/grove/".length),
+      class: "entry",
+      exposure: "entry",
+      // Provenance concretization (disclosed; spec-0004 v8 owns the final
+      // scheme): the row's canonical pair names the declared verb-shared
+      // source; the floor span's provenance rides the dispatcher charter's
+      // own digest on its role row.
+      canonical_source: ENTRY_BEHAVIOR_SOURCE,
+      canonical_digest: entryDigest,
+    });
+  }
+
   outputs.set(LAUNCHER_BUNDLE_PATH, launcherBundle(launchers));
   outputs.set(CLAUDE_INVENTORY_PATH, hostInventory({
     host: "claude",
     components: claudeComponents,
-    drivingLoaders: {
-      dispatcher: {
-        raw_reference: "${CLAUDE_PLUGIN_ROOT}/reference/charters/dispatcher.md",
-        canonical_source: "charters/dispatcher.md",
-        canonical_digest: roleDigests.get("dispatcher"),
-      },
-      shaper: {
-        raw_reference: "${CLAUDE_PLUGIN_ROOT}/reference/charters/shaper.md",
-        canonical_source: "charters/shaper.md",
-        canonical_digest: roleDigests.get("shaper"),
-      },
-    },
   }));
   outputs.set(CODEX_INVENTORY_PATH, hostInventory({
     host: "codex",
     components: codexComponents,
-    drivingLoaders: {
-      dispatcher: {
-        raw_skill_id: "grove:role-dispatcher",
-        canonical_source: "charters/dispatcher.md",
-        canonical_digest: roleDigests.get("dispatcher"),
-      },
-      shaper: {
-        raw_skill_id: "grove:role-shaper",
-        canonical_source: "charters/shaper.md",
-        canonical_digest: roleDigests.get("shaper"),
-      },
-    },
   }));
   outputs.set(PACKAGE_ALLOWLIST_PATH, packageAllowlist(outputs.keys()));
 

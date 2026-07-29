@@ -1,0 +1,45 @@
+# transitions.toml — grove's dispatch rules as data (spec-0006, adr-0046).
+# Authored, host-neutral static package data; the dispatcher charter remains
+# authoritative for these rules' meaning — this file is their evaluable
+# encoding. Closed schema: each [[transition]] admits exactly
+# id/fire/preconditions/postconditions; the predicate grammar is closed
+# (changed/record/no-record); validation lives at
+# plugins/grove/runtime/dispatch/lib/transitions.mjs and rejects any other
+# key or predicate form. `fire` names one action, never a sequence.
+schema = 1
+
+[[transition]]
+id = "t-conformance"
+fire = "dispatch conformance-reviewer on $s"
+preconditions = [
+  "changed(implements-bearing ∪ code ∪ unclaimed ∪ missing, $s)",
+  "no-record(conformance, $s)",
+]
+postconditions = ["record(conformance, $s)"]
+
+[[transition]]
+id = "t-decision-quality"
+fire = "dispatch decision-adversary on $s"
+preconditions = [
+  "changed(decision ∪ unclaimed ∪ missing, $s)",
+  "no-record(decision-adversary, $s)",
+]
+postconditions = ["record(decision-adversary, $s)"]
+
+[[transition]]
+id = "t-spec-quality"
+fire = "dispatch spec-adversary on $s"
+preconditions = [
+  "changed(spec ∪ unclaimed ∪ missing, $s)",
+  "no-record(spec-adversary, $s)",
+]
+postconditions = ["record(spec-adversary, $s)"]
+
+[[transition]]
+id = "t-code-quality"
+fire = "dispatch code-reviewer on $s"
+preconditions = [
+  "changed(code ∪ unclaimed ∪ missing, $s)",
+  "no-record(code-review, $s)",
+]
+postconditions = ["record(code-review, $s)"]

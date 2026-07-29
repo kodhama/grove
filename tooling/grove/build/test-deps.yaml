@@ -51,6 +51,7 @@ groups:
               - "spec-0005 AC7/S24 — structured canary contracts propagate from all six authored sources"
     specs:
       - "spec-0005-structured-test-dependency-canary@v1"
+      - "spec-0006-voluntary-dispatch@v2"
     decisions:
       - "adr-0043-structured-test-dependency-canary"
     covers:
@@ -60,3 +61,33 @@ groups:
       - "S23"
       - "S25"
       - "S26"
+  "spec-0006-entry-generation":
+    precision: exact
+    tests:
+      - file: "test/boundary-v4.test.mjs"
+        cases:
+          - title:
+              - "INV23–INV25/S21 — the installable package has the exact permitted root shape"
+          - title:
+              - "INV26–INV27 — generated host isolation is a precondition, not S22/S23 live discovery evidence"
+      - file: "test/generate.test.mjs"
+        cases:
+          - title:
+              - "INV1 — both hosts ship enter and start, model-invocable, config-declared descriptions"
+          - title:
+              - "INV22/INV23 — the floor extract is the marker span verbatim and the FIRST body content, both hosts both verbs"
+          - title:
+              - "INV26 — Codex entry skills carry the EXACT disclosure line; Claude do not; both carry the pointers and the per-handover guard duty"
+          - title:
+              - "S12 — editing the floor span changes all four entry skills; unrelated projections stay byte-identical"
+          - title:
+              - "S12/INV23 — a direct edit to a generated entry skill fails check mode; two builds are byte-identical"
+          - title:
+              - "S13/INV22 — marker, slug, and budget violations fail generation naming the violation"
+          - title:
+              - "entry skills join the host inventories as entry-class components"
+    specs:
+      - "spec-0004-dual-host-distribution@v8"
+      - "spec-0006-voluntary-dispatch@v2"
+    decisions:
+      - "adr-0046-how-dispatch-rules-reach-a-session"
