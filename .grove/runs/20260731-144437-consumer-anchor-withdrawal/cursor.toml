@@ -1,0 +1,6 @@
+schema = 1
+run = "20260731-144437-consumer-anchor-withdrawal"
+opened = "2026-07-31T14:44:37Z"
+intent = "Withdraw adr-0045 consumer amendment-review anchor as never-shipped; first of three dependency-ordered records"
+subjects = [ "decisions/adr-0049-the-consumer-anchor-never-shipped.md", "decisions/adr-0044-review-significant-spec-amendments.md", "decisions/adr-0045-portable-amendment-review-cutoff.md" ]
+status = "open"

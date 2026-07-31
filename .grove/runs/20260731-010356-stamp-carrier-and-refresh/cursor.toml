@@ -1,0 +1,8 @@
+schema = 1
+run = "20260731-010356-stamp-carrier-and-refresh"
+opened = "2026-07-31T01:03:56Z"
+intent = "Relocate the grove version stamp out of the managed block and collapse refresh into setup, as one ADR"
+subjects = [ "decisions/adr-0049-stamp-carrier-and-lifecycle-consolidation.md", "decisions/adr-0045-portable-amendment-review-cutoff.md", "decisions/adr-0046-how-dispatch-rules-reach-a-session.md", "decisions/adr-0026-thin-vendor-boundary.md", "decisions/adr-0035-plugin-and-consumer-boundary.md", "specs/0004-dual-host-distribution.md", "specs/0006-voluntary-dispatch.md" ]
+status = "aborted"
+closed = "2026-07-31T01:53:13Z"
+reason = "Adversary FAIL routed back to shaping; scope split into two records, so the recorded intent and subject list no longer describe the work"

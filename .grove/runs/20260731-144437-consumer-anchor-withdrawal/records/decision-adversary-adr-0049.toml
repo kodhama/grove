@@ -1,0 +1,8 @@
+schema = 1
+record_type = "decision-adversary"
+subject = "decisions/adr-0049-the-consumer-anchor-never-shipped.md"
+subject_state = "present"
+subject_sha256 = "b1dbfcf164b777f56788b374a122139f4a05441518c20543953eaee36ed9d4d5"
+verdict = "SOUND"
+by = "grove:decision-adversary"
+date = "2026-07-31"

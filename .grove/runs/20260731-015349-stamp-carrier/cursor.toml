@@ -1,0 +1,8 @@
+schema = 1
+run = "20260731-015349-stamp-carrier"
+opened = "2026-07-31T01:53:49Z"
+intent = "Relocate the version stamp to .grove/version and retire the managed block (adr-0049); refresh collapse splits to adr-0050"
+subjects = [ "decisions/adr-0049-the-stamp-leaves-the-instruction-file.md", "decisions/adr-0050-composition-is-one-operation.md", "decisions/adr-0003-managed-block-routing-rule.md", "decisions/adr-0026-thin-vendor-boundary.md", "decisions/adr-0031-multi-host-distribution.md", "decisions/adr-0035-plugin-and-consumer-boundary.md", "decisions/adr-0041-separate-support-from-operational-availability.md", "decisions/adr-0045-portable-amendment-review-cutoff.md", "decisions/adr-0046-how-dispatch-rules-reach-a-session.md", "specs/0004-dual-host-distribution.md", "specs/0006-voluntary-dispatch.md", "plugins/grove/metadata/stamp-schema.json" ]
+status = "aborted"
+closed = "2026-07-31T14:44:07Z"
+reason = "Scope re-decomposed into three dependency-ordered records after six adversary FAILs on supersession-surface coverage; this cursor no longer describes the work"
