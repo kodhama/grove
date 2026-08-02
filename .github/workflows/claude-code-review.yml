@@ -114,7 +114,24 @@ jobs:
           # the reference run without appearing here, so the flag grants rather
           # than restricts. Read it as "what the job was handed". Real
           # confinement needs a different mechanism.
+          # `Skill`, `Agent` and `ToolSearch` added 2026-08-02, after all three
+          # were proved missing in kodhama/stewards — evidence on stewards#63.
+          #
+          #   Skill      loads `/code-review:code-review`, which IS the review.
+          #              Without it the run records
+          #              "permission_denials": [{"tool_name": "Skill", ...}]
+          #              and the job concludes success having reviewed nothing.
+          #   Agent      the review delegates its gate check to a subagent.
+          #              Without it the model reaches for `TaskCreate` instead
+          #              and the client rejects the call.
+          #   ToolSearch named by that same error as the remedy for a tool
+          #              schema that was never sent.
+          #
+          # The original three-tool list was matched to the tools a known-good
+          # run was seen USING — which cannot see the tools it needed in order
+          # to start. Verified on kodhama/stewards#93: with all three present
+          # the reviewer posted a verdict for the first time.
           claude_args: |
-            --allowedTools Bash,Read,Write
+            --allowedTools Bash,Read,Write,Skill,Agent,ToolSearch
           # https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # https://code.claude.com/docs/en/cli-reference
