@@ -2,7 +2,7 @@
 id: charter-executor
 type: charter
 status: gated
-depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0037-pre-execution-planning, adr-0043-structured-test-dependency-canary]
+depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, charter-context, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0037-pre-execution-planning, adr-0043-structured-test-dependency-canary]
 owner: agent
 updated: 2026-08-03
 ---

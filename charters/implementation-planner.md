@@ -3,7 +3,7 @@ id: charter-implementation-planner
 type: charter
 status: gated
 implements: adr-0037-pre-execution-planning
-depends_on: [adr-0037-pre-execution-planning]
+depends_on: [adr-0037-pre-execution-planning, charter-context]
 owner: agent
 updated: 2026-08-03
 ---
