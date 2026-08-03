@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: e6990039f5807fa34954c1358bae71387859cea64602a3bd777bd5b99d9804cc -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: cce3331b2459120162276e5f9e4fc2afb458fa2d9d6abb25ccc74c0e6df60501 -->
 
 # relations — the artifact edge taxonomy, stated once
 
@@ -54,7 +54,9 @@ records the operational edge-class. **Flow** — directional-flow is
 walked over it: no `gated`/`approved` artifact `depends_on` a `draft`.
 **Drift-bearing** — an upstream change surfaces its dependents (the
 `validator`'s triggered audit walks this edge outward from the changed
-artifact).
+artifact). **Read semantics** — the edge is a maintenance edge, not a
+reading list; what a cold-started role loads is the read model in
+`context.md` (`adr-0050`).
 
 ### `implements:` — the realized contract / fidelity upstream. Flow: yes. Drift-bearing: yes.
 
@@ -113,7 +115,11 @@ non-drift** forward-pointer.
 ### `superseded_by` / `superseded_in_part_by` — history. Flow: no. Drift-bearing: no.
 
 Supersession: a non-flow forward-pointer recording what replaced an
-artifact (or, for a partial supersession, the outgrown part of it).
+artifact (or, for a partial supersession, the outgrown part of it) —
+or, where retirement has **no successor artifact**, the retiring
+decision itself (`adr-0053`; the enum-side statement of the same form
+lives in `lifecycle.md`). Both forms answer the same question: where
+does a reader who landed here go next.
 
 ### `changes:` — a decision's forward-pointer to what it changed. Flow: no (superseded_by class). Drift-bearing: no, never walked as flow.
 

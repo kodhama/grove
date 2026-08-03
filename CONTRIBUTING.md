@@ -69,10 +69,17 @@ Second, the append-only supersession mechanics for decisions live in
 
 ## How to propose a new charter
 
+These steps are for a **role** charter. A *companion* charter — one that
+states a methodology grammar rather than chartering an agent (`lifecycle`,
+`relations`, `versioning`, `context`; see `charters/README.md`) — follows the
+same frontmatter, provenance and generation rules, but carries the grammar it
+states instead of the role sections in step 2, and declares its authoring
+decision in `depends_on`.
+
 1. Branch off `main`.
 2. Write `charters/<role-slug>.md` with the frontmatter above
    (`status: draft`, `type: charter`, `owner: agent` or `human`) and
-   the shape every existing charter uses: `## What this role is`,
+   the shape every existing role charter uses: `## What this role is`,
    `## Method`, `## Boundaries`, `## Config tokens (adr-0026 D3)`
    (angle-bracketed tokens for anything project-specific — see "The
    config-token door" in `charters/README.md`).
@@ -106,6 +113,20 @@ pointer chain).
 4. Open the PR describing what changed and why (a charter edit is
    still a real change to a self-checked artifact — treat the PR body
    as the record of that self-check, not just a diff).
+
+## Proposing a decision
+
+Decisions (`decisions/`) are intent records, and their body contract is
+declared in `decisions/README.md` (`adr-0051`): required sections
+`## Context` / `## Decision` / `## Consequences`, permitted
+`## Considered and rejected` / `## Open questions`, nothing else — no
+acceptance criteria (those belong downstream) and no tracking state in
+the body (`adr-0052`; propagation obligations are enumerated once on
+the change request and tracked in the tracker or parked-item store).
+Author at `status: draft`, self-check against the contract, flip to
+`gated`, and run the `decision-adversary` before a human spends the
+intent gate on it. A body past ~1,200 words owes its gate an explicit
+justification.
 
 ## Proposing a spec (and the spec-adversary step)
 

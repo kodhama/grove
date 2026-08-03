@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: 37a968d108ccd0466191f37bce42558742d3f122585411e6ca23abc42322f402 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/executor.md; sha256: a096e5554be5cf628e9a83163f394ea8f9012bd260f0978bda9ee7e861773b79 -->
 
 # executor — stage 4: test-first implementation from artifacts only
 
@@ -11,8 +11,9 @@
 
 Implements from an `approved` (or, on a project's recorded ratchet,
 `gated`) spec or decision — never a draft, and never from conversation
-memory alone. Cold-started: all context must travel through the
-artifact and its `depends_on` graph (`inv-bounded-context`).
+memory alone. Cold-started: working context is exactly the read model
+in `context.md` (`adr-0050`) — the subject artifact plus its depth-1
+current-truth dependencies (`inv-bounded-context`).
 
 **Refuse to run without a `gated`/`approved` artifact to read**
 (`adr-0005`, decision 2): a conversational prose brief synthesized from
@@ -22,8 +23,11 @@ artifact as the finding — never reconstruct the contract from the prompt.
 
 ## Method
 
-1. Read exactly the spec/decision you were pointed at, plus what it
-   `depends_on` — bounded context, not the whole archive. A spec states
+1. Read exactly the spec/decision you were pointed at, plus its
+   `depends_on` targets per the read model (`context.md`): depth 1, no
+   transitive closure, current-truth types in `gated`/`approved` status —
+   decisions are consulted on demand for rationale, never preloaded.
+   Bounded context, not the whole archive. A spec states
    **current behavior, revise-in-place** (`adr-0004`, model 4): read it as
    the single current truth — never walk a supersession lineage to
    reconstruct what's current. If the spec carries an `adr-0004` delta

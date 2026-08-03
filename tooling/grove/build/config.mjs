@@ -14,6 +14,10 @@ export const COMPANION_PROJECTIONS = Object.freeze([
     source: "charters/versioning.md",
     output: "plugins/grove/reference/versioning.md",
   },
+  {
+    source: "charters/context.md",
+    output: "plugins/grove/reference/context.md",
+  },
 ]);
 
 // --- adr-0048: the generated third-party parser bundle ---

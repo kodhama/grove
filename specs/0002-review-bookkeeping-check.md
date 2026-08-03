@@ -1,17 +1,25 @@
 ---
 id: spec-0002-review-bookkeeping-check
 type: spec
-status: approved  # gated → approved: the maintainer's explicit intent act ("approved. merge", 2026-07-16), bundled with adr-0012's approval on the same PR per Open Q5's sequencing; recorded in-PR by the shaper per lifecycle.md
+status: superseded  # was approved — gated → approved: the maintainer's explicit intent act ("approved. merge", 2026-07-16), bundled with adr-0012's approval on the same PR per Open Q5's sequencing; recorded in-PR by the shaper per lifecycle.md; superseded 2026-08-03 per adr-0053-record-layer-shedding (operational retirement completed with supersession; retirement rationale adr-0036)
 implements: adr-0012-methodology-delivery-machinery  # the realized contract (adr-0012 implements-edge); machine-readable fidelity selector
 depends_on: [adr-0012-methodology-delivery-machinery, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0013-check-scope-mode, adr-0014-install-is-invisible-and-ungated, adr-0015-reviewer-machine-boundary, adr-0019-batched-verdict-records]  # builds-on; adr-0012 retained here too so depends_on-walking machinery keeps the edge until it learns `implements`; adr-0013 added by the 2026-07-17 scope-mode amendment; adr-0014 added by the 2026-07-18 §E pre-install non-gating disclosure (genuine coupling — the disclosed limit tracks adr-0014's move-1b behavior); adr-0015 added by the 2026-07-18 §A reviewer/machine-boundary amendment (genuine coupling — §A's record-author actor and the §A.3 per-file basis both track adr-0015); adr-0019 added by the 2026-07-18 batched-verdict-records amendment (genuine coupling — §A.1 multi-block admissibility + INV9 + S7 track adr-0019's lifting of the one-comment-per-record cap)
+superseded_by: [adr-0053-record-layer-shedding]
 owner: agent
-updated: 2026-07-18
+updated: 2026-08-03
 version: 4  # bumped 1 → 2 by the 2026-07-17 adr-0013 scope-mode amendment (INV7/INV15 amended; INV19–INV22, S21–S23 added); bumped 2 → 3 by the 2026-07-18 adr-0015 reviewer/machine-boundary amendment — a testable-clause change (INV3's freshness basis reconciled to the per-owed-pair-path form §A.3/match.mjs enforce; the whole-`S` form was fail-open for multi-path records), versioning.md's significance bar; the durable decision the bump requires is adr-0015 itself; bumped 3 → 4 by the 2026-07-18 adr-0019 batched-verdict-records amendment — a testable-clause change (§A.1 carrier/selection re-cast + INV9 + S7: the "one comment = one record" packaging cap lifted, each well-formed grove-verdict block read as its own record, malformed blocks inert per-block not per-comment, selection gains a within-comment block-index tiebreak); the durable decision the bump requires is adr-0019 itself
 status_note: promoted draft → gated on the passing self-check (contract-author Method 6); re-derived twice against adr-0012 at HEAD (fifth-pass revisions, `implements:` field, split-pair findings); round-2 spec-adversary APPROVE-READY. The Q5 provisional-upstream deviation RESOLVED 2026-07-16 — adr-0012 was approved by the maintainer's intent act, and this spec's approval was bundled with it on the same PR (Q5's anticipated sequencing). Buildable now.
 ---
 
 # spec-0002 — the review-bookkeeping check (Layer A)
 
+
+> **Superseded (2026-08-03) per `adr-0053-record-layer-shedding`** — operational
+> retirement completed with supersession; retirement rationale: `adr-0036`.
+> Atomic with spec-0003's supersession (it consumes this spec wholesale).
+> The banner below records the 2026-07-25 retirement and its then-current
+> status language; this pointer, not that banner, states the current status.
+>
 > **Operationally retired and removed by `adr-0036-remove-retired-review-bookkeeping`
 > (2026-07-25).** The check this historical spec specifies has no runtime,
 > CI workflow, templates, or revival route in this repository. It remains

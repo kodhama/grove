@@ -1,10 +1,10 @@
 ---
 id: charter-lifecycle
 type: charter
-status: approved  # maintainer's intent act 2026-07-12 ("merge", PR #48) — in-PR flip recording the act, adr-0007 precedent; conformance-reviewed against adr-0008 before approval; amended 2026-07-21 per adr-0026 D7 (delivery: plugin-carried under the version stamp, no longer installed per-repo)
-depends_on: [adr-0008-lifecycle-enum-companion, adr-0026-thin-vendor-boundary]
+status: approved  # maintainer's intent act 2026-07-12 ("merge", PR #48) — in-PR flip recording the act, adr-0007 precedent; conformance-reviewed against adr-0008 before approval; amended 2026-07-21 per adr-0026 D7 (delivery: plugin-carried under the version stamp, no longer installed per-repo); amended 2026-08-03 per the grove#197 trunk landing (adr-0050–0053)
+depends_on: [adr-0008-lifecycle-enum-companion, adr-0053-record-layer-shedding, adr-0026-thin-vendor-boundary]
 owner: agent
-updated: 2026-07-23
+updated: 2026-08-03
 ---
 
 # lifecycle — the artifact state enum, stated once
@@ -48,8 +48,9 @@ of exactly four values, in transition order:
   agent never flips `approved` without a recorded human act**, and no
   artifact's author approves their own work.
 - **`superseded`** — retired. A forward pointer at the top of the
-  superseded text names the replacement's `id`; the original content is
-  never edited away. Terminal.
+  superseded text names the replacement's `id` — or, where retirement
+  has no successor artifact, the `id` of the retiring decision
+  (`adr-0053`); the original content is never edited away. Terminal.
 
 ## Who moves an artifact between states
 
@@ -65,8 +66,9 @@ of exactly four values, in transition order:
   merged by its own author when the artifact's contract requires human
   approval.
 - **`approved` → `superseded`:** whoever proposes the change that makes
-  the old artifact obsolete — by writing the new artifact and marking
-  the old one `superseded` with a forward pointer. For **partial**
+  the old artifact obsolete — by writing the new artifact (or, for
+  retirement without a successor, the retiring decision, `adr-0053`)
+  and marking the old one `superseded` with a forward pointer. For **partial**
   supersession the old artifact's status stays `approved` and the
   outgrown part carries a forward pointer to its successor — the
   `status` field itself never takes a fifth value. Never by editing the

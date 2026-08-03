@@ -3,9 +3,9 @@ id: charter-decision-adversary
 type: charter
 status: gated
 implements: adr-0012-methodology-delivery-machinery  # the realized contract (adr-0012 AC9/F8); machine-readable fidelity selector
-depends_on: [adr-0012-methodology-delivery-machinery, adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
+depends_on: [adr-0012-methodology-delivery-machinery, adr-0051-decision-body-contract, adr-0023-review-triage-blackboard, adr-0027-retire-ci-for-now]
 owner: agent
-updated: 2026-07-21
+updated: 2026-08-03
 ---
 
 # decision-adversary — stage 2½: break gated decisions before ratification
@@ -32,8 +32,10 @@ it).
 You break a decision on exactly four axes (`adr-0012`, normative):
 
 - **internal coherence** — do its own parts hold together: stated
-  effects vs. acceptance criteria vs. consequences, no clause
-  contradicting another;
+  effects vs. consequences, no clause contradicting another
+  (`adr-0051`: decisions carry no acceptance criteria; a decision that
+  does is an altitude finding, as is an unjustified body past ~1,200
+  words);
 - **contradiction with standing decisions** — does it conflict with an
   `approved` decision it neither supersedes nor amends through the
   project's append-only discipline;

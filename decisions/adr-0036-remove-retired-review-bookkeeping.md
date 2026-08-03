@@ -3,8 +3,9 @@ id: adr-0036-remove-retired-review-bookkeeping
 type: adr
 status: approved  # maintainer's explicit intent act in conversation, 2026-07-25: "Yes, I want to really remove it."
 depends_on: [adr-0027-retire-ci-for-now, adr-0035-plugin-and-consumer-boundary]
+superseded_in_part_by: [adr-0053-record-layer-shedding]
 owner: human
-updated: 2026-07-25
+updated: 2026-08-03
 ---
 
 # ADR-0036: remove the retired review-bookkeeping implementation
@@ -41,6 +42,9 @@ implementation; ADR-0027's provider-agnostic installer route is retired.
 - ADR-0035's source-side preservation clauses are superseded in part.
 - Specs 0002 and 0003 remain approved historical contracts but are not backed
   by a shipped runtime.
+  *(Superseded in part by `adr-0053-record-layer-shedding`, 2026-08-03: both
+  specs now carry `status: superseded` — operational retirement completed
+  with supersession; this bullet records D3's original non-action.)*
 - Existing consumer installations are out of scope: Grove has not installed
   this runtime since ADR-0027 unwired it.
 

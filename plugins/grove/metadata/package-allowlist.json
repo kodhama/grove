@@ -288,6 +288,10 @@
       "kind": "file"
     },
     {
+      "path": "plugins/grove/reference/context.md",
+      "kind": "file"
+    },
+    {
       "path": "plugins/grove/reference/dispatch/transitions.toml",
       "kind": "file"
     },

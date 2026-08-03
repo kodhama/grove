@@ -21,6 +21,6 @@ QUALITY_RUBRIC_PATH = "none exists yet"
 SPEC_RUBRIC_PATH = "none exists yet"
 RESEARCH_RUBRIC_PATH = "none exists yet"
 ARTIFACT_DIRS = ["charters/", "decisions/", "specs/"]
-ARTIFACT_CONTRACT_PATHS = ["charters/README.md", "decisions/README.md", "specs/README.md"]
+ARTIFACT_CONTRACT_PATHS = ["charters/README.md", "decisions/README.md", "specs/README.md"]  # decisions/README.md declares the adr body-section contract (adr-0051) — corpus-reviewer check 6's referent for type adr
 REPO_TYPED_CHECKS = "none — no extra typed-artifact checks beyond the family core"
 SEVERITY_TAXONOMY = "none declared"
