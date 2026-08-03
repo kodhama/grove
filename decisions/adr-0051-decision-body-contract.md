@@ -1,7 +1,7 @@
 ---
 id: adr-0051-decision-body-contract
 type: adr
-status: gated  # self-checked against the body contract it defines; trunk proposal ratified in-session by the maintainer 2026-08-03 (D5 channel); approved flip awaits maintainer review of this text
+status: gated  # gated 2026-08-03 by author self-check against the adr-0051 body contract (evidence on PR #207); trunk proposal ratified in-session by the maintainer 2026-08-03 ("ratify the trunk" — D5 channel)
 depends_on: [adr-0005-tdd-and-artifact-gated-dispatch]
 owner: agent
 updated: 2026-08-03

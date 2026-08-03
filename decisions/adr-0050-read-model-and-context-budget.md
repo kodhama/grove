@@ -1,7 +1,7 @@
 ---
 id: adr-0050-read-model-and-context-budget
 type: adr
-status: gated  # self-checked against the adr-0051 body contract this set proposes; the trunk proposal (rev 3) was ratified in-session by the maintainer 2026-08-03 ("ratify the trunk" — D5 channel); the approved flip awaits the maintainer's review of this text
+status: gated  # gated 2026-08-03 by author self-check against the adr-0051 body contract (evidence on PR #207); trunk proposal ratified in-session by the maintainer 2026-08-03 ("ratify the trunk" — D5 channel)
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0011-relations-companion]
 owner: agent
 updated: 2026-08-03
@@ -67,8 +67,13 @@ list; convention and delivery disagree.
 
 `charters/context.md` is authored; the executor and implementation-planner
 charters' Method wording is amended to reference it; `relations.md` gains a
-one-line pointer. These are landing obligations enumerated on this decision's
-change request, tracked per adr-0052 — not body checklists here.
+one-line pointer; and `context.md` enters the companion projection build
+(`tooling/grove/build/config.mjs` hard-codes the companion list, today
+lifecycle/relations/versioning only) with its generated reference, package
+allowlist, and projection tests — the delivery path without which installed
+roles cannot load the read model this decision makes authoritative. These are
+landing obligations enumerated on this decision's change request, tracked per
+adr-0052 — not body checklists here.
 
 Curve 2 of grove#197 becomes well-defined. Stated honestly: its fall from
 "3.5×" is largely definitional — the old number was one reading of an undefined

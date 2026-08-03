@@ -1,7 +1,7 @@
 ---
 id: adr-0053-record-layer-shedding
 type: adr
-status: gated  # self-checked against the adr-0051 body contract; trunk proposal ratified in-session by the maintainer 2026-08-03 (D5 channel); approved flip awaits maintainer review of this text — including the spec-0003 confirmation named in Consequences
+status: gated  # gated 2026-08-03 by author self-check against the adr-0051 body contract (evidence on PR #207); trunk proposal ratified in-session by the maintainer 2026-08-03 ("ratify the trunk" — D5 channel)
 depends_on: [adr-0008-lifecycle-enum-companion, adr-0036-remove-retired-review-bookkeeping, adr-0044-review-significant-spec-amendments]
 owner: agent
 updated: 2026-08-03
@@ -33,9 +33,14 @@ deferred in adr-0054.
    amendment there: where retirement has no successor artifact, the forward
    pointer names the retiring decision.
 2. **Apply-case, atomic.** spec-0002 and spec-0003 are superseded together,
-   forward pointers naming adr-0036. Atomicity is load-bearing: spec-0003
-   declares spec-0002 its substrate, consumed wholesale — retiring one alone
-   would strand an approved spec's substrate off the read path.
+   forward pointers naming **this decision** — the decision that retires their
+   status — with adr-0036 cited as the retirement rationale. Pointing at
+   adr-0036 alone would land readers on its "remain approved" consequence, the
+   exact conclusion this decision reverses; instead, adr-0036's Consequences
+   receive the sanctioned append-only partial-supersession forward pointer to
+   this decision. Atomicity is load-bearing: spec-0003 declares spec-0002 its
+   substrate, consumed wholesale — retiring one alone would strand an approved
+   spec's substrate off the read path.
 3. **Superseded is off the read path** — already implied by adr-0050's
    status filter; stated here so the two decisions compose explicitly.
 4. **Historical edges are never rewritten.** A decision's `depends_on` records
@@ -56,16 +61,19 @@ deferred in adr-0054.
 ## Consequences
 
 grove#197 curve 3 gains its first mechanism (split/compact pressure at
-amendment time); curve 2's transitive tail shrinks as dead contracts leave
-every closure. The incumbent's measured reconciliation subscription shrinks —
-disclosed to the sdd-gauntlet program under adr-0054, not silently absorbed.
+amendment time). Curve 2 shrinks wherever a dead contract sat on a depth-1
+edge of a live subject: the status flip removes it from every such read, since
+adr-0050's filter excludes `superseded` targets. The incumbent's measured
+reconciliation subscription shrinks — disclosed to the sdd-gauntlet program
+under adr-0054, not silently absorbed.
 
 Blast radius, enumerated on the change request and tracked per adr-0052:
 `charters/lifecycle.md` (the one-line supersession amendment — its single-home
 Boundaries are why the amendment lands there and nowhere else), spec-0002 and
-spec-0003 status lines and banners, an interaction note for adr-0044 at its
-next amendment, and the corpus-reviewer's existing supersession-integrity axis
-now has these flips to check.
+spec-0003 status lines and banners, the append-only partial-supersession
+pointer on adr-0036's reversed consequence, an interaction note for adr-0044
+at its next amendment, and the corpus-reviewer's existing
+supersession-integrity axis now has these flips to check.
 
 **Maintainer confirmation owed at the gate:** that spec-0003 holds no live
 obligations. The evidence says it does not — its closing-ask principle survives
