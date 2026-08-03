@@ -96,7 +96,25 @@ jobs:
           plugins: 'code-review@claude-code-plugins'
           # `--comment` — cause 4. Without it the command only prints a
           # terminal summary and posts nothing.
-          # The override below answers two more causes, both proved on
+          # The override below answers three more causes, all proved on
+          # kodhama/stewards and rolled out here unchanged.
+          #
+          # Cause 10 is the trap to know about if you edit the Scope line: an
+          # interpolation left to render bare produces `..<sha>` on the three
+          # non-push triggers, and that is a *valid* rev range — `gitrevisions`
+          # defaults the omitted side to HEAD, and actions/checkout puts HEAD on
+          # the merge ref, so it resolves to EMPTY. A model executing it finds
+          # nothing changed and ends green having reviewed nothing. Hence the
+          # ternary rather than a bare interpolation.
+          #
+          # The override quotes upstream's criterion TEXT, not its step numbers:
+          # `plugins:` pins no ref, so upstream may renumber, and a silently
+          # non-matching override degrades to green-and-empty.
+          #
+          # `fetch-depth: 1` means a named range is not resolvable locally
+          # without a fetch; the prompt names the compare API instead.
+          #
+          # Original two causes, both proved on
           # kodhama/stewards and rolled out here unchanged.
           #
           # Cause 8 (stewards#66) — the upstream skill's step 1 stops when the PR
@@ -118,18 +136,17 @@ jobs:
           prompt: |
             /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment
 
-            Override, and it applies to step 1 and to the step 7 re-check:
-            criterion (d) — "already has a code review from you from earlier" —
-            does NOT disqualify this run. This workflow fires once per push, and
+            Override, and it applies both to the eligibility check and to the
+            re-check before commenting. The criterion "already has a code review
+            from you from earlier" does NOT disqualify this run. This workflow fires once per push, and
             a commit pushed after an earlier review is the commit most worth
             reviewing. Proceed even though you have commented here before.
 
-            Scope. If this run was triggered by a push to an existing pull
-            request, review only the commits pushed in this event:
-            ${{ github.event.before }}..${{ github.event.pull_request.head.sha }}
-            Confine yourself to what changed in that range. On any other trigger
-            — the pull request being opened, reopened, or marked ready — the
-            range above is not meaningful; review the pull request as a whole.
+            Scope: ${{ github.event.before && format('review ONLY the commits pushed in this event, {0}..{1} — confine yourself to what changed in that range', github.event.before, github.event.pull_request.head.sha) || 'this trigger carries no pushed range; review the pull request as a whole' }}
+
+            The checkout is shallow, so a named range may not resolve locally.
+            Prefer `gh api repos/${{ github.repository }}/compare/<base>...<head>`
+            over `git log`, or fetch first if you use git.
 
             Either way: do not restate a finding your earlier comments already
             make. If an earlier finding is now fixed, say so in one line rather
