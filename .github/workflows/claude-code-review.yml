@@ -51,6 +51,10 @@ name: Claude Code Review
 #   | 3 | output hidden; verdict unreadable         | show_full_output    |
 #   | 4 | no `--comment`; terminal-only summary     | prompt              |
 #   | 5 | Bash denied; could not post               | claude_args         |
+#   | 6 | `Skill` denied; the review never ran      | claude_args         |
+#   | 7 | `Agent` absent; delegation misfires        | claude_args         |
+#   | 8 | one review per PR; later pushes skipped   | prompt (below)      |
+#   | 9 | ends its turn awaiting background agents  | prompt (below)      |
 #
 # Cause 2 is the only one that ever went red, and only because it failed
 # loudly. Treat silence from this job as UNRESOLVED, never as a pass — if you
@@ -92,7 +96,53 @@ jobs:
           plugins: 'code-review@claude-code-plugins'
           # `--comment` — cause 4. Without it the command only prints a
           # terminal summary and posts nothing.
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
+          # The override below answers two more causes, both proved on
+          # kodhama/stewards and rolled out here unchanged.
+          #
+          # Cause 8 (stewards#66) — the upstream skill's step 1 stops when the PR
+          # "already has a code review from you from earlier", and step 7
+          # re-checks it. That asks whether Claude has COMMENTED, never whether
+          # it reviewed THIS COMMIT, so after one review every later push ships
+          # unreviewed behind a green tick. The skill is upstream and cannot be
+          # edited here; the prompt outranks it. On a push the event carries the
+          # exact new range, so the review is scoped rather than repeated.
+          #
+          # Cause 9 (stewards#63) — the skill delegates every step to subagents,
+          # and the model sometimes treats a dispatch as asynchronous and ends
+          # its turn waiting. Correct in a session where a notification arrives;
+          # fatal here, where the process exits with the turn. Four of nine
+          # measured runs died this way, green, having delivered nothing.
+          #
+          # Verified on kodhama/stewards#103: a second review landed on a PR
+          # that already had one, scoped to `ecdd6400..eecc706e`.
+          prompt: |
+            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment
+
+            Override, and it applies to step 1 and to the step 7 re-check:
+            criterion (d) — "already has a code review from you from earlier" —
+            does NOT disqualify this run. This workflow fires once per push, and
+            a commit pushed after an earlier review is the commit most worth
+            reviewing. Proceed even though you have commented here before.
+
+            Scope. If this run was triggered by a push to an existing pull
+            request, review only the commits pushed in this event:
+            ${{ github.event.before }}..${{ github.event.pull_request.head.sha }}
+            Confine yourself to what changed in that range. On any other trigger
+            — the pull request being opened, reopened, or marked ready — the
+            range above is not meaningful; review the pull request as a whole.
+
+            Either way: do not restate a finding your earlier comments already
+            make. If an earlier finding is now fixed, say so in one line rather
+            than repeating it, and if nothing in scope warrants a comment, do
+            not comment.
+
+            You are running headless in CI. Nothing will notify you when a
+            delegated agent finishes, and this process exits when your turn
+            ends. So do not end your turn waiting for anything: dispatch a
+            subagent only where you will read its result in this same turn, and
+            carry every step through to the comment yourself. "I'll continue
+            once they complete" is a failed run — it reports success and
+            delivers nothing.
           # Cause 3. Keeps the review's own verdict readable in the run log,
           # which is the only place a skipped or undelivered finding survives.
           show_full_output: true
