@@ -5,7 +5,7 @@ status: gated
 implements: adr-0037-pre-execution-planning
 depends_on: [adr-0037-pre-execution-planning]
 owner: agent
-updated: 2026-07-25
+updated: 2026-08-03
 ---
 
 # implementation-planner — advisory pre-execution decomposition
@@ -23,9 +23,11 @@ reinterprets a requirement and never becomes an artifact or gate.
 
 ## Method
 
-1. Read the ratified specification and its declared dependency graph. If the
-   artifact is missing, inadequate, ambiguous, or conflicting, surface that
-   blocker instead of inventing implementation authority.
+1. Read the ratified specification and its declared dependency graph per the
+   read model (`context.md`, `adr-0050`): depth 1, current-truth targets;
+   decisions on demand for rationale, never preloaded. If the artifact is
+   missing, inadequate, ambiguous, or conflicting, surface that blocker
+   instead of inventing implementation authority.
 2. Reconnoitre only the repository source and tests relevant to one governing
    artifact. Distinguish verified facts from inferred anchors and state the
    evidence or reasoning for each.

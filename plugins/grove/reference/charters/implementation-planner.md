@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/implementation-planner.md; sha256: 50f6d2ab1e21688c865d7cddad6af36b21f571606cebb6e666b6f5bc36588212 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/implementation-planner.md; sha256: f266a42b4fe0755e6806ad77191ac6150cf65a88c9c728b8d676044bf0212802 -->
 
 # implementation-planner — advisory pre-execution decomposition
 
@@ -15,9 +15,11 @@ reinterprets a requirement and never becomes an artifact or gate.
 
 ## Method
 
-1. Read the ratified specification and its declared dependency graph. If the
-   artifact is missing, inadequate, ambiguous, or conflicting, surface that
-   blocker instead of inventing implementation authority.
+1. Read the ratified specification and its declared dependency graph per the
+   read model (`context.md`, `adr-0050`): depth 1, current-truth targets;
+   decisions on demand for rationale, never preloaded. If the artifact is
+   missing, inadequate, ambiguous, or conflicting, surface that blocker
+   instead of inventing implementation authority.
 2. Reconnoitre only the repository source and tests relevant to one governing
    artifact. Distinguish verified facts from inferred anchors and state the
    evidence or reasoning for each.

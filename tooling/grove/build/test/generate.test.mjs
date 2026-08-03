@@ -222,6 +222,7 @@ test("all projections are marked, source-addressed, and native ids are unique un
       "plugins/grove/reference/lifecycle.md",
       "plugins/grove/reference/relations.md",
       "plugins/grove/reference/versioning.md",
+      "plugins/grove/reference/context.md",
     ],
   );
   assert.equal(
@@ -584,6 +585,7 @@ test("configured roots are explicit and do not include plugin custom-agent TOML"
     "plugins/grove/reference/lifecycle.md",
     "plugins/grove/reference/relations.md",
     "plugins/grove/reference/versioning.md",
+    "plugins/grove/reference/context.md",
     "plugins/grove/reference/licenses/NOTICES.md",
     "plugins/grove/runtime/dispatch/lib/parsers.mjs",
   ]);

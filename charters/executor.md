@@ -4,7 +4,7 @@ type: charter
 status: gated
 depends_on: [adr-0004-spec-lifecycle-and-organization, adr-0005-tdd-and-artifact-gated-dispatch, adr-0006-operational-conformance-mechanism, adr-0023-review-triage-blackboard, adr-0026-thin-vendor-boundary, adr-0027-retire-ci-for-now, adr-0037-pre-execution-planning, adr-0043-structured-test-dependency-canary]
 owner: agent
-updated: 2026-07-26
+updated: 2026-08-03
 ---
 
 # executor — stage 4: test-first implementation from artifacts only
@@ -18,8 +18,9 @@ updated: 2026-07-26
 
 Implements from an `approved` (or, on a project's recorded ratchet,
 `gated`) spec or decision — never a draft, and never from conversation
-memory alone. Cold-started: all context must travel through the
-artifact and its `depends_on` graph (`inv-bounded-context`).
+memory alone. Cold-started: working context is exactly the read model
+in `context.md` (`adr-0050`) — the subject artifact plus its depth-1
+current-truth dependencies (`inv-bounded-context`).
 
 **Refuse to run without a `gated`/`approved` artifact to read**
 (`adr-0005`, decision 2): a conversational prose brief synthesized from
@@ -29,8 +30,11 @@ artifact as the finding — never reconstruct the contract from the prompt.
 
 ## Method
 
-1. Read exactly the spec/decision you were pointed at, plus what it
-   `depends_on` — bounded context, not the whole archive. A spec states
+1. Read exactly the spec/decision you were pointed at, plus its
+   `depends_on` targets per the read model (`context.md`): depth 1, no
+   transitive closure, current-truth types in `gated`/`approved` status —
+   decisions are consulted on demand for rationale, never preloaded.
+   Bounded context, not the whole archive. A spec states
    **current behavior, revise-in-place** (`adr-0004`, model 4): read it as
    the single current truth — never walk a supersession lineage to
    reconstruct what's current. If the spec carries an `adr-0004` delta

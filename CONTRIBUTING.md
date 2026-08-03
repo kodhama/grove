@@ -107,6 +107,20 @@ pointer chain).
    still a real change to a self-checked artifact — treat the PR body
    as the record of that self-check, not just a diff).
 
+## Proposing a decision
+
+Decisions (`decisions/`) are intent records, and their body contract is
+declared in `decisions/README.md` (`adr-0051`): required sections
+`## Context` / `## Decision` / `## Consequences`, permitted
+`## Considered and rejected` / `## Open questions`, nothing else — no
+acceptance criteria (those belong downstream) and no tracking state in
+the body (`adr-0052`; propagation obligations are enumerated once on
+the change request and tracked in the tracker or parked-item store).
+Author at `status: draft`, self-check against the contract, flip to
+`gated`, and run the `decision-adversary` before a human spends the
+intent gate on it. A body past ~1,200 words owes its gate an explicit
+justification.
+
 ## Proposing a spec (and the spec-adversary step)
 
 Specs (`specs/`) follow the `contract-author` → `spec-adversary` →

@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/decision-adversary.md; sha256: 0ed0d6ddb257e26dc7d54cac0098f1ea30fd6d442d0769e7e1c93056b6c511b9 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/decision-adversary.md; sha256: 26ef6e6348bb362e0fc41f7dedcabfde7f062d4d7f299e80e2e9a36f4dc23b31 -->
 
 # decision-adversary — stage 2½: break gated decisions before ratification
 
@@ -24,8 +24,10 @@ it).
 You break a decision on exactly four axes (`adr-0012`, normative):
 
 - **internal coherence** — do its own parts hold together: stated
-  effects vs. acceptance criteria vs. consequences, no clause
-  contradicting another;
+  effects vs. consequences, no clause contradicting another
+  (`adr-0051`: decisions carry no acceptance criteria; a decision that
+  does is an altitude finding, as is an unjustified body past ~1,200
+  words);
 - **contradiction with standing decisions** — does it conflict with an
   `approved` decision it neither supersedes nor amends through the
   project's append-only discipline;

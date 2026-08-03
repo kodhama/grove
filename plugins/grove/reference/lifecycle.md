@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/lifecycle.md; sha256: d0e020ec18dfb84055b56e0240571f8092667f37d2c2067ace607313a94b5a84 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/lifecycle.md; sha256: 4de5e140da8261cdf7267dd82d49997f1053c020d5928c3f6d74d0b95c1a0d27 -->
 
 # lifecycle — the artifact state enum, stated once
 
@@ -41,8 +41,9 @@ of exactly four values, in transition order:
   agent never flips `approved` without a recorded human act**, and no
   artifact's author approves their own work.
 - **`superseded`** — retired. A forward pointer at the top of the
-  superseded text names the replacement's `id`; the original content is
-  never edited away. Terminal.
+  superseded text names the replacement's `id` — or, where retirement
+  has no successor artifact, the `id` of the retiring decision
+  (`adr-0053`); the original content is never edited away. Terminal.
 
 ## Who moves an artifact between states
 
@@ -58,8 +59,9 @@ of exactly four values, in transition order:
   merged by its own author when the artifact's contract requires human
   approval.
 - **`approved` → `superseded`:** whoever proposes the change that makes
-  the old artifact obsolete — by writing the new artifact and marking
-  the old one `superseded` with a forward pointer. For **partial**
+  the old artifact obsolete — by writing the new artifact (or, for
+  retirement without a successor, the retiring decision, `adr-0053`)
+  and marking the old one `superseded` with a forward pointer. For **partial**
   supersession the old artifact's status stays `approved` and the
   outgrown part carries a forward pointer to its successor — the
   `status` field itself never takes a fifth value. Never by editing the

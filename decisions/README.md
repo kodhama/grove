@@ -24,6 +24,27 @@ What each `status` value means, and who moves an artifact between
 states, lives in [`charters/lifecycle.md`](../charters/lifecycle.md) —
 the lifecycle companion (`adr-0008`) — not restated here.
 
+## Body contract (`adr-0051`)
+
+A decision body **requires** exactly these sections: `## Context`,
+`## Decision`, `## Consequences`. It **permits** `## Considered and
+rejected` and `## Open questions`. Any other section is a
+corpus-reviewer check-6 finding. In particular:
+
+- **No `## Acceptance criteria`.** Testable done-criteria live
+  downstream — in the spec for code-bearing work (`adr-0005` D1), in
+  the tracking issue's structured metadata for non-code landings —
+  subordinate to the decision's ratified prose.
+- **No tracking state** (`adr-0052`): no propagation checklists, no
+  review-history narration, no living status commentary. Append-once
+  provenance — one line per ratification act — is history and stays.
+- **Length canary:** a body past ~1,200 words owes an explicit
+  justification at its gate.
+
+The contract binds at the gate for newly authored decisions; the
+AC-bearing decisions ratified before it are append-only history and
+are not edited.
+
 ## Decisions are append-only
 
 **Never edit a ratified (`approved`) decision's substance in place.** To

@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: e6990039f5807fa34954c1358bae71387859cea64602a3bd777bd5b99d9804cc -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: 0b02d50a88aeb466debffb06354b016df66e1f481711349346f833216e2de218 -->
 
 # relations — the artifact edge taxonomy, stated once
 
@@ -54,7 +54,9 @@ records the operational edge-class. **Flow** — directional-flow is
 walked over it: no `gated`/`approved` artifact `depends_on` a `draft`.
 **Drift-bearing** — an upstream change surfaces its dependents (the
 `validator`'s triggered audit walks this edge outward from the changed
-artifact).
+artifact). **Read semantics** — the edge is a maintenance edge, not a
+reading list; what a cold-started role loads is the read model in
+`context.md` (`adr-0050`).
 
 ### `implements:` — the realized contract / fidelity upstream. Flow: yes. Drift-bearing: yes.
 
