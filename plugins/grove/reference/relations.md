@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: a191cf82728d75fe5f2c4292ddde6a3ca214f07019878f6e3d718b95b45a512b -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: cce3331b2459120162276e5f9e4fc2afb458fa2d9d6abb25ccc74c0e6df60501 -->
 
 # relations — the artifact edge taxonomy, stated once
 
@@ -115,7 +115,11 @@ non-drift** forward-pointer.
 ### `superseded_by` / `superseded_in_part_by` — history. Flow: no. Drift-bearing: no.
 
 Supersession: a non-flow forward-pointer recording what replaced an
-artifact (or, for a partial supersession, the outgrown part of it).
+artifact (or, for a partial supersession, the outgrown part of it) —
+or, where retirement has **no successor artifact**, the retiring
+decision itself (`adr-0053`; the enum-side statement of the same form
+lives in `lifecycle.md`). Both forms answer the same question: where
+does a reader who landed here go next.
 
 ### `changes:` — a decision's forward-pointer to what it changed. Flow: no (superseded_by class). Drift-bearing: no, never walked as flow.
 

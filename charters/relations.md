@@ -2,7 +2,7 @@
 id: charter-relations
 type: charter
 status: approved  # maintainer's intent act 2026-07-13 (grove#58 "#58 approved. Passes the gate. Execute to the same PR.") — conformance-reviewed against adr-0011 before approval; in-PR flip recording the act; amended 2026-07-21 per adr-0026 D7 (delivery: plugin-carried under the version stamp, no longer installed per-repo); amended 2026-08-03 per the grove#197 trunk landing (adr-0050–0053)
-depends_on: [adr-0011-relations-companion, charter-context, adr-0016-implements-edge-taxonomy, adr-0026-thin-vendor-boundary, adr-0043-structured-test-dependency-canary]
+depends_on: [adr-0011-relations-companion, adr-0053-record-layer-shedding, charter-context, adr-0016-implements-edge-taxonomy, adr-0026-thin-vendor-boundary, adr-0043-structured-test-dependency-canary]
 owner: agent
 updated: 2026-08-03
 ---
@@ -122,7 +122,11 @@ non-drift** forward-pointer.
 ### `superseded_by` / `superseded_in_part_by` — history. Flow: no. Drift-bearing: no.
 
 Supersession: a non-flow forward-pointer recording what replaced an
-artifact (or, for a partial supersession, the outgrown part of it).
+artifact (or, for a partial supersession, the outgrown part of it) —
+or, where retirement has **no successor artifact**, the retiring
+decision itself (`adr-0053`; the enum-side statement of the same form
+lives in `lifecycle.md`). Both forms answer the same question: where
+does a reader who landed here go next.
 
 ### `changes:` — a decision's forward-pointer to what it changed. Flow: no (superseded_by class). Drift-bearing: no, never walked as flow.
 

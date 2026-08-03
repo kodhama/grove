@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/context.md; sha256: c5247f4110cb6cfbdf905704dfcfde6da7179b40a4b1986f6a169acc4dad8cf9 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/context.md; sha256: c32b4dbf1131e8fc7b256447e5afee0ae507a419e30d2dce10083e4e689c23ba -->
 
 # context — the read model, stated once
 
@@ -18,8 +18,15 @@
 
 A cold-started role's working context is exactly four things:
 
-1. **Its charter projection** — the role definition it was dispatched
-   with.
+1. **Its charter projection, and the methodology companions that
+   projection names** — the role definition it was dispatched with,
+   plus the small shared-grammar files it delegates operative rules to
+   (`lifecycle.md`, `relations.md`, `versioning.md`, this file). A
+   companion carries rules the role must *apply*, so it is part of the
+   operative set, not rationale; only companions the charter actually
+   names are loaded, and they count toward the budget below. This file
+   is the bootstrap member: a role cannot apply the read model without
+   reading it.
 2. **The subject artifact** — read whole; the artifact-gated dispatch
    floor (`adr-0005` D2) is untouched by this model.
 3. **The subject's `depends_on` targets, at depth exactly 1** — no
