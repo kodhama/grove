@@ -1,7 +1,7 @@
 ---
 id: adr-0054-epic-measurement-and-fork-preservation
 type: adr
-status: gated  # gated 2026-08-03 by author self-check against the adr-0051 body contract (evidence on PR #207); trunk proposal ratified in-session by the maintainer 2026-08-03 ("ratify the trunk" — D5 channel)
+status: approved  # gated 2026-08-03 (author self-check against the adr-0051 body contract; evidence on PR #207); approved by the maintainer in-session 2026-08-03: "approved. merge it after" (D5 channel; author agent ≠ approver maintainer; merge is the separate ship act)
 depends_on: [adr-0050-read-model-and-context-budget]
 owner: agent
 updated: 2026-08-03
