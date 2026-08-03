@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/decision-adversary.md; sha256: 26ef6e6348bb362e0fc41f7dedcabfde7f062d4d7f299e80e2e9a36f4dc23b31 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/decision-adversary.md; sha256: 893b87dc969835373e0d76567016714d941a2b7c08e84e26d65b59c339976120 -->
 
 # decision-adversary — stage 2½: break gated decisions before ratification
 

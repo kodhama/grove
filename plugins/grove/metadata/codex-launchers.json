@@ -47,10 +47,10 @@
       "native_id": "grove_decision_adversary",
       "exposure": "cold-native",
       "source": "charters/decision-adversary.md",
-      "digest": "26ef6e6348bb362e0fc41f7dedcabfde7f062d4d7f299e80e2e9a36f4dc23b31",
+      "digest": "893b87dc969835373e0d76567016714d941a2b7c08e84e26d65b59c339976120",
       "output": ".codex/agents/grove_decision_adversary.toml",
       "skill": "grove:role-decision-adversary",
-      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/decision-adversary.md; sha256: 26ef6e6348bb362e0fc41f7dedcabfde7f062d4d7f299e80e2e9a36f4dc23b31\nname = \"grove_decision_adversary\"\ndescription = \"Stage-2½ independent soundness adversary for gated decisions; judges coherence, standing-decision conflicts, argument soundness, and settled ground.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-decision-adversary. Canonical Grove role id: decision-adversary. Codex native agent id: grove_decision_adversary. Verify canonical source charters/decision-adversary.md at sha256 26ef6e6348bb362e0fc41f7dedcabfde7f062d4d7f299e80e2e9a36f4dc23b31. Grove exposure selector: cold-native. Use only its declared cold-native exposure.\"\n"
+      "content": "# GENERATED — DO NOT EDIT; canonical-source: charters/decision-adversary.md; sha256: 893b87dc969835373e0d76567016714d941a2b7c08e84e26d65b59c339976120\nname = \"grove_decision_adversary\"\ndescription = \"Stage-2½ independent soundness adversary for gated decisions; judges coherence, standing-decision conflicts, argument soundness, and settled ground.\"\ndeveloper_instructions = \"Load and follow the installed Grove skill grove:role-decision-adversary. Canonical Grove role id: decision-adversary. Codex native agent id: grove_decision_adversary. Verify canonical source charters/decision-adversary.md at sha256 893b87dc969835373e0d76567016714d941a2b7c08e84e26d65b59c339976120. Grove exposure selector: cold-native. Use only its declared cold-native exposure.\"\n"
     },
     {
       "canonical_id": "dispatcher",

@@ -69,10 +69,17 @@ Second, the append-only supersession mechanics for decisions live in
 
 ## How to propose a new charter
 
+These steps are for a **role** charter. A *companion* charter — one that
+states a methodology grammar rather than chartering an agent (`lifecycle`,
+`relations`, `versioning`, `context`; see `charters/README.md`) — follows the
+same frontmatter, provenance and generation rules, but carries the grammar it
+states instead of the role sections in step 2, and declares its authoring
+decision in `depends_on`.
+
 1. Branch off `main`.
 2. Write `charters/<role-slug>.md` with the frontmatter above
    (`status: draft`, `type: charter`, `owner: agent` or `human`) and
-   the shape every existing charter uses: `## What this role is`,
+   the shape every existing role charter uses: `## What this role is`,
    `## Method`, `## Boundaries`, `## Config tokens (adr-0026 D3)`
    (angle-bracketed tokens for anything project-specific — see "The
    config-token door" in `charters/README.md`).

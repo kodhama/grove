@@ -9,9 +9,22 @@ under [`plugins/grove/`](../plugins/grove/); a charter edit regenerates those
 read-through adapters in the same PR (`adr-0031`). The projections are
 validated outputs, never a second role corpus.
 
-One file, [`lifecycle.md`](lifecycle.md), is the lifecycle companion (`adr-0008`)
-— the artifact state enum, stated once and shipped in the plugin
-payload under the version stamp (`adr-0026` D7) — not a role either.
+## Companion charters — not roles
+
+Four files in this directory are **companions**, not role charters. Each
+states one methodology grammar once, so no role and no consuming repo
+restates it; each is shipped in the plugin payload under the version stamp
+(`adr-0026` D7), has no pipeline stage, and is never dispatched:
+
+- [`lifecycle.md`](lifecycle.md) — the artifact state enum (`adr-0008`)
+- [`relations.md`](relations.md) — the edge taxonomy (`adr-0011`)
+- [`versioning.md`](versioning.md) — the versioning grammar (`adr-0010`)
+- [`context.md`](context.md) — the read model and context budget (`adr-0050`)
+
+A companion carries its own shape — the grammar it states, plus provenance —
+not the role sections named below; it declares its authoring decision in
+`depends_on`. Everything else in this directory is a role charter and follows
+the role contract.
 
 ## Artifact contract
 

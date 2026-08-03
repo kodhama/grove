@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/lifecycle.md; sha256: 4de5e140da8261cdf7267dd82d49997f1053c020d5928c3f6d74d0b95c1a0d27 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/lifecycle.md; sha256: b5ce5491265e4dd08d5783e79b073fa5505e926f7cbcf089b1352fc765f5b270 -->
 
 # lifecycle — the artifact state enum, stated once
 

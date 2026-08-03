@@ -2,7 +2,7 @@
 id: charter-lifecycle
 type: charter
 status: approved  # maintainer's intent act 2026-07-12 ("merge", PR #48) — in-PR flip recording the act, adr-0007 precedent; conformance-reviewed against adr-0008 before approval; amended 2026-07-21 per adr-0026 D7 (delivery: plugin-carried under the version stamp, no longer installed per-repo); amended 2026-08-03 per the grove#197 trunk landing (adr-0050–0053)
-depends_on: [adr-0008-lifecycle-enum-companion, adr-0026-thin-vendor-boundary]
+depends_on: [adr-0008-lifecycle-enum-companion, adr-0053-record-layer-shedding, adr-0026-thin-vendor-boundary]
 owner: agent
 updated: 2026-08-03
 ---

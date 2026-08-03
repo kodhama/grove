@@ -1,4 +1,4 @@
-<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: 0b02d50a88aeb466debffb06354b016df66e1f481711349346f833216e2de218 -->
+<!-- GENERATED — DO NOT EDIT; canonical-source: charters/relations.md; sha256: a191cf82728d75fe5f2c4292ddde6a3ca214f07019878f6e3d718b95b45a512b -->
 
 # relations — the artifact edge taxonomy, stated once
 
