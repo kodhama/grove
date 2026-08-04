@@ -269,6 +269,33 @@ apply:
   tracks: tasks.md
 ```
 
+**The FAIL loop — where the substrate actively misleads, and the layer's
+answer.** After a FAIL the token doesn't exist and the review's `requires:`
+are still met, so `status` shows the review artifact **`ready` —
+indistinguishable from never-ran**. No fail state exists in the enum, and
+`requires:` is positive-only (no NOT-gates), so "blocked while a
+revision-request exists" is inexpressible. Resolution, two pieces:
+
+- **The signal is a queue entry whose digests still match the tree.** Latest
+  entry FAIL + subject hashes unchanged since it = *revision owed*; hashes
+  changed = *re-review owed*. One comparison, no stored flags — the queue
+  plus digests is the entire rework state machine, and re-review licensed
+  only by digest change also kills review-flapping.
+- **Delivery rides the funnel.** Post-FAIL, the graph routes every
+  "what's next?" to the review artifact — so its instruction carries the
+  branch: "if a FAIL entry exists for these subjects with digests unchanged,
+  do not re-review; the owed work is revising the upstream against that
+  entry's findings." The misleading `ready` becomes the delivery mechanism:
+  vendored skill, dispatched agent, or human all get redirected by the only
+  instructions the substrate hands them. The driver skips the redirect and
+  reads the queue directly, dispatching `(write-capable, revise)` with the
+  FAIL entry as input.
+
+Caveat recorded: the status *field* can never show red — the substrate lacks
+the vocabulary; the instruction text, the queue, the driver, and the PR
+check all carry the truth. Red-in-status is an upstream feature request, not
+layer-conjurable.
+
 Honesty notes: post-apply `requires:` renders position; **the ordering truth
 is the minting rule** (verify reality, then mint), the graph its honest
 display. Ship stays outside the schema — merge is the terminal human gate on
