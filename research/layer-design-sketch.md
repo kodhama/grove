@@ -88,6 +88,14 @@ design.
   **The custom artifact is for visibility and instruction delivery, never
   enforcement** — its own `done` will not regress if the reviewed content
   changes.
+- **The directory layout is the substrate's, hardcoded, and that is fine.**
+  Verified in 1.7.0 source (`planning-home.js`): `changesDir` is always
+  `openspec/changes/` under the nearest `openspec/`-bearing ancestor — no
+  config key, and the schema fork cannot reach it (schema `generates:` paths
+  are change-relative). The layer meets the substrate where it lives: the
+  review queue is `openspec/changes/<name>/reviews/`, the archive is theirs,
+  and grove names nothing at the top level — which serves the clean-seams bar:
+  one directory, unambiguously the substrate's, no layer-named litter.
 - Grove's agents READ what the substrate wrote; grove's machinery never
   invokes substrate commands by name. Dispatched agents use the vendored
   skills for the *how* (that is what vendoring is for), so command churn never
