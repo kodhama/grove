@@ -95,7 +95,15 @@ design.
   are change-relative). The layer meets the substrate where it lives: the
   review queue is `openspec/changes/<name>/reviews/`, the archive is theirs,
   and grove names nothing at the top level — which serves the clean-seams bar:
-  one directory, unambiguously the substrate's, no layer-named litter.
+  one directory, unambiguously the substrate's, no layer-named litter. The
+  `openspec` name itself is a compile-time constant (`OPENSPEC_ROOT_DIR` in
+  `openspec-root.js:6`, joined everywhere including config discovery) — no
+  feature removes it. The beta **stores** relocate the *root*, not the name
+  (a registered standalone planning repo, selectable via `--store`): planning
+  can live entirely outside the code repo, which would be the ultimate seam
+  except it breaks PR-check enforcement and decouples the review trail from
+  the code's history — noted, not our shape. **Worksets** are purely local
+  editor/agent view composition; no repo or naming effect.
 - Grove's agents READ what the substrate wrote; grove's machinery never
   invokes substrate commands by name. Dispatched agents use the vendored
   skills for the *how* (that is what vendoring is for), so command churn never
