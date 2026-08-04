@@ -170,10 +170,22 @@ resolution (`requires: [tasks]` is satisfied by the file existing, ticked or
 not; checkbox state surfaces only in `instructions apply --json`). So the two
 surviving reviews split by phase:
 
-- **Planning-phase review (proposal-adversary) is schema-native** — its
-  inputs are planning artifacts, `requires:` is truthful, its PASS token
-  gates the driver's `(write-capable, apply)` dispatch, and `status --json`
-  renders the gate honestly.
+- **Planning-phase review (proposal-adversary) is schema-native — and the
+  schema speaks the gate itself.** VERIFIED: the schema's top-level `apply:`
+  block declares apply-readiness (`apply.requires`, defaulting to ALL
+  artifacts when undeclared), and with it unmet, `instructions apply --json`
+  returns `state: "blocked"` with instruction text telling the agent
+  verbatim "Cannot apply this change yet. Missing artifacts: …". Adding the
+  token to the fork — `apply: requires: [tasks, proposal-pass]` — makes the
+  substrate announce the gate in its own voice to its own vendored skills,
+  no prompt edited. Happy-path enforcement only (rogue agents, ff mode, and
+  humans can bypass; the PR check stays terminal), and existence-based like
+  everything else — which is exactly why what it requires is the token.
+  Also verified in the same pass: **the substrate is pull-only** — no event
+  system, no post-apply trigger; the cycle advances only when someone asks
+  `status`/`instructions` and acts. The driver IS the trigger in drive mode;
+  the only push-shaped events anywhere are grove's (harness hooks, PR
+  events).
 - **Implementation-phase review (conformance) is PR-native** — its subject
   (the diff vs the spec delta) is outside the substrate's universe, its
   readiness is layer-derived (checkboxes complete + diff exists), and its
