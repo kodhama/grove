@@ -122,6 +122,25 @@ produced it. Rules:
   findings where its verdict is FAIL.
 - Stale ≠ rejected: stale is mechanical (digest mismatch → verdict sheds,
   review re-owed); rejected is a FAIL verdict routing a rework dispatch.
+- Worked example of the shape, mid-flight:
+
+  ```
+  openspec/changes/add-dark-mode/
+  ├── proposal.md
+  ├── specs/…
+  ├── tasks.md
+  └── reviews/
+      ├── 001-proposal-adversary.md   <- verdict entry: FAIL, findings, digest
+      ├── 002-proposal-adversary.md   <- verdict entry: PASS, digest
+      └── proposal-pass.md            <- the token (schema tracks ONLY this)
+  ```
+
+  The numbered files are the queue — full history, FAILs included. The token
+  is near-empty (a stub naming the granting entry and digest); its truth is
+  its presence, and any real content would invite a second source of truth.
+  A FAIL writes only a queue entry — never the token — which is why the
+  verdict entry cannot itself be the tracked artifact: a failing review is
+  also a file, and existence would then mean "reviewed" instead of "passed."
 - **The token pattern (verified constraint, designed consequence).** The
   schema's completion model is existence-only with no injection point
   (`state.js`: `detectCompleted` = `artifactOutputExists`; fields are
@@ -141,6 +160,29 @@ produced it. Rules:
 - The change folder archives on merge, **so the review trail archives with the
   change it reviewed** — audit, custody, and shedding in one move, no new
   mechanism. Resumability falls out: rehydrate = read the change folder.
+
+### 4b. The apply boundary — where the substrate's graph ends
+
+`apply` is an operation, not an artifact: its output lands in `src/`, which
+the artifact graph never sees. Verified consequences: implementation progress
+exists only as tasks.md checkboxes, invisible to `status` and to dependency
+resolution (`requires: [tasks]` is satisfied by the file existing, ticked or
+not; checkbox state surfaces only in `instructions apply --json`). So the two
+surviving reviews split by phase:
+
+- **Planning-phase review (proposal-adversary) is schema-native** — its
+  inputs are planning artifacts, `requires:` is truthful, its PASS token
+  gates the driver's `(write-capable, apply)` dispatch, and `status --json`
+  renders the gate honestly.
+- **Implementation-phase review (conformance) is PR-native** — its subject
+  (the diff vs the spec delta) is outside the substrate's universe, its
+  readiness is layer-derived (checkboxes complete + diff exists), and its
+  enforcement is the PR check: exactly grove's kernel territory, where
+  records-on-the-branch already work. The substrate's graph ends where the
+  code begins; grove's begins there.
+
+Both queues live in `changes/<name>/reviews/` for custody either way; only
+the planning token is schema-tracked.
 
 ## 5. (envelope, skill) — the dispatch unit
 
