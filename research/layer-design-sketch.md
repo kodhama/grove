@@ -357,10 +357,19 @@ under test: adapters, drivers, record machinery, this document. Nothing from
 
 - Setup: math-quest, post-cleanup, OpenSpec vendored (control period first:
   plain OpenSpec + trellis on real work — that baseline is the comparison).
-- One real change. One forked-schema `conformance-review` artifact. One review
-  skill invoked via a cold read-only dispatch. Verdict file by hand-convention
-  (§4 shape). One autonomous hop: on PASS, dispatch the next specific step;
-  stop at the human gate. Optionally one PR check reading the review files.
+- **Scenario one (happy path):** one real change. One forked-schema review
+  artifact. One review skill invoked via a cold read-only dispatch. Verdict
+  file by hand-convention (§4 shape). One autonomous hop: on PASS, dispatch
+  the next specific step; stop at the human gate. Optionally one PR check
+  reading the review files.
+- **Scenario two (the FAIL round-trip — the harder and more valuable test):**
+  a change whose proposal deliberately earns a FAIL → verify the agent asking
+  "what's next" is redirected to revision by the review artifact's
+  instruction (not looped into re-review) → revise → digests change →
+  re-review licensed → PASS → token minted → `instructions apply` flips from
+  "Cannot apply this change yet" to ready. If the vendored skills follow the
+  redirect unaided, the layer's hardest mechanic is proven; if they loop or
+  stall, that is the finding.
 - **Kill criteria**: > ~2 evenings of effort, > a few hundred lines of
   anything, or the felt ease meaningfully worse than the control period. Any
   of these falsifies the thin-layer thesis; the recorded honest outcome is
@@ -369,6 +378,107 @@ under test: adapters, drivers, record machinery, this document. Nothing from
   useful verdict skeletons; can one PR check cover all open change folders
   cheaply; is `proposal-adversary` worth a skill or does trellis + a stock
   reviewer cover it; which model tier the conformance gate actually needs.
+
+### 4d. The fork, complete — implementable as written
+
+The entire fork diff (appended to the copied schema.yaml; built-ins
+unchanged). Instructions are the load-bearing prose: they carry the
+minter-separation floor, the D5 rule, the queue convention, and the
+FAIL-redirect branch — and they stay true whether a human or the driver
+turns the crank, which is what lets one fork serve interactive and drive
+mode unchanged. Deliberately absent: enforcement (the PR check reading the
+queue is the gate; these texts govern the happy path) and dispatch mechanics
+(gates.toml owns who; the driver or the human owns when).
+
+```yaml
+artifacts:
+  # …built-ins unchanged: proposal → specs → design → tasks…
+
+  - id: proposal-review
+    generates: reviews/proposal-pass.md
+    requires: [proposal, specs]
+    instruction: |
+      This gate is agent-owned (see .grove/gates.toml). You are probably not
+      the reviewer: if you contributed to proposal.md or specs/, you must
+      not review them — dispatch the proposal-adversary skill in a cold,
+      read-only agent (no write outside reviews/).
+
+      BEFORE reviewing, read reviews/ for NNN-proposal-adversary.md entries.
+      If the latest entry's verdict is FAIL and every subject digest it
+      records still matches the current files: DO NOT re-review. The owed
+      work is revising proposal.md and specs/ against that entry's findings
+      — report that, or perform it only in a separate write-capable
+      dispatch. Re-review is licensed only once a subject digest changes.
+
+      The reviewer appends ONE entry per round (never editing or deleting an
+      earlier one): verdict (PASS|FAIL), reviewer envelope and skill, date,
+      subjects as path@sha256:<hex>, findings (empty on PASS).
+
+      Mint reviews/proposal-pass.md ONLY on PASS, as a stub citing the
+      granting entry and its digests. A FAIL writes only the queue entry.
+
+  - id: intent-approval
+    generates: approvals/intent.md
+    requires: [proposal-review]
+    instruction: |
+      STOP — the human intent gate. This file records the maintainer's
+      approval of the proposal; its existence unlocks apply.
+
+      An agent NEVER mints this from its own judgment. An agent MAY
+      transcribe a recorded human act — an explicit in-session approval or
+      an approval on the change request — quoting the act verbatim with
+      date and channel. If no act exists, the owed work is asking the
+      maintainer, and this artifact stays absent.
+
+  - id: implementation-evidence
+    generates: evidence/tests-green.md
+    requires: [tasks]
+    instruction: |
+      Minted by a VERIFIER, never the implementing agent — if you executed
+      the tasks, you do not write this file. The verifier runs the repo's
+      own gates (test/typecheck as the repo defines them) at the current
+      tree and mints only when they pass, recording commands, results, the
+      tree state verified, and date. On failure: write nothing here; the
+      output goes to the implementer via the change request or a queue
+      entry.
+
+  - id: conformance-pass
+    generates: reviews/conformance-pass.md
+    requires: [implementation-evidence]
+    instruction: |
+      Implementation conformance: does the diff do what this change's
+      specs/ deltas say — nothing missing, nothing beyond scope? Same rules
+      as proposal-review: cold read-only reviewer; queue first with the
+      FAIL-redirect rule; one entry per round recording verdict, subjects
+      (the delta files AND the commit reviewed), findings; mint only on
+      PASS. Enforcement is the pull request's check — this token is the
+      substrate-visible rendering, not the gate itself.
+
+apply:
+  requires: [tasks, intent-approval]   # the one edited line
+  tracks: tasks.md
+  instruction: |
+    Read context files, work through pending tasks, mark complete as you
+    go. Pause if you hit blockers or need clarification.
+    You never write files under reviews/, approvals/, or evidence/ — those
+    are minted by verifiers and the maintainer, not by the implementer.
+```
+
+Queue entry convention (untracked by design, so declared here, not in the
+schema):
+
+```markdown
+# reviews/002-proposal-adversary.md
+verdict: FAIL
+by: (read-only cold agent, proposal-adversary skill)
+date: 2026-08-05
+subjects:
+  - proposal.md@sha256:ab12…
+  - specs/dark-mode/spec.md@sha256:cd34…
+findings:
+  - Non-goals contradicts task 3 (offline mode both excluded and implemented)
+  - INV-DM-2 untestable as written: "feels instant" has no threshold
+```
 
 ## 9. What this replaces, and what it owes
 
