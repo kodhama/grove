@@ -181,8 +181,23 @@ surviving reviews split by phase:
   records-on-the-branch already work. The substrate's graph ends where the
   code begins; grove's begins there.
 
-Both queues live in `changes/<name>/reviews/` for custody either way; only
-the planning token is schema-tracked.
+**The boundary is observation, not sequencing.** The substrate never sees
+`src/`, but it can sequence anything tokenized into the change folder:
+**evidence tokens** — files minted when a verified condition holds
+(`evidence/tests-green.md`), with post-apply artifacts depending on them
+(`conformance-pass requires: [implementation-evidence]`). Dependency
+semantics then stay truthful across the whole lifecycle, `status --json`
+renders implementation gates honestly, and `instructions` delivers the
+review skill at the right flow position post-apply too. Three limits keep it
+honest: a token is an **attestation, not a measurement** — grove verifies,
+mints, and only then does the substrate sequence; the **minter is never the
+worker** (envelope-separated, the author≠verifier floor restated for
+tokens); and every phase artifact grows the schema fork, so ~2
+implementation-phase artifacts is the ceiling worth paying. Rule: tokens
+never `generates:` outside the change folder — archive custody is the point.
+(Custom-requires-custom rides the verified uniform graph loop; a five-minute
+spike check confirms the resolver.) Both queues live in
+`changes/<name>/reviews/` for custody either way.
 
 ## 5. (envelope, skill) — the dispatch unit
 
