@@ -303,6 +303,70 @@ grove's PR territory. This block is also the whole fork diff the spike
 needs, which keeps the re-diff maintenance leak proportional to ~4 artifact
 stanzas.
 
+### 4e. What the schema is, honestly — and the steady state
+
+(Maintainer's critique, recorded because it is the sharpest statement of the
+layer's identity.) **The schema is a one-shot construction checklist.**
+Existence accumulates monotonically toward done; once everything exists the
+schema is *spent* — it says "all good" unconditionally, forever. It governs
+the first pass, then becomes a display.
+
+The steady state does NOT replicate the schema's graph — it runs a smaller,
+different one. The schema answers *construction ordering* ("what may be made
+next"). Steady-state truth is *validity binding* ("is this judgment still
+about these bytes"), and that graph is carried by the records themselves:
+every queue entry names its subjects and digests, so validity derives from
+one rule — do the recorded digests still match the tree — with no shadow
+schema. Construction is graph-shaped; validity is record-shaped.
+
+**Frame: OpenSpec is the checklist; grove is the staleness engine.** The
+substrate deliberately is not `make` — no invalidation semantics of any
+kind. The layer is the make-half over someone else's checklist, and that is
+the layer's entire identity in one sentence.
+
+**Known display lag (accepted, named).** Once all artifacts are done the
+funnel vanishes — nothing in the substrate ever triggers a re-check — so a
+token whose subjects have since changed sits green in the tree until
+something external looks. Deletion tiers: the **PR check** (hard boundary —
+recomputes digests every push; staleness never crosses a merge), the **Stop
+hook** (session-granular — sweeps open change folders at session end, both
+hosts have the hook), and **driver wakes** in drive mode (continuous). The
+lag is bounded to within-a-session in interactive mode, and the working
+tree may lie for exactly that long. Recorded as a limitation, not handled
+by pretense.
+
+### 4f. The concrete trace — one FAIL round-trip, no design words
+
+```
+Turn 1  agent: /opsx:propose add-dark-mode → proposal.md, specs/ written
+Turn 2  agent: openspec status --json      → proposal-review: READY
+        agent: openspec instructions proposal-review --json
+               → OUR fork text: "check reviews/ first … else dispatch
+                  the proposal-adversary skill, cold, read-only"
+        agent spawns reviewer → it writes reviews/001-…md
+               (verdict: FAIL, subjects with sha256, findings)
+               — and does NOT create proposal-pass.md. Exits.
+Turn 3  anyone: openspec status --json     → proposal-review: READY (!)
+        anyone: openspec instructions proposal-review --json
+               → same text: "latest entry FAIL + digests unchanged →
+                  do NOT re-review; revise proposal.md per findings"
+        agent READS reviews/001-…md — an ordinary file read. That IS
+        the passing of results: no channel, no parameter. Reviewer
+        wrote a file; reviser reads it because the fetched instruction
+        says to. Then edits proposal.md.
+Turn 4  status → READY → instructions → queue: FAIL but digests now
+        DIFFER → re-review licensed → reviewer: PASS → writes 002-…md
+        AND mints reviews/proposal-pass.md → intent-approval: READY →
+        stops. That token is the maintainer's.
+```
+
+Drive mode differs in one detail: the driver reads the FAIL file itself
+and pastes its contents into the reviser's dispatch prompt — delivery by
+prompt instead of by pointer. And stated flatly for the record: files plus
+instructions pointing at them is the substrate's ONLY communication
+primitive — the vendored skills are the same thing all the way down; the
+PR check is the one hard backstop for agents that do not follow prose.
+
 ## 5. (envelope, skill) — the dispatch unit
 
 A gate or transition names a **pair**: the *envelope* (tool permissions,
