@@ -163,6 +163,20 @@ produced it. Rules:
 
 ### 4b. The apply boundary — where the substrate's graph ends
 
+The two phases are different *kinds* of thing. **Planning is
+output-defined**: every step's done-ness is a tracked file the substrate
+checks itself — existence-verification works because the artifact IS the
+deliverable. **Apply is input-defined and self-reported**: the schema's
+`apply:` block has `requires` (entry), `tracks` (the tasks.md checkbox
+diary), and `instruction` (briefing) — and **no `generates:`. Apply produces
+nothing the substrate can see.** Its real deliverable (the diff) lands
+outside the change folder, and its only progress signal is checkboxes
+written by the same agent doing the work — attestation, not observation.
+OpenSpec governs planning and merely *narrates* implementation; grove's job
+is precisely the half it narrates. **The layer's whole move, restated: we
+cannot give apply an output, so we define artifacts after it whose tracked
+files are minted only when a verifier checked the untracked reality.**
+
 `apply` is an operation, not an artifact: its output lands in `src/`, which
 the artifact graph never sees. Verified consequences: implementation progress
 exists only as tasks.md checkboxes, invisible to `status` and to dependency
@@ -210,6 +224,57 @@ never `generates:` outside the change folder — archive custody is the point.
 (Custom-requires-custom rides the verified uniform graph loop; a five-minute
 spike check confirms the resolver.) Both queues live in
 `changes/<name>/reviews/` for custody either way.
+
+### 4c. The postulated schema — grove's verification in substrate grammar
+
+No message-passing exists or is needed: **this is a blackboard
+architecture.** Everything about a change lives in one folder; findings
+never travel — consuming activities are *told where to look* by
+`instruction:` text (fork-owned) or `config.yaml` per-artifact `rules:` (an
+existing knob): "before starting, read `reviews/`; if the newest entry for
+your phase is FAIL, address its findings first." Rework is no schema step —
+it is redoing the failed artifact, instructions pointing at the queue.
+**The gate is an edge, not a node**: the reviewer is an artifact minting a
+token; the gate is every `requires:` naming it — and a human gate is the
+same shape, a token only the human's act may mint. Division of the three
+config surfaces: **the schema says where gates sit; `gates.toml` says who
+owns each; the (envelope, skill) pair staffs the agent-owned ones.**
+
+```yaml
+artifacts:
+  # built-ins: proposal → specs → design → tasks
+  - id: proposal-review                    # agent-owned per gates.toml
+    generates: reviews/proposal-pass.md    # the token
+    requires: [proposal, specs]
+    instruction: |
+      Dispatch the proposal-adversary skill in a cold read-only envelope.
+      Verdicts append to reviews/NNN-proposal-adversary.md — a FAIL writes
+      only a queue entry, never this file. Mint only on PASS, citing the
+      granting entry and subject digests.
+  - id: intent-approval                    # the human gate
+    generates: approvals/intent.md
+    requires: [proposal-review]
+    instruction: |
+      STOP. This token records the maintainer's approval act. An agent may
+      transcribe a recorded human act — never mint from its own judgment.
+  - id: implementation-evidence            # the output apply never had
+    generates: evidence/tests-green.md     # minted by a verifier, never the worker
+    requires: [tasks]
+  - id: conformance-pass
+    generates: reviews/conformance-pass.md
+    requires: [implementation-evidence]
+
+apply:
+  requires: [tasks, intent-approval]       # the substrate speaks the gate
+  tracks: tasks.md
+```
+
+Honesty notes: post-apply `requires:` renders position; **the ordering truth
+is the minting rule** (verify reality, then mint), the graph its honest
+display. Ship stays outside the schema — merge is the terminal human gate on
+grove's PR territory. This block is also the whole fork diff the spike
+needs, which keeps the re-diff maintenance leak proportional to ~4 artifact
+stanzas.
 
 ## 5. (envelope, skill) — the dispatch unit
 
