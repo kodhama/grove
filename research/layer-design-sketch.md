@@ -122,6 +122,22 @@ produced it. Rules:
   findings where its verdict is FAIL.
 - Stale ≠ rejected: stale is mechanical (digest mismatch → verdict sheds,
   review re-owed); rejected is a FAIL verdict routing a rework dispatch.
+- **The token pattern (verified constraint, designed consequence).** The
+  schema's completion model is existence-only with no injection point
+  (`state.js`: `detectCompleted` = `artifactOutputExists`; fields are
+  id/generates/description/template/instruction/requires; no
+  predicate/hook/exec concept exists). So the tracked artifact is a **grant
+  token written only on PASS**; the queue (FAILs included) lives at untracked
+  paths. Existence then *means* "review passed" — downstream `requires:`
+  genuinely gates, and when grove's digest check finds the reviewed bytes
+  changed, the layer **deletes the token** (the substrate's one native
+  reopen), so `status --json` honestly shows the gate closed. The token is
+  derived, re-mintable state — deleting it destroys nothing; history is the
+  queue's. Caveat: already-done dependents never regress, so deletion
+  prevents further advancement only; the PR check reading the queue remains
+  terminal enforcement. Side-find: `.openspec.yaml` in a change folder
+  natively declares `skip_specs: true` and the substrate renders the skip —
+  a natural carrier shape for recorded-skips to piggyback.
 - The change folder archives on merge, **so the review trail archives with the
   change it reviewed** — audit, custody, and shedding in one move, no new
   mechanism. Resumability falls out: rehydrate = read the change folder.
