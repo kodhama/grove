@@ -42,8 +42,8 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
 
   it("quotes every path it tells a session to put on a command line, since a path may hold a space", () => {
     for (const script of ["start-restart.sh", "close-outgoing.sh", "receipt-check.mjs"]) {
-      expect(skill).toMatch(new RegExp(`"<[^<>]+>/scripts/${script.replace(".", "\\.")}"`));
-      expect(skill).not.toMatch(new RegExp(`(?<!")<[^<>]+>/scripts/${script.replace(".", "\\.")}`));
+      expect(skill).toMatch(new RegExp(`"<[^<>]+>/scripts/${script.replaceAll(".", "\\.")}"`));
+      expect(skill).not.toMatch(new RegExp(`(?<!")<[^<>]+>/scripts/${script.replaceAll(".", "\\.")}`));
     }
     expect(skill).toMatch(/close-outgoing\.sh" "<herdr>" <pane> "<transcript>"/);
     expect(skill).toMatch(/`--handoff "<path>"`/);

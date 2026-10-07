@@ -1,7 +1,8 @@
 /**
  * MQ-353 — read what a shell line runs: the command-line tools it calls, and
- * any repo skill whose own script it runs. Both harnesses use it: a Claude
- * Code `Bash` call and a Codex command each carry one shell line.
+ * any skill whose own script it runs, from a repo or a plugin's install. Both
+ * harnesses use it: a Claude Code `Bash` call and a Codex command each carry
+ * one shell line.
  *
  * In plain words: `cd /repo && FOO=1 gh pr view 12` runs two commands, `cd`
  * and `gh`, so it reads as two uses:
@@ -9,10 +10,11 @@
  *   { kind: "cli", name: "cd" }, { kind: "cli", name: "gh" }
  *
  * - a cli: the first word of each command. The line is split at `&&`, `||`,
- *   `;`, `|` and newlines, leading `NAME=value` settings are skipped, a
- *   leading `$(` or `(` starts the command (`PR=$(gh pr view)`), and text is
- *   never a command: heredoc bodies are dropped, and quoted text holding a
- *   separator is blanked. A quoted or escaped space stays inside its word, so
+ *   `;`, `|`, newlines and `$(`, which starts a command even inside double
+ *   quotes (`PR="$(gh pr view)"`); leading `NAME=value` settings are skipped,
+ *   a leading `(` starts the command, and text is never a command: heredoc
+ *   bodies are dropped, and quoted text holding a separator is blanked. A
+ *   quoted or escaped space stays inside its word, so
  *   `node "/Users/Jane Doe/x.mjs"` runs one script, not two words;
  * - a skill-script: a command that runs a file in a skill's own `scripts/`
  *   folder, as its first word or after `bash`, `sh`, `node` or `python`. The
@@ -20,7 +22,7 @@
  *   or in a plugin's install, which Claude Code and Codex both cache at
  *   `plugins/cache/<marketplace>/<plugin>/<version>/skills/<skill>/`. A
  *   plugin's script is named `<plugin>:<skill>`, so another plugin's skill of
- *   the same name never passes for it.
+ *   the same name never passes for a binding qualified by its plugin.
  *
  * It reads the line only, never whether it ran: the caller pairs each use
  * with its call's outcome (`transcript-uses.mjs`, `codex-uses.mjs`).
@@ -41,17 +43,24 @@ const INTERPRETERS = new Set(["bash", "sh", "zsh", "node", "python", "python3"])
  */
 const SKILL_SCRIPT =
   /(?:^|\/)(?:\.(?:agents|claude)\/skills|plugins\/cache\/[^/]+\/([^/]+)\/[^/]+\/skills)\/([^/]+)\/scripts\//;
-/** A leading `NAME=value` setting, and one whose value opens a `$(` command. */
+/** A leading `NAME=value` setting. */
 const SETTING = /^[A-Za-z_]\w*=/;
-const SUBSHELL_SETTING = /^[A-Za-z_]\w*=\$\(/;
+/** What a backslash escapes inside double quotes; before anything else it stays. */
+const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
 /** A heredoc: its opening line, kept as group 3, then its body up to its terminator. */
 const HEREDOC = /<<-?\s*(['"]?)(\w+)\1([^\n]*)\n[\s\S]*?\n\s*\2(?=\s*(?:\n|$))/g;
 
-/** A shell line with its heredoc bodies dropped and quoted text holding a separator blanked. */
+/**
+ * A shell line with its heredoc bodies dropped and quoted text holding a
+ * separator blanked. In single quotes `$(` is text too; in double quotes it
+ * runs a command, so it stays.
+ */
 function withoutText(line) {
   return line
     .replace(HEREDOC, "$3")
-    .replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, (quoted) => (/[|;&\n]/.test(quoted) ? "''" : quoted));
+    .replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, (quoted) =>
+      /[|;&\n]/.test(quoted) || (quoted.startsWith("'") && quoted.includes("$(")) ? "''" : quoted,
+    );
 }
 
 /**
@@ -78,7 +87,7 @@ function shellWords(part) {
     } else if (char === '"') {
       open = true;
       for (i++; i < part.length && part[i] !== '"'; i++) {
-        word += part[i] === "\\" && i + 1 < part.length ? part[++i] : part[i];
+        word += part[i] === "\\" && DOUBLE_QUOTED_ESCAPES.has(part[i + 1]) ? part[++i] : part[i];
       }
     } else {
       word += char === "\\" && i + 1 < part.length ? part[++i] : char;
@@ -92,18 +101,19 @@ function shellWords(part) {
 /**
  * The commands a shell line runs, as words with leading `NAME=value` settings
  * skipped: `cd /repo && FOO=1 gh pr view` gives `cd /repo` and `gh pr view`.
- * A leading `$(` or `(`, after any settings, starts the command:
- * `PR=$(gh pr view)` and `(gh pr view)` both give `gh pr view)`.
+ * `$(` starts a command and a leading `(` opens one, and a command's own `)`
+ * is dropped: `PR=$(gh pr view)` and `(gh pr view)` both give `gh pr view)`,
+ * and `echo $(date)` gives `echo` and `date`.
  */
 function commands(line) {
   return withoutText(line)
-    .split(/&&|\|\||[;|\n]/)
+    .split(/&&|\|\||\$\(|[;|\n]/)
     .map((part) => shellWords(part).filter(Boolean))
     .map((words) => {
-      const start = words.findIndex((word) => !SETTING.test(word) || SUBSHELL_SETTING.test(word));
+      const start = words.findIndex((word) => !SETTING.test(word));
       if (start < 0) return [];
       const [first, ...rest] = words.slice(start);
-      const command = first.replace(SETTING, "").replace(/^\$?\(+/, "");
+      const command = first.replace(/^\(+|\)+$/g, "");
       return command ? [command, ...rest] : rest;
     })
     .filter((words) => words.length > 0);
@@ -111,7 +121,7 @@ function commands(line) {
 
 /**
  * What a shell line shows was used: each command's first word as a CLI, and
- * a repo skill whose own script a command runs.
+ * a skill whose own script a command runs.
  */
 export function shellUses(line) {
   return commands(line).flatMap(([first, second]) => {

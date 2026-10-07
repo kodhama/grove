@@ -560,6 +560,26 @@ describe("a skill's script run from wherever the skill is installed", () => {
     expect(scriptOf(`node ${path} --bindings "/Users/Jane Doe/b.json"`)).toEqual(["grove:context-gauge"]);
     expect(scriptOf(`${path} --harness claude-code`)).toEqual(["grove:context-gauge"]);
     expect((shellUses(`node ${path}`) as { kind: string; name: string }[])[0]).toEqual({ kind: "cli", name: "node" });
+    expect(scriptOf(`OUT="$(${path} --harness x)"`)).toEqual(["grove:context-gauge"]);
+  });
+
+  const clisOf = (line: string) =>
+    (shellUses(line) as { kind: string; name: string }[])
+      .filter((use) => use.kind === "cli")
+      .map((use) => use.name);
+
+  it.each([
+    ["inside double quotes", `PR="$(gh pr view --json url)"`, ["gh"]],
+    ["unquoted", "PR=$(gh pr view)", ["gh"]],
+    ["after another command", "echo $(date) && herdr agent list", ["echo", "date", "herdr"]],
+  ])("reads a $( command substitution %s as its own command", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("reads single-quoted $( as text, and keeps a backslash in double quotes as the shell does", () => {
+    expect(clisOf(`echo '$(gh pr view)'`)).toEqual(["echo"]);
+    expect(clisOf(String.raw`"/opt/my\tools/herdr" agent list`)).toEqual([String.raw`/opt/my\tools/herdr`]);
+    expect(clisOf(String.raw`"/opt/my\"tools/herdr" agent list`)).toEqual([`/opt/my"tools/herdr`]);
   });
 
   /** Whether running `path` counts as using the skill a binding names. */

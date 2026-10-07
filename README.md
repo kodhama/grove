@@ -84,8 +84,9 @@ plugin dependency.
   work note where it has none; its restart takes the new-session path.
 - **Your work tracker**, through your overrides: posting a work note is
   required at both levels, and a lead also needs to read them.
-- **Node 22 or newer** runs the receipt checker, which uses `node:fs`'s
-  `globSync`. **jq** runs the restart scripts and the context gauge.
+- **Node 24, or 26 and newer** (`package.json`'s `engines`) runs the receipt
+  checker, which uses `node:fs`'s `globSync`. **jq** runs the restart scripts
+  and the context gauge.
 
 ## Versions
 
