@@ -576,6 +576,14 @@ describe("a skill's script run from wherever the skill is installed", () => {
     expect(clisOf(line)).toEqual(clis);
   });
 
+  it.each([
+    ["in double quotes", String.raw`echo "\$(gh pr view)"`, ["echo"]],
+    ["unquoted", String.raw`echo \$(gh pr view)`, ["echo"]],
+    ["after an escaped backslash, which leaves it a real one", String.raw`echo "\\$(gh pr view)"`, ["echo", "gh"]],
+  ])("never reads an escaped $( as a command: %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
   it("reads single-quoted $( as text, and keeps a backslash in double quotes as the shell does", () => {
     expect(clisOf(`echo '$(gh pr view)'`)).toEqual(["echo"]);
     expect(clisOf(String.raw`"/opt/my\tools/herdr" agent list`)).toEqual([String.raw`/opt/my\tools/herdr`]);

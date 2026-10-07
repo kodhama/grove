@@ -11,7 +11,7 @@
  *
  * - a cli: the first word of each command. The line is split at `&&`, `||`,
  *   `;`, `|`, newlines and `$(`, which starts a command even inside double
- *   quotes (`PR="$(gh pr view)"`); leading `NAME=value` settings are skipped,
+ *   quotes (`PR="$(gh pr view)"`) unless a backslash escapes it; leading `NAME=value` settings are skipped,
  *   a leading `(` starts the command, and text is never a command: heredoc
  *   bodies are dropped, and quoted text holding a separator is blanked. A
  *   quoted or escaped space stays inside its word, so
@@ -107,7 +107,7 @@ function shellWords(part) {
  */
 function commands(line) {
   return withoutText(line)
-    .split(/&&|\|\||\$\(|[;|\n]/)
+    .split(/&&|\|\||(?<=(?:^|[^\\])(?:\\\\)*)\$\(|[;|\n]/)
     .map((part) => shellWords(part).filter(Boolean))
     .map((words) => {
       const start = words.findIndex((word) => !SETTING.test(word));
