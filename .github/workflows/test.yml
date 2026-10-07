@@ -1,7 +1,8 @@
 name: test
 
 # Typecheck, tests and a secrets scan on every push to main and every PR.
-# The job's name, `test`, is the check main's ruleset requires.
+# The job's name, `test`, is the check main's ruleset requires once it has
+# first reported.
 on:
   push:
     branches: [main]

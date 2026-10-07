@@ -5,3 +5,6 @@
 # .agents/plugins/marketplace.json.
 [plugins."compound-engineering@grove"]
 enabled = true
+
+[plugins."trellis@grove"]
+enabled = true

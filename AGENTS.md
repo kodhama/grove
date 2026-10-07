@@ -19,6 +19,10 @@ plugin is declared for both hosts (`.claude/settings.json`,
 session sees it. If a skill is absent, do not hand-roll a stand-in: say in
 your hand-back that it was unavailable and that step did not run.
 
+**Trellis** rules arrive at session start via the trellis plugin
+(hook-driven); `.trellis/rules.toml` selects which are active, and its rows
+govern. The rules live in the plugin, not here.
+
 **Write for a reader with ADD.** Applies to anything the maintainer reads:
 chat, reports, PRs, issues and comments.
 
@@ -29,8 +33,10 @@ chat, reports, PRs, issues and comments.
 ## The skills are portable
 
 The skills travel into other repos and harnesses. **Keep their text free of
-repo paths, tracker names, versions and harness-specific invocations**;
-`test/supervision-routing-tables.test.ts` holds the patterns. A repo binds
+repo paths, tracker names, versions and harness-specific invocations**.
+`test/supervision-routing-tables.test.ts` holds the patterns and applies them
+to the routing tables and parts of the skill text; it does not yet cover all
+of it, so check the rest by eye. A repo binds
 the skills to its own tools through its routing overrides, never through
 skill text.
 
@@ -52,7 +58,8 @@ Codex connector and Gemini Code Assist, are the second round:
 ## Checks that must stay green
 
 `.github/workflows/test.yml` runs its `test` job on every push to `main` and
-every PR; `main`'s ruleset requires it.
+every PR; `main`'s ruleset makes it a required check once it has first
+reported.
 
 | step      | command             |
 | --------- | ------------------- |

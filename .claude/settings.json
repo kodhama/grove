@@ -1,5 +1,11 @@
 {
   "extraKnownMarketplaces": {
+    "kodhama": {
+      "source": {
+        "source": "github",
+        "repo": "kodhama/stewards"
+      }
+    },
     "compound-engineering-plugin": {
       "source": {
         "source": "github",
@@ -8,6 +14,7 @@
     }
   },
   "enabledPlugins": {
+    "trellis@kodhama": true,
     "compound-engineering@compound-engineering-plugin": true
   }
 }
