@@ -612,7 +612,7 @@ describe("what an agent or a user reads names no work tracker or plan tag", () =
     expect(text.match(TRACKER_WORDS)?.[0]).toBeUndefined();
   });
 
-  it.each(READER_TEXT.filter(([file]) => !file.endsWith(".md")))(
+  it.each(READER_TEXT)(
     "%s says what it means in plain words, with no plan tag",
     (_file, code) => {
       expect(code.match(PLAN_TAG)?.[0]).toBeUndefined();

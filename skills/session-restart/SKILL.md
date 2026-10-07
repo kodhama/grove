@@ -10,7 +10,7 @@ place** keeps the session's process, pane, name, inbox and Remote Control
 connection: nothing inside a session can type `/clear` into itself, so a small
 detached helper, `scripts/restart-in-place.sh`, does it from outside once the
 turn has ended and nobody is using the pane. **A new session** is the fallback
-when a clear is impossible (R33): the process has died, the work moves to
+when a clear is impossible: the process has died, the work moves to
 another machine or container, the model, harness or permission mode changes,
 no pane is reachable, or a binding the in-place path needs is missing.
 
@@ -38,7 +38,7 @@ live in `.context/supervision/<session-name>/bindings.json`, with
 A session that runs a level skill already has this table bound: its setup
 binds a bound skill's own table in the same run. A session that runs no level
 skill runs `supervision-setup` with this skill's `routing.toml` as the table,
-once, before its first restart (R22). Either way, read the bindings file; a
+once, before its first restart. Either way, read the bindings file; a
 restart does nothing until it has `complete`.
 
 ## Choose the path
@@ -181,7 +181,7 @@ or "The successor" on the new-session path.
 ```
 
 The routing table is inline because a successor on another machine cannot
-read the bindings file (KTD10). The harness and transcripts lines let its
+read the bindings file. The harness and transcripts lines let its
 seeded setup keep the earlier transcripts all the same. The receipt check is
 inline for the same reason: such a successor cannot read your transcripts, so
 its own check reads your result from this section (`--handoff`) and counts
@@ -202,7 +202,7 @@ The prompt that wakes you names the handoff.
    maintainer and stop.
 3. Read `restart-helper.log` and `restart-unreported.txt` beside the handoff.
    Tell the maintainer yourself any line that was never reported.
-4. **Run `supervision-setup`, seeded with the handoff** (R22): the table is
+4. **Run `supervision-setup`, seeded with the handoff**: the table is
    the handoff's, the level skill's or, for a session that runs no level
    skill, this skill's own. Setup rechecks every seeded binding and appends
    your new transcript. Do no task work until it completes.
@@ -220,7 +220,7 @@ not known yet. A Codex session that lands here tells the maintainer.
    live background task cannot exit without a dialog.
 2. **Write the handoff** as for in place, with a `## Launch` line for the
    successor: the same `-n` name, remote control on, and the permission mode
-   set explicitly (R23). Set `restart-owner: self`, or `restart-owner: lead`
+   set explicitly. Set `restart-owner: self`, or `restart-owner: lead`
    when you cannot launch the successor yourself, as from a cloud session.
 3. **Post the handoff** as a work note on your work item, the story's, or the
    epic's for a lead, through the bound `post-work-note`, headed
@@ -237,7 +237,7 @@ not known yet. A Codex session that lands here tells the maintainer.
    herdr cannot give it your herdr name yet: it refuses a name a live
    session holds (`agent_name_taken`). Start it under a temporary herdr name:
    the first 30 characters of your herdr name, then `-n`, since a herdr name
-   has at most 32 (KTD9). The successor takes your name once you have exited.
+   has at most 32. The successor takes your name once you have exited.
    Its `-n` name stays yours: two Claude Code sessions can share one, told
    apart by their refs. If herdr refuses the launch, `launch-session` is
    unavailable, or `restart-owner` is not `self`, ask the restart owner to
@@ -271,9 +271,9 @@ Codex session reads its own identity is not known yet.
 4. Post `successor-up: <actual name> [<ref>], session <id>` as a work note on
    the same work item, through the bound `post-work-note`.
 5. Announce yourself to your peers, your lead or reporter at least, with your
-   actual name and your ref (R32): while another row shares your name, a
+   actual name and your ref: while another row shares your name, a
    bare-name send to you is refused as ambiguous.
-6. **Close the outgoing session** (R35) when you run in the same herdr and
+6. **Close the outgoing session** when you run in the same herdr and
    `type-into-pane` is bound to it, with this skill's script and the bound
    herdr, the handoff's pane and the outgoing session's transcript, the last
    the handoff's transcripts line lists:
