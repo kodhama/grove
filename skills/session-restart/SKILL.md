@@ -152,8 +152,9 @@ another.
 ## Receipt check
 
 <the receipt check's output, pasted unchanged, line for line:
-`npm run --silent supervision:receipt-check -- --bindings <the bindings file>`,
-adding `--handoff <path>`, with the handoff you started from saved to that
+`node <supervision-setup's folder>/scripts/receipt-check.mjs --bindings <the bindings file>`,
+supervision-setup's folder being the one beside this skill's own, adding
+`--handoff <path>`, with the handoff you started from saved to that
 path, whenever that handoff's own receipt-check section holds a result; or
 `unavailable: <why it could not run>`>
 

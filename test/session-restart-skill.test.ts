@@ -32,6 +32,14 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
     expect(skill).not.toMatch(/nohup/);
   });
 
+  it("the handoff runs the receipt check with node from supervision-setup's folder, not a repo's npm script", () => {
+    const receipt = section("Receipt check");
+    expect(receipt).toMatch(
+      /`node <supervision-setup's folder>\/scripts\/receipt-check\.mjs --bindings <the bindings file>`/,
+    );
+    expect(skill).not.toMatch(/npm run/);
+  });
+
   it("after the clear, reruns setup seeded with the handoff before any task work (R22)", () => {
     expect(section("After the clear")).toMatch(/supervision-setup`, seeded with the handoff/);
   });
