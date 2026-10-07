@@ -13,9 +13,11 @@
  *   leading `$(` or `(` starts the command (`PR=$(gh pr view)`), and text is
  *   never a command: heredoc bodies are dropped, and quoted text holding a
  *   separator is blanked;
- * - a skill-script: a command that runs a file in a repo skill's own
- *   `.agents/skills/<skill>/scripts/` or `.claude/skills/<skill>/scripts/`
- *   folder, as its first word or after `bash`, `sh`, `node` or `python`.
+ * - a skill-script: a command that runs a file in a skill's own `scripts/`
+ *   folder, as its first word or after `bash`, `sh`, `node` or `python`. The
+ *   skill sits in a repo's `.agents/skills/<skill>/` or `.claude/skills/<skill>/`,
+ *   or in a plugin's install, which Claude Code and Codex both cache at
+ *   `plugins/cache/<marketplace>/<plugin>/<version>/skills/<skill>/`.
  *
  * It reads the line only, never whether it ran: the caller pairs each use
  * with its call's outcome (`transcript-uses.mjs`, `codex-uses.mjs`).
@@ -30,8 +32,9 @@ import { basename } from "node:path";
 export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
 /** Commands that run the script named after them. */
 const INTERPRETERS = new Set(["bash", "sh", "zsh", "node", "python", "python3"]);
-/** A file in a repo skill's own scripts folder; the group is the skill's name. */
-const SKILL_SCRIPT = /(?:^|\/)\.(?:agents|claude)\/skills\/([^/]+)\/scripts\//;
+/** A file in a skill's own scripts folder, in a repo or a plugin cache; the group is the skill's name. */
+const SKILL_SCRIPT =
+  /(?:^|\/)(?:\.(?:agents|claude)\/skills|plugins\/cache\/[^/]+\/[^/]+\/[^/]+\/skills)\/([^/]+)\/scripts\//;
 /** A leading `NAME=value` setting, and one whose value opens a `$(` command. */
 const SETTING = /^[A-Za-z_]\w*=/;
 const SUBSHELL_SETTING = /^[A-Za-z_]\w*=\$\(/;

@@ -38,6 +38,8 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import * as receiptCheck from "../skills/supervision-setup/scripts/receipt-check.mjs";
 // @ts-expect-error -- no type declarations for this .mjs script
 import * as transcriptUses from "../skills/supervision-setup/scripts/transcript-uses.mjs";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { shellUses } from "../skills/supervision-setup/scripts/shell-uses.mjs";
 
 const SCRIPT = "skills/supervision-setup/scripts/receipt-check.mjs";
 
@@ -455,6 +457,38 @@ describe("MQ-353 · a skill used through its own script", () => {
     });
     expect(stateOf(result, "story-worker/measure-context")).toBe("bound-but-unused");
     expect(result.unbound).toEqual([]);
+  });
+});
+
+describe("a skill's script run from wherever the skill is installed", () => {
+  const scriptOf = (line: string) =>
+    (shellUses(line) as { kind: string; name: string }[])
+      .filter((use) => use.kind === "skill-script")
+      .map((use) => use.name);
+
+  it.each([
+    ["a repo's .agents/skills folder", ".agents/skills/context-gauge/scripts/measure-context.sh"],
+    ["a repo's .claude/skills folder", ".claude/skills/context-gauge/scripts/measure-context.sh"],
+    [
+      "Claude Code's plugin cache",
+      "/Users/maintainer/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/measure-context.sh",
+    ],
+    [
+      "Codex's plugin cache",
+      "/Users/maintainer/.codex/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/measure-context.sh",
+    ],
+  ])("credits a script in %s to its skill", (_where, path) => {
+    expect(scriptOf(`${path} --harness claude-code`)).toEqual(["context-gauge"]);
+    expect(scriptOf(`bash ${path}`)).toEqual(["context-gauge"]);
+  });
+
+  it("credits nothing for a plugin skill's file outside its scripts folder", () => {
+    expect(
+      scriptOf("cat /Users/maintainer/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/SKILL.md"),
+    ).toEqual([]);
+    expect(
+      scriptOf("/Users/maintainer/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/run.sh"),
+    ).toEqual([]);
   });
 });
 
