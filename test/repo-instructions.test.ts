@@ -7,8 +7,10 @@
  *   Claude Code loads the same text every other agent reads.
  * - `.claude/settings.json` enables plugins only from marketplaces it
  *   declares, so a fresh clone can install them.
- * - `.codex/config.toml` enables plugins only from the repo marketplace in
- *   `.agents/plugins/marketplace.json`, which Codex reads for this project.
+ * - `.codex/config.toml` enables plugins from the repo marketplace in
+ *   `.agents/plugins/marketplace.json`, or from a user-level marketplace
+ *   `AGENTS.md` tells a Codex contributor to register. The repo marketplace
+ *   is also what users install grove from, so it lists only grove.
  * - trellis is enabled on both hosts, and `.trellis/rules.toml` selects its
  *   rules.
  * - git ignores the session state the skills and CE write under `.context/`:
@@ -57,7 +59,7 @@ describe("GRO-6 · grove's contributor layer (U8)", () => {
     expect(undeclared).toEqual([]);
   });
 
-  it("every plugin .codex/config.toml enables is listed in the repo marketplace", () => {
+  it("every plugin .codex/config.toml enables comes from the repo marketplace or one AGENTS.md registers", () => {
     const config = parse(read(".codex/config.toml")) as {
       plugins?: Record<string, { enabled?: boolean }>;
     };
@@ -70,8 +72,13 @@ describe("GRO-6 · grove's contributor layer (U8)", () => {
       plugins?: { name: string }[];
     };
     const listed = (marketplace.plugins ?? []).map((plugin) => plugin.name);
+    const registered = (name: string) => read("AGENTS.md").includes(`[marketplaces.${name}]`);
     const missing = enabled
-      .filter((plugin) => plugin.marketplace !== marketplace.name || !listed.includes(plugin.name))
+      .filter((plugin) =>
+        plugin.marketplace === marketplace.name
+          ? !listed.includes(plugin.name)
+          : !registered(plugin.marketplace),
+      )
       .map((plugin) => `${plugin.name}@${plugin.marketplace}`);
     expect(missing).toEqual([]);
   });
@@ -84,7 +91,7 @@ describe("GRO-6 · grove's contributor layer (U8)", () => {
       plugins?: Record<string, { enabled?: boolean }>;
     };
     expect(settings.enabledPlugins?.["trellis@kodhama"]).toBe(true);
-    expect(codex.plugins?.["trellis@grove"]?.enabled).toBe(true);
+    expect(codex.plugins?.["trellis@kodhama"]?.enabled).toBe(true);
     expect(read(".trellis/rules.toml")).toMatch(/^\[rules\]/m);
   });
 

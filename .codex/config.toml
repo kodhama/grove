@@ -1,10 +1,11 @@
 # Project-scope Codex configuration. Codex loads this file only for trusted
 # projects; it overrides user-level defaults for this repo.
 
-# These repo-scoped plugin identities are discoverable through
-# .agents/plugins/marketplace.json.
-[plugins."compound-engineering@grove"]
+# The contributor plugins come from user-level marketplaces, which AGENTS.md
+# says how to register. The repo marketplace in .agents/plugins/marketplace.json
+# is what users install grove from, so it lists grove alone.
+[plugins."compound-engineering@compound-engineering-plugin"]
 enabled = true
 
-[plugins."trellis@grove"]
+[plugins."trellis@kodhama"]
 enabled = true
