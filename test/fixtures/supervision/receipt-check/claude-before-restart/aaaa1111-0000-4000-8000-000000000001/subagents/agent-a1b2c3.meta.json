@@ -1,0 +1,8 @@
+{
+  "agentType": "general-purpose",
+  "description": "Review the diff",
+  "toolUseId": "toolu_0008",
+  "spawnDepth": 1,
+  "requestShape": "background",
+  "requestNonInteractive": true
+}

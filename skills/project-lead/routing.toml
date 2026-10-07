@@ -1,0 +1,205 @@
+# The project lead's routing table: what the lead needs done, and what could
+# do it. This is data, not instructions. Setup reads it, merges the repo's
+# override from routing-overrides/project-lead.toml over it, and binds each
+# operation to a performer this session can invoke. Swap a performer here or in
+# the override, never in the skill's text.
+#
+# Each operation carries:
+#   id          unique within this table
+#   intent      what the operation is for; discovery matches performers to it
+#   event       when the lead runs it (a lead works by event, not by step)
+#   performers  suggested performers by logical name, in order of preference
+#   required    true when the lead cannot run without it; setup stops if
+#               nothing is available
+#   fallback    what to do when no performer is available (omitted when
+#               required)
+#
+# A review operation also carries:
+#   fresh_context  true when the operation counts only if its performer ran
+#               inside a fresh-context subagent the caller started: not in
+#               the caller's own session, and not in a fork of the caller's
+#               context. Setup never binds an agent, or a tool that starts a
+#               subagent, to such an operation. A repo override cannot set it.
+#
+# The table names no work tracker. The tracker operations (post-work-note,
+# read-work-notes, file-stories, find-work-items, update-work-item) leave
+# performers empty for the repo's override or setup's discovery to fill.
+
+skill = "project-lead"
+
+[[operation]]
+id = "start-worker"
+intent = """
+Start a story worker session on one story, named for the lead and the story's
+number, with an explicit permission mode and remote control on, locally or in
+the cloud."""
+event = "when a story is ready for a worker"
+performers = ["herdr"]
+required = true
+
+[[operation]]
+id = "message-session"
+intent = """
+Send a message to another live session: a worker, a successor or a peer lead.
+Never type into a pane the maintainer is using."""
+event = "whenever the lead has something to tell a session"
+performers = ["SendMessage", "herdr"]
+required = true
+
+[[operation]]
+id = "message-pane"
+intent = """
+Send a message to a live session that message-session does not reach, such as
+one of another harness, by submitting it into its terminal pane. Never type
+into a pane that is focused, blocked, held at a dialog or holding unsent text."""
+event = "whenever the lead has something to tell a session message-session does not reach"
+performers = ["herdr"]
+required = false
+fallback = """
+Start no worker of another harness, and tell the maintainer that this lead
+reaches only the sessions its message-session performer reaches."""
+
+[[operation]]
+id = "measure-context"
+intent = "Measure how much of the lead's own context window is used, as a share of the window."
+event = "at each event the lead handles: each hand-back, each maintainer message, each worker launch, each timer wake"
+performers = ["context-gauge"]
+required = false
+fallback = """
+There is no measuring recipe for this harness. Bind as unavailable, do not
+restart on a measurement, and say in the setup report that this session will
+not restart itself."""
+
+[[operation]]
+id = "restart-self"
+intent = "Restart the lead with a fresh context, carrying its state through a handoff."
+event = "when the measured share reaches the restart threshold, at the next quiet point"
+performers = ["session-restart"]
+required = false
+fallback = """
+Do not restart. Write the handoff, tell the maintainer the lead is near its
+context limit, and wait for them to restart it."""
+
+[[operation]]
+id = "report-to-maintainer"
+intent = "Write a report, summary or question to the maintainer that reads plainly on the first read."
+event = "whenever the lead reports to the maintainer"
+performers = ["ce-noslop"]
+required = false
+fallback = """
+Write the report yourself: the conclusion first, short sentences, one idea per
+paragraph, every fact kept. Where the repo's project instructions set a reader
+rule, follow it. Say that the suggested performer was unavailable."""
+
+[[operation]]
+id = "write-handoff"
+intent = """
+Write the lead's handoff: identity fields, launch command, the filled routing
+table inline, live commitments, blocked decisions and who owns the restart."""
+event = "before a restart, and whenever a restart is pending and the lead takes a turn"
+performers = ["ce-handoff"]
+required = false
+fallback = """
+Write the handoff yourself as Markdown with the fixed field block, in this
+session's folder under .context/supervision/."""
+
+[[operation]]
+id = "produce-breakdown"
+intent = "Produce or delegate the epic's breakdown into stories, each small enough for one worker and one pull request."
+event = "when an epic has no breakdown yet"
+performers = ["ce-plan"]
+required = false
+fallback = """
+Break the epic into stories yourself from its plan. Give each story a goal,
+the files it touches and how it is verified, and ask the maintainer to confirm
+the breakdown before filing it."""
+
+[[operation]]
+id = "file-stories"
+intent = "File each story of the breakdown in the repo's work tracker, as a pointer to the plan, not a copy of it."
+event = "after the maintainer confirms the breakdown"
+performers = []
+required = false
+fallback = """
+List the stories in the report to the maintainer and ask them to file them.
+Do not start a worker on a story that has no work item."""
+
+[[operation]]
+id = "find-work-items"
+intent = """
+List the open work items that match a query, such as every open defect, with
+each one's id, title, severity and priority, reading every page. The items
+live in the work tracker the repo's project instructions name, which may not
+be the code host's own issue list."""
+event = "when a defect run starts, to file nothing twice and to freeze its set"
+performers = []
+required = false
+fallback = """
+Tell the maintainer this session cannot list work items. Ask them whether
+another defect run is live, and for the run's defects by id with each one's
+severity and priority. Start the run only once they answer, and freeze exactly
+that list."""
+
+[[operation]]
+id = "update-work-item"
+intent = """
+Change a work item in the repo's work tracker: cancel it, change its priority
+or close it, with a note saying why."""
+event = "when triage proposes a priority change, when a defect needs no change, and when a defect run ends"
+performers = []
+required = false
+fallback = """
+Make no change to the item. Post the note on it through post-work-note, and
+ask the maintainer to make the change."""
+
+[[operation]]
+id = "post-work-note"
+intent = """
+Post a note on a work item in the repo's work tracker, where any harness on any
+machine can read it: a worker's assignment and the rulings that bind it on the
+story's item, the lead's handoff on the epic's item, and its replies."""
+event = "when the lead assigns a story, records a ruling, writes a handoff for a new session, or answers a worker on its story"
+performers = []
+required = true
+
+[[operation]]
+id = "read-work-notes"
+intent = "Read the notes posted since the last read on each in-flight story's work item and on the epic's."
+event = "at every event the lead handles, timer wakes included"
+performers = []
+required = true
+
+[[operation]]
+id = "wake-on-timer"
+intent = """
+Wake the lead on a timer while anything waits on it without an event to bring
+it: a cloud worker is live, a story's pull request is in review, a worker's
+restart is pending, or a skipped message waits for its retry. The lead then
+reads the notes and the pull request's state even when no other event arrives.
+A harness wake-up, a scheduled task or a detached watcher that messages the
+lead; never a sleep loop inside a turn."""
+event = "whenever a cloud worker is live, a story's pull request is in review, a worker's restart is pending, or a message waits for its retry"
+performers = ["ScheduleWakeup", "CronCreate"]
+required = false
+fallback = """
+Do not start cloud workers: tell the maintainer this session cannot wake
+itself, so every worker it starts is local. Watch each pull request in review
+with a bounded background task, where the harness can run one: a polling loop
+with a hard iteration cap, whose exit wakes the lead. Where it cannot, tell the
+maintainer that pull requests in review, pending restarts and skipped
+messages are checked only at the lead's other events."""
+
+[[operation]]
+id = "review-before-merge"
+intent = """
+Review a handed-back pull request again from a fresh context, before the lead
+asks the maintainer to merge it: findings with evidence, never patches, which
+the lead triages."""
+event = "at each hand-back whose pull request is ready, before asking the maintainer to merge"
+performers = ["ce-code-review"]
+required = false
+fresh_context = true
+fallback = """
+Start one fresh-context subagent on the pull request, asking for findings with
+evidence and never patches, and triage them yourself. Say that the suggested
+performer was unavailable."""

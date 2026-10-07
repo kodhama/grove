@@ -1,0 +1,2 @@
+{"timestamp":"2026-10-03T09:27:26.900Z","type":"session_meta","payload":{"id":"01a10000-0000-7000-8000-0000000000c1","cli_version":"0.160.0"}}
+{"timestamp":"2026-10-03T09:27:28.000Z","type":"event_msg","payload":{"type":"item_completed","thread_id":"01a10000-0000-7000-8000-0000000000c1","item":{"type":"CommandExecution","id":"exec-cmd-1","command":["/bin/zsh","-lc","git status --short"],"cwd":"file:///repo","parsed_cmd":[{"type":"unknown","cmd":"git status --short"}],"source":"unified_exec_startup","status":"completed","stdout":"…[trimmed]","stderr":"","exit_code":0}}}

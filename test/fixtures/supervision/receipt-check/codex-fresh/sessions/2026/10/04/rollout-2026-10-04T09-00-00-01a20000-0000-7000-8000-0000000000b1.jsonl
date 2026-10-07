@@ -1,0 +1,4 @@
+{"timestamp": "2026-10-04T09:00:00.000Z", "type": "session_meta", "payload": {"id": "01a20000-0000-7000-8000-0000000000b1", "cli_version": "0.160.0"}}
+{"timestamp": "2026-10-04T09:00:01.000Z", "type": "response_item", "payload": {"type": "function_call", "name": "spawn_agent", "namespace": "collaboration", "arguments": "{\"task_name\": \"review\", \"fork_turns\": \"all\"}", "call_id": "call_f1"}}
+{"timestamp": "2026-10-04T09:00:01.000Z", "type": "event_msg", "payload": {"type": "item_completed", "thread_id": "01a20000-0000-7000-8000-0000000000b1", "item": {"type": "SubAgentActivity", "id": "call_f1", "kind": "started", "agent_thread_id": "01a20000-0000-7000-8000-0000000000f1", "agent_path": "/root/review"}}}
+{"timestamp": "2026-10-04T09:00:01.000Z", "type": "response_item", "payload": {"type": "function_call_output", "call_id": "call_f1", "output": "{\"task_name\": \"/root/review\"}"}}

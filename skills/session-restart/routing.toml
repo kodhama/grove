@@ -1,0 +1,116 @@
+# session-restart's own routing table (KTD15): what a restart needs done, and
+# what could do it. This is data, not instructions. Setup binds it in the same
+# run as a level skill's table whenever an operation binds session-restart,
+# and a session that runs no level skill binds it directly before its first
+# restart (R22). Setup merges the repo's override from
+# routing-overrides/session-restart.toml over it first.
+#
+# Each operation carries:
+#   id          unique within this table
+#   intent      what the operation is for; discovery matches performers to it
+#   event       when the restart runs it
+#   performers  suggested performers by logical name, in order of preference
+#   required    always false here: a missing operation closes one restart
+#               path, and the skill chooses the other, so setup never stops
+#               over this table
+#   fallback    what to do when no performer is available
+#
+# The pane and relay operations are called by the detached helper, a shell
+# script, so only a command a shell can run fits them. The table names no
+# work tracker: the two work-note operations leave performers empty for the
+# repo's override or setup's discovery to fill.
+
+skill = "session-restart"
+
+[[operation]]
+id = "measure-context"
+intent = "Measure how much of the session's own context window is used, as a share of the window, to decide whether to restart."
+event = "at each step boundary or event the level skill names, and before choosing to restart"
+performers = ["context-gauge"]
+required = false
+fallback = """
+There is no measuring recipe for this harness. Bind as unavailable, do not
+restart on a measurement, and say in the setup report that this session will
+not restart itself."""
+
+[[operation]]
+id = "read-pane"
+intent = """
+From a shell script, read a terminal pane's agent state: whether it is ready,
+working or held, whether it is focused, which session it holds, and what text
+sits unsent in its input line."""
+event = "throughout an in-place restart, before every send into a pane"
+performers = ["herdr"]
+required = false
+fallback = """
+Bind as unavailable. With no way to read a pane from a shell, the in-place
+path is impossible, and a restart takes the new-session path."""
+
+[[operation]]
+id = "type-into-pane"
+intent = """
+From a shell script, submit a line into a terminal pane's agent session, as
+if typed: the clear command, and the prompt that resumes from the handoff."""
+event = "during an in-place restart, once the pane is ready, unfocused and holds no unsent text"
+performers = ["herdr"]
+required = false
+fallback = """
+Bind as unavailable. Nothing can type the clear from outside the session, so
+the in-place path is impossible, and a restart takes the new-session path."""
+
+[[operation]]
+id = "relay-report"
+intent = """
+From a shell script, get one line to the maintainer when an in-place restart
+goes wrong: a pane focused too long, a stale handoff, a clear that did not
+take, a failed resume. A detached script cannot invoke a skill, a tool or an
+agent, so only a command a shell can run fits; relaying through a live session
+the maintainer is following counts."""
+event = "whenever the detached helper stops or waits past a bound"
+performers = ["herdr"]
+required = false
+fallback = """
+Bind as unavailable. With nothing shell-callable to report through, the
+in-place path is not used, and a restart takes the new-session path, where a
+live session does the reporting."""
+
+[[operation]]
+id = "launch-session"
+intent = """
+Start a successor session: the same name, remote control on, and an explicit
+permission mode, with a one-line prompt pointing at the posted handoff."""
+event = "on the new-session path, once the handoff is posted"
+performers = ["herdr"]
+required = false
+fallback = """
+Bind as unavailable. On the new-session path, ask whoever owns the restart,
+the lead for a worker or the maintainer otherwise, to launch the successor
+from the handoff's launch line."""
+
+[[operation]]
+id = "post-work-note"
+intent = """
+Post a note on the session's work item in the repo's work tracker, where any
+harness on any machine can read it: the new-session handoff, and the
+successor's acknowledgement that it is up."""
+event = "on the new-session path: the handoff before the launch, and the acknowledgement once the successor is up"
+performers = []
+required = false
+fallback = """
+Bind as unavailable. With no channel shared across machines the new-session
+path cannot hand off: a restart that cannot run in place goes to the
+maintainer instead."""
+
+[[operation]]
+id = "read-work-notes"
+intent = """
+Read the notes on the session's work item in the repo's work tracker: the
+outgoing session reads it for the successor's acknowledgement, and the
+successor for the handoff."""
+event = "on the new-session path, while the outgoing session waits for its successor, and when the successor starts"
+performers = []
+required = false
+fallback = """
+Bind as unavailable. With no channel shared across machines the new-session
+path cannot hand off: a restart that cannot run in place goes to the
+maintainer instead."""
