@@ -1,0 +1,6 @@
+{
+  "agentType": "general-purpose",
+  "name": "code-review",
+  "parentAgentId": "afresh02",
+  "spawnDepth": 2
+}

@@ -1,0 +1,203 @@
+# The story worker's routing table: what a worker needs done to take one story
+# to a pull request ready for review, and what could do it. This is data, not
+# instructions. Setup reads it, merges the repo's override from
+# routing-overrides/story-worker.toml over it, and binds each operation to a
+# performer this session can invoke. Swap a performer here or in the override,
+# never in the skill's text.
+#
+# Each operation carries:
+#   id          unique within this table
+#   intent      what the operation is for; discovery matches performers to it
+#   step        where in the story's route the worker runs it
+#   performers  suggested performers by logical name, in order of preference
+#   required    true when the worker cannot run without it; setup stops if
+#               nothing is available
+#   fallback    what to do when no performer is available (omitted when
+#               required)
+#
+# A review operation also carries:
+#   fresh_context  true when the operation counts only if its performer ran
+#               inside a fresh-context subagent the caller started: not in
+#               the caller's own session, and not in a fork of the caller's
+#               context. Setup never binds an agent, or a tool that starts a
+#               subagent, to such an operation. A repo override cannot set it.
+#
+# The table names no work tracker. The tracker operation (post-work-note)
+# leaves performers empty for the repo's override or setup's discovery to fill.
+
+skill = "story-worker"
+
+[[operation]]
+id = "diagnose"
+intent = """
+For a defect, reproduce it and find its cause before any plan: diagnosis only,
+ending at a summary of the cause, with no fix, no commit, no push and no
+question to anyone but the lead."""
+step = "for a defect, before plan"
+performers = ["ce-debug"]
+required = false
+fallback = """
+Reproduce the defect yourself with a test that fails for the reported reason,
+then trace the cause by reading the code it runs. Where it will not reproduce,
+stop and write down what you tried and what is missing."""
+
+[[operation]]
+id = "plan"
+intent = "Plan the story's implementation from its plan unit, or confirm the unit is already plan enough to build from."
+step = "first, after reading the story, and after diagnosis for a defect"
+performers = ["ce-plan"]
+required = false
+fallback = """
+Write a short plan yourself: the files to change, the failing tests to write
+first, and how the result is verified. Keep it within the story's scope."""
+
+[[operation]]
+id = "build"
+intent = "Build the story test-first: a failing test, then the implementation, then green."
+step = "after planning"
+performers = ["ce-work"]
+required = false
+fallback = """
+Build it yourself, test-first, and run the repo's full set of checks before
+moving on."""
+
+[[operation]]
+id = "simplify"
+intent = "Simplify the code just changed, keeping its behaviour, before it is reviewed."
+step = "after building, before review"
+performers = ["ce-simplify-code"]
+required = false
+fallback = """
+Reread the diff for duplication, dead code and needless indirection, fix what
+you find, and rerun the checks."""
+
+[[operation]]
+id = "review"
+intent = """
+The floor review every change gets before any pull request opens: one native
+single-pass review of the branch's diff."""
+step = "after simplifying, before committing for the pull request"
+performers = ["code-review", "review"]
+required = false
+fresh_context = true
+fallback = """
+Never review your own work. Delegate the review to a subagent you start with
+a fresh context, never a fork of your context, and never a sibling session,
+whose transcript the receipt check cannot read: give it the diff and the
+repo's standards, and ask for findings with evidence, not patches. Fix what holds up, and say in the
+hand-back who reviewed and that the review ran by fallback."""
+
+[[operation]]
+id = "review-escalation"
+intent = """
+A multi-reviewer pass on top of the floor review, run only when the change's
+scope calls for it: anything bigger than a small, focused change, sized as the
+repo's project instructions set out its review loop."""
+step = "after the floor review, when the change's scope calls for escalation"
+performers = ["ce-code-review"]
+required = false
+fresh_context = true
+fallback = """
+Run the floor review again at higher effort over the whole diff, and say in
+the hand-back that the change's scope called for an escalated review that ran
+by fallback."""
+
+[[operation]]
+id = "browser-test"
+intent = "Run browser tests for the pages the change touches."
+step = "after review, when the change touches a page"
+performers = ["ce-test-browser"]
+required = false
+fallback = """
+Run the repo's browser test suite, and say in the hand-back which pages it
+covered and which it did not."""
+
+[[operation]]
+id = "commit-and-pr"
+intent = """
+Commit, push and open the pull request as a draft, following the repo's branch,
+commit and linking conventions from its project instructions."""
+step = "after review and browser tests pass"
+performers = ["ce-commit-push-pr"]
+required = false
+fallback = """
+Commit with a message in the repo's convention, push the branch, and open a
+draft pull request whose body says what changed, why, and how it was
+verified."""
+
+[[operation]]
+id = "resolve-pr-feedback"
+intent = "Address the review feedback left on the pull request, then ask for a fresh review where the repo's instructions say to."
+step = "whenever feedback arrives on the pull request"
+performers = ["ce-resolve-pr-feedback"]
+required = false
+fallback = """
+Answer each comment: fix it, or reply with the evidence for leaving it. Push
+the fixes and resolve each thread you answered."""
+
+[[operation]]
+id = "capture-learning"
+intent = """
+Record a durable lesson from the solved story, only when it would otherwise be
+lost from the final code, tests and docs."""
+step = "at the completion checkpoint, before the pull request is final"
+performers = ["ce-compound"]
+required = false
+fallback = """
+Skip the capture, and say in the hand-back what the lesson was and that it was
+not recorded."""
+
+[[operation]]
+id = "measure-context"
+intent = "Measure how much of the worker's own context window is used, as a share of the window."
+step = "at each step boundary"
+performers = ["context-gauge"]
+required = false
+fallback = """
+There is no measuring recipe for this harness. Bind as unavailable, do not
+restart on a measurement, and say in the setup report that this session will
+not restart itself."""
+
+[[operation]]
+id = "restart-self"
+intent = "Restart the worker with a fresh context, carrying its state through a handoff."
+step = "when the measured share reaches the restart threshold, at the next step boundary"
+performers = ["session-restart"]
+required = false
+fallback = """
+Do not restart. Write the handoff, tell the lead the worker is near its
+context limit, and wait for the lead to restart it."""
+
+[[operation]]
+id = "write-handoff"
+intent = """
+Write the worker's handoff: identity fields, launch command, the filled routing
+table inline, live commitments, blocked decisions and who owns the restart."""
+step = "before a restart"
+performers = ["ce-handoff"]
+required = false
+fallback = """
+Write the handoff yourself as Markdown with the fixed field block, in this
+session's folder under .context/supervision/."""
+
+[[operation]]
+id = "hand-back"
+intent = """
+Tell the lead the story's pull request is ready for review, or that the worker
+is blocked, with the link, the checks' state and any deviation from the plan."""
+step = "last, and whenever the worker is blocked"
+performers = ["SendMessage", "herdr"]
+required = false
+fallback = """
+Post the hand-back only as a work note on the story, and say in it that the
+message to the lead could not be sent."""
+
+[[operation]]
+id = "post-work-note"
+intent = """
+Post a note on the story's work item in the repo's work tracker, where any
+harness on any machine can read it: each hand-back, and the handoff for a new
+session."""
+step = "with every hand-back, and when writing a handoff for a new session"
+performers = []
+required = true
