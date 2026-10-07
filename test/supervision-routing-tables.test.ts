@@ -26,6 +26,7 @@
  * below only when the table's wording is right and the pattern misreads it.
  */
 import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "../skills/supervision-setup/scripts/vendor/smol-toml/index.js";
@@ -614,5 +615,16 @@ describe("what an agent or a user reads names no work tracker or plan tag", () =
     const sh = '# written for MQ-1\necho "see GRO-3"\n';
     const kept = sh.split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
     expect(kept.match(TRACKER_WORDS)?.[0]).toBe("GRO-");
+  });
+});
+
+describe("MQ-348 · the bindings folder (R9, KTD2)", () => {
+  it("git ignores .context/supervision/", () => {
+    const result = spawnSync("git", [
+      "check-ignore",
+      "-q",
+      ".context/supervision/some-lead/bindings.json",
+    ]);
+    expect(result.status).toBe(0);
   });
 });
