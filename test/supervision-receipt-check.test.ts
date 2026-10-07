@@ -50,6 +50,8 @@ import * as transcriptUses from "../skills/supervision-setup/scripts/transcript-
 // @ts-expect-error -- no type declarations for this .mjs script
 import { shellUses } from "../skills/supervision-setup/scripts/shell-uses.mjs";
 // @ts-expect-error -- no type declarations for this .mjs script
+import { matches } from "../skills/supervision-setup/scripts/operation-state.mjs";
+// @ts-expect-error -- no type declarations for this .mjs script
 import { readRoutingTable } from "../skills/supervision-setup/scripts/routing-table.mjs";
 
 const SCRIPT = "skills/supervision-setup/scripts/receipt-check.mjs";
@@ -529,20 +531,45 @@ describe("a skill's script run from wherever the skill is installed", () => {
       .filter((use) => use.kind === "skill-script")
       .map((use) => use.name);
 
+  const CLAUDE_CACHE = "/Users/maintainer/.claude/plugins/cache";
+  const CODEX_CACHE = "/Users/maintainer/.codex/plugins/cache";
+
   it.each([
-    ["a repo's .agents/skills folder", ".agents/skills/context-gauge/scripts/measure-context.sh"],
-    ["a repo's .claude/skills folder", ".claude/skills/context-gauge/scripts/measure-context.sh"],
+    ["a repo's .agents/skills folder", ".agents/skills/context-gauge/scripts/measure-context.sh", "context-gauge"],
+    ["a repo's .claude/skills folder", ".claude/skills/context-gauge/scripts/measure-context.sh", "context-gauge"],
     [
       "Claude Code's plugin cache",
-      "/Users/maintainer/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/measure-context.sh",
+      `${CLAUDE_CACHE}/grove/grove/0.1.0/skills/context-gauge/scripts/measure-context.sh`,
+      "grove:context-gauge",
     ],
     [
       "Codex's plugin cache",
-      "/Users/maintainer/.codex/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/measure-context.sh",
+      `${CODEX_CACHE}/grove/grove/0.1.0/skills/context-gauge/scripts/measure-context.sh`,
+      "grove:context-gauge",
     ],
-  ])("credits a script in %s to its skill", (_where, path) => {
-    expect(scriptOf(`${path} --harness claude-code`)).toEqual(["context-gauge"]);
-    expect(scriptOf(`bash ${path}`)).toEqual(["context-gauge"]);
+  ])("credits a script in %s to its skill, named by its plugin when it has one", (_where, path, skill) => {
+    expect(scriptOf(`${path} --harness claude-code`)).toEqual([skill]);
+    expect(scriptOf(`bash ${path}`)).toEqual([skill]);
+  });
+
+  /** Whether running `path` counts as using the skill a binding names. */
+  const credits = (nativeId: string, path: string) =>
+    (shellUses(`node ${path}`) as { kind: string; name: string }[])
+      .filter((use) => use.kind === "skill-script")
+      .some((use) => matches({ kind: "skill", native_id: nativeId }, use));
+
+  it("never credits another plugin's same-named skill to a plugin-qualified binding", () => {
+    const other = `${CLAUDE_CACHE}/other/otherplug/1.0/skills/context-gauge/scripts/gauge.mjs`;
+    expect(credits("grove:context-gauge", other)).toBe(false);
+    expect(credits("otherplug:context-gauge", other)).toBe(true);
+  });
+
+  it.each([
+    ["a plugin's script, a bare binding (as Codex may list it)", "context-gauge", `${CODEX_CACHE}/grove/grove/0.1.0/skills/context-gauge/scripts/x.sh`],
+    ["a repo's script, a plugin-qualified binding", "grove:context-gauge", ".agents/skills/context-gauge/scripts/x.sh"],
+    ["a repo's script, a bare binding", "context-gauge", ".claude/skills/context-gauge/scripts/x.sh"],
+  ])("credits %s by the skill's name alone", (_case, nativeId, path) => {
+    expect(credits(nativeId, path)).toBe(true);
   });
 
   it("credits nothing for a plugin skill's file outside its scripts folder", () => {

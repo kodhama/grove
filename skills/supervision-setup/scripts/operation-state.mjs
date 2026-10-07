@@ -30,7 +30,10 @@ export function unqualified(name) {
 /** Whether a use is a call of the performer a binding names. */
 export function matches(binding, use) {
   if (binding.kind === "skill" && use.kind === "skill-script") {
-    return use.name === unqualified(binding.native_id);
+    // A plugin's script names its plugin; against a plugin-qualified binding it must be that plugin's.
+    return use.name.includes(":") && binding.native_id.includes(":")
+      ? use.name === binding.native_id
+      : unqualified(use.name) === unqualified(binding.native_id);
   }
   if (binding.kind !== use.kind) return false;
   switch (binding.kind) {

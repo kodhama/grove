@@ -17,7 +17,9 @@
  *   folder, as its first word or after `bash`, `sh`, `node` or `python`. The
  *   skill sits in a repo's `.agents/skills/<skill>/` or `.claude/skills/<skill>/`,
  *   or in a plugin's install, which Claude Code and Codex both cache at
- *   `plugins/cache/<marketplace>/<plugin>/<version>/skills/<skill>/`.
+ *   `plugins/cache/<marketplace>/<plugin>/<version>/skills/<skill>/`. A
+ *   plugin's script is named `<plugin>:<skill>`, so another plugin's skill of
+ *   the same name never passes for it.
  *
  * It reads the line only, never whether it ran: the caller pairs each use
  * with its call's outcome (`transcript-uses.mjs`, `codex-uses.mjs`).
@@ -32,9 +34,12 @@ import { basename } from "node:path";
 export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
 /** Commands that run the script named after them. */
 const INTERPRETERS = new Set(["bash", "sh", "zsh", "node", "python", "python3"]);
-/** A file in a skill's own scripts folder, in a repo or a plugin cache; the group is the skill's name. */
+/**
+ * A file in a skill's own scripts folder, in a repo or a plugin cache. The
+ * groups are the plugin's name, for a plugin cache only, and the skill's.
+ */
 const SKILL_SCRIPT =
-  /(?:^|\/)(?:\.(?:agents|claude)\/skills|plugins\/cache\/[^/]+\/[^/]+\/[^/]+\/skills)\/([^/]+)\/scripts\//;
+  /(?:^|\/)(?:\.(?:agents|claude)\/skills|plugins\/cache\/[^/]+\/([^/]+)\/[^/]+\/skills)\/([^/]+)\/scripts\//;
 /** A leading `NAME=value` setting, and one whose value opens a `$(` command. */
 const SETTING = /^[A-Za-z_]\w*=/;
 const SUBSHELL_SETTING = /^[A-Za-z_]\w*=\$\(/;
@@ -83,6 +88,8 @@ export function shellUses(line) {
     const script = INTERPRETERS.has(basename(first)) ? second : first;
     const skill = SKILL_SCRIPT.exec(script ?? "");
     const uses = [{ kind: "cli", name: first }];
-    return skill ? [...uses, { kind: "skill-script", name: skill[1] }] : uses;
+    if (!skill) return uses;
+    const [, plugin, name] = skill;
+    return [...uses, { kind: "skill-script", name: plugin ? `${plugin}:${name}` : name }];
   });
 }
