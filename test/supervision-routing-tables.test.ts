@@ -71,7 +71,7 @@ const NON_PORTABLE: readonly (readonly [RegExp, string])[] = [
   [/\b(Skill|Agent|Task)\(/, "a harness-specific invocation form"],
 ];
 
-const TRACKER_WORDS = /\b(linear|jira)\b|\bMQ-/i;
+const TRACKER_WORDS = /\b(linear|jira)\b|\b(MQ|GRO)-/i;
 
 type Operation = Record<string, unknown>;
 
@@ -570,5 +570,42 @@ describe("MQ-373 · the defect route's text", () => {
   ])("the reference uses the lead operation %s, which the lead table defines", (id) => {
     expect(idsOf("project-lead")).toContain(id);
     expect(read(REFERENCE)).toContain(`\`${id}\``);
+  });
+});
+
+/**
+ * The text an agent or a user reads: every Markdown file under `skills/`,
+ * and every script line that is not a comment. A comment keeps the tracker
+ * id of the change that wrote it, since it points into that history.
+ */
+function readerText(): readonly (readonly [string, string])[] {
+  const files = readdirSync(SKILLS_TREE, { recursive: true, encoding: "utf8" })
+    .filter((f) => /\.(md|sh|mjs)$/.test(f))
+    .sort();
+  return files.map((file) => {
+    const text = readFileSync(join(SKILLS_TREE, file), "utf8");
+    if (file.endsWith(".md")) return [file, text] as const;
+    const code = file.endsWith(".mjs") ? text.replace(/\/\*[\s\S]*?\*\//g, "") : text;
+    const comment = file.endsWith(".mjs") ? /^\s*\/\// : /^\s*#/;
+    return [file, code.split("\n").filter((line) => !comment.test(line)).join("\n")] as const;
+  });
+}
+
+describe("what an agent or a user reads names no work tracker", () => {
+  it("reads the skills' Markdown and scripts", () => {
+    const files = readerText().map(([file]) => file);
+    expect(files).toContain(join("session-restart", "SKILL.md"));
+    expect(files).toContain(join("session-restart", "scripts", "start-restart.sh"));
+    expect(files).toContain(join("supervision-setup", "scripts", "receipt-check.mjs"));
+  });
+
+  it.each(readerText())("%s", (_file, text) => {
+    expect(text.match(TRACKER_WORDS)?.[0]).toBeUndefined();
+  });
+
+  it("keeps a tracker id in a comment, and finds one in a script's string", () => {
+    const sh = '# written for MQ-1\necho "see GRO-3"\n';
+    const kept = sh.split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
+    expect(kept.match(TRACKER_WORDS)?.[0]).toBe("GRO-");
   });
 });

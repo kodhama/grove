@@ -1291,7 +1291,12 @@ describe("start-restart.sh — choosing the path from the bindings (MQ-359, U6b)
   );
 
   it.each([
-    ["the session runs on Codex", (f: BindingsFile) => (f.harness.name = "codex"), {}, /codex/i],
+    [
+      "the session runs on Codex",
+      (f: BindingsFile) => (f.harness.name = "codex"),
+      {},
+      /Codex does not restart in place yet/,
+    ],
     ["no herdr pane is set", () => undefined, { HERDR_PANE_ID: undefined }, /pane/],
     ["the pane does not answer", () => stubFile("states", "unknown true \n"), {}, /pane/],
     [

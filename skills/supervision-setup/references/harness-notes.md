@@ -121,7 +121,7 @@ and beside `--remote-control`, on 2.1.280 (2026-09-23). A Remote Control name
 alone does not pin it: a session launched with only `--remote-control` got a
 generated address. A successor launched with the same `-n` while its
 predecessor was live got the name as its own address, and kept it once the
-predecessor closed: **observed once** (MQ-285, data point 4, 2026-09-23). The
+predecessor closed: **observed once** (2026-09-23). The
 successor could not read its own launch flags, and routing while both sessions
 are live is untested.
 
@@ -152,15 +152,15 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
 
 - **An app connector's MCP tool** is recorded in the rollout as an
   `item_completed` item of type `McpToolCall`, with `server` (`codex_apps`)
-  and `tool` (`linear.save_comment`). The receipt check reads it as
-  `mcp__codex_apps__linear_save_comment` (observed in rollouts of
+  and `tool` (`<tracker>.save_comment`). The receipt check reads it as
+  `mcp__codex_apps__<tracker>_save_comment` (observed in rollouts of
   2026-09-19 and later). By the check's last-`__` rule that name gives
-  `linear_save_comment`, not `save_comment`, so a work-note tool suggested
+  `<tracker>_save_comment`, not `save_comment`, so a work-note tool suggested
   as `save_comment` goes to discovery on Codex. The first Codex setup bound it
   by check all the same, which the rule does not allow (observed on codex-cli
-  0.160.0, 2026-10-03, MQ-357). The item counts as a use only with
+  0.160.0, 2026-10-03). The item counts as a use only with
   `status: "completed"`: a refused call has `status: "failed"`, and the check
-  does not credit it (refused `linear.save_comment` calls, codex-cli 0.160.0,
+  does not credit it (refused `<tracker>.save_comment` calls, codex-cli 0.160.0,
   2026-10-03).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
   records `spawn_agent` in namespace `collaboration` as
@@ -169,7 +169,7 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
 - **Review binds to the skill the reviewer runs, never to `spawn_agent`.**
   A spawn sits in the author's rollout, so it can never show a fresh context:
   with `review` bound to `collaboration.spawn_agent`, a simplify reviewer's
-  spawn read as the review (MQ-250 run, codex-cli 0.160.0, 2026-10-03). The
+  spawn read as the review (codex-cli 0.160.0, 2026-10-03). The
   catalog there listed no single-pass review skill, only `ce-code-review` and
   `ce-doc-review`, so both review operations bind `ce-code-review`, and one
   reviewer's run credits both. The caller spawns the reviewer with
@@ -177,8 +177,8 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   skill's `SKILL.md`, and the check credits that read from the child's own
   rollout.
 - **A child spawned with `fork_turns: "all"` is a fork**, not fresh: it
-  inherits the author's whole context (seen in the MQ-250 run on codex-cli
-  0.160.0, 2026-10-03). A fork's first `session_meta` carries
+  inherits the author's whole context (seen on codex-cli 0.160.0,
+  2026-10-03). A fork's first `session_meta` carries
   `forked_from_id`; a fork is only as fresh as the thread that started it, so
   a fork of the author never counts as a review (observed in rollouts of
   codex-cli 0.155 to 0.160, 2026-10-04).
@@ -204,8 +204,8 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
 - **The context window** is in the rollout: `model_context_window` (258,400 on
   the model tried), with `last_token_usage` in each `token_count` event
   (observed on codex-cli 0.155.1, 2026-09-27).
-- **The catalog**, from the first Codex setup (codex-cli 0.160.0, 2026-10-03,
-  MQ-357): skills come from the session's "Available skills" list, and tools
+- **The catalog**, from the first Codex setup (codex-cli 0.160.0, 2026-10-03):
+  skills come from the session's "Available skills" list, and tools
   from `ALL_TOOLS` plus the collaboration tools. There is no agent-type
   catalog. Two installs of one plugin list each of its skills twice, which is
   a clash, so every one of them goes to discovery on every setup. The session

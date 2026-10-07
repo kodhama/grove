@@ -101,7 +101,9 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
 
   it("marks the new-session steps as Claude Code only, a Codex session's identity reading unknown (#823 review)", () => {
     for (const heading of ["New session: the outgoing session", "New session: the successor"])
-      expect(section(heading), heading).toMatch(/Claude Code only[\s\S]*MQ-366/);
+      expect(section(heading), heading).toMatch(
+        /Claude Code only[\s\S]*how a Codex session reads its own identity is not known yet/,
+      );
   });
 
   it("the handoff records the herdr name the successor takes (KTD10, #823 review)", () => {

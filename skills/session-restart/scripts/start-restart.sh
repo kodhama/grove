@@ -9,7 +9,7 @@
 # restart-pending marker only when every in-place condition holds:
 #
 # - the bindings are complete and bind session-restart's own table;
-# - the harness is Claude Code (Codex restarts in place under MQ-366);
+# - the harness is Claude Code (Codex does not restart in place yet);
 # - read-pane, type-into-pane and relay-report bind herdr as a CLI, since the
 #   helper speaks herdr's commands and a detached script can call nothing else;
 # - this session sits in a herdr pane that answers, and the reporter is live;
@@ -70,7 +70,7 @@ bound() {
 
 harness=$(jq -r '.harness.name // ""' "$bindings")
 [ "$harness" = claude-code ] ||
-  new_session "the harness is ${harness:-unknown}; the in-place path runs on Claude Code only, and Codex is MQ-366's"
+  new_session "the harness is ${harness:-unknown}; the in-place path runs on Claude Code only, and Codex does not restart in place yet"
 
 herdr=""
 for op in read-pane type-into-pane relay-report; do

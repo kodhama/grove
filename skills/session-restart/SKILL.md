@@ -64,9 +64,9 @@ Two checks, in order:
    - `in-place: …` — it started the helper and wrote `restart-pending` beside
      the handoff. End the turn.
    - `new-session: …` — the in-place path is closed, for the reason it gives.
-     Take the new-session path. A Codex session always lands here for now
-     (in place on Codex: MQ-366), and since that path is Claude Code only,
-     it tells the maintainer instead.
+     Take the new-session path. A Codex session always lands here for now,
+     since Codex does not restart in place yet, and since that path is
+     Claude Code only, it tells the maintainer instead.
    - `fix: …` — something to fix first, such as setup not having run or the
      handoff lacking the table. Fix it and run it again.
 
@@ -214,7 +214,7 @@ The prompt that wakes you names the handoff.
 
 These steps are for Claude Code only: they read `ListAgents` and
 `$CLAUDE_CODE_SESSION_ID`, and how a Codex session reads its own identity is
-unknown until MQ-366. A Codex session that lands here tells the maintainer.
+not known yet. A Codex session that lands here tells the maintainer.
 
 1. **Stop what you launched**, background tasks above all: a session with a
    live background task cannot exit without a dialog.
@@ -257,7 +257,7 @@ unknown until MQ-366. A Codex session that lands here tells the maintainer.
 ## New session: the successor
 
 These steps are for Claude Code only, as the outgoing session's are: how a
-Codex session reads its own identity is unknown until MQ-366.
+Codex session reads its own identity is not known yet.
 
 1. Read the handoff, from the note the launch prompt names.
 2. Read your actual name and your ref from `ListAgents`. While the outgoing
