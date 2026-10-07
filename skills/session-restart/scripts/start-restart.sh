@@ -54,7 +54,7 @@ new_session() { echo "new-session: $*"; exit 3; }
 
 # --- the bindings -----------------------------------------------------------
 
-[ -f "$bindings" ] || fix "no bindings file at $bindings; run supervision-setup on session-restart's own table first (R22)"
+[ -f "$bindings" ] || fix "no bindings file at $bindings; run supervision-setup on session-restart's own table first"
 jq -e . "$bindings" >/dev/null 2>&1 || fix "$bindings is not JSON; run supervision-setup again"
 jq -e '.complete' "$bindings" >/dev/null 2>&1 ||
   fix "$bindings has no completion marker; finish supervision-setup first"
@@ -119,7 +119,7 @@ missing=$(jq -r '.operations[] | "\(.table) \(.id)"' "$bindings" | while read -r
     printf '%s ' "$t/$op"
 done)
 [ -z "$missing" ] ||
-  fix "the handoff's \"## Routing table\" section leaves out ${missing% }; carry the filled table inline (KTD10)"
+  fix "the handoff's \"## Routing table\" section leaves out ${missing% }; carry the filled table inline, since a successor on another machine cannot read the bindings file"
 
 # --- start ------------------------------------------------------------------
 

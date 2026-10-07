@@ -591,7 +591,7 @@ function readerText(): readonly (readonly [string, string])[] {
   });
 }
 
-describe("what an agent or a user reads names no work tracker", () => {
+describe("what an agent or a user reads names no work tracker or plan tag", () => {
   it("reads the skills' Markdown and scripts", () => {
     const files = readerText().map(([file]) => file);
     expect(files).toContain(join("session-restart", "SKILL.md"));
@@ -602,6 +602,13 @@ describe("what an agent or a user reads names no work tracker", () => {
   it.each(readerText())("%s", (_file, text) => {
     expect(text.match(TRACKER_WORDS)?.[0]).toBeUndefined();
   });
+
+  it.each(readerText().filter(([file]) => !file.endsWith(".md")))(
+    "%s says what it means in plain words, with no plan tag",
+    (_file, code) => {
+      expect(code.match(/\b(?:R|KTD|AE)\d+\b|\bU\d+[a-z]?\b/)?.[0]).toBeUndefined();
+    },
+  );
 
   it("keeps a tracker id in a comment, and finds one in a script's string", () => {
     const sh = '# written for MQ-1\necho "see GRO-3"\n';

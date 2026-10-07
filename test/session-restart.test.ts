@@ -387,6 +387,7 @@ describe("restart-in-place.sh — the clear and the resume", () => {
     expect(run.status).toBe(1);
     expect(run.reports).toHaveLength(1);
     expect(run.reports[0]).toMatch(/resume prompt failed/);
+    expect(run.reports[0]).not.toMatch(/\(R\d+\)/);
   });
 
   it("when the resumed session is done but held at a dialog, reports it (R34)", () => {
