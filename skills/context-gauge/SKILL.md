@@ -12,7 +12,7 @@ model's window, so the restart decision follows a number, not a hunch.
 ## Run it
 
 ```sh
-<this skill's folder>/scripts/measure-context.sh --harness <claude-code|codex> --window <tokens>
+"<this skill's folder>/scripts/measure-context.sh" --harness <claude-code|codex> --window <tokens>
 ```
 
 - `--harness`: the harness from the session's bindings. Pass it: a session

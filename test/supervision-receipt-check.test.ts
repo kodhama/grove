@@ -552,6 +552,16 @@ describe("a skill's script run from wherever the skill is installed", () => {
     expect(scriptOf(`bash ${path}`)).toEqual([skill]);
   });
 
+  it.each([
+    ["double quotes", `"/Users/Jane Doe/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/x.mjs"`],
+    ["single quotes", `'/Users/Jane Doe/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/x.mjs'`],
+    ["a backslash", String.raw`/Users/Jane\ Doe/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/x.mjs`],
+  ])("credits a script whose path holds a space, kept whole by %s", (_how, path) => {
+    expect(scriptOf(`node ${path} --bindings "/Users/Jane Doe/b.json"`)).toEqual(["grove:context-gauge"]);
+    expect(scriptOf(`${path} --harness claude-code`)).toEqual(["grove:context-gauge"]);
+    expect((shellUses(`node ${path}`) as { kind: string; name: string }[])[0]).toEqual({ kind: "cli", name: "node" });
+  });
+
   /** Whether running `path` counts as using the skill a binding names. */
   const credits = (nativeId: string, path: string) =>
     (shellUses(`node ${path}`) as { kind: string; name: string }[])

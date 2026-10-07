@@ -53,7 +53,7 @@ Two checks, in order:
 
    ```sh
    D=.context/supervision/<session-name>
-   <this skill's folder>/scripts/start-restart.sh --bindings "$D/bindings.json" \
+   "<this skill's folder>/scripts/start-restart.sh" --bindings "$D/bindings.json" \
      --handoff "$D/handoff.md" --reporter <reporter-name>
    ```
 
@@ -152,9 +152,9 @@ another.
 ## Receipt check
 
 <the receipt check's output, pasted unchanged, line for line:
-`node <supervision-setup's folder>/scripts/receipt-check.mjs --bindings <the bindings file>`,
+`node "<supervision-setup's folder>/scripts/receipt-check.mjs" --bindings "<the bindings file>"`,
 supervision-setup's folder being the one beside this skill's own, adding
-`--handoff <path>`, with the handoff you started from saved to that
+`--handoff "<path>"`, with the handoff you started from saved to that
 path, whenever that handoff's own receipt-check section holds a result; or
 `unavailable: <why it could not run>`>
 
@@ -279,7 +279,7 @@ Codex session reads its own identity is not known yet.
    the handoff's transcripts line lists:
 
    ```sh
-   <this skill's folder>/scripts/close-outgoing.sh <herdr> <pane> <transcript>
+   "<this skill's folder>/scripts/close-outgoing.sh" "<herdr>" <pane> "<transcript>"
    ```
 
    It types `/exit` only when the helper's own checks pass right before the

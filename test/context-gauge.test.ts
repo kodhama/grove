@@ -438,3 +438,10 @@ describe("arguments", () => {
     expect(run.err).toMatch(/^Usage: measure-context\.sh/mu);
   });
 });
+
+describe("the skill's instructions", () => {
+  it("quote the gauge's path, since the folder it is installed in may hold a space", () => {
+    const skill = readFileSync(join(__dirname, "..", "skills/context-gauge/SKILL.md"), "utf8");
+    expect(skill).toMatch(/^"<this skill's folder>\/scripts\/measure-context\.sh" --harness/mu);
+  });
+});

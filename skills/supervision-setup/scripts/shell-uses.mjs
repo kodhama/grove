@@ -12,7 +12,8 @@
  *   `;`, `|` and newlines, leading `NAME=value` settings are skipped, a
  *   leading `$(` or `(` starts the command (`PR=$(gh pr view)`), and text is
  *   never a command: heredoc bodies are dropped, and quoted text holding a
- *   separator is blanked;
+ *   separator is blanked. A quoted or escaped space stays inside its word, so
+ *   `node "/Users/Jane Doe/x.mjs"` runs one script, not two words;
  * - a skill-script: a command that runs a file in a skill's own `scripts/`
  *   folder, as its first word or after `bash`, `sh`, `node` or `python`. The
  *   skill sits in a repo's `.agents/skills/<skill>/` or `.claude/skills/<skill>/`,
@@ -54,6 +55,41 @@ function withoutText(line) {
 }
 
 /**
+ * A command's words as the shell splits them: a quoted or backslash-escaped
+ * space stays inside its word, and the quotes and backslashes are dropped, so
+ * `node "/Users/Jane Doe/x.mjs"` gives `node` and `/Users/Jane Doe/x.mjs`.
+ */
+function shellWords(part) {
+  const found = [];
+  let word = "";
+  let open = false;
+  for (let i = 0; i < part.length; i++) {
+    const char = part[i];
+    if (/\s/.test(char)) {
+      if (open) found.push(word);
+      word = "";
+      open = false;
+    } else if (char === "'") {
+      const end = part.indexOf("'", i + 1);
+      const close = end < 0 ? part.length : end;
+      word += part.slice(i + 1, close);
+      open = true;
+      i = close;
+    } else if (char === '"') {
+      open = true;
+      for (i++; i < part.length && part[i] !== '"'; i++) {
+        word += part[i] === "\\" && i + 1 < part.length ? part[++i] : part[i];
+      }
+    } else {
+      word += char === "\\" && i + 1 < part.length ? part[++i] : char;
+      open = true;
+    }
+  }
+  if (open) found.push(word);
+  return found;
+}
+
+/**
  * The commands a shell line runs, as words with leading `NAME=value` settings
  * skipped: `cd /repo && FOO=1 gh pr view` gives `cd /repo` and `gh pr view`.
  * A leading `$(` or `(`, after any settings, starts the command:
@@ -62,13 +98,7 @@ function withoutText(line) {
 function commands(line) {
   return withoutText(line)
     .split(/&&|\|\||[;|\n]/)
-    .map((part) =>
-      part
-        .trim()
-        .split(/\s+/)
-        .map((word) => word.replace(/^["']|["']$/g, ""))
-        .filter(Boolean),
-    )
+    .map((part) => shellWords(part).filter(Boolean))
     .map((words) => {
       const start = words.findIndex((word) => !SETTING.test(word) || SUBSHELL_SETTING.test(word));
       if (start < 0) return [];
