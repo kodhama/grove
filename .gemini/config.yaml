@@ -1,0 +1,16 @@
+# Gemini Code Assist on GitHub: review settings for this repo, taken from
+# kodhama/math-quest's. Schema and defaults:
+# https://docs.cloud.google.com/gemini/docs/code-review/customize-repo-review
+# Only the non-default choices are set here; every other key keeps Google's
+# default (review on PR open, MEDIUM threshold, no summary).
+#
+# Gemini re-reviews on every push, and its daily cap sits on the GitHub app
+# installation, shared by every kodhama repo. Drafts are therefore out of
+# scope: a PR takes its fixes as a draft, and review starts when it is marked
+# ready.
+code_review:
+  pull_request_opened:
+    include_drafts: false
+
+ignore_patterns:
+  - "package-lock.json"
