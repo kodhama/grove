@@ -1,0 +1,7 @@
+# Project-scope Codex configuration. Codex loads this file only for trusted
+# projects; it overrides user-level defaults for this repo.
+
+# These repo-scoped plugin identities are discoverable through
+# .agents/plugins/marketplace.json.
+[plugins."compound-engineering@grove"]
+enabled = true
