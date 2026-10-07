@@ -26,13 +26,11 @@
  * below only when the table's wording is right and the pattern misreads it.
  */
 import { describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { parse } from "smol-toml";
 
-const SKILLS_TREE = ".agents/skills";
-const OVERRIDES_TREE = ".agents/routing-overrides";
+const SKILLS_TREE = "skills";
 
 const OPERATION_FIELDS = [
   "id",
@@ -210,19 +208,6 @@ function overrideProblems(text: string, table: readonly Operation[]): string[] {
     if ("fallback" in fields && !isText(fields.fallback)) problems.push(`${id}: fallback is empty`);
   }
   return problems;
-}
-
-/** The skill's table with this repo's override merged over it, as setup merges it. */
-function mergedOperations(skill: string): Operation[] {
-  const overridePath = join(OVERRIDES_TREE, `${skill}.toml`);
-  const data = existsSync(overridePath)
-    ? (parse(readFileSync(overridePath, "utf8")) as Record<string, unknown>)
-    : {};
-  const overrides = (data.operation ?? {}) as Record<string, Operation>;
-  return operationsOf(readTable(skill)).map((op) => ({
-    ...op,
-    ...(overrides[op.id as string] ?? {}),
-  }));
 }
 
 function idsOf(skill: string): string[] {
@@ -490,40 +475,6 @@ describe("MQ-348 · routing overrides (R37)", () => {
     { id: "post-work-note", required: true },
   ];
 
-  const overrides = existsSync(OVERRIDES_TREE)
-    ? readdirSync(OVERRIDES_TREE).filter((f) => f.endsWith(".toml"))
-    : [];
-
-  it("this repo overrides both level tables and session-restart's", () => {
-    expect(overrides).toEqual(
-      expect.arrayContaining(["project-lead.toml", "story-worker.toml", "session-restart.toml"]),
-    );
-  });
-
-  it.each(overrides)(
-    "%s: overrides a real table's operations, setting only performers and fallback",
-    (file) => {
-      const skill = basename(file, ".toml");
-      expect(skillsWithTables()).toContain(skill);
-      expect(
-        overrideProblems(
-          readFileSync(join(OVERRIDES_TREE, file), "utf8"),
-          operationsOf(readTable(skill)),
-        ),
-      ).toEqual([]);
-    },
-  );
-
-  it.each(["project-lead", "story-worker", "session-restart"])(
-    "%s: every operation has a performer once this repo's override is merged",
-    (skill) => {
-      const bare = mergedOperations(skill).filter(
-        (op) => !Array.isArray(op.performers) || op.performers.length === 0,
-      );
-      expect(bare.map((op) => op.id)).toEqual([]);
-    },
-  );
-
   it("accepts a sample override that sets performers and fallback", () => {
     const text = '[operation.build]\nperformers = ["other-builder"]\nfallback = "Ask the lead."\n';
     expect(overrideProblems(text, SAMPLE_TABLE)).toEqual([]);
@@ -590,13 +541,6 @@ describe("MQ-373 · the defect route's text", () => {
     expect(defect).toBeLessThan(plan);
   });
 
-  it("the AGENTS.md 👍 merge approval stays scoped to defect runs", () => {
-    const agents = readFileSync(join(process.cwd(), "AGENTS.md"), "utf8");
-    const rule = agents.split("\n- ").filter((item) => item.includes("👍"));
-    expect(rule).toHaveLength(1);
-    expect(rule[0]).toMatch(/^\*\*A defect run's merge approval\*\*/);
-  });
-
   it("the story table's plan step follows diagnosis for a defect", () => {
     const plan = operationsOf(readTable("story-worker")).find((op) => op.id === "plan");
     expect(plan?.step).toMatch(/diagnosis/);
@@ -626,16 +570,5 @@ describe("MQ-373 · the defect route's text", () => {
   ])("the reference uses the lead operation %s, which the lead table defines", (id) => {
     expect(idsOf("project-lead")).toContain(id);
     expect(read(REFERENCE)).toContain(`\`${id}\``);
-  });
-});
-
-describe("MQ-348 · the bindings folder (R9, KTD2)", () => {
-  it("git ignores .context/supervision/", () => {
-    const result = spawnSync("git", [
-      "check-ignore",
-      "-q",
-      ".context/supervision/some-lead/bindings.json",
-    ]);
-    expect(result.status).toBe(0);
   });
 });

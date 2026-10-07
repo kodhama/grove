@@ -32,7 +32,7 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-const GAUGE = join(__dirname, "..", ".agents/skills/context-gauge/scripts/measure-context.sh");
+const GAUGE = join(__dirname, "..", "skills/context-gauge/scripts/measure-context.sh");
 const FIXTURES = join(__dirname, "fixtures/supervision");
 const CLAUDE_FIXTURE = join(FIXTURES, "context-gauge-claude-transcript.jsonl");
 const CODEX_FIXTURE = join(FIXTURES, "context-gauge-codex-rollout.jsonl");

@@ -9,7 +9,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const SCRIPTS = join(__dirname, "..", ".agents/skills/session-restart/scripts");
+const SCRIPTS = join(__dirname, "..", "skills/session-restart/scripts");
 
 /**
  * The parts of the restart that run inside the session's own turns, through

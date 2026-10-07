@@ -35,11 +35,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
-import * as receiptCheck from "../scripts/supervision/receipt-check.mjs";
+import * as receiptCheck from "../skills/supervision-setup/scripts/receipt-check.mjs";
 // @ts-expect-error -- no type declarations for this .mjs script
-import * as transcriptUses from "../scripts/supervision/transcript-uses.mjs";
+import * as transcriptUses from "../skills/supervision-setup/scripts/transcript-uses.mjs";
 
-const SCRIPT = "scripts/supervision/receipt-check.mjs";
+const SCRIPT = "skills/supervision-setup/scripts/receipt-check.mjs";
 
 const EXAMPLE = "test/fixtures/supervision/bindings.example.json";
 const FIXTURES = "test/fixtures/supervision/receipt-check";
@@ -54,7 +54,7 @@ const ROLLOUT = {
 };
 const HANDOFF = `${FIXTURES}/handoff-with-receipt.md`;
 /** The routing table the example bindings name, which marks the review operations. */
-const TABLE = ".agents/skills/story-worker/routing.toml";
+const TABLE = "skills/story-worker/routing.toml";
 
 type Row = {
   table: string;
@@ -1249,7 +1249,7 @@ describe("MQ-353 · the command line", () => {
 
   it("reads the routing table in the bindings file's own checkout, run from elsewhere", () => {
     const checkout = mkdtempSync(join(tmpdir(), "receipt-check-checkout-"));
-    const tableDir = join(checkout, ".agents", "skills", "story-worker");
+    const tableDir = join(checkout, "skills", "story-worker");
     mkdirSync(tableDir, { recursive: true });
     writeFileSync(
       join(tableDir, "routing.toml"),

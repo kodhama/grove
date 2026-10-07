@@ -38,7 +38,7 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-const SCRIPTS = join(__dirname, "..", ".agents/skills/session-restart/scripts");
+const SCRIPTS = join(__dirname, "..", "skills/session-restart/scripts");
 const HELPER = join(SCRIPTS, "restart-in-place.sh");
 const RELAY = join(SCRIPTS, "report-to-session.sh");
 const PANE = "w1:p1";

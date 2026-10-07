@@ -22,8 +22,8 @@ import { join } from "node:path";
 import { parse } from "smol-toml";
 
 const EXAMPLE = "test/fixtures/supervision/bindings.example.json";
-const SKILLS_TREE = ".agents/skills";
-const OVERRIDES_TREE = ".agents/routing-overrides";
+const SKILLS_TREE = "skills";
+const OVERRIDES_TREE = "test/fixtures/supervision/routing-overrides";
 
 /** The measuring operation, which needs a known context window (KTD6). */
 const MEASURE = "measure-context";
@@ -424,7 +424,7 @@ describe("MQ-350 · the example bindings file", () => {
 
   it("binds the story table with this repo's override merged", () => {
     expect(example().skill).toBe("story-worker");
-    expect(example().table.override).toBe(".agents/routing-overrides/story-worker.toml");
+    expect(example().table.override).toBe("test/fixtures/supervision/routing-overrides/story-worker.toml");
   });
 
   it("binds the logical name ce-work to compound-engineering:ce-work by check (AE1)", () => {
@@ -710,7 +710,7 @@ describe("MQ-350 · the override (R37, AE9)", () => {
     const file = example();
     file.table.override = null;
     expect(bindingsProblems(file)).toContain(
-      "table.override is null, but setup must merge .agents/routing-overrides/story-worker.toml",
+      "table.override is null, but setup must merge test/fixtures/supervision/routing-overrides/story-worker.toml",
     );
   });
 });
@@ -730,7 +730,7 @@ describe("MQ-350 · a seeded rerun after a restart (KTD2, KTD3, R22)", () => {
     const skipped = seededRerun(first);
     skipped.table.override = null;
     expect(bindingsProblems(skipped)).toContain(
-      "table.override is null, but setup must merge .agents/routing-overrides/story-worker.toml",
+      "table.override is null, but setup must merge test/fixtures/supervision/routing-overrides/story-worker.toml",
     );
   });
 

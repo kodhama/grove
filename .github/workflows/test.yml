@@ -1,0 +1,54 @@
+name: test
+
+# Typecheck, tests and a secrets scan on every push to main and every PR.
+# The job's name, `test`, is the check main's ruleset requires.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same pull request cancels the older run; pushes to main
+# each keep their own run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "lts/*"
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      # The pinned gitleaks binary with redacted output, over the commits this
+      # run adds (gitleaks-action would need a licence on a private repo).
+      # On a branch's first push `before` is all zeros, so scan everything.
+      - name: Secrets
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+          SECRETS_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tgz
+          tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
+          if [ -z "${SECRETS_BASE}" ] || [ "${SECRETS_BASE}" = "0000000000000000000000000000000000000000" ]; then
+            /tmp/gitleaks git . --config .gitleaks.toml --redact --no-banner
+          else
+            /tmp/gitleaks git . --config .gitleaks.toml --redact --no-banner --log-opts "${SECRETS_BASE}..HEAD"
+          fi

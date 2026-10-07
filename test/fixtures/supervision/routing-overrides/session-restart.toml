@@ -1,0 +1,18 @@
+# TEST FIXTURE, not a binding: a copy of kodhama/math-quest's
+# .agents/routing-overrides/session-restart.toml at 65747f43, which the
+# supervision-bindings tests and bindings.example.json read as "the repo's
+# override". Grove itself overrides nothing.
+#
+# This repo's override of the session-restart skill's routing table (R37, KTD16).
+# Keyed by operation id; an override may set only `performers` and `fallback`.
+# Setup merges it over the skill's own routing.toml before binding.
+#
+# This repo tracks its work in Linear: on the new-session path, the handoff and
+# the successor's acknowledgement are comments on the work item's Linear issue,
+# posted and read through the Linear connector.
+
+[operation.post-work-note]
+performers = ["save_comment"]
+
+[operation.read-work-notes]
+performers = ["list_comments"]

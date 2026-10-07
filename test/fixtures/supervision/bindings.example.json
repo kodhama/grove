@@ -12,9 +12,9 @@
     "evidence": "the system prompt says \"The exact model ID is claude-opus-5-5[1m]\", and [1m] is the 1,000,000-token window"
   },
   "table": {
-    "path": ".agents/skills/story-worker/routing.toml",
+    "path": "skills/story-worker/routing.toml",
     "sha256": "4d5275bed367a1eb6d5f23d6de6280d194c8afb2297cb7d0a810829438ba0b4d",
-    "override": ".agents/routing-overrides/story-worker.toml",
+    "override": "test/fixtures/supervision/routing-overrides/story-worker.toml",
     "override_sha256": "baf8133f0ecb01462c10c4ab49b91894b27d75f1110fc24ef496f3e1e38197d9"
   },
   "seeded_from": null,
