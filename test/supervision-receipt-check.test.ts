@@ -34,6 +34,7 @@ import {
   cpSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -487,6 +488,30 @@ describe("the checker runs from a plugin install, with no npm install", () => {
       const here = readRoutingTable({ skill: "story-worker", table: { path: table } });
       expect(JSON.parse(run.stdout)).toEqual(here.marked);
       expect(here.marked.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("loads every supervision-setup script, and runs the checker, from a copy with no node_modules", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-no-modules-"));
+    try {
+      cpSync("skills/supervision-setup", join(dir, "supervision-setup"), { recursive: true });
+      const scripts = readdirSync(join(dir, "supervision-setup", "scripts")).filter((f) =>
+        f.endsWith(".mjs"),
+      );
+      expect(scripts).toContain("receipt-check.mjs");
+      const imports = scripts.map((f) => `await import("./supervision-setup/scripts/${f}");`);
+      const load = spawnSync(process.execPath, ["--input-type=module", "-e", imports.join("\n")], {
+        cwd: dir,
+        encoding: "utf8",
+      });
+      expect(load.stderr).toBe("");
+      const run = spawnSync(process.execPath, ["supervision-setup/scripts/receipt-check.mjs"], {
+        cwd: dir,
+        encoding: "utf8",
+      });
+      expect(run.stderr).toMatch(/^receipt-check: .*\nUsage: receipt-check\.mjs --bindings/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
