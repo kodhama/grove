@@ -12,10 +12,16 @@ ticket: MQ-355
 
 **Moved to grove on 2026-10-07 (GRO-6)** from kodhama/math-quest's
 [`docs/decisions/supervision-operating-model.md`](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/decisions/supervision-operating-model.md)
-at `65747f43`, with the skills it governs. Links into math-quest's docs point
-at that commit, and MQ ids name math-quest's work items. The one change in
-meaning: Codex's in-place restart, MQ-366 there, is GRO-3 here. Supersede an
-entry here from now on.
+at `65747f43`, with the skills it governs. Supersede an entry here from now
+on. Read the entries below as of that move:
+
+- **Every path and quoted section** in them, linked or not, names
+  math-quest's files at that commit: `.agents/skills/`, its `AGENTS.md`, its
+  `.compound-engineering/config.yaml`. In grove the skills are under
+  `skills/`, and grove's own `AGENTS.md` does not restate math-quest's rules.
+- **MQ ids** name math-quest's work items.
+- **One change in meaning:** Codex's in-place restart, MQ-366 there, is GRO-3
+  here.
 
 **2026-10-02 · MQ-355.** The supervision epic kept its decisions, D01 to D25, in
 an epic state file. The

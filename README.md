@@ -51,10 +51,14 @@ matching rule, and setup then binds that operation by discovery.
 
 - **Routing overrides** go in `.agents/routing-overrides/<skill>.toml`, one
   per level skill you override. An override replaces an operation's
-  `performers` and `fallback`, nothing else. The work-tracker operations
-  (`post-work-note`, `read-work-notes`, and for a lead `file-stories`,
-  `find-work-items` and `update-work-item`) have no default performer: your
-  override names your tracker's tools.
+  `performers` and `fallback`, nothing else, and it names only operations
+  its table has: setup stops on any other. The work-tracker operations have
+  no default performer, so your overrides name your tracker's tools:
+  - `story-worker`: `post-work-note`;
+  - `project-lead`: `post-work-note`, `read-work-notes`, `file-stories`,
+    `find-work-items` and `update-work-item`;
+  - `session-restart`: `post-work-note` and `read-work-notes`, which only
+    its new-session path uses.
 - **Ignore session state:** add `.context/supervision/` to `.gitignore`.
   Bindings and handoffs name transcript paths under a real home directory.
 - **Project instructions** (`AGENTS.md` or your harness's equivalent) name
@@ -75,15 +79,18 @@ plugin dependency.
   the table's instructions, and still never reviews its own work.
 - **herdr** (CLI): starting and messaging sessions in panes, and the in-place
   restart. **A project lead needs it:** `start-worker` is required and has no
-  fallback, so a lead's setup stops without herdr. A worker without it hands
-  back by work note, and its restart takes the new-session path.
-- **Your work tracker**, through your override: posting and reading work
-  notes is required at both levels.
+  fallback, so a lead's setup stops without herdr. A worker without it still
+  hands back through its harness's own messaging where it has one, and by
+  work note where it has none; its restart takes the new-session path.
+- **Your work tracker**, through your overrides: posting a work note is
+  required at both levels, and a lead also needs to read them.
+- **Node 22 or newer** runs the receipt checker, which uses `node:fs`'s
+  `globSync`. **jq** runs the restart scripts and the context gauge.
 
 ## Versions
 
-**Every merge to `main` bumps `version` in both `.claude-plugin/plugin.json`
-and `.codex-plugin/plugin.json`, together.** An install keeps its cached copy
+**Every PR bumps `version` in both `.claude-plugin/plugin.json` and
+`.codex-plugin/plugin.json`, together.** An install keeps its cached copy
 until `version` changes, so an unbumped merge reaches nobody. The bump also
 lets a consuming repo name the commit it pins by its version.
 
