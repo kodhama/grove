@@ -20,7 +20,7 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { parse } from "smol-toml";
+import { parse } from "../skills/supervision-setup/scripts/vendor/smol-toml/index.js";
 
 const read = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : "");
 

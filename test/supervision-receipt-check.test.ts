@@ -30,7 +30,15 @@
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -40,6 +48,8 @@ import * as receiptCheck from "../skills/supervision-setup/scripts/receipt-check
 import * as transcriptUses from "../skills/supervision-setup/scripts/transcript-uses.mjs";
 // @ts-expect-error -- no type declarations for this .mjs script
 import { shellUses } from "../skills/supervision-setup/scripts/shell-uses.mjs";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { readRoutingTable } from "../skills/supervision-setup/scripts/routing-table.mjs";
 
 const SCRIPT = "skills/supervision-setup/scripts/receipt-check.mjs";
 
@@ -457,6 +467,34 @@ describe("MQ-353 · a skill used through its own script", () => {
     });
     expect(stateOf(result, "story-worker/measure-context")).toBe("bound-but-unused");
     expect(result.unbound).toEqual([]);
+  });
+});
+
+describe("the checker runs from a plugin install, with no npm install", () => {
+  it("reads a routing table's marked operations from a copy of supervision-setup with no node_modules", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-no-modules-"));
+    try {
+      cpSync("skills/supervision-setup", join(dir, "supervision-setup"), { recursive: true });
+      const table = resolve(TABLE);
+      const script = `import { readRoutingTable } from "./supervision-setup/scripts/routing-table.mjs";
+        const read = readRoutingTable({ skill: "story-worker", table: { path: ${JSON.stringify(table)} } });
+        process.stdout.write(JSON.stringify(read.marked ?? read));`;
+      const run = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+        cwd: dir,
+        encoding: "utf8",
+      });
+      expect(run.stderr).toBe("");
+      const here = readRoutingTable({ skill: "story-worker", table: { path: table } });
+      expect(JSON.parse(run.stdout)).toEqual(here.marked);
+      expect(here.marked.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("package.json lists no runtime dependency", () => {
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+    expect(manifest.dependencies ?? {}).toEqual({});
   });
 });
 
