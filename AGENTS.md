@@ -93,6 +93,9 @@ of @<maintainer-handle>.` Comments only: a PR body is covered by its branch and
   rebase only, no force-push, no deletion. It requires zero approving reviews,
   since a PR author cannot approve their own PR.
 - **The maintainer approves every merge**; an agent never merges.
+- **Every PR bumps `version` in both `.claude-plugin/plugin.json` and
+  `.codex-plugin/plugin.json`, together.** An install keeps its cached copy
+  until the version changes, so an unbumped merge reaches no one.
 - Code changes are test-first: failing test, then implementation, then green.
 - Keep diffs reviewable from a phone: small, focused, well-described.
 
