@@ -74,8 +74,8 @@ directly. Then do nothing else.
 
 When you resume from a handoff after a restart, the restart skill's resume
 steps run setup seeded with the handoff's filled table. A Codex worker, whose
-resume the restart skill does not cover yet (MQ-366), runs that seeded setup
-itself before any step. Then carry on from the step the handoff names.
+resume the restart skill does not cover yet, runs that seeded setup itself
+before any step. Then carry on from the step the handoff names.
 
 Setup ends with one line listing each operation's performer. Send it to your
 lead as `STATUS: started`, so the lead knows what you will run without asking.
@@ -370,7 +370,7 @@ story, the branch, the base SHA, the pull request's link if there is one, the
 step in hand and the receipt so far. If measuring is bound as unavailable,
 setup said so once, and you never restart on a measurement.
 
-**A Codex worker, until the restart skill restarts Codex sessions (MQ-366)**,
+**A Codex worker, until the restart skill restarts Codex sessions**,
 gets only "tell the maintainer" from it. Do this instead: write the handoff
 with `restart-owner: lead`, post it as a note on the story's work item through
 the performer bound to `post-work-note`, send your lead `STATUS: restarting`

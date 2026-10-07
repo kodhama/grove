@@ -12,7 +12,7 @@ model's window, so the restart decision follows a number, not a hunch.
 ## Run it
 
 ```sh
-<this skill's folder>/scripts/measure-context.sh --harness <claude-code|codex> --window <tokens>
+"<this skill's folder>/scripts/measure-context.sh" --harness <claude-code|codex> --window <tokens>
 ```
 
 - `--harness`: the harness from the session's bindings. Pass it: a session
@@ -46,7 +46,7 @@ never zero**: do not restart on it, and do not treat the session as empty.
 
 - If the reason names no measuring recipe for the harness, measuring is
   unavailable for this session. Setup binds the operation as unavailable and
-  says once that the session will not restart itself (R31); nothing restarts
+  says once that the session will not restart itself; nothing restarts
   it on a measurement.
 - Any other reason (no transcript yet, no usage yet or since a compaction,
   no window given, no `jq`) is a gap: measure again at the next event, and if it persists, tell whoever you

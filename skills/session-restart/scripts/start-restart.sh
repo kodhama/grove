@@ -9,7 +9,7 @@
 # restart-pending marker only when every in-place condition holds:
 #
 # - the bindings are complete and bind session-restart's own table;
-# - the harness is Claude Code (Codex restarts in place under MQ-366);
+# - the harness is Claude Code (Codex does not restart in place yet);
 # - read-pane, type-into-pane and relay-report bind herdr as a CLI, since the
 #   helper speaks herdr's commands and a detached script can call nothing else;
 # - this session sits in a herdr pane that answers, and the reporter is live;
@@ -54,7 +54,7 @@ new_session() { echo "new-session: $*"; exit 3; }
 
 # --- the bindings -----------------------------------------------------------
 
-[ -f "$bindings" ] || fix "no bindings file at $bindings; run supervision-setup on session-restart's own table first (R22)"
+[ -f "$bindings" ] || fix "no bindings file at $bindings; run supervision-setup on session-restart's own table first"
 jq -e . "$bindings" >/dev/null 2>&1 || fix "$bindings is not JSON; run supervision-setup again"
 jq -e '.complete' "$bindings" >/dev/null 2>&1 ||
   fix "$bindings has no completion marker; finish supervision-setup first"
@@ -70,7 +70,7 @@ bound() {
 
 harness=$(jq -r '.harness.name // ""' "$bindings")
 [ "$harness" = claude-code ] ||
-  new_session "the harness is ${harness:-unknown}; the in-place path runs on Claude Code only, and Codex is MQ-366's"
+  new_session "the harness is ${harness:-unknown}; the in-place path runs on Claude Code only, and Codex does not restart in place yet"
 
 herdr=""
 for op in read-pane type-into-pane relay-report; do
@@ -119,7 +119,7 @@ missing=$(jq -r '.operations[] | "\(.table) \(.id)"' "$bindings" | while read -r
     printf '%s ' "$t/$op"
 done)
 [ -z "$missing" ] ||
-  fix "the handoff's \"## Routing table\" section leaves out ${missing% }; carry the filled table inline (KTD10)"
+  fix "the handoff's \"## Routing table\" section leaves out ${missing% }; carry the filled table inline, since a successor on another machine cannot read the bindings file"
 
 # --- start ------------------------------------------------------------------
 

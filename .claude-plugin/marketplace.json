@@ -1,0 +1,13 @@
+{
+  "name": "grove",
+  "owner": {
+    "name": "kodhama"
+  },
+  "plugins": [
+    {
+      "name": "grove",
+      "description": "Agent supervision skills: a project lead, a story worker, the setup that binds them to a session's tools, and in-place restarts.",
+      "source": "./"
+    }
+  ]
+}

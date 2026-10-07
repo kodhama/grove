@@ -19,7 +19,7 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parse } from "smol-toml";
+import { parse } from "../skills/supervision-setup/scripts/vendor/smol-toml/index.js";
 
 const EXAMPLE = "test/fixtures/supervision/bindings.example.json";
 const SKILLS_TREE = "skills";

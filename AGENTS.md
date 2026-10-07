@@ -23,6 +23,26 @@ your hand-back that it was unavailable and that step did not run.
 (hook-driven); `.trellis/rules.toml` selects which are active, and its rows
 govern. The rules live in the plugin, not here.
 
+**A Codex contributor registers the two plugins' marketplaces once**, at user
+level in `~/.codex/config.toml`. `.codex/config.toml` enables the plugins from
+them:
+
+```toml
+[marketplaces.compound-engineering-plugin]
+source_type = "git"
+source = "https://github.com/EveryInc/compound-engineering-plugin.git"
+
+[marketplaces.kodhama]
+source_type = "git"
+source = "https://github.com/kodhama/stewards.git"
+```
+
+Grove's own `.agents/plugins/marketplace.json` lists only grove, because it is
+what users install grove from. Inside a grove checkout Codex may therefore
+show two marketplaces named `grove`, this repo's and the one a user
+registered; both point at this repo. Install grove from one of them only:
+two installs list each skill twice, which setup treats as a clash.
+
 **Write for a reader with ADD.** Applies to anything the maintainer reads:
 chat, reports, PRs, issues and comments.
 
@@ -93,6 +113,9 @@ of @<maintainer-handle>.` Comments only: a PR body is covered by its branch and
   rebase only, no force-push, no deletion. It requires zero approving reviews,
   since a PR author cannot approve their own PR.
 - **The maintainer approves every merge**; an agent never merges.
+- **Every PR bumps `version` in both `.claude-plugin/plugin.json` and
+  `.codex-plugin/plugin.json`, together.** An install keeps its cached copy
+  until the version changes, so an unbumped merge reaches no one.
 - Code changes are test-first: failing test, then implementation, then green.
 - Keep diffs reviewable from a phone: small, focused, well-described.
 

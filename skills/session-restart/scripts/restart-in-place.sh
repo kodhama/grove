@@ -382,27 +382,27 @@ code=$(printf '%s' "$out" | jq -r '.error.code // empty' 2>/dev/null)
 log "resume prompt returned (exit $rc): $out"
 case "$code" in
   timeout) ;;
-  agent_blocked) report "the cleared session was blocked at a dialog before the resume prompt could be sent (R34)."; stop ;;
+  agent_blocked) report "the cleared session was blocked at a dialog before the resume prompt could be sent."; stop ;;
   "")
     if [ "$rc" -ne 0 ]; then
-      report "the resume prompt failed (exit $rc), so the session is cleared but may not be resumed (R34). Resume with the session-restart skill from the handoff at $handoff."
+      report "the resume prompt failed (exit $rc), so the session is cleared but may not be resumed. Resume with the session-restart skill from the handoff at $handoff."
       stop
     fi
     ;;
-  *) report "the resume prompt did not start a turn ($code), so the session is cleared but not resumed (R34)."; stop ;;
+  *) report "the resume prompt did not start a turn ($code), so the session is cleared but not resumed."; stop ;;
 esac
 
 read_pane
 case "$status" in
   working | idle | done | blocked) ;;
-  *) report "the resume prompt was sent, but the pane then read as '$status', so the resume is unconfirmed (R34). Check the session; if it did not resume, resume it with the session-restart skill from the handoff at $handoff."; stop ;;
+  *) report "the resume prompt was sent, but the pane then read as '$status', so the resume is unconfirmed. Check the session; if it did not resume, resume it with the session-restart skill from the handoff at $handoff."; stop ;;
 esac
 if [ "$session" != "$expected" ]; then
-  report "the resume prompt was sent to session $expected, but the pane then held session '$session', so the resume is unconfirmed (R34). Check the session; if $expected did not resume, resume it with the session-restart skill from the handoff at $handoff."
+  report "the resume prompt was sent to session $expected, but the pane then held session '$session', so the resume is unconfirmed. Check the session; if $expected did not resume, resume it with the session-restart skill from the handoff at $handoff."
   stop
 fi
 if [ "$status" = blocked ] || { idle_or_done && ! no_dialog; }; then
-  report "the resumed session is held at a dialog (status $status) (R34). It was not retried."
+  report "the resumed session is held at a dialog (status $status). It was not retried."
   stop
 fi
 log "resumed: session $session is $status"

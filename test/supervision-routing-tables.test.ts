@@ -28,7 +28,7 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parse } from "smol-toml";
+import { parse } from "../skills/supervision-setup/scripts/vendor/smol-toml/index.js";
 
 const SKILLS_TREE = "skills";
 
@@ -71,7 +71,7 @@ const NON_PORTABLE: readonly (readonly [RegExp, string])[] = [
   [/\b(Skill|Agent|Task)\(/, "a harness-specific invocation form"],
 ];
 
-const TRACKER_WORDS = /\b(linear|jira)\b|\bMQ-/i;
+const TRACKER_WORDS = /\b(linear|jira)\b|\b(MQ|GRO)-/i;
 
 type Operation = Record<string, unknown>;
 
@@ -570,5 +570,61 @@ describe("MQ-373 · the defect route's text", () => {
   ])("the reference uses the lead operation %s, which the lead table defines", (id) => {
     expect(idsOf("project-lead")).toContain(id);
     expect(read(REFERENCE)).toContain(`\`${id}\``);
+  });
+});
+
+/** A math-quest plan tag, such as `R34`, `KTD10`, `AE6` or `U6b`. */
+const PLAN_TAG = /\b(?:R|KTD|AE)\d+\b|\bU\d+[a-z]?\b/;
+
+/**
+ * What an agent or a user reads in one skill file: a Markdown file whole, a
+ * script without its comments. A comment keeps the tracker id and plan tag
+ * of the change that wrote it, since it points into that history.
+ */
+function readerLines(file: string, text: string): string {
+  if (file.endsWith(".md")) return text;
+  const code = file.endsWith(".mjs") ? text.replace(/\/\*[\s\S]*?\*\//g, "") : text;
+  const comment = file.endsWith(".mjs") ? /^\s*\/\// : /^\s*#/;
+  return code
+    .split("\n")
+    .filter((line) => !comment.test(line))
+    .join("\n");
+}
+
+/** Every Markdown file and script under `skills/`, as `readerLines` reads it. */
+const READER_TEXT: readonly (readonly [string, string])[] = readdirSync(SKILLS_TREE, {
+  recursive: true,
+  encoding: "utf8",
+})
+  .filter((file) => /\.(md|sh|mjs)$/.test(file))
+  .sort()
+  .map((file) => [file, readerLines(file, readFileSync(join(SKILLS_TREE, file), "utf8"))] as const);
+
+describe("what an agent or a user reads names no work tracker or plan tag", () => {
+  it("reads the skills' Markdown and scripts", () => {
+    const files = READER_TEXT.map(([file]) => file);
+    expect(files).toContain(join("session-restart", "SKILL.md"));
+    expect(files).toContain(join("session-restart", "scripts", "start-restart.sh"));
+    expect(files).toContain(join("supervision-setup", "scripts", "receipt-check.mjs"));
+  });
+
+  it.each(READER_TEXT)("%s", (_file, text) => {
+    expect(text.match(TRACKER_WORDS)?.[0]).toBeUndefined();
+  });
+
+  it.each(READER_TEXT)(
+    "%s says what it means in plain words, with no plan tag",
+    (_file, code) => {
+      expect(code.match(PLAN_TAG)?.[0]).toBeUndefined();
+    },
+  );
+
+  it.each([
+    ["x.sh", '# written for MQ-1 (R34)\necho "see GRO-3 (KTD10)"\n'],
+    ["x.mjs", '/** written for MQ-1 (R34) */\n// and MQ-2\nconst s = "see GRO-3 (KTD10)";\n'],
+  ])("keeps a tracker id or plan tag in a comment of %s, and finds one in a string", (file, text) => {
+    const kept = readerLines(file, text);
+    expect(kept.match(TRACKER_WORDS)?.[0]).toBe("GRO-");
+    expect(kept.match(PLAN_TAG)?.[0]).toBe("KTD10");
   });
 });

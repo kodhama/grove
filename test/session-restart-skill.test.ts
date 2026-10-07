@@ -28,8 +28,25 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
   };
 
   it("starts the helper only through the launcher, never by hand", () => {
-    expect(skill).toMatch(/start-restart\.sh --bindings/);
+    expect(skill).toMatch(/start-restart\.sh" --bindings/);
     expect(skill).not.toMatch(/nohup/);
+  });
+
+  it("the handoff runs the receipt check with node from supervision-setup's folder, not a repo's npm script", () => {
+    const receipt = section("Receipt check");
+    expect(receipt).toMatch(
+      /`node "<supervision-setup's folder>\/scripts\/receipt-check\.mjs" --bindings "<the bindings file>"`/,
+    );
+    expect(skill).not.toMatch(/npm run/);
+  });
+
+  it("quotes every path it tells a session to put on a command line, since a path may hold a space", () => {
+    for (const script of ["start-restart.sh", "close-outgoing.sh", "receipt-check.mjs"]) {
+      expect(skill).toMatch(new RegExp(`"<[^<>]+>/scripts/${script.replaceAll(".", "\\.")}"`));
+      expect(skill).not.toMatch(new RegExp(`(?<!")<[^<>]+>/scripts/${script.replaceAll(".", "\\.")}`));
+    }
+    expect(skill).toMatch(/close-outgoing\.sh" "<herdr>" <pane> "<transcript>"/);
+    expect(skill).toMatch(/`--handoff "<path>"`/);
   });
 
   it("after the clear, reruns setup seeded with the handoff before any task work (R22)", () => {
@@ -93,7 +110,9 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
 
   it("marks the new-session steps as Claude Code only, a Codex session's identity reading unknown (#823 review)", () => {
     for (const heading of ["New session: the outgoing session", "New session: the successor"])
-      expect(section(heading), heading).toMatch(/Claude Code only[\s\S]*MQ-366/);
+      expect(section(heading), heading).toMatch(
+        /Claude Code only[\s\S]*how a Codex session reads its own identity is not known yet/,
+      );
   });
 
   it("the handoff records the herdr name the successor takes (KTD10, #823 review)", () => {

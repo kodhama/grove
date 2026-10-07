@@ -31,7 +31,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
-import { parse } from "smol-toml";
+import { parse } from "./vendor/smol-toml/index.js";
 
 /** Where a relative table path resolves: the nearest folder above the bindings file holding it, else the working directory. */
 function tablePath(relative, bindingsPath) {

@@ -387,6 +387,7 @@ describe("restart-in-place.sh — the clear and the resume", () => {
     expect(run.status).toBe(1);
     expect(run.reports).toHaveLength(1);
     expect(run.reports[0]).toMatch(/resume prompt failed/);
+    expect(run.reports[0]).not.toMatch(/\(R\d+\)/);
   });
 
   it("when the resumed session is done but held at a dialog, reports it (R34)", () => {
@@ -1291,7 +1292,12 @@ describe("start-restart.sh — choosing the path from the bindings (MQ-359, U6b)
   );
 
   it.each([
-    ["the session runs on Codex", (f: BindingsFile) => (f.harness.name = "codex"), {}, /codex/i],
+    [
+      "the session runs on Codex",
+      (f: BindingsFile) => (f.harness.name = "codex"),
+      {},
+      /Codex does not restart in place yet/,
+    ],
     ["no herdr pane is set", () => undefined, { HERDR_PANE_ID: undefined }, /pane/],
     ["the pane does not answer", () => stubFile("states", "unknown true \n"), {}, /pane/],
     [

@@ -30,7 +30,16 @@
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,6 +47,12 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import * as receiptCheck from "../skills/supervision-setup/scripts/receipt-check.mjs";
 // @ts-expect-error -- no type declarations for this .mjs script
 import * as transcriptUses from "../skills/supervision-setup/scripts/transcript-uses.mjs";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { shellUses } from "../skills/supervision-setup/scripts/shell-uses.mjs";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { matches } from "../skills/supervision-setup/scripts/operation-state.mjs";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { readRoutingTable } from "../skills/supervision-setup/scripts/routing-table.mjs";
 
 const SCRIPT = "skills/supervision-setup/scripts/receipt-check.mjs";
 
@@ -455,6 +470,153 @@ describe("MQ-353 · a skill used through its own script", () => {
     });
     expect(stateOf(result, "story-worker/measure-context")).toBe("bound-but-unused");
     expect(result.unbound).toEqual([]);
+  });
+});
+
+describe("the checker runs from a plugin install, with no npm install", () => {
+  it("reads a routing table's marked operations from a copy of supervision-setup with no node_modules", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-no-modules-"));
+    try {
+      cpSync("skills/supervision-setup", join(dir, "supervision-setup"), { recursive: true });
+      const table = resolve(TABLE);
+      const script = `import { readRoutingTable } from "./supervision-setup/scripts/routing-table.mjs";
+        const read = readRoutingTable({ skill: "story-worker", table: { path: ${JSON.stringify(table)} } });
+        process.stdout.write(JSON.stringify(read.marked ?? read));`;
+      const run = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+        cwd: dir,
+        encoding: "utf8",
+      });
+      expect(run.stderr).toBe("");
+      const here = readRoutingTable({ skill: "story-worker", table: { path: table } });
+      expect(JSON.parse(run.stdout)).toEqual(here.marked);
+      expect(here.marked.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("loads every supervision-setup script, and runs the checker, from a copy with no node_modules", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-no-modules-"));
+    try {
+      cpSync("skills/supervision-setup", join(dir, "supervision-setup"), { recursive: true });
+      const scripts = readdirSync(join(dir, "supervision-setup", "scripts")).filter((f) =>
+        f.endsWith(".mjs"),
+      );
+      expect(scripts).toContain("receipt-check.mjs");
+      const imports = scripts.map((f) => `await import("./supervision-setup/scripts/${f}");`);
+      const load = spawnSync(process.execPath, ["--input-type=module", "-e", imports.join("\n")], {
+        cwd: dir,
+        encoding: "utf8",
+      });
+      expect(load.stderr).toBe("");
+      const run = spawnSync(process.execPath, ["supervision-setup/scripts/receipt-check.mjs"], {
+        cwd: dir,
+        encoding: "utf8",
+      });
+      expect(run.stderr).toMatch(/^receipt-check: .*\nUsage: receipt-check\.mjs --bindings/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("package.json lists no runtime dependency", () => {
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+    expect(manifest.dependencies ?? {}).toEqual({});
+  });
+});
+
+describe("a skill's script run from wherever the skill is installed", () => {
+  const scriptOf = (line: string) =>
+    (shellUses(line) as { kind: string; name: string }[])
+      .filter((use) => use.kind === "skill-script")
+      .map((use) => use.name);
+
+  const CLAUDE_CACHE = "/Users/maintainer/.claude/plugins/cache";
+  const CODEX_CACHE = "/Users/maintainer/.codex/plugins/cache";
+
+  it.each([
+    ["a repo's .agents/skills folder", ".agents/skills/context-gauge/scripts/measure-context.sh", "context-gauge"],
+    ["a repo's .claude/skills folder", ".claude/skills/context-gauge/scripts/measure-context.sh", "context-gauge"],
+    [
+      "Claude Code's plugin cache",
+      `${CLAUDE_CACHE}/grove/grove/0.1.0/skills/context-gauge/scripts/measure-context.sh`,
+      "grove:context-gauge",
+    ],
+    [
+      "Codex's plugin cache",
+      `${CODEX_CACHE}/grove/grove/0.1.0/skills/context-gauge/scripts/measure-context.sh`,
+      "grove:context-gauge",
+    ],
+  ])("credits a script in %s to its skill, named by its plugin when it has one", (_where, path, skill) => {
+    expect(scriptOf(`${path} --harness claude-code`)).toEqual([skill]);
+    expect(scriptOf(`bash ${path}`)).toEqual([skill]);
+  });
+
+  it.each([
+    ["double quotes", `"/Users/Jane Doe/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/x.mjs"`],
+    ["single quotes", `'/Users/Jane Doe/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/x.mjs'`],
+    ["a backslash", String.raw`/Users/Jane\ Doe/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/x.mjs`],
+  ])("credits a script whose path holds a space, kept whole by %s", (_how, path) => {
+    expect(scriptOf(`node ${path} --bindings "/Users/Jane Doe/b.json"`)).toEqual(["grove:context-gauge"]);
+    expect(scriptOf(`${path} --harness claude-code`)).toEqual(["grove:context-gauge"]);
+    expect((shellUses(`node ${path}`) as { kind: string; name: string }[])[0]).toEqual({ kind: "cli", name: "node" });
+    expect(scriptOf(`OUT="$(${path} --harness x)"`)).toEqual(["grove:context-gauge"]);
+  });
+
+  const clisOf = (line: string) =>
+    (shellUses(line) as { kind: string; name: string }[])
+      .filter((use) => use.kind === "cli")
+      .map((use) => use.name);
+
+  it.each([
+    ["inside double quotes", `PR="$(gh pr view --json url)"`, ["gh"]],
+    ["unquoted", "PR=$(gh pr view)", ["gh"]],
+    ["after another command", "echo $(date) && herdr agent list", ["echo", "date", "herdr"]],
+  ])("reads a $( command substitution %s as its own command", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["in double quotes", String.raw`echo "\$(gh pr view)"`, ["echo"]],
+    ["unquoted", String.raw`echo \$(gh pr view)`, ["echo"]],
+    ["after an escaped backslash, which leaves it a real one", String.raw`echo "\\$(gh pr view)"`, ["echo", "gh"]],
+  ])("never reads an escaped $( as a command: %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("reads single-quoted $( as text, and keeps a backslash in double quotes as the shell does", () => {
+    expect(clisOf(`echo '$(gh pr view)'`)).toEqual(["echo"]);
+    expect(clisOf(String.raw`"/opt/my\tools/herdr" agent list`)).toEqual([String.raw`/opt/my\tools/herdr`]);
+    expect(clisOf(String.raw`"/opt/my\"tools/herdr" agent list`)).toEqual([`/opt/my"tools/herdr`]);
+  });
+
+  /** Whether running `path` counts as using the skill a binding names. */
+  const credits = (nativeId: string, path: string) =>
+    (shellUses(`node ${path}`) as { kind: string; name: string }[])
+      .filter((use) => use.kind === "skill-script")
+      .some((use) => matches({ kind: "skill", native_id: nativeId }, use));
+
+  it("never credits another plugin's same-named skill to a plugin-qualified binding", () => {
+    const other = `${CLAUDE_CACHE}/other/otherplug/1.0/skills/context-gauge/scripts/gauge.mjs`;
+    expect(credits("grove:context-gauge", other)).toBe(false);
+    expect(credits("otherplug:context-gauge", other)).toBe(true);
+  });
+
+  it.each([
+    ["a plugin's script, a bare binding (as Codex may list it)", "context-gauge", `${CODEX_CACHE}/grove/grove/0.1.0/skills/context-gauge/scripts/x.sh`],
+    ["a repo's script, a plugin-qualified binding", "grove:context-gauge", ".agents/skills/context-gauge/scripts/x.sh"],
+    ["a repo's script, a bare binding", "context-gauge", ".claude/skills/context-gauge/scripts/x.sh"],
+  ])("credits %s by the skill's name alone", (_case, nativeId, path) => {
+    expect(credits(nativeId, path)).toBe(true);
+  });
+
+  it("credits nothing for a plugin skill's file outside its scripts folder", () => {
+    expect(
+      scriptOf("cat /Users/maintainer/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/SKILL.md"),
+    ).toEqual([]);
+    expect(
+      scriptOf("/Users/maintainer/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/run.sh"),
+    ).toEqual([]);
   });
 });
 
