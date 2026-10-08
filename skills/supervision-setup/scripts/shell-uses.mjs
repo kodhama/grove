@@ -50,19 +50,24 @@ const SKILL_SCRIPT =
 const SETTING = /^[A-Za-z_]\w*=/;
 /** What a backslash escapes inside double quotes; before anything else it stays. */
 const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
-/** A heredoc: its opening line, kept as group 3, then its body up to its terminator. */
-const HEREDOC = /<<-?\s*(['"]?)(\w+)\1([^\n]*)\n[\s\S]*?\n\s*\2(?=\s*(?:\n|$))/g;
+/**
+ * A heredoc: its opening line, kept as group 3, then its body up to its
+ * terminator. The delimiter is a word, bare, quoted or backslash-escaped.
+ */
+const HEREDOC = /<<-?\s*\\?(['"]?)([^\s'"\\;&|<>()]+)\1([^\n]*)\n[\s\S]*?\n\s*\2(?=\s*(?:\n|$))/g;
 
 /**
  * A shell line's commands as text, read left to right once its heredoc
  * bodies are dropped. Outside quotes `&&`, `||`, `;`, `|` and a newline end a
  * command; inside quotes they are text, and quoted text stays inside its
- * word. A `$(` outside single quotes and not escaped opens a command that
+ * word; in a `$'…'` quote a backslash escapes the next character, a quote
+ * included. A `$(` outside single quotes and not escaped opens a command that
  * ends at its matching `)`, a subshell's own `(` and `)` counting as depth,
- * and inside double quotes the quotes resume after it. A backslash-newline
- * outside single quotes joins the lines, a `#` that starts a word outside
- * quotes runs a comment to the newline, and an unclosed quote runs to the
- * end. A command comes before the ones it opens: `echo "a; $(date)"` gives
+ * and inside double quotes the quotes resume after it. A `$((` opens
+ * arithmetic, which is no command, though a `$(` inside it is. A
+ * backslash-newline outside single quotes is dropped, joining the lines, a
+ * `#` that starts a word outside quotes runs a comment to the newline, and an
+ * unclosed quote runs to the end. A command comes before the ones it opens: `echo "a; $(date)"` gives
  * `echo "a; "` and `date`.
  */
 function commandTexts(line) {
@@ -71,9 +76,14 @@ function commandTexts(line) {
   const frames = [{ at: 0, depth: 0, quoted: false }];
   let quote = "";
   let wordStart = true;
-  const add = (chars) => (found[frames.at(-1).at] += chars);
+  // An arithmetic frame's `at` is null: its text belongs to no command.
+  const add = (chars) => {
+    const { at } = frames.at(-1);
+    if (at !== null) found[at] += chars;
+  };
   const next = () => {
-    frames.at(-1).at = found.push("") - 1;
+    const frame = frames.at(-1);
+    if (frame.at !== null) frame.at = found.push("") - 1;
     wordStart = true;
   };
   for (let i = 0; i < text.length; i++) {
@@ -84,19 +94,32 @@ function commandTexts(line) {
     if (quote === "'") {
       if (char === "'") quote = "";
       add(char);
+    } else if (quote === "$'") {
+      if (char === "\\" && after !== undefined) add(char + text[++i]);
+      else {
+        if (char === "'") quote = "";
+        add(char);
+      }
     } else if (char === "\\") {
       if (after === "\n") i++;
-      else if (after !== undefined) add(char + text[++i]);
-      else add(char);
-      if (!quote) wordStart = false;
+      else {
+        add(after === undefined ? char : char + text[++i]);
+        if (!quote) wordStart = false;
+      }
     } else if (char === "$" && after === "(") {
       i++;
-      frames.push({ at: 0, depth: 0, quoted: quote === '"' });
+      const arithmetic = text[i + 1] === "(";
+      frames.push({ at: arithmetic ? null : 0, depth: 0, quoted: quote === '"' });
       quote = "";
-      next();
+      if (!arithmetic) next();
     } else if (quote === '"') {
       if (char === '"') quote = "";
       add(char);
+    } else if (char === "$" && after === "'") {
+      i++;
+      quote = "$'";
+      add("$'");
+      wordStart = false;
     } else if (char === "'" || char === '"') {
       quote = char;
       add(char);
@@ -160,9 +183,10 @@ function shellWords(part) {
 /**
  * The commands a shell line runs, as words with leading `NAME=value` settings
  * skipped: `cd /repo && FOO=1 gh pr view` gives `cd /repo` and `gh pr view`.
- * `$(` starts a command and a leading `(` opens one, and a command's own `)`
- * is dropped: `PR=$(gh pr view)` and `(gh pr view)` both give `gh pr view`,
- * and `echo $(date)` gives `echo` and `date`.
+ * `$(` starts a command and a leading `(` opens one, and a `(` or `)` around
+ * its first word is dropped: `PR=$(gh pr view)` gives `gh pr view`,
+ * `(gh pr view)` gives `gh pr view)`, and `echo $(date)` gives `echo` and
+ * `date`.
  */
 function commands(line) {
   return commandTexts(line)

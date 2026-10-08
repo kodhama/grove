@@ -777,6 +777,20 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(scriptOf(continued)).toEqual(["context-gauge"]);
     expect(clisOf("# Check the PR's state\ngh pr view 12")).toEqual(["gh"]);
   });
+
+  it.each([
+    ["a heredoc whose delimiter holds a dash", "cat <<END-OF-BODY > f\nit's here\nEND-OF-BODY\ngh pr create --body-file f", ["cat", "gh"]],
+    ["a heredoc whose delimiter is escaped", "cat <<\\EOF > f\nit's here\nEOF\ngh pr view", ["cat", "gh"]],
+    ["an ANSI-C quote holding an escaped quote", String.raw`echo $'it\'s'; gh pr view`, ["echo", "gh"]],
+    ["a comment after a continued line", "gh pr view 1 \\\n# it's a note\ngh pr merge", ["gh", "gh"]],
+  ])("never lets an apostrophe in %s hide the commands after it", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("reads a $( inside $(( arithmetic as a command, and the arithmetic as none", () => {
+    expect(clisOf("echo $(( $(wc -l < f) + 1 ))")).toEqual(["echo", "wc"]);
+    expect(clisOf("i=$(( i + 1 )) && gh pr view")).toEqual(["gh"]);
+  });
 });
 
 describe("MQ-377 · a Claude Code call counts only when it ran", () => {
