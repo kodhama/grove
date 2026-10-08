@@ -72,11 +72,11 @@
  * Usage: receipt-check.mjs --bindings <bindings.json> [--not-run <table/op>,...]
  * [--handoff <handoff.md>]. Exits 1 when any operation is bound-but-unused,
  * attempted-failed or has no evidence, or when the routing table changed since
- * setup read it (the bindings then follow another table), 2 on bad arguments or unusable input (a
- * bindings file setup did not complete, one listing no transcripts, or a
- * malformed entry, a transcript or a handoff that is not a file, a routing
- * table that cannot be read or belongs to another skill), else 0. It reads
- * files only.
+ * setup read it (the bindings then follow another table), 2 on bad arguments
+ * or unusable input (a bindings file setup did not complete, one listing no
+ * transcripts, or a malformed entry, a transcript or a handoff that is not a
+ * file, a routing table that cannot be read or belongs to another skill),
+ * else 0. It reads files only.
  *
  * Plan: docs/plans/2026-09-25-0105-feat-supervision-operating-model-plan.md,
  * U8 and KTD12; outcomes and fresh-context review, MQ-377:

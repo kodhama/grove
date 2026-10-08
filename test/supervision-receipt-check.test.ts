@@ -612,6 +612,9 @@ describe("GRO-11 · a routing table that moved", () => {
       const result = spawnSync("node", [SCRIPT, "--bindings", path], { encoding: "utf8" });
       expect(result.stderr).toBe("");
       expect(result.stdout).toContain(`table ${GONE}: gone; read ${resolve(TABLE)} instead`);
+      // A move that keeps the table's content is not a change (GRO-12).
+      expect(result.stdout).not.toContain("changed since setup read it");
+      expect(result.stdout).not.toMatch(/^summary: .*the table changed/m);
       expect(result.stdout).toContain("fresh_context on review, review-escalation");
     } finally {
       rmSync(dir, { recursive: true, force: true });

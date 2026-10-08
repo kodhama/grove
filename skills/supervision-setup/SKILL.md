@@ -67,12 +67,12 @@ record only: a plugin update or a move can take that folder away, or leave an
 older copy there, so never read the table from it. Where the earlier
 bindings file the handoff names still resolves, comparing the sha256 it
 recorded with the table you read says whether the table changed. When it
-changed, the bindings you write follow the table you read now: each seeded
-binding is rechecked against it, an operation it adds goes through the check
-as on a first run, and an operation it drops gets no binding. The header
-records the new sha256, and the hand-back names the change in one line. The
-receipt check fails bindings whose table changed after setup read it. The
-handoff's bound performers are candidates to recheck, never bindings.
+changed, the bindings you write follow the table you read now: bind every
+operation as on a first run, since the seed's performers were chosen from
+the old table's suggestions, and an operation the table dropped gets no
+binding. The header records the new sha256, and step 9's report names the
+change. The receipt check fails bindings whose table changed after setup read
+it. The handoff's bound performers are candidates to recheck, never bindings.
 
 ## 2. Record the header
 
@@ -300,7 +300,9 @@ End with one line listing each operation's performer and how it was bound,
 for example `setup: build=compound-engineering:ce-work (check), review=code-review
 (check), measure-context=unavailable`. When the measuring operation is
 unavailable, add once: "This session cannot measure its context, so it will
-not restart itself." After a stop, give the report line instead, and do no
+not restart itself." When a seeded run found the table changed, add once:
+"the routing table changed since the earlier setup", which the level skill
+carries into its hand-back. After a stop, give the report line instead, and do no
 task work.
 
 ## Using the bindings

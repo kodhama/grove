@@ -174,6 +174,9 @@ describe("GRO-12 · a table that changed since setup read it", () => {
 
   it("supervision-setup says the new bindings follow the table read now, and the hand-back names the change", () => {
     expect(skill).toMatch(/When it changed, the bindings you write follow the table you read now/);
-    expect(skill).toMatch(/the hand-back names the change/);
+    expect(skill).toMatch(/bind every operation as on a first run/);
+    expect(skill).not.toMatch(/each seeded binding is rechecked against it/);
+    const report = skill.slice(skill.indexOf("## 9. Report and hand over"), skill.indexOf("## Using the bindings"));
+    expect(report).toMatch(/When a seeded run found the table changed, add once: "the routing table changed since the earlier setup"/);
   });
 });
