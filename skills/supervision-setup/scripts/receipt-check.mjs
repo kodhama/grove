@@ -189,12 +189,14 @@ function operationLine(row) {
   }
 }
 
-/** The routing table's lines: which operations it marks, and whether it changed since setup. */
+/** The routing table's lines: whether it moved, which operations it marks, and whether it changed since setup. */
 function tableLines(table) {
   const marked = table.marked.length
     ? table.marked.join(", ")
     : "no operation, so a review counts from any context";
-  const lines = [`table ${table.path}: fresh_context on ${marked}`];
+  const lines = [];
+  if (table.moved !== undefined) lines.push(`table ${table.moved}: gone; read ${table.path} instead`);
+  lines.push(`table ${table.path}: fresh_context on ${marked}`);
   if (table.changed) {
     lines.push(
       `table ${table.path}: changed since setup read it ` +

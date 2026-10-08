@@ -131,3 +131,33 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
     expect(template).toMatch(/- transcripts: /);
   });
 });
+
+/**
+ * GRO-11 — a plugin update or move can take away, or leave stale, the folder
+ * a handoff's table path names. A resumed session's setup reads the table
+ * beside the skill it runs, by skill name, and keeps the recorded path only
+ * as a record.
+ */
+describe("GRO-11 · seeded setup reads the table beside the running skill", () => {
+  // Whitespace collapsed, so a check does not depend on where a line wraps.
+  const text = (skill: string) =>
+    readFileSync(join(__dirname, "..", "skills", skill, "SKILL.md"), "utf8").replace(/[ \n]+/g, " ");
+
+  it("session-restart's resume step takes the table from beside the skill, not from the handoff's path", () => {
+    const skill = text("session-restart");
+    const resume = skill.slice(skill.indexOf("## After the clear"), skill.indexOf("## New session"));
+    expect(resume).toMatch(/the table is the `routing\.toml` beside the level skill you run/);
+    expect(resume).toMatch(/the table path the handoff records is a record only/i);
+    expect(resume).not.toMatch(/the table is the handoff's/);
+  });
+
+  it("supervision-setup's seeded run reads the table beside the loaded skill and never from the recorded path", () => {
+    const skill = text("supervision-setup");
+    expect(skill).toMatch(
+      /On a seeded run, the table is the `routing\.toml` in the folder this session loaded the level skill from/,
+    );
+    expect(skill).toMatch(/never read the table from it/);
+    expect(skill).not.toMatch(/On a seeded run, the table comes from the handoff/);
+    expect(skill).not.toMatch(/read it from the table file the handoff names/);
+  });
+});

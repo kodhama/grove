@@ -202,10 +202,12 @@ The prompt that wakes you names the handoff.
    maintainer and stop.
 3. Read `restart-helper.log` and `restart-unreported.txt` beside the handoff.
    Tell the maintainer yourself any line that was never reported.
-4. **Run `supervision-setup`, seeded with the handoff**: the table is
-   the handoff's, the level skill's or, for a session that runs no level
-   skill, this skill's own. Setup rechecks every seeded binding and appends
-   your new transcript. Do no task work until it completes.
+4. **Run `supervision-setup`, seeded with the handoff**: the table is the
+   `routing.toml` beside the level skill you run or, for a session that runs
+   no level skill, beside this skill. The table path the handoff records is a
+   record only, since an update or a move can take that folder away. Setup
+   rechecks every seeded binding and appends your new transcript. Do no task
+   work until it completes.
 5. Write `resumed <date and time>, session <new session id>` under Restart
    record, and delete `restart-pending`.
 6. Carry on from "What I am doing", keeping the live commitments.
