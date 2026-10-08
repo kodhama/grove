@@ -314,6 +314,10 @@ focused, since the maintainer may be typing there. A message that is refused
 or skipped is retried at your next event, and the work note is the backstop
 for a hand-back.
 
+With no lead ("none: the maintainer"), the maintainer is your lead: give each
+of these lines to them directly, a `DECISION` through the question tool where
+your harness has one, and post your hand-back note as usual.
+
 Each message to your lead is one line, in one of two shapes:
 
 ```text

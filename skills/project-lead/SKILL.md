@@ -93,10 +93,10 @@ actual name from the live system: a harness can suffix a name that collides.
 ## 1. Setup
 
 Invoke the `supervision-setup` skill with the epic (its id and link), or on an
-intent run the task alone, your session name read from the live system, and this skill's `routing.toml`. Do
-no run work until setup reports complete. If setup stops, as it does when no
-available performer can start a worker session, tell the maintainer its
-report line in one line, and do nothing else.
+intent run the task alone, your session name read from the live system, and
+this skill's `routing.toml`. Do no run work until setup reports complete. If
+setup stops, as it does when no available performer can start a worker
+session, tell the maintainer its report line in one line, and do nothing else.
 
 Setup ends with one line listing each operation's performer. Tell the
 maintainer that line once, with the start-up lines below.
@@ -151,8 +151,8 @@ has merged. For each ready story:
    maintainer.
 2. **Name it** `<your actual name>-<the story's key>`, such as
    `sup-lead-330`. The key is the story's number in the tracker, or, where its
-   id has no number, its position in the approved order. The name shows which lead it belongs to on every list the
-   maintainer reads.
+   id has no number, its position in the approved order. The name shows
+   which lead it belongs to on every list the maintainer reads.
 3. **Make its worktree:** one per story, on the branch name the repo's
    instructions give, from the current base at a full commit SHA. The worker
    works only there.
@@ -243,8 +243,9 @@ report lists every pane it skipped and why.
 ## 6. Watching the work
 
 **At every event you handle**, read new notes on each in-flight story's work
-item and on the epic's or the run's, through the performer bound to `read-work-notes`.
-Act on any hand-back or `restart-owner: lead` handoff you find there.
+item and on the epic's or the run's, through the performer bound to
+`read-work-notes`. Act on any hand-back or `restart-owner: lead` handoff you
+find there.
 
 **Reports arrive late, out of order, or not at all.** A missing report looks
 just like a worker that is still working. A report proves only the revision

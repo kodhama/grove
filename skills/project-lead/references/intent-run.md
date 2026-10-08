@@ -19,36 +19,41 @@ file replaces by name below.
 - **Sizing comes before the shape.** The shape names a route, and only sizing
   can tell which, so step 2's approval comes after sizing, below.
 - **Nothing is filed before the OK.** The work items wait for the approved
-  shape, so a rejected shape leaves nothing to clean up.
+  shape, so a rejected shape leaves nothing to clean up. Until then you have
+  no work item to post a handoff on, so a restart before filing can only be in
+  place: a new-session restart stops and tells the maintainer, as the restart
+  skill says.
 
 ## 1. Sizing
 
-Size the task before anything else. The sizing is a fresh subagent you start
-for it, given the intent, not your assignment, and told that it is answering a
-question, not running the run. It only reads: the code and its history, the
-work tracker's items and the merged pull requests, to find earlier work on the
-same ask. It runs no code and writes nothing. Where your harness offers no
-subagent, size the task yourself under the same limits.
+Once setup completes, size the task before anything else. The sizing is a
+fresh subagent you start for it, given the intent, not your assignment, and
+told that it is answering a question, not running the run. It only reads: the
+code and its history, the work tracker's items and the merged pull requests,
+to find earlier work on the same ask. It runs no code and writes nothing.
+Where your harness offers no subagent, size the task yourself under the same
+limits.
 
 The sizing returns:
 
 - **Outcome:** what is true once the task is done, in one or two sentences.
 - **Units:** the pieces of work, each small enough for one worker and one pull
   request, with the files each likely touches and how each is verified.
-- **Size:** for a single unit, whether it can be built, reviewed and handed
-  back before a session reaches its restart line.
+- **Size:** for a single unit, how much reading, building and review it takes,
+  so you can judge it against your own context.
 - **Open questions:** each with its options, or "none".
 - **Already done:** the commit, pull request or work item that already covers
   the ask, or "no".
 
 ## 2. Questions
 
-Put each open question to the maintainer through the performer bound to
-`report-to-maintainer`, one at a time, before the shape. A worker must never
-start on a guess about what the maintainer meant.
-
 If the sizing finds the ask already done, or answered by reading alone, tell
-the maintainer what it found and end the run. File nothing.
+the maintainer what it found and end the run. File nothing, and ask nothing
+more.
+
+Otherwise put each open question to the maintainer through the performer bound
+to `report-to-maintainer`, one at a time, before the shape. A worker must never
+start on a guess about what the maintainer meant.
 
 ## 3. The run's shape, approved
 
@@ -56,13 +61,18 @@ Step 2 of `SKILL.md` holds, with these changes. The run's source is the intent
 with its sizing, and its authorisation is the maintainer's start plus their OK
 on the shape. The shape's first line names one route:
 
-- **Carry it itself** when all of these hold: the sizing found one unit; no
-  other worker of yours is in flight or planned; and the sizing says the unit
-  can be built, reviewed and handed back before this session reaches its
-  restart line.
+- **Carry it itself** when all of these hold: the sizing found one unit; you
+  have no other worker in flight; your session can move into a worktree of its
+  own; and, judged against your measured context, the unit can be built,
+  reviewed and handed back before you reach your restart line.
 - **One worker** when the sizing found one unit but carrying it yourself does
   not fit.
 - **A breakdown** when the sizing found more than one unit.
+
+Say in the shape what carrying it yourself leaves out: the lead's acceptance
+read and second fresh-context review of step 7 of `SKILL.md`. Your worker's own
+review is the only independent check, and what a re-review raises comes to the
+maintainer untriaged.
 
 If the maintainer changes the shape, revise it and ask again. Start nothing
 before the OK.
@@ -70,7 +80,9 @@ before the OK.
 ## 4. Filing
 
 Once the shape is approved, file the work through the performer bound to
-`file-stories`:
+`file-stories`. First look for what this run already filed: read your
+handoff's list and the run's notes. A resumed lead files only what is missing,
+and never a second run item.
 
 - **One unit**, carried by you or by one worker: one work item that holds the
   intent word for word and the sizing's summary. It is the story's own source
@@ -78,13 +90,15 @@ Once the shape is approved, file the work through the performer bound to
 - **A breakdown:** step 3 of `SKILL.md` holds. Invoke the performer bound to
   `produce-breakdown` from the intent and the sizing; its plan becomes the
   source, and the maintainer confirms it before anything is filed. Then file a
-  run item, which stands in for the epic's work item, and one work item per
-  story pointing at its section of the plan.
+  run item, which stands in for the epic's work item, and post the confirmed
+  plan on the run item through the performer bound to `post-work-note`, since
+  a worker's worktree holds only what is on the base. File one work item per
+  story, pointing at its section of that note.
 
-Post the sizing on the run's work item through the performer bound to
-`post-work-note`, so a successor can read it. Where `file-stories` runs by its
-fallback, the maintainer files, and no worker starts on a story without a work
-item, as step 3 of `SKILL.md` says.
+Post the sizing on the run's work item through `post-work-note`, so a
+successor can read it. Where `file-stories` runs by its fallback, the
+maintainer files, and no worker starts on a story without a work item, as
+step 3 of `SKILL.md` says.
 
 ## 5. One worker, or a breakdown
 
@@ -97,17 +111,31 @@ plain intent takes its work item as its own source.
 When the approved route is to carry the one story yourself, you stop being a
 lead and become its worker:
 
-1. **Make its worktree** as step 4 of `SKILL.md` says: one for the story, on
-   the branch name the repo's instructions give, from the current base at a
-   full commit SHA. Work only there from now on.
-2. **Run the `story-worker` skill** there on the story, with "none: the
-   maintainer" as your lead. It runs its own setup in the worktree, so its
-   bindings sit apart from yours.
-3. **From then on, `story-worker` governs.** Its review, receipt, draft pull
+1. **Look for existing work first**, as step 4 of `SKILL.md` says. One you
+   cannot explain is a stop: ask the maintainer.
+2. **Make its worktree** as step 4 says: one for the story, on the branch name
+   the repo's instructions give, from the current base at a full commit SHA.
+   Post the worktree, the branch and the base SHA on the story's work item
+   through `post-work-note`.
+3. **Move the session into the worktree** by your harness's own means, without
+   widening any permission, and check that the repository's top level is now
+   the worktree. Work only there from then on. What setup and a restart write
+   then lands in the worktree, away from the files you wrote as a lead. If the
+   session cannot move, carry it no further: tell the maintainer, and ask to
+   start one worker instead.
+4. **Run the `story-worker` skill** there on the story, with "none: the
+   maintainer" as your lead. It runs its own setup in the worktree. The
+   reporter the maintainer named for you stays your reporter for its restarts,
+   and where its restart hands a successor to its lead, the maintainer launches
+   it.
+5. **From then on, `story-worker` governs.** Its review, receipt, draft pull
    request and merge gate all hold: the maintainer approves the merge. The
    lead's steps no longer apply, and you start no other worker. If the story
    grows past one pull request, that is work beyond the story, and it goes to
-   the maintainer as `story-worker` says.
+   the maintainer as `story-worker` says. Your receipt says that this session
+   led the run before it carried the story, since the receipt check reads the
+   whole session. Your hand-back names the worktree, for the maintainer to
+   remove once the branch has merged.
 
 This is the one case where a project lead's session writes code, and only
 because the session is no longer leading anything.
@@ -117,7 +145,8 @@ because the session is no longer leading anything.
 An intent run restarts like any other lead. Before filing, its handoff also
 carries: that you run this reference, `references/intent-run.md`; the intent
 word for word; the sizing; each open question with its answer or "waiting";
-and the approved shape, if there is one. After filing, it names the run's work
-item and the stories, as an epic lead's does. A session carrying the story
+and the approved shape, if there is one. Once filing starts, it lists each
+work item filed so far, the run item first. After filing, it names the run's
+work item and the stories, as an epic lead's does. A session carrying the story
 itself restarts as a worker, through `story-worker`'s own restart, and its
 handoff names that skill.

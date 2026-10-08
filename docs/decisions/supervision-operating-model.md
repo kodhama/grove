@@ -4,7 +4,7 @@ title: "Supervision operating model: the live decisions"
 description: The supervision epic's live decisions, moved out of the retired epic state file. Each is restated as it stands today, with its original date, where it is carried now and a link to its archived D-entry; every other D-entry gets one line saying what carries or closed it, and D07 an entry for its 2026-10-02 supersession.
 tags: [agent-workflow, supervision, decisions]
 decided: 2026-10-02
-status: restates the decisions of 2026-09-20 to 2026-09-23 and where each is carried now; records later maintainer rulings (D07, 2026-10-02; D27, 2026-10-08), and makes none of its own
+status: restates the decisions of 2026-09-20 to 2026-09-23 and where each is carried now; records later maintainer rulings (D07, 2026-10-02; D26, 2026-10-03; D27, 2026-10-08), and makes none of its own
 ticket: MQ-355
 ---
 
@@ -13,7 +13,8 @@ ticket: MQ-355
 **Moved to grove on 2026-10-07 (GRO-6)** from kodhama/math-quest's
 [`docs/decisions/supervision-operating-model.md`](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/decisions/supervision-operating-model.md)
 at `65747f43`, with the skills it governs. Supersede an entry here from now
-on. Read the entries below as of that move:
+on. An entry dated after the move, such as D27, names grove's own files. Read
+the entries below as of that move:
 
 - **Every path and quoted section** in them, linked or not, names
   math-quest's files at that commit: `.agents/skills/`, its `AGENTS.md`, its
@@ -33,10 +34,10 @@ can be superseded from now on.
 
 It makes no ruling of its own. Each live decision is restated as it stands
 today, with its original date, who decided it, the files or issues that carry
-it now, and any way it has changed since. Two later maintainer
-rulings are recorded: D07's supersession, and D03's by D26. Every entry from
-D01 to D25 links to its archived D-entry, which keeps the original reasoning
-and source; D26 is new here. The skill paths below are under
+it now, and any way it has changed since. Later maintainer rulings are
+recorded: D07's supersession, D03's by D26, and D27. Every entry from D01 to
+D25 links to its archived D-entry, which keeps the original reasoning and
+source; D26 and D27 are new here. The skill paths below are under
 `.agents/skills/`.
 
 **How it is kept.** Entries are append-only, as the state file's were. To change
@@ -190,13 +191,15 @@ review and draft-PR steps rest on D08, D11, D17, D25 and D26.
   approves carrying a one-story run itself, the lead's session becomes that
   story's worker: it runs `story-worker` on the story with the maintainer as
   its lead, keeping the worker's review, receipt, draft pull request and merge
-  gate. Every other lead still never writes code. The lead files the work items
-  once the shape is approved; there is no untracked run.
+  gate. It leaves out the lead's acceptance read and second fresh-context
+  review before merge, so the worker's own review is the only independent
+  check. Every other lead still never writes code. The lead files the work
+  items once the shape is approved; there is no untracked run.
 - **Why:** the maintainer's direction of 2026-10-02 (on GRO-1) that a lead's
   input can be just a big task, and that a task which turns out small should
   not go through the full breakdown-and-workers machinery. Carrying it as a
-  worker, not as ad-hoc edits by the lead, keeps every gate a worker's change
-  passes. Filing keeps the work note, the receipt and the handoffs, which all
+  worker, not as ad-hoc edits by the lead, keeps every gate `story-worker`
+  sets. Filing keeps the work note, the receipt and the handoffs, which all
   rest on a work item.
 - **Carried by:** `project-lead/references/intent-run.md`; the intent-run
   paragraph, the code exception and its Never entry in `project-lead/SKILL.md`.

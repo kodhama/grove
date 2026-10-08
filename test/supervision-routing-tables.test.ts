@@ -626,12 +626,35 @@ describe("GRO-7 · the intent route's text", () => {
     expect(text().replace(/\s+/g, " ")).toMatch(/filed from plain intent/);
   });
 
-  it.each(TRACKER_OPERATIONS)(
-    "the lead table still defines %s, so a consumer's override keeps matching",
-    (id) => {
-      expect(idsOf("project-lead")).toContain(id);
-    },
-  );
+  it("the lead table keeps exactly its operation ids, so every consumer's override keeps matching", () => {
+    expect([...idsOf("project-lead")].sort()).toEqual(
+      [
+        "start-worker",
+        "message-session",
+        "message-pane",
+        "measure-context",
+        "restart-self",
+        "report-to-maintainer",
+        "write-handoff",
+        "produce-breakdown",
+        "file-stories",
+        "find-work-items",
+        "update-work-item",
+        "post-work-note",
+        "read-work-notes",
+        "wake-on-timer",
+        "review-before-merge",
+      ].sort(),
+    );
+  });
+
+  it("the reference posts a breakdown's plan where a worker can read it", () => {
+    expect(read(REFERENCE).replace(/\s+/g, " ")).toMatch(/post the confirmed plan on the run item/i);
+  });
+
+  it("the reference moves a session carrying its story into the story's worktree", () => {
+    expect(read(REFERENCE).replace(/\s+/g, " ")).toMatch(/move the session into the worktree/i);
+  });
 });
 
 /** A math-quest plan tag, such as `R34`, `KTD10`, `AE6` or `U6b`. */
