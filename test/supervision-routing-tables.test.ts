@@ -573,6 +573,66 @@ describe("MQ-373 · the defect route's text", () => {
   });
 });
 
+/**
+ * GRO-7 — a lead can start from plain intent: a prompt with no epic, no work
+ * item and no plan. The intent run is a reference beside the defect run's; it
+ * adds no routing operation, so a consumer's overrides keep matching.
+ */
+describe("GRO-7 · the intent route's text", () => {
+  const LEAD = join(SKILLS_TREE, "project-lead", "SKILL.md");
+  const REFERENCE = join(SKILLS_TREE, "project-lead", "references", "intent-run.md");
+  const WORKER = join(SKILLS_TREE, "story-worker", "SKILL.md");
+  const RECEIPT = join(SKILLS_TREE, "story-worker", "references", "receipt.md");
+  const read = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : "");
+  const description = (text: string) => text.match(/^description: (.*)$/m)?.[1] ?? "";
+
+  it("project-lead links its intent-run reference, and the reference exists", () => {
+    expect(read(LEAD)).toContain("references/intent-run.md");
+    expect(existsSync(REFERENCE)).toBe(true);
+  });
+
+  it("project-lead's description says it takes plain intent", () => {
+    expect(description(read(LEAD))).toMatch(/plain intent/);
+  });
+
+  it.each([
+    ["the intent-run reference", () => read(REFERENCE)],
+    ["story-worker's \"What you are given\"", () => section(read(WORKER), "What you are given")],
+  ])("%s names no harness, path, version or tracker", (_name, text) => {
+    expect(text()).not.toBe("");
+    expect(textProblems(text())).toEqual([]);
+  });
+
+  it.each([
+    "produce-breakdown",
+    "file-stories",
+    "post-work-note",
+    "start-worker",
+    "report-to-maintainer",
+  ])("the reference uses the lead operation %s, which the lead table defines", (id) => {
+    expect(idsOf("project-lead")).toContain(id);
+    expect(read(REFERENCE)).toContain(`\`${id}\``);
+  });
+
+  it("the reference hands a one-story run it carries itself to the story-worker skill", () => {
+    expect(read(REFERENCE)).toContain("`story-worker`");
+  });
+
+  it.each([
+    ["story-worker's \"What you are given\"", () => section(read(WORKER), "What you are given")],
+    ["the receipt", () => read(RECEIPT)],
+  ])("%s takes a work item filed from plain intent as its own source", (_name, text) => {
+    expect(text().replace(/\s+/g, " ")).toMatch(/filed from plain intent/);
+  });
+
+  it.each(TRACKER_OPERATIONS)(
+    "the lead table still defines %s, so a consumer's override keeps matching",
+    (id) => {
+      expect(idsOf("project-lead")).toContain(id);
+    },
+  );
+});
+
 /** A math-quest plan tag, such as `R34`, `KTD10`, `AE6` or `U6b`. */
 const PLAN_TAG = /\b(?:R|KTD|AE)\d+\b|\bU\d+[a-z]?\b/;
 

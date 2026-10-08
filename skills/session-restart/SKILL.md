@@ -223,7 +223,7 @@ not known yet. A Codex session that lands here tells the maintainer.
    set explicitly. Set `restart-owner: self`, or `restart-owner: lead`
    when you cannot launch the successor yourself, as from a cloud session.
 3. **Post the handoff** as a work note on your work item, the story's, or the
-   epic's for a lead, through the bound `post-work-note`, headed
+   epic's or run's for a lead, through the bound `post-work-note`, headed
    `session-restart handoff for <name>`. With no work item or no binding, tell
    the maintainer and stop: this path cannot hand off across machines without it.
 4. **Launch the successor** through the bound `launch-session`, with a

@@ -31,7 +31,7 @@ skill = "project-lead"
 id = "start-worker"
 intent = """
 Start a story worker session on one story, named for the lead and the story's
-number, with an explicit permission mode and remote control on, locally or in
+key, with an explicit permission mode and remote control on, locally or in
 the cloud."""
 event = "when a story is ready for a worker"
 performers = ["herdr"]
@@ -105,19 +105,20 @@ session's folder under .context/supervision/."""
 
 [[operation]]
 id = "produce-breakdown"
-intent = "Produce or delegate the epic's breakdown into stories, each small enough for one worker and one pull request."
-event = "when an epic has no breakdown yet"
+intent = "Produce or delegate the breakdown into stories of an epic, or of an intent run sized at more than one story, each small enough for one worker and one pull request."
+event = "when an epic has no breakdown yet, or an intent run's approved shape is a breakdown"
 performers = ["ce-plan"]
 required = false
 fallback = """
-Break the epic into stories yourself from its plan. Give each story a goal,
+Break the epic into stories yourself from its plan, or the intent from its
+sizing. Give each story a goal,
 the files it touches and how it is verified, and ask the maintainer to confirm
 the breakdown before filing it."""
 
 [[operation]]
 id = "file-stories"
-intent = "File each story of the breakdown in the repo's work tracker, as a pointer to the plan, not a copy of it."
-event = "after the maintainer confirms the breakdown"
+intent = "File each story of the breakdown in the repo's work tracker, as a pointer to the plan, not a copy of it; and file an intent run's work item, or its run item, once its shape is approved."
+event = "after the maintainer confirms the breakdown, or approves an intent run's shape"
 performers = []
 required = false
 fallback = """
@@ -157,14 +158,15 @@ id = "post-work-note"
 intent = """
 Post a note on a work item in the repo's work tracker, where any harness on any
 machine can read it: a worker's assignment and the rulings that bind it on the
-story's item, the lead's handoff on the epic's item, and its replies."""
+story's item, the lead's handoff on the epic's or the run's item, and its
+replies."""
 event = "when the lead assigns a story, records a ruling, writes a handoff for a new session, or answers a worker on its story"
 performers = []
 required = true
 
 [[operation]]
 id = "read-work-notes"
-intent = "Read the notes posted since the last read on each in-flight story's work item and on the epic's."
+intent = "Read the notes posted since the last read on each in-flight story's work item and on the epic's or the run's."
 event = "at every event the lead handles, timer wakes included"
 performers = []
 required = true

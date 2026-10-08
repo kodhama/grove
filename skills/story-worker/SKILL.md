@@ -51,8 +51,9 @@ need:
 
 - the story's work item, with its id and link;
 - its source: the plan, spec or unit that holds its content and acceptance,
-  or, for a defect whose work item carries its own detail, the work item
-  itself (see "A defect: diagnose first"). The acceptance comes from there;
+  or, for a defect whose work item carries its own detail, or a story filed
+  from plain intent whose work item holds the intent, the work item itself
+  (see "A defect: diagnose first"). The acceptance comes from there;
   the source wins over any summary. If the story has no such source, that is
   a blocker to raise, not a gap to fill;
 - the worktree, the branch and the base commit, as a full SHA;
