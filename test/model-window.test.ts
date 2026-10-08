@@ -39,7 +39,14 @@ const NATIVE_1M = [
   "claude-sonnet-5",
   "claude-haiku-5-5",
 ];
-const AT_200K = ["claude-haiku-4-5", "claude-haiku-4-5-20251001", "claude-opus-4-6", "claude-sonnet-4-6"];
+const AT_200K = [
+  "claude-haiku-4-5",
+  "claude-haiku-4-5-20251001",
+  "claude-sonnet-4-5",
+  "claude-sonnet-4-5-20250929",
+  "claude-opus-4-6",
+  "claude-sonnet-4-6",
+];
 
 interface Row {
   id: string;
@@ -81,8 +88,8 @@ describe("looking up a model id", () => {
     expect(windowFor(id, {}).context_window).toBe(200_000);
   });
 
-  it("sources Haiku 4.5's window from a page that names it", () => {
-    expect(windowFor("claude-haiku-4-5", {}).evidence).toContain("200k tokens for Claude Sonnet 4.5 (deprecated) and Claude Haiku 4.5");
+  it.each(["claude-haiku-4-5", "claude-sonnet-4-5"])("sources %s's window from a page that names it", (id) => {
+    expect(windowFor(id, {}).evidence).toContain("200k tokens for Claude Sonnet 4.5 (deprecated) and Claude Haiku 4.5");
   });
 
   it("gives an id with the [1m] suffix the 1M window, as before", () => {
