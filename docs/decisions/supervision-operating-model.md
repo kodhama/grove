@@ -214,9 +214,9 @@ entry under [Superseded since](#superseded-since).
   carried. The lead never writes code (`project-lead/SKILL.md`), and each
   worker decides how its story is built (`story-worker/SKILL.md`). Its
   persisted state with HTML views is closed by the plan's retirement of the
-  state file (R27, R29). **Changed since:** [D27](#d27--a-lead-may-carry-a-one-story-intent-run-itself-as-that-storys-worker),
-  2026-10-08: a lead carrying a one-story intent run itself writes its code,
-  as that story's worker.
+  state file (R27, R29).
+  **Superseded in part by:** [D27](#d27--a-lead-may-carry-a-one-story-intent-run-itself-as-that-storys-worker)
+  (the carry-it-itself route), 2026-10-08.
 - **D02**, two supervisory layers (2026-09-20, [archived](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/archive/reproducible-agent-supervision-epic-state.md#d02--two-supervisory-layers-epic-supervisor-and-issue-owner)):
   carried as the project lead and the story worker (plan R1, R2). Only the lead
   asks for the OK before it starts. The worker reports its setup and starts.
@@ -229,9 +229,7 @@ entry under [Superseded since](#superseded-since).
   epic to Droid's Missions"), and by the receipt's "Operating model" line.
 - **D06**, an epic, not a mission (2026-09-20, [archived](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/archive/reproducible-agent-supervision-epic-state.md#d06--the-unit-of-work-above-an-issue-is-an-epic-not-a-mission)):
   carried by `AGENTS.md` ("An epic is a Linear project") and
-  `project-lead/SKILL.md`. **Changed since:** 2026-10-08, a lead also starts
-  from plain intent, with no epic, and files the work items itself
-  ([D27](#d27--a-lead-may-carry-a-one-story-intent-run-itself-as-that-storys-worker)).
+  `project-lead/SKILL.md`.
 - **D10**, epic state tracked in git (2026-09-20, [archived](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/archive/reproducible-agent-supervision-epic-state.md#d10--epic-state-is-tracked-in-git-under-docs-provisionally)):
   closed. The plan retires the state file (R27, KTD13).
 - **D14**, the MQ-232 bug supervisor as a working base (2026-09-22, [archived](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/archive/reproducible-agent-supervision-epic-state.md#d14--the-mq-232-bug-supervisor-is-merged-as-a-working-base-to-generalise-from)):

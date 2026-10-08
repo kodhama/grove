@@ -75,7 +75,7 @@ majordomo, the first consumer, therefore routes plain-intent asks to an interim 
 
 **Records, release and portability**
 
-- R10. The decision record says that the lead may carry a one-story intent run itself (D01 changed since), and that a lead also takes plain intent (D06).
+- R10. The decision record says that the lead may carry a one-story intent run itself (superseding D01 in part), and that a lead also takes plain intent.
 - R11. Both manifests read 0.2.0. The README says how to update the plugin on Claude Code and on Codex.
 - R12. Skill text stays portable. The routing tables keep every operation id, and add no operation without a performer.
 
@@ -214,10 +214,9 @@ Units run in order:
 - **Requirements:** R10.
 - **Files:** `docs/decisions/supervision-operating-model.md`:
   - a new live decision for the carry-it-itself route;
-  - a "Changed since" pointer on the D01 bullet;
-  - a note on the D06 bullet.
+  - a `Superseded in part by` line on the D01 bullet, and nothing else, since the record's entries are append-only.
 - **Test scenarios:** none, since this is a record.
-- **Verification:** read-through. Every earlier entry is untouched apart from the appended pointers.
+- **Verification:** read-through. Every earlier entry is untouched apart from D01's one `Superseded in part by` line.
 
 ### U6. Release text
 
