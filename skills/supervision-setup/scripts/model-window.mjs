@@ -14,12 +14,12 @@
  * from Claude Code's docs, or Anthropic's model docs where those do not name
  * the model, with the page and the date each was checked:
  *
- * - an id with the `[1m]` suffix runs with 1,000,000 tokens, as before;
+ * - an id with the `[1m]` suffix, in any casing, runs with 1,000,000 tokens,
+ *   as before;
  * - an id with a row there runs with that row's window;
- * - `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` holds the 1M rows to 200,000, and makes
- *   a `[1m]` id unknown, since Claude Code then sizes it by rules this table
- *   does not copy. Any value but `1` makes every id unknown: the docs name
- *   only `1`;
+ * - `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` holds the 1M rows to 200,000, and sizes
+ *   a `[1m]` id like its model's row, so it reads 200,000 too, or unknown with
+ *   no row. Any value but `1` makes every id unknown: the docs name only `1`;
  * - `CLAUDE_CODE_MAX_CONTEXT_TOKENS` set makes every id unknown, since how it
  *   applies depends on how Claude Code resolves the id;
  * - any other id is unknown. Never match an id by its family: a new model
@@ -34,6 +34,8 @@ const TABLE_NAME = "claude-code-windows.json";
 const TABLE = join(dirname(fileURLToPath(import.meta.url)), "..", "references", TABLE_NAME);
 const ONE_MILLION = 1_000_000;
 const HELD = 200_000;
+/** The 1M suffix, which Claude Code reads in any casing. */
+const SUFFIX_1M = /\[1m\]$/iu;
 
 /** A quoted source as one evidence string: its page, the quote, and when it was checked. */
 function cite({ source, quote, checked }) {
@@ -56,19 +58,22 @@ export function windowFor(id, env) {
   if (turnOff !== "" && turnOff !== "1")
     return unknown(id, `CLAUDE_CODE_DISABLE_1M_CONTEXT is "${turnOff}", and the docs name only 1: ${cite(rules.disable_1m)}`);
   const disabled = turnOff === "1";
-  if (id.endsWith("[1m]")) {
-    if (disabled)
-      return unknown(id, `CLAUDE_CODE_DISABLE_1M_CONTEXT=1, and Claude Code then sizes a [1m] id by rules this table does not copy: ${cite(rules.disable_1m)}`);
+  const suffixed = SUFFIX_1M.test(id);
+  if (suffixed && !disabled)
     return { id, context_window: ONE_MILLION, evidence: `the id carries the [1m] suffix: ${cite(rules.suffix_1m)}` };
-  }
-  const row = models.find((model) => model.id === id);
+  // With 1M context turned off, Claude Code sizes a [1m] id like its model.
+  const model = id.replace(SUFFIX_1M, "");
+  const row = models.find((candidate) => candidate.id === model);
   if (!row)
     return unknown(
       id,
-      `no row for "${id}" in ${TABLE_NAME}; add one only with the window, page and quote from ${rules.suffix_1m.source}`,
+      `no row for "${model}" in ${TABLE_NAME}; add one only with the window, page and quote from ${rules.suffix_1m.source}`,
     );
+  const resolved = suffixed ? `${cite(rules.suffix_resolves)}; ` : "";
   if (disabled && row.context_window === ONE_MILLION)
-    return { id, context_window: HELD, evidence: `CLAUDE_CODE_DISABLE_1M_CONTEXT=1: ${cite(rules.disable_1m)}` };
+    return { id, context_window: HELD, evidence: `CLAUDE_CODE_DISABLE_1M_CONTEXT=1: ${resolved}${cite(rules.disable_1m)}` };
+  if (suffixed)
+    return { id, context_window: row.context_window, evidence: `CLAUDE_CODE_DISABLE_1M_CONTEXT=1: ${resolved}${cite(row)}` };
   return { id, context_window: row.context_window, evidence: cite(row) };
 }
 

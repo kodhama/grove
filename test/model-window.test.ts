@@ -86,7 +86,7 @@ describe("looking up a model id", () => {
   });
 
   it("gives an id with the [1m] suffix the 1M window, as before", () => {
-    for (const id of ["claude-opus-5-5[1m]", "claude-opus-4-6[1m]", "claude-someday-9[1m]"]) {
+    for (const id of ["claude-opus-5-5[1m]", "claude-opus-4-6[1m]", "claude-someday-9[1m]", "claude-opus-5-5[1M]"]) {
       const found = windowFor(id, {});
       expect(found.context_window, id).toBe(1_000_000);
       expect(found.evidence, id).toContain("[1m]");
@@ -112,10 +112,19 @@ describe("looking up a model id", () => {
     );
   });
 
-  it("reads unknown for a [1m] id when 1M context is turned off, since the docs do not settle it", () => {
-    const found = windowFor("claude-opus-5-5[1m]", { CLAUDE_CODE_DISABLE_1M_CONTEXT: "1" });
+  it("sizes a [1m] id like its model when 1M context is turned off, which holds it to 200K", () => {
+    for (const id of ["claude-opus-5-5[1m]", "claude-opus-4-6[1m]"]) {
+      const found = windowFor(id, { CLAUDE_CODE_DISABLE_1M_CONTEXT: "1" });
+      expect(found.context_window, id).toBe(200_000);
+      expect(found.evidence, id).toContain("CLAUDE_CODE_DISABLE_1M_CONTEXT");
+      expect(found.evidence, id).toContain("even with `CLAUDE_CODE_DISABLE_1M_CONTEXT` set");
+    }
+  });
+
+  it("reads unknown for a [1m] id with no row when 1M context is turned off", () => {
+    const found = windowFor("claude-someday-9[1m]", { CLAUDE_CODE_DISABLE_1M_CONTEXT: "1" });
     expect(found.context_window).toBeNull();
-    expect(found.reason).toContain("CLAUDE_CODE_DISABLE_1M_CONTEXT");
+    expect(found.reason).toContain("claude-code-windows.json");
   });
 
   it("ignores the turn-off variable when it is empty", () => {

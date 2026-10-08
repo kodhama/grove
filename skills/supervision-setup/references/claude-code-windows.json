@@ -99,6 +99,11 @@
       "quote": "To select a 1M variant by name, append the `[1m]` suffix to a model alias or a full model name",
       "checked": "2026-10-08"
     },
+    "suffix_resolves": {
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Claude Code resolves `claude-opus-4-8[1m]` to Opus 4.8 even with `CLAUDE_CODE_DISABLE_1M_CONTEXT` set.",
+      "checked": "2026-10-08"
+    },
     "disable_1m": {
       "variable": "CLAUDE_CODE_DISABLE_1M_CONTEXT",
       "source": "https://code.claude.com/docs/en/env-vars.md",
