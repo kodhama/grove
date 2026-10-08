@@ -105,6 +105,20 @@
       "source": "https://platform.claude.com/docs/en/build-with-claude/context-windows.md",
       "quote": "1M tokens for Claude Sonnet 5 and Claude Sonnet 4.6, and 200k tokens for Claude Sonnet 4.5 (deprecated) and Claude Haiku 4.5",
       "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-opus-4-5",
+      "context_window": 200000,
+      "source": "https://platform.claude.com/docs/en/models/opus-4-5/overview.md",
+      "quote": "Context window: 200K tokens",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-opus-4-5-20251101",
+      "context_window": 200000,
+      "source": "https://platform.claude.com/docs/en/models/opus-4-5/overview.md",
+      "quote": "Context window: 200K tokens",
+      "checked": "2026-10-08"
     }
   ],
   "rules": {

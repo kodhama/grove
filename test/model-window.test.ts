@@ -44,6 +44,8 @@ const AT_200K = [
   "claude-haiku-4-5-20251001",
   "claude-sonnet-4-5",
   "claude-sonnet-4-5-20250929",
+  "claude-opus-4-5",
+  "claude-opus-4-5-20251101",
   "claude-opus-4-6",
   "claude-sonnet-4-6",
 ];
@@ -68,7 +70,7 @@ describe("the table: every row is sourced and dated", () => {
   it("gives each row a window, the docs page, a verbatim quote and the date it was checked", () => {
     for (const row of rows()) {
       expect([1_000_000, 200_000], row.id).toContain(row.context_window);
-      expect(row.source, row.id).toMatch(/^https:\/\/(code|platform)\.claude\.com\/docs\/en\/[a-z/-]+\.md$/u);
+      expect(row.source, row.id).toMatch(/^https:\/\/(code|platform)\.claude\.com\/docs\/en\/[a-z0-9/-]+\.md$/u);
       expect(row.quote.length, row.id).toBeGreaterThan(20);
       expect(row.checked, row.id).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
     }
@@ -90,6 +92,12 @@ describe("looking up a model id", () => {
 
   it.each(["claude-haiku-4-5", "claude-sonnet-4-5"])("sources %s's window from a page that names it", (id) => {
     expect(windowFor(id, {}).evidence).toContain("200k tokens for Claude Sonnet 4.5 (deprecated) and Claude Haiku 4.5");
+  });
+
+  it.each(["claude-opus-4-5", "claude-opus-4-5-20251101"])("sources %s's window from Opus 4.5's own page", (id) => {
+    const { evidence } = windowFor(id, {});
+    expect(evidence).toContain("platform.claude.com/docs/en/models/opus-4-5/overview.md");
+    expect(evidence).toContain("Context window: 200K tokens");
   });
 
   it("gives an id with the [1m] suffix the 1M window, as before", () => {
