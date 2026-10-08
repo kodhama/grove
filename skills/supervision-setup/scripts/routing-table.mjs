@@ -20,6 +20,12 @@
  * holds it, and only then against the working directory. `changed` is true
  * when the table's sha256 differs from the one setup recorded.
  *
+ * A recorded path can name a file that is gone: a plugin update or a move
+ * takes away the versioned folder setup read the table from. The table is
+ * then read by skill name, from `<skill>/routing.toml` in the skills folder
+ * this script ships in, and `moved` holds the recorded path. The sha256 check
+ * still says whether that table differs from the one setup read.
+ *
  * Only the level skill's own table is read; no table a bound skill brings
  * marks an operation. A table whose `skill` is not the bindings file's is an
  * error, since it would mark none of that skill's operations.
@@ -29,9 +35,13 @@
  */
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { parse } from "./vendor/smol-toml/index.js";
+
+/** The skills folder this script ships in: scripts/, then supervision-setup/, then the skills. */
+const SKILLS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /** Where a relative table path resolves: the nearest folder above the bindings file holding it, else the working directory. */
 function tablePath(relative, bindingsPath) {
@@ -56,7 +66,17 @@ export function readRoutingTable(bindings, bindingsPath = null) {
   if (typeof relative !== "string" || relative === "") {
     return { error: "the bindings file names no routing table (table.path)" };
   }
-  const path = tablePath(relative, bindingsPath);
+  let path = tablePath(relative, bindingsPath);
+  let moved;
+  const skill = bindings.skill;
+  if (!existsSync(path) && typeof skill === "string" && skill !== "" && basename(skill) === skill) {
+    const beside = join(SKILLS, skill, "routing.toml");
+    if (!existsSync(beside)) {
+      return { error: `cannot read the routing table ${path}, nor ${beside} beside this checker` };
+    }
+    moved = relative;
+    path = beside;
+  }
   let bytes;
   let table;
   try {
@@ -77,6 +97,7 @@ export function readRoutingTable(bindings, bindingsPath = null) {
   const recorded = bindings.table.sha256 ?? null;
   return {
     path,
+    ...(moved === undefined ? {} : { moved }),
     skill: typeof table.skill === "string" ? table.skill : bindings.skill,
     marked: operations.filter((o) => o?.fresh_context === true).map((o) => String(o.id)),
     sha256,
