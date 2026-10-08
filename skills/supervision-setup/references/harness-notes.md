@@ -46,6 +46,32 @@ every checkout on the machine; `--scope project` narrows it to one
 ([plugins reference](https://code.claude.com/docs/en/plugins-reference.md)).
 That a plugin installed while a session runs does not reach that session is
 **unknown** here, not observed: start a new session after an install.
+Related, and **reported, not re-observed**: a `/clear` did not reload plugin
+skills, so a session that was running when a plugin was installed still lacked
+its skills after an in-place restart (a lead session, 2026-10-07).
+
+**A plugin's folder carries its version, and an update leaves the old one for
+14 days.** A plugin installs to `cache/<marketplace>/<plugin>/<version>/`, and
+no path stays the same across versions. On an update, Claude Code writes
+`.orphaned_at` into the old folder and "removes that directory in a
+background cleanup 14 days later, so a session that already loaded the old
+version keeps running" (verified in the
+[plugin loading docs](https://code.claude.com/docs/en/plugins/loading.md),
+2026-10-08). The cache agreed: one plugin that auto-updated 13 times since
+2026-09-24 still held all 13 folders, and each running session lists its pid
+under `.in_use/` in the version it loaded (observed on 2.1.293, 2026-10-08).
+So a table path recorded at setup can name an older copy for 14 days, then
+nothing. Setup reads a seeded run's table beside the skill it loaded, and the
+receipt check reads a missing table beside itself.
+
+**A plugin's root reaches skill text, not the shell.** `${CLAUDE_PLUGIN_ROOT}`
+and `${CLAUDE_SKILL_DIR}` are substituted in a skill's Markdown and in its
+`allowed-tools` Bash rules, but "the variables aren't present in the
+environment of commands Claude runs through the Bash tool" (verified in the
+[plugins reference](https://code.claude.com/docs/en/plugins-reference.md) and
+[skills docs](https://code.claude.com/docs/en/skills.md), 2026-10-08). A loaded
+skill also opens with `Base directory for this skill: <path>` (observed on
+2.1.293, 2026-10-08).
 
 **The cheap check.** Start it with the Agent tool, `model: "haiku"`, and the
 `general-purpose` type, which can read the check prompt file. A subagent sees a
@@ -211,6 +237,16 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   a clash, so every one of them goes to discovery on every setup. The session
   read its own name from `herdr agent get $HERDR_PANE_ID`. That setup's
   evidence paraphrased the catalog rather than quoting it.
+- **An update deletes the old version's folder at once.** A plugin installs
+  to `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`, and the
+  update path removes every other version folder with no grace period
+  (verified in openai/codex `codex-rs/core-plugins/src/store.rs`,
+  `remove_old_plugin_versions`, 2026-10-08; the local cache held one version
+  per plugin on codex-cli 0.160.0). A table path recorded at setup is gone
+  after the first update. The session's skills list gives each skill's file
+  path (verified in the [skills docs](https://developers.openai.com/codex/skills.md),
+  2026-10-08); whether a skill's text gets a root substitution is
+  **unknown**.
 - **Unknown:** whether a cheaper-model child can run the check (until one is
   found, the check runs in the session itself), headless output, resume, and
   usage reporting.
