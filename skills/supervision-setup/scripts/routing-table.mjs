@@ -23,8 +23,8 @@
  * A recorded path can name a file that is gone: a plugin update or a move
  * takes away the versioned folder setup read the table from. The table is
  * then read by skill name, from `<skill>/routing.toml` in the skills folder
- * this script ships in, and `moved` holds the recorded path. The sha256 check
- * still says whether that table differs from the one setup read.
+ * this script ships in, and `moved` holds the recorded path, resolved. The
+ * sha256 check still says whether that table differs from the one setup read.
  *
  * Only the level skill's own table is read; no table a bound skill brings
  * marks an operation. A table whose `skill` is not the bindings file's is an
@@ -76,7 +76,7 @@ export function readRoutingTable(bindings, bindingsPath = null) {
     if (!existsSync(beside)) {
       return { error: `cannot read the routing table ${path}, nor ${beside} beside this checker` };
     }
-    moved = relative;
+    moved = path;
     path = beside;
   }
   let bytes;

@@ -71,6 +71,10 @@ const ROLLOUT = {
 const HANDOFF = `${FIXTURES}/handoff-with-receipt.md`;
 /** The routing table the example bindings name, which marks the review operations. */
 const TABLE = "skills/story-worker/routing.toml";
+/** The table's sha256 as setup would record it now. */
+const TABLE_SHA256 = createHash("sha256").update(readFileSync(TABLE)).digest("hex");
+/** A sha256 setup recorded for some earlier version of the table. */
+const STALE_SHA256 = "4d5275bed367a1eb6d5f23d6de6280d194c8afb2297cb7d0a810829438ba0b4d";
 
 type Row = {
   table: string;
@@ -111,6 +115,8 @@ type Bindings = {
 
 function bindingsReading(...transcripts: [string, string][]): Bindings {
   const file = JSON.parse(readFileSync(EXAMPLE, "utf8")) as Bindings;
+  // Setup records the sha256 of the table it read; a stale one fails the check (GRO-12).
+  Object.assign(file.table as object, { sha256: TABLE_SHA256 });
   file.transcripts = transcripts.map(([sessionId, dir]) => ({
     session_id: sessionId,
     path: `${FIXTURES}/${dir}/${sessionId}.jsonl`,
@@ -543,6 +549,13 @@ describe("GRO-11 · a routing table that moved", () => {
     expect(read.path).toBe(resolve(TABLE));
     expect(read.moved).toBe(GONE);
     expect(read.marked).toEqual(["review", "review-escalation"]);
+  });
+
+  it("GRO-12 · reports a relative recorded path that is gone as the path it resolved", () => {
+    const relative = "nowhere/skills/story-worker/routing.toml";
+    const read = readRoutingTable({ skill: "story-worker", table: { path: relative } });
+    expect(read.path).toBe(resolve(TABLE));
+    expect(read.moved).toBe(resolve(relative));
   });
 
   it("keeps the recorded path while it exists, and sets no moved", () => {
@@ -1335,6 +1348,20 @@ describe("MQ-353 · the command line", () => {
     expect(result.status).toBe(0);
   });
 
+  it("GRO-12 · exits 1 when the table changed since setup, naming the remedy, with every operation clean", () => {
+    const file = bindingsReading([AFTER, "claude-after-restart"]);
+    file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
+    expect(run(file, "--not-run", "story-worker/plan").status).toBe(0);
+    Object.assign(file.table as object, { sha256: STALE_SHA256 });
+    const result = run(file, "--not-run", "story-worker/plan");
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      `changed since setup read it (sha256 ${TABLE_SHA256}, setup recorded ${STALE_SHA256}); ` +
+        "rerun setup (seeded with the handoff when this session restarted), then this check",
+    );
+    expect(result.stdout).toMatch(/^summary: .*; the table changed since setup$/m);
+  });
+
   it("prints attempted-failed, counts it apart in the summary, and exits 1 on it alone", () => {
     const file = bindingsOfCalls(dir, [SEND, REFUSED]);
     file.operations = file.operations.filter((o) => o.id === "hand-back");
@@ -1455,11 +1482,11 @@ describe("MQ-353 · the command line", () => {
 
   it("lists the operations the table marks fresh_context, and says when the table changed", () => {
     const file = bindingsReading([AFTER, "claude-after-restart"]);
+    Object.assign(file.table as object, { sha256: STALE_SHA256 });
     const changed = run(file).stdout;
     expect(changed).toContain("fresh_context on review, review-escalation");
     expect(changed).toContain("changed since setup read it");
-    const sha256 = createHash("sha256").update(readFileSync(TABLE)).digest("hex");
-    Object.assign(file.table as object, { sha256 });
+    Object.assign(file.table as object, { sha256: TABLE_SHA256 });
     const same = run(file).stdout;
     expect(same).toContain("fresh_context on review, review-escalation");
     expect(same).not.toContain("changed since setup read it");

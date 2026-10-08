@@ -161,3 +161,19 @@ describe("GRO-11 · seeded setup reads the table beside the running skill", () =
     expect(skill).not.toMatch(/read it from the table file the handoff names/);
   });
 });
+
+/**
+ * GRO-12 — the receipt check fails bindings judged against a table other than
+ * the one setup read. Setup says what a changed table means on its side.
+ */
+describe("GRO-12 · a table that changed since setup read it", () => {
+  const skill = readFileSync(join(__dirname, "..", "skills", "supervision-setup", "SKILL.md"), "utf8").replace(
+    /[ \n]+/g,
+    " ",
+  );
+
+  it("supervision-setup says the new bindings follow the table read now, and the hand-back names the change", () => {
+    expect(skill).toMatch(/When it changed, the bindings you write follow the table you read now/);
+    expect(skill).toMatch(/the hand-back names the change/);
+  });
+});

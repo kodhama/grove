@@ -71,7 +71,8 @@
  *
  * Usage: receipt-check.mjs --bindings <bindings.json> [--not-run <table/op>,...]
  * [--handoff <handoff.md>]. Exits 1 when any operation is bound-but-unused,
- * attempted-failed or has no evidence, 2 on bad arguments or unusable input (a
+ * attempted-failed or has no evidence, or when the routing table changed since
+ * setup read it (the bindings then follow another table), 2 on bad arguments or unusable input (a
  * bindings file setup did not complete, one listing no transcripts, or a
  * malformed entry, a transcript or a handoff that is not a file, a routing
  * table that cannot be read or belongs to another skill), else 0. It reads
@@ -200,7 +201,8 @@ function tableLines(table) {
   if (table.changed) {
     lines.push(
       `table ${table.path}: changed since setup read it ` +
-        `(sha256 ${table.sha256}, setup recorded ${table.recorded ?? "none"})`,
+        `(sha256 ${table.sha256}, setup recorded ${table.recorded ?? "none"}); ` +
+        "rerun setup (seeded with the handoff when this session restarted), then this check",
     );
   }
   return lines;
@@ -225,7 +227,8 @@ function formatReport(result, bindings, bindingsPath) {
   lines.push(
     `summary: ${count("used")} used, ${count("bound-but-unused")} bound-but-unused, ` +
       `${count("attempted-failed")} attempted-failed, ${count("not reached")} not reached, ${count("no evidence")} no evidence, ` +
-      `${result.unbound.length} used-but-unbound`,
+      `${result.unbound.length} used-but-unbound` +
+      (result.table.changed ? "; the table changed since setup" : ""),
   );
   return lines;
 }
@@ -305,7 +308,8 @@ function main(argv) {
   }
   const result = checkReceipts({ ...options, bindings: loaded.bindings, table });
   process.stdout.write(`${formatReport(result, loaded.bindings, options.bindings).join("\n")}\n`);
-  return result.operations.some((row) => FAILING.has(row.state)) ? 1 : 0;
+  // Bindings judged against a table other than the one setup bound prove nothing (GRO-12).
+  return table.changed || result.operations.some((row) => FAILING.has(row.state)) ? 1 : 0;
 }
 
 // Compare real paths: run through a symlink, argv names the link and the URL the file.

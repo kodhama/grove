@@ -66,7 +66,12 @@ same override the first run merged. The table path the handoff records is a
 record only: a plugin update or a move can take that folder away, or leave an
 older copy there, so never read the table from it. Where the earlier
 bindings file the handoff names still resolves, comparing the sha256 it
-recorded with the table you read says whether the table changed. The
+recorded with the table you read says whether the table changed. When it
+changed, the bindings you write follow the table you read now: each seeded
+binding is rechecked against it, an operation it adds goes through the check
+as on a first run, and an operation it drops gets no binding. The header
+records the new sha256, and the hand-back names the change in one line. The
+receipt check fails bindings whose table changed after setup read it. The
 handoff's bound performers are candidates to recheck, never bindings.
 
 ## 2. Record the header
