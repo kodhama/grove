@@ -73,6 +73,9 @@ const HANDOFF = `${FIXTURES}/handoff-with-receipt.md`;
 const TABLE = "skills/story-worker/routing.toml";
 /** The table's sha256 as setup would record it now. */
 const TABLE_SHA256 = createHash("sha256").update(readFileSync(TABLE)).digest("hex");
+/** The repo override the example bindings name, and its sha256 as setup would record it now. */
+const OVERRIDE = "test/fixtures/supervision/routing-overrides/story-worker.toml";
+const OVERRIDE_SHA256 = createHash("sha256").update(readFileSync(OVERRIDE)).digest("hex");
 /** A sha256 setup recorded for some earlier version of the table. */
 const STALE_SHA256 = "4d5275bed367a1eb6d5f23d6de6280d194c8afb2297cb7d0a810829438ba0b4d";
 
@@ -116,7 +119,7 @@ type Bindings = {
 function bindingsReading(...transcripts: [string, string][]): Bindings {
   const file = JSON.parse(readFileSync(EXAMPLE, "utf8")) as Bindings;
   // Setup records the sha256 of the table it read; a stale one fails the check (GRO-12).
-  Object.assign(file.table as object, { sha256: TABLE_SHA256 });
+  Object.assign(file.table as object, { sha256: TABLE_SHA256, override_sha256: OVERRIDE_SHA256 });
   file.transcripts = transcripts.map(([sessionId, dir]) => ({
     session_id: sessionId,
     path: `${FIXTURES}/${dir}/${sessionId}.jsonl`,
@@ -606,16 +609,26 @@ describe("GRO-11 · a routing table that moved", () => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-moved-"));
     try {
       const file = bindingsReading([AFTER, "claude-after-restart"]);
+      file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
       Object.assign(file.table as object, { path: GONE });
       const path = join(dir, "bindings.json");
+      const check = () => spawnSync("node", [SCRIPT, "--bindings", path, "--not-run", "story-worker/plan"], { encoding: "utf8" });
       writeFileSync(path, JSON.stringify(file));
-      const result = spawnSync("node", [SCRIPT, "--bindings", path], { encoding: "utf8" });
+      const result = check();
       expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
       expect(result.stdout).toContain(`table ${GONE}: gone; read ${resolve(TABLE)} instead`);
       // A move that keeps the table's content is not a change (GRO-12).
       expect(result.stdout).not.toContain("changed since setup read it");
       expect(result.stdout).not.toMatch(/^summary: .*the table changed/m);
       expect(result.stdout).toContain("fresh_context on review, review-escalation");
+      // Moved and changed: the table read in its place is not the one setup bound.
+      Object.assign(file.table as object, { sha256: STALE_SHA256 });
+      writeFileSync(path, JSON.stringify(file));
+      const changed = check();
+      expect(changed.status).toBe(1);
+      expect(changed.stdout).toContain(`table ${GONE}: gone; read ${resolve(TABLE)} instead`);
+      expect(changed.stdout).toContain(`table ${resolve(TABLE)}: changed since setup read it`);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -1363,6 +1376,45 @@ describe("MQ-353 · the command line", () => {
         "rerun setup (seeded with the handoff when this session restarted), then this check",
     );
     expect(result.stdout).toMatch(/^summary: .*; the table changed since setup$/m);
+  });
+
+  it("GRO-12 · exits 1 when the override changed since setup, naming the remedy", () => {
+    const file = bindingsReading([AFTER, "claude-after-restart"]);
+    file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
+    Object.assign(file.table as object, { override_sha256: STALE_SHA256 });
+    const result = run(file, "--not-run", "story-worker/plan");
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      `override ${resolve(OVERRIDE)}: changed since setup read it (sha256 ${OVERRIDE_SHA256}, setup recorded ${STALE_SHA256}); ` +
+        "rerun setup (seeded with the handoff when this session restarted), then this check",
+    );
+    expect(result.stdout).toMatch(/^summary: .*; the override changed since setup$/m);
+    expect(result.stdout).not.toContain("the table changed since setup");
+  });
+
+  it("GRO-12 · exits 1 when the override setup read is gone", () => {
+    const file = bindingsReading([AFTER, "claude-after-restart"]);
+    file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
+    const gone = OVERRIDE.replace("story-worker.toml", "no-such-override.toml");
+    Object.assign(file.table as object, { override: gone });
+    const result = run(file, "--not-run", "story-worker/plan");
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      `override ${resolve(gone)}: changed since setup read it (gone, setup recorded ${OVERRIDE_SHA256})`,
+    );
+  });
+
+  it("GRO-12 · exits 2 on a bindings file that recorded no sha256 for its table or its override", () => {
+    const noTable = bindingsReading([AFTER, "claude-after-restart"]);
+    delete (noTable.table as Record<string, unknown>).sha256;
+    const table = run(noTable);
+    expect(table.status).toBe(2);
+    expect(table.stderr).toContain("records no table.sha256");
+    const noOverride = bindingsReading([AFTER, "claude-after-restart"]);
+    Object.assign(noOverride.table as object, { override_sha256: null });
+    const override = run(noOverride);
+    expect(override.status).toBe(2);
+    expect(override.stderr).toContain("records no table.override_sha256");
   });
 
   it("prints attempted-failed, counts it apart in the summary, and exits 1 on it alone", () => {

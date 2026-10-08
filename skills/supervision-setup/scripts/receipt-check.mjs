@@ -26,7 +26,8 @@
  * line's place names a subagent, since the check writes a marked use only
  * from a fresh one. The marks come from the table itself
  * (`routing-table.mjs`), not the bindings file; the report's header lists
- * them, and says when the table's sha256 differs from the one setup recorded.
+ * them, and says when the table's sha256, or the repo override's, differs
+ * from the one setup recorded.
  *
  * Each call is a use that `ran`, `failed` (refused, or the shell could not
  * run it) or is `pending` (no result yet). An allowed call is one in any
@@ -71,10 +72,11 @@
  *
  * Usage: receipt-check.mjs --bindings <bindings.json> [--not-run <table/op>,...]
  * [--handoff <handoff.md>]. Exits 1 when any operation is bound-but-unused,
- * attempted-failed or has no evidence, or when the routing table changed since
- * setup read it (the bindings then follow another table), 2 on bad arguments
- * or unusable input (a bindings file setup did not complete, one listing no
- * transcripts, or a malformed entry, a transcript or a handoff that is not a
+ * attempted-failed or has no evidence, or when the routing table or the repo's
+ * override changed since setup read it (the bindings then follow other
+ * suggestions), 2 on bad arguments or unusable input (a bindings file setup
+ * did not complete, one listing no transcripts, one recording no sha256 for
+ * its table or its override, or a malformed entry, a transcript or a handoff that is not a
  * file, a routing table that cannot be read or belongs to another skill),
  * else 0. It reads files only.
  *
@@ -190,7 +192,10 @@ function operationLine(row) {
   }
 }
 
-/** The routing table's lines: whether it moved, which operations it marks, and whether it changed since setup. */
+/** What rerunning setup fixes, said on each changed line. */
+const RERUN = "rerun setup (seeded with the handoff when this session restarted), then this check";
+
+/** The routing table's lines: whether it moved, which operations it marks, and whether it or its override changed since setup. */
 function tableLines(table) {
   const marked = table.marked.length
     ? table.marked.join(", ")
@@ -201,8 +206,15 @@ function tableLines(table) {
   if (table.changed) {
     lines.push(
       `table ${table.path}: changed since setup read it ` +
-        `(sha256 ${table.sha256}, setup recorded ${table.recorded ?? "none"}); ` +
-        "rerun setup (seeded with the handoff when this session restarted), then this check",
+        `(sha256 ${table.sha256}, setup recorded ${table.recorded ?? "none"}); ${RERUN}`,
+    );
+  }
+  const { override } = table;
+  if (override?.changed) {
+    const now = override.sha256 ? `sha256 ${override.sha256}` : "gone";
+    lines.push(
+      `override ${override.path}: changed since setup read it ` +
+        `(${now}, setup recorded ${override.recorded ?? "none"}); ${RERUN}`,
     );
   }
   return lines;
@@ -228,7 +240,8 @@ function formatReport(result, bindings, bindingsPath) {
     `summary: ${count("used")} used, ${count("bound-but-unused")} bound-but-unused, ` +
       `${count("attempted-failed")} attempted-failed, ${count("not reached")} not reached, ${count("no evidence")} no evidence, ` +
       `${result.unbound.length} used-but-unbound` +
-      (result.table.changed ? "; the table changed since setup" : ""),
+      (result.table.changed ? "; the table changed since setup" : "") +
+      (result.table.override?.changed ? "; the override changed since setup" : ""),
   );
   return lines;
 }
@@ -278,6 +291,19 @@ function bindingsProblem(bindings) {
   return notFile ? `lists transcript ${notFile.path}, which is not a file` : null;
 }
 
+/**
+ * What a bindings file whose table reads fine still lacks: the sha256 setup
+ * recorded for its table or its override, without which a change cannot be
+ * told (GRO-12); null when it lacks neither.
+ */
+function unrecorded(table) {
+  if (typeof table.sha256 !== "string") return "records no table.sha256, so a changed table cannot be told";
+  if (table.override && typeof table.override_sha256 !== "string") {
+    return "records no table.override_sha256 for its override, so a changed override cannot be told";
+  }
+  return null;
+}
+
 /** A path's stats, or null where `existsSync` reads false: missing, unreachable or looping. */
 function statOf(path) {
   try {
@@ -306,10 +332,16 @@ function main(argv) {
     process.stderr.write(`receipt-check: ${table.error}\n`);
     return 2;
   }
+  const missing = unrecorded(loaded.bindings.table);
+  if (missing) {
+    process.stderr.write(`receipt-check: ${options.bindings} ${missing}\n`);
+    return 2;
+  }
   const result = checkReceipts({ ...options, bindings: loaded.bindings, table });
   process.stdout.write(`${formatReport(result, loaded.bindings, options.bindings).join("\n")}\n`);
   // Bindings judged against a table other than the one setup bound prove nothing (GRO-12).
-  return table.changed || result.operations.some((row) => FAILING.has(row.state)) ? 1 : 0;
+  const changed = table.changed || table.override?.changed;
+  return changed || result.operations.some((row) => FAILING.has(row.state)) ? 1 : 0;
 }
 
 // Compare real paths: run through a symlink, argv names the link and the URL the file.

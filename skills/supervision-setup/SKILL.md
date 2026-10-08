@@ -66,13 +66,16 @@ same override the first run merged. The table path the handoff records is a
 record only: a plugin update or a move can take that folder away, or leave an
 older copy there, so never read the table from it. Comparing the sha256 the
 earlier bindings file recorded, or the handoff where that file does not
-resolve, with the table you read says whether the table changed. When it
-changed, the bindings you write follow the table you read now: bind every
+resolve, with the table you read says whether the table changed. A handoff
+that carries no sha256 for the table, as one written before handoffs carried
+it, counts as changed. The repo's override is compared the same way, by the
+sha256 recorded for it, and an override that changed, appeared or went away
+counts as a changed table. When it changed, the bindings you write follow the table you read now: bind every
 operation as on a first run, since the seed's performers were chosen from
 the old table's suggestions, and an operation the table dropped gets no
 binding. The header records the new sha256, and step 9's report names the
-change. The receipt check fails bindings whose table changed after setup read
-it. The handoff's bound performers are candidates to recheck, never bindings.
+change. The receipt check fails bindings whose table or override changed after setup
+read it. The handoff's bound performers are candidates to recheck, never bindings.
 
 ## 2. Record the header
 

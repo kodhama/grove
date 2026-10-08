@@ -283,7 +283,8 @@ or get a final receipt (see "Talking to your lead"). Call the work ready for
 acceptance; never call it complete or merged.
 
 - **Write the receipt** from `references/receipt.md`, filled from observed
-  values.
+  values. When a setup during the story reported "the routing table changed
+  since the earlier setup", the receipt's Bindings field says so, with when.
 - **Post it** through the performer bound to `post-work-note`, as a note on the
   story's work item, ending with the agent footer the repo's instructions
   require. That note is where any harness on any machine can read it.

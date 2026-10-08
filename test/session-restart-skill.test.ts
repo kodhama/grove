@@ -187,4 +187,24 @@ describe("GRO-12 · a table that changed since setup read it", () => {
     expect(skill).toMatch(/comparing the sha256 the earlier bindings file recorded, or the handoff where that file does not resolve, with the table you read/i);
     expect(skill).not.toMatch(/Where the earlier bindings file the handoff names still resolves/);
   });
+
+  it("setup counts a handoff with no recorded sha256 as a changed table, and compares the override the same way", () => {
+    expect(skill).toMatch(/A handoff that carries no sha256 for the table, as one written before handoffs carried it, counts as changed/);
+    expect(skill).toMatch(/The repo's override is compared the same way/);
+    const restart = readFileSync(join(SCRIPTS, "..", "SKILL.md"), "utf8").replace(/[ \n]+/g, " ");
+    expect(restart).toMatch(/override <path or none> \(sha256 <hex>\)/);
+  });
+
+  it("every level skill and the restart's resume carry the changed-table line to someone", () => {
+    const text = (name: string) =>
+      readFileSync(join(__dirname, "..", "skills", name, "SKILL.md"), "utf8").replace(/[ \n]+/g, " ");
+    const line = /the routing table changed since the earlier setup/;
+    expect(text("story-worker").slice(text("story-worker").indexOf("## 8. Hand back"))).toMatch(line);
+    expect(text("project-lead")).toMatch(line);
+    const restart = text("session-restart");
+    const resume = restart.slice(restart.indexOf("## After the clear"), restart.indexOf("## New session"));
+    expect(resume).toMatch(line);
+    expect(resume).not.toMatch(/Setup rechecks every seeded binding and appends/);
+    expect(resume).toMatch(/binds every operation as on a first run when the table changed/);
+  });
 });

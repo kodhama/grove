@@ -26,6 +26,12 @@
  * this script ships in, and `moved` holds the recorded path, resolved. The
  * sha256 check still says whether that table differs from the one setup read.
  *
+ * The repo's override, when setup merged one, is compared the same way: its
+ * recorded path resolves as the table's does, and `override` holds its path,
+ * sha256 (null when the file is gone) and the one setup recorded, with
+ * `changed` true when they differ. An edited or deleted override changes the
+ * suggestions the bindings were chosen from, just as an edited table does.
+ *
  * Only the level skill's own table is read; no table a bound skill brings
  * marks an operation. A table whose `skill` is not the bindings file's is an
  * error, since it would mark none of that skill's operations.
@@ -97,6 +103,7 @@ export function readRoutingTable(bindings, bindingsPath = null) {
   const operations = Array.isArray(table.operation) ? table.operation : [];
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const recorded = bindings.table.sha256 ?? null;
+  const override = readOverride(bindings.table, bindingsPath);
   return {
     path,
     ...(moved === undefined ? {} : { moved }),
@@ -105,5 +112,15 @@ export function readRoutingTable(bindings, bindingsPath = null) {
     sha256,
     recorded,
     changed: sha256 !== recorded,
+    ...(override === null ? {} : { override }),
   };
+}
+
+/** The override setup recorded, compared with the file at its path now, or null when it recorded none. */
+function readOverride(table, bindingsPath) {
+  if (typeof table.override !== "string" || table.override === "") return null;
+  const path = tablePath(table.override, bindingsPath);
+  const sha256 = existsSync(path) ? createHash("sha256").update(readFileSync(path)).digest("hex") : null;
+  const recorded = table.override_sha256 ?? null;
+  return { path, sha256, recorded, changed: sha256 !== recorded };
 }
