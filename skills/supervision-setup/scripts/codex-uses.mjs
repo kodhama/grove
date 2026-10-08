@@ -149,6 +149,11 @@ function callOutcome(name, callId, answered) {
   return output.startsWith("aborted") ? "failed" : "ran";
 }
 
+/** A record's top-level `timestamp`, which Claude Code and Codex both write, or null. */
+export function timeOf(record) {
+  return typeof record?.timestamp === "string" ? record.timestamp : null;
+}
+
 /**
  * What one Codex rollout record shows was used, each use tagged with whether
  * it ran: its item's outcome, unless the use carries its own (a SKILL.md read).
@@ -166,10 +171,12 @@ function recordUses(record, answered) {
   return uses.map((use) => ({ outcome, ...use }));
 }
 
-/** Every use one Codex rollout's records show, in order, each tagged with whether it ran. */
+/** Every use one Codex rollout's records show, in order, each tagged with whether it ran and when (`at`). */
 export function codexUses(recorded) {
   const answered = answers(recorded);
-  return recorded.flatMap((record) => recordUses(record, answered));
+  return recorded.flatMap((record) =>
+    recordUses(record, answered).map((use) => ({ ...use, at: timeOf(record) })),
+  );
 }
 
 /** Where a rollout's Codex home keeps rollouts: `sessions/` by date, and `archived_sessions/` flat. */

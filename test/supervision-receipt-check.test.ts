@@ -1423,7 +1423,7 @@ describe("MQ-353 · the command line", () => {
     const result = run(file);
     expect(result.stdout).toMatch(/^story-worker\/hand-back: attempted-failed SendMessage$/m);
     expect(result.stdout).toMatch(
-      /^summary: 0 used, 0 bound-but-unused, 1 attempted-failed, 0 not reached, 0 no evidence, /m,
+      /^summary: 0 used, 0 used \(shared\), 0 bound-but-unused, 1 attempted-failed, 0 not reached, 0 no evidence, /m,
     );
     expect(result.status).toBe(1);
   });

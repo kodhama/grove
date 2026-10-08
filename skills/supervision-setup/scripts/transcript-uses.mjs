@@ -8,7 +8,12 @@
  * transcripts beside them, and returns each call as a use:
  *
  *   { kind: "skill", name: "compound-engineering:ce-work", outcome: "ran",
- *     where: "<session id>", context: "main session", fresh: false }
+ *     at: "2026-10-08T10:03:00.000Z", where: "<session id>",
+ *     context: "main session", fresh: false, session: "<session id>" }
+ *
+ * `at` is the call's record's top-level `timestamp`, or null where it has
+ * none; `session` is the listed session the transcript belongs to, a
+ * subagent's included.
  *
  * On Claude Code:
  * - a skill: a `Skill` call;
@@ -71,7 +76,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
-import { codexChildren, codexUses, ROLLOUT_NAME } from "./codex-uses.mjs";
+import { codexChildren, codexUses, ROLLOUT_NAME, timeOf } from "./codex-uses.mjs";
 import { SHELL_COULD_NOT_RUN, shellUses } from "./shell-uses.mjs";
 
 /** The type the Agent tool starts when a call names none. */
@@ -280,8 +285,8 @@ function locate(path, sessionId) {
 
 /**
  * Every use one transcript file records, each tagged with whether its call
- * ran, where it was found, and its transcript's context (`fresh` when that
- * is a fresh-context subagent). A Claude Code call is paired with its result
+ * ran, when (`at`, its record's `timestamp`, or null), where it was found,
+ * and its transcript's context (`fresh` when that is a fresh-context subagent). A Claude Code call is paired with its result
  * in the same file, a Codex call with its outcome records (`codex-uses.mjs`).
  * A fork's replay of its parent's `Agent` call, the call its sidecar names,
  * is skipped: it is the parent's call, not the fork's (KTD5).
@@ -293,7 +298,8 @@ function usesIn(recorded, where, context, replayed = null) {
     claudeToolCalls(record).flatMap((call) => {
       if (call.id === replayed) return [];
       const outcome = claudeOutcome(call, results.get(call.id));
-      return claudeUses(call).map((use) => ({ ...use, outcome, ...tag }));
+      const at = timeOf(record);
+      return claudeUses(call).map((use) => ({ ...use, outcome, at, ...tag }));
     }),
   );
   return claude.concat(codexUses(recorded).map((use) => ({ ...use, ...tag })));
@@ -345,7 +351,8 @@ function sessionUses({ path, subagentDirs }, sessionId) {
     children.push(...grandchildren.found.map((file) => ({ path: file, starter: context })));
     for (const lost of grandchildren.missing) missing.set(lost.id, lost);
   }
-  return { uses: parts.flat(), subagents: seen.size - 1, missing: [...missing.values()] };
+  const uses = parts.flat().map((use) => ({ ...use, session: sessionId }));
+  return { uses, subagents: seen.size - 1, missing: [...missing.values()] };
 }
 
 /**

@@ -99,7 +99,10 @@ function carriedUse(binding, carried, marked) {
  * or for an operation the routing table marks `fresh_context`, one inside a
  * fresh-context subagent. `context` holds every call, the marked operations,
  * the handoff's carried uses, the operations declared not run, and whether a
- * listed transcript is missing.
+ * listed transcript is missing. A `used` row also carries `credited`: the
+ * call it was found in, or for a carried use the performer the handoff
+ * names, as a use, so the caller can tell whether another operation's
+ * binding matches it too.
  */
 export function judge(binding, context) {
   const key = `${binding.table}/${binding.id}`;
@@ -109,9 +112,12 @@ export function judge(binding, context) {
   const calls = context.calls.filter((call) => matches(binding, call));
   const allowed = calls.filter((call) => call.fresh || !marked);
   const ran = allowed.find((call) => call.outcome === "ran");
-  if (ran) return { state: "used", where: ran.where };
+  if (ran) return { state: "used", where: ran.where, credited: ran };
   const carried = carriedUse(binding, context.carried.get(key), marked);
-  if (carried) return { state: "used", where: `${carried.place} ${CARRIED}` };
+  if (carried) {
+    const credited = { kind: binding.kind, name: carried.performer };
+    return { state: "used", where: `${carried.place} ${CARRIED}`, credited };
+  }
   const count = (outcome) => allowed.filter((call) => call.outcome === outcome).length;
   const failed = count("failed");
   if (context.notRun.has(key)) {
