@@ -11,12 +11,15 @@
  * `unverified`, and a `reason`), 2 is bad arguments.
  *
  * The windows come from `../references/claude-code-windows.json`, quoted
- * from Claude Code's own docs with the page and the date each was checked:
+ * from Claude Code's docs, or Anthropic's model docs where those do not name
+ * the model, with the page and the date each was checked:
  *
  * - an id with the `[1m]` suffix runs with 1,000,000 tokens, as before;
  * - an id with a row there runs with that row's window;
- * - `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` holds the native-1M rows to 200,000, and
- *   makes a `[1m]` id unknown, since the docs do not settle its size then;
+ * - `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` holds the 1M rows to 200,000, and makes
+ *   a `[1m]` id unknown, since Claude Code then sizes it by rules this table
+ *   does not copy. Any value but `1` makes every id unknown: the docs name
+ *   only `1`;
  * - `CLAUDE_CODE_MAX_CONTEXT_TOKENS` set makes every id unknown, since how it
  *   applies depends on how Claude Code resolves the id;
  * - any other id is unknown. Never match an id by its family: a new model
@@ -49,10 +52,13 @@ export function windowFor(id, env) {
       id,
       `CLAUDE_CODE_MAX_CONTEXT_TOKENS is set, and how it applies depends on how Claude Code resolves the id: ${cite(rules.max_context_tokens)}`,
     );
-  const disabled = env.CLAUDE_CODE_DISABLE_1M_CONTEXT === "1";
+  const turnOff = env.CLAUDE_CODE_DISABLE_1M_CONTEXT ?? "";
+  if (turnOff !== "" && turnOff !== "1")
+    return unknown(id, `CLAUDE_CODE_DISABLE_1M_CONTEXT is "${turnOff}", and the docs name only 1: ${cite(rules.disable_1m)}`);
+  const disabled = turnOff === "1";
   if (id.endsWith("[1m]")) {
     if (disabled)
-      return unknown(id, `CLAUDE_CODE_DISABLE_1M_CONTEXT=1 and the docs do not settle a [1m] id's window then: ${cite(rules.disable_1m)}`);
+      return unknown(id, `CLAUDE_CODE_DISABLE_1M_CONTEXT=1, and Claude Code then sizes a [1m] id by rules this table does not copy: ${cite(rules.disable_1m)}`);
     return { id, context_window: ONE_MILLION, evidence: `the id carries the [1m] suffix: ${cite(rules.suffix_1m)}` };
   }
   const row = models.find((model) => model.id === id);

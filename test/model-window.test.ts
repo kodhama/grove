@@ -61,7 +61,7 @@ describe("the table: every row is sourced and dated", () => {
   it("gives each row a window, the docs page, a verbatim quote and the date it was checked", () => {
     for (const row of rows()) {
       expect([1_000_000, 200_000], row.id).toContain(row.context_window);
-      expect(row.source, row.id).toMatch(/^https:\/\/code\.claude\.com\/docs\/en\/[a-z-]+\.md$/u);
+      expect(row.source, row.id).toMatch(/^https:\/\/(code|platform)\.claude\.com\/docs\/en\/[a-z/-]+\.md$/u);
       expect(row.quote.length, row.id).toBeGreaterThan(20);
       expect(row.checked, row.id).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
     }
@@ -79,6 +79,10 @@ describe("looking up a model id", () => {
 
   it.each(AT_200K)("gives %s the 200K window", (id) => {
     expect(windowFor(id, {}).context_window).toBe(200_000);
+  });
+
+  it("sources Haiku 4.5's window from a page that names it", () => {
+    expect(windowFor("claude-haiku-4-5", {}).evidence).toContain("200k tokens for Claude Sonnet 4.5 (deprecated) and Claude Haiku 4.5");
   });
 
   it("gives an id with the [1m] suffix the 1M window, as before", () => {
@@ -114,11 +118,16 @@ describe("looking up a model id", () => {
     expect(found.reason).toContain("CLAUDE_CODE_DISABLE_1M_CONTEXT");
   });
 
-  it("ignores the turn-off variable unless it is set to 1", () => {
-    for (const value of ["", "0"])
-      expect(windowFor("claude-opus-5-5", { CLAUDE_CODE_DISABLE_1M_CONTEXT: value }).context_window).toBe(
-        1_000_000,
-      );
+  it("ignores the turn-off variable when it is empty", () => {
+    expect(windowFor("claude-opus-5-5", { CLAUDE_CODE_DISABLE_1M_CONTEXT: "" }).context_window).toBe(1_000_000);
+  });
+
+  it("reads unknown when the turn-off variable holds any value but 1, since the docs name only 1", () => {
+    for (const value of ["0", "true", "yes"]) {
+      const found = windowFor("claude-opus-5-5", { CLAUDE_CODE_DISABLE_1M_CONTEXT: value });
+      expect(found.context_window, value).toBeNull();
+      expect(found.reason, value).toContain("CLAUDE_CODE_DISABLE_1M_CONTEXT");
+    }
   });
 
   it("reads unknown whenever the window override is set, since how it applies depends on the id", () => {
