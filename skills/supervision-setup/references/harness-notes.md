@@ -198,7 +198,7 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   spawn read as the review (codex-cli 0.160.0, 2026-10-03). The
   catalog there listed no single-pass review skill, only `ce-code-review` and
   `ce-doc-review`, so both review operations bind `ce-code-review`, and one
-  reviewer's run credits both. The caller spawns the reviewer with
+  reviewer's run credits both, each line reading `used (shared)`. The caller spawns the reviewer with
   `fork_turns: "none"` and has it invoke that skill. The child reads the
   skill's `SKILL.md`, and the check credits that read from the child's own
   rollout.

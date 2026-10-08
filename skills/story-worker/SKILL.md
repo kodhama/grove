@@ -282,6 +282,11 @@ the only two endings. An open `DECISION` is not one: it does not end the story
 or get a final receipt (see "Talking to your lead"). Call the work ready for
 acceptance; never call it complete or merged.
 
+- **Run the receipt check** on your bindings file, passing your story's start
+  as `--since`, so calls this session made before the story do not count:
+  `node "<supervision-setup's folder>/scripts/receipt-check.mjs" --bindings
+  "<the bindings file>" --since <the receipt's Started time, in UTC>`,
+  supervision-setup's folder being the one beside this skill's own.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.

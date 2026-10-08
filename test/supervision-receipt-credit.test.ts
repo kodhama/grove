@@ -230,4 +230,8 @@ describe("--since: calls before the story's start do not count", () => {
     expect(result.status).toBe(2);
     expect(result.stderr).toMatch(/--since/);
   });
+
+  it("exits 2 on a time with no zone, rather than read it as the machine's local time", () => {
+    expect(run(twoReviews(), "--since", "2026-10-08T11:00:00").status).toBe(2);
+  });
 });

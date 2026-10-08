@@ -48,18 +48,31 @@
  * - `bound-but-unused`: otherwise.
  * The last two carry the marked operation's note above. `operation-state.mjs`
  * applies these rules.
- * It also lists skills whose call ran that no binding names
- * (used-but-unbound), except the level skill and `supervision-setup`, which
- * produced the bindings.
+ * It also lists skills whose call ran, among the calls counted (below), that
+ * no binding names (used-but-unbound), except the level skill and
+ * `supervision-setup`, which produced the bindings.
  *
- * Its limits. It proves a performer was used at least once in the session,
- * not at the step that should have used it: setup's own probes count too (it
- * runs the context gauge once, and starts its check as a general-purpose
- * agent). It finds uses of a performer, not of an operation: where several
- * operations bind one performer, as session-restart's four herdr operations
- * do, one call marks them all used, and where `review` and
- * `review-escalation` bind one review skill, as they do on Codex, one fresh
- * run of it credits both. It reads only the sessions the bindings file
+ * Which calls count (`call-scope.mjs`): a session's calls count from the
+ * first call in its main transcript that loaded the level skill, its
+ * subagents' included, and its transcript line names that time; a session
+ * where the level skill never loaded keeps every call, and its line says so.
+ * With `--since <UTC time>`, calls before that time do not count either, in
+ * any session, and the report's header says so: a worker passes its story's
+ * start, so a session that worked an earlier story credits none of its
+ * calls. A call or a load with no recorded time is never cut.
+ *
+ * Shared performers: where the call that credits an operation also matches
+ * another operation's binding, as one herdr call matches session-restart's
+ * four herdr operations, or one fresh review run matches both `review` and
+ * `review-escalation` where they bind one skill, as on Codex, the line reads
+ * `used (shared)` and names the others, since the check cannot tell which
+ * operation the call was for. It passes, and the summary counts it apart.
+ *
+ * Its limits. It proves a performer was used at least once in the counted
+ * calls, not at the step that should have used it: setup's own probes count
+ * too, where setup runs after the level skill loads (it runs the context
+ * gauge once, and starts its check as a general-purpose agent). A use carried
+ * from a handoff has no time, so neither cut applies to it. It reads only the sessions the bindings file
  * lists, with their subagent transcripts, so work done in a sibling
  * session is not seen; that is why story-worker runs its review in a
  * subagent. A handoff carries only `used` lines, so after a restart onto
@@ -71,14 +84,15 @@
  * no longer carries. Only a session spanning that change is affected.
  *
  * Usage: receipt-check.mjs --bindings <bindings.json> [--not-run <table/op>,...]
- * [--handoff <handoff.md>]. Exits 1 when any operation is bound-but-unused,
- * attempted-failed or has no evidence, or when the routing table or the repo's
- * override changed since setup read it (the bindings then follow other
- * suggestions), 2 on bad arguments or unusable input (a bindings file setup
- * did not complete, one listing no transcripts, one recording no sha256 for
- * its table or its override, or a malformed entry, a transcript or a handoff that is not a
- * file, a routing table that cannot be read or belongs to another skill),
- * else 0. It reads files only.
+ * [--handoff <handoff.md>] [--since <UTC time>]. Exits 1 when any operation is
+ * bound-but-unused, attempted-failed or has no evidence, or when the routing
+ * table or the repo's override changed since setup read it (the bindings then
+ * follow other suggestions), 2 on bad arguments (a `--since` that is not a
+ * time with its zone, such as `2026-10-08T21:16:31Z`, included) or unusable
+ * input (a bindings file setup did not complete, one listing no transcripts,
+ * one recording no sha256 for its table or its override, or a malformed
+ * entry, a transcript or a handoff that is not a file, a routing table that
+ * cannot be read or belongs to another skill), else 0. It reads files only.
  *
  * Plan: docs/plans/2026-09-25-0105-feat-supervision-operating-model-plan.md,
  * U8 and KTD12; outcomes and fresh-context review, MQ-377:
