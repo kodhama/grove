@@ -121,6 +121,27 @@ describe("a call several operations' bindings match", () => {
     expect(row.shared).toBeUndefined();
   });
 
+  it("leaves out of shared a fresh_context operation the call could not credit", () => {
+    const file = bindingsOf([null, tool("SendMessage")]);
+    const review = file.operations.find((o: Row) => `${o.table}/${o.id}` === "story-worker/review");
+    Object.assign(review, { kind: "tool", native_id: "SendMessage" });
+    const result = checkReceipts({ bindings: file });
+    const row = rowOf(result, "story-worker/hand-back");
+    expect(row.state).toBe("used");
+    expect(row.shared).toBeUndefined();
+    expect(rowOf(result, "story-worker/review").state).not.toBe("used");
+  });
+
+  it("keeps in shared a fresh_context operation a call in a fresh-context subagent could credit", () => {
+    const file = bindingsOf();
+    subagent("a1", [null, tool("SendMessage")]);
+    const review = file.operations.find((o: Row) => `${o.table}/${o.id}` === "story-worker/review");
+    Object.assign(review, { kind: "tool", native_id: "SendMessage" });
+    const result = checkReceipts({ bindings: file });
+    expect(rowOf(result, "story-worker/hand-back").shared).toEqual(["story-worker/review"]);
+    expect(rowOf(result, "story-worker/review").shared).toEqual(["story-worker/hand-back"]);
+  });
+
   it("says so on the line, passes, and counts it apart in the summary", () => {
     const out = run(bindingsOf([null, bash("herdr agent list")]), "--not-run", "story-worker/plan").stdout;
     expect(out).toMatch(

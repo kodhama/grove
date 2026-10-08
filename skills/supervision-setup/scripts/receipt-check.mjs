@@ -106,7 +106,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { scopeCalls, sinceTime } from "./call-scope.mjs";
 import { CARRIED, readHandoff } from "./handoff-receipt.mjs";
-import { hasPerformer, judge, matches, unqualified } from "./operation-state.mjs";
+import { creditable, hasPerformer, judge, matches, unqualified } from "./operation-state.mjs";
 import { readRoutingTable } from "./routing-table.mjs";
 import { readTranscripts } from "./transcript-uses.mjs";
 
@@ -138,11 +138,16 @@ function tableOf(bindings) {
   return table;
 }
 
-/** The other operations whose bindings match the use a row was credited for, as `table/op` keys. */
-function sharedWith(binding, credited, bindings) {
+/**
+ * The other operations the use a row was credited for could have credited
+ * too, as `table/op` keys: their bindings match it, and it is creditable to
+ * them under `marked`, the operations the routing table marks.
+ */
+function sharedWith(binding, credited, bindings, marked) {
   return bindings.operations
     .filter((other) => other !== binding && hasPerformer(other) && matches(other, credited))
-    .map((other) => `${other.table}/${other.id}`);
+    .map((other) => `${other.table}/${other.id}`)
+    .filter((key) => creditable(credited, marked.has(key)));
 }
 
 /**
@@ -152,8 +157,8 @@ function sharedWith(binding, credited, bindings) {
  * before which calls are not counted (`call-scope.mjs`). Returns the
  * transcripts read, each read one with its `scope`, the table, one row per
  * operation `{ table, id, performer, state, where, note, shared }`, and the
- * unbound skills. `shared` names the other operations whose bindings match
- * the call a used row was credited for; it is absent when there are none.
+ * unbound skills. `shared` names the other operations the call a used row was
+ * credited for could have credited too; it is absent when there are none.
  */
 export function checkReceipts({ bindings, notRun = [], handoff = null, table = null, since = null }) {
   const routing = table ?? tableOf(bindings);
@@ -187,7 +192,7 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
   };
   const operations = bindings.operations.map((binding) => {
     const { credited, ...row } = judge(binding, context);
-    const shared = credited ? sharedWith(binding, credited, bindings) : [];
+    const shared = credited ? sharedWith(binding, credited, bindings, context.marked) : [];
     return {
       table: binding.table,
       id: binding.id,
