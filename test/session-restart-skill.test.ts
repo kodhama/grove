@@ -179,4 +179,12 @@ describe("GRO-12 · a table that changed since setup read it", () => {
     const report = skill.slice(skill.indexOf("## 9. Report and hand over"), skill.indexOf("## Using the bindings"));
     expect(report).toMatch(/When a seeded run found the table changed, add once: "the routing table changed since the earlier setup"/);
   });
+
+  it("the handoff carries the table's sha256, so a successor on another machine still sees a changed table", () => {
+    const restart = readFileSync(join(SCRIPTS, "..", "SKILL.md"), "utf8").replace(/[ \n]+/g, " ");
+    const template = restart.slice(restart.indexOf("## Handoff template"), restart.indexOf("## After the clear"));
+    expect(template).toMatch(/- skill: <the bindings file's skill>; table <path> \(sha256 <hex>\); override/);
+    expect(skill).toMatch(/comparing the sha256 the earlier bindings file recorded, or the handoff where that file does not resolve, with the table you read/i);
+    expect(skill).not.toMatch(/Where the earlier bindings file the handoff names still resolves/);
+  });
 });

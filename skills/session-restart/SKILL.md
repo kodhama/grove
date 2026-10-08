@@ -139,7 +139,7 @@ another.
 
 ## Routing table
 
-- skill: <the bindings file's skill>; table <path>; override <path or none>
+- skill: <the bindings file's skill>; table <path> (sha256 <hex>); override <path or none>
 - bindings file: .context/supervision/<session-name>/bindings.json
 - harness: <name> <version> (<the bindings file's harness evidence>)
 - transcripts: <every session id and path the bindings file lists>
@@ -182,7 +182,8 @@ or "The successor" on the new-session path.
 
 The routing table is inline because a successor on another machine cannot
 read the bindings file. The harness and transcripts lines let its
-seeded setup keep the earlier transcripts all the same. The receipt check is
+seeded setup keep the earlier transcripts all the same, and the table's
+sha256 lets it see a table that changed since. The receipt check is
 inline for the same reason: such a successor cannot read your transcripts, so
 its own check reads your result from this section (`--handoff`) and counts
 each operation it shows used in a session it cannot read itself. That

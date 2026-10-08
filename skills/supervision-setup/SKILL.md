@@ -64,9 +64,9 @@ loaded the level skill from, or session-restart's own for a session that runs
 no level skill. The handoff names that skill, and its `skill` field picks the
 same override the first run merged. The table path the handoff records is a
 record only: a plugin update or a move can take that folder away, or leave an
-older copy there, so never read the table from it. Where the earlier
-bindings file the handoff names still resolves, comparing the sha256 it
-recorded with the table you read says whether the table changed. When it
+older copy there, so never read the table from it. Comparing the sha256 the
+earlier bindings file recorded, or the handoff where that file does not
+resolve, with the table you read says whether the table changed. When it
 changed, the bindings you write follow the table you read now: bind every
 operation as on a first run, since the seed's performers were chosen from
 the old table's suggestions, and an operation the table dropped gets no
