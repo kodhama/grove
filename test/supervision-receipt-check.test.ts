@@ -635,12 +635,15 @@ describe("GRO-11 · a routing table that moved", () => {
   });
 });
 
-describe("a skill's script run from wherever the skill is installed", () => {
-  const scriptOf = (line: string) =>
-    (shellUses(line) as { kind: string; name: string }[])
-      .filter((use) => use.kind === "skill-script")
-      .map((use) => use.name);
+/** The names of the uses of one kind that a shell line reads as. */
+const usesOf = (line: string, kind: string) =>
+  (shellUses(line) as { kind: string; name: string }[])
+    .filter((use) => use.kind === kind)
+    .map((use) => use.name);
+const clisOf = (line: string) => usesOf(line, "cli");
+const scriptOf = (line: string) => usesOf(line, "skill-script");
 
+describe("a skill's script run from wherever the skill is installed", () => {
   const CLAUDE_CACHE = "/Users/maintainer/.claude/plugins/cache";
   const CODEX_CACHE = "/Users/maintainer/.codex/plugins/cache";
 
@@ -672,11 +675,6 @@ describe("a skill's script run from wherever the skill is installed", () => {
     expect((shellUses(`node ${path}`) as { kind: string; name: string }[])[0]).toEqual({ kind: "cli", name: "node" });
     expect(scriptOf(`OUT="$(${path} --harness x)"`)).toEqual(["grove:context-gauge"]);
   });
-
-  const clisOf = (line: string) =>
-    (shellUses(line) as { kind: string; name: string }[])
-      .filter((use) => use.kind === "cli")
-      .map((use) => use.name);
 
   it.each([
     ["inside double quotes", `PR="$(gh pr view --json url)"`, ["gh"]],
@@ -730,14 +728,7 @@ describe("a skill's script run from wherever the skill is installed", () => {
   });
 });
 
-describe("a command inside quoted text that holds a separator", () => {
-  const usesOf = (line: string, kind: string) =>
-    (shellUses(line) as { kind: string; name: string }[])
-      .filter((use) => use.kind === kind)
-      .map((use) => use.name);
-  const clisOf = (line: string) => usesOf(line, "cli");
-  const scriptOf = (line: string) => usesOf(line, "skill-script");
-
+describe("a shell line's commands, read past quoted text, $( and comments", () => {
   const PLUGIN_SCRIPT = ".claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/x.mjs";
   const REPO_SCRIPT = ".agents/skills/context-gauge/scripts/x.mjs";
 
@@ -781,8 +772,9 @@ describe("a command inside quoted text that holds a separator", () => {
 
   it("joins a line continued by a backslash, and skips a comment", () => {
     expect(clisOf("cd /r && \\\n  gh pr view")).toEqual(["cd", "gh"]);
-    expect(clisOf(`node \\\n  /r/${REPO_SCRIPT}`)).toEqual(["node"]);
-    expect(scriptOf(`node \\\n  /r/${REPO_SCRIPT}`)).toEqual(["context-gauge"]);
+    const continued = `node \\\n  /r/${REPO_SCRIPT}`;
+    expect(clisOf(continued)).toEqual(["node"]);
+    expect(scriptOf(continued)).toEqual(["context-gauge"]);
     expect(clisOf("# Check the PR's state\ngh pr view 12")).toEqual(["gh"]);
   });
 });

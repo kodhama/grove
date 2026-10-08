@@ -80,6 +80,7 @@ function commandTexts(line) {
     const char = text[i];
     const after = text[i + 1];
     const frame = frames.at(-1);
+    const nested = frames.length > 1;
     if (quote === "'") {
       if (char === "'") quote = "";
       add(char);
@@ -102,7 +103,7 @@ function commandTexts(line) {
       wordStart = false;
     } else if (char === "#" && wordStart) {
       while (i + 1 < text.length && text[i + 1] !== "\n") i++;
-    } else if (char === ")" && frames.length > 1 && frame.depth === 0) {
+    } else if (char === ")" && nested && frame.depth === 0) {
       frames.pop();
       if (frame.quoted) quote = '"';
       wordStart = false;
@@ -112,8 +113,8 @@ function commandTexts(line) {
     } else if (char === ";" || char === "|" || char === "\n") {
       next();
     } else {
-      if (frames.length > 1 && char === "(") frame.depth++;
-      if (frames.length > 1 && char === ")") frame.depth--;
+      if (nested && char === "(") frame.depth++;
+      if (nested && char === ")") frame.depth--;
       add(char);
       wordStart = /[\s()]/.test(char);
     }
