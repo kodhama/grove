@@ -285,8 +285,13 @@ acceptance; never call it complete or merged.
 - **Run the receipt check** on your bindings file, passing your story's start
   as `--since`, so calls this session made before the story do not count:
   `node "<supervision-setup's folder>/scripts/receipt-check.mjs" --bindings
-  "<the bindings file>" --since <the receipt's Started time, in UTC>`,
-  supervision-setup's folder being the one beside this skill's own.
+  "<the bindings file>" --since <the receipt's Started time>`,
+  supervision-setup's folder being the one beside this skill's own. Add
+  `--not-run <table/op>,...` for each operation the receipt lists under Not
+  run, and for `post-work-note` and `hand-back` when their first use is the
+  hand-back still to come; add `--handoff "<path>"` when you resumed from a
+  handoff whose receipt-check section holds a result, as the restart skill
+  does.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.
@@ -373,8 +378,11 @@ once the restart skill's resume steps are done, before any story step: a
 harness can drop a skill across the clear, and a resumed session that never
 loads this skill never runs its seeded setup. The account also carries the
 story, the branch, the base SHA, the pull request's link if there is one, the
-step in hand and the receipt so far. If measuring is bound as unavailable,
-setup said so once, and you never restart on a measurement.
+step in hand and the receipt so far. Where the restart skill has you paste
+the receipt check's output into the handoff, pass `--since` your story's
+start there too, so a successor on another machine carries no use from before
+the story. If measuring is bound as unavailable, setup said so once, and you
+never restart on a measurement.
 
 **A Codex worker, until the restart skill restarts Codex sessions**,
 gets only "tell the maintainer" from it. Do this instead: write the handoff

@@ -11,7 +11,8 @@
  *   transcript that ran and loaded the level skill (a Claude Code `Skill`
  *   call, or a Codex SKILL.md read, whose name after its last `:` is the
  *   level skill's). Its subagents' calls are cut at the same time. A session
- *   with no such call keeps every call, and its report line says so;
+ *   with no such call keeps every call, and its report line says so; a level
+ *   skill a person started with a slash command leaves no such call;
  * - `since`: calls before that time are not counted, in any session.
  *
  * A call's time is its record's `timestamp`. A call with none that parses is
@@ -20,15 +21,26 @@
  */
 import { unqualified } from "./operation-state.mjs";
 
-/** An ISO 8601 time with its zone: a `--since` value must name one, never the machine's local time. */
-const ZONED_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+/**
+ * An ISO 8601 time with its zone: a `--since` value must name one, never the
+ * machine's local time. Groups 1 to 5 are the year, month, day, hour and minute.
+ */
+const ZONED_TIME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/** Whether a zoned time's date and clock exist: `Date.parse` rolls February 30th or 24:00 into the next day. */
+function onTheCalendar(match) {
+  const [year, month, day, hour, minute] = match.slice(1, 6).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day && hour < 24 && minute < 60;
+}
 
 /** A `since` value as milliseconds, or null when there is none; throws when it does not read as a zoned time. */
 export function sinceTime(since) {
   if (since == null) return null;
-  const time = ZONED_TIME.test(since) ? Date.parse(since) : Number.NaN;
+  const match = ZONED_TIME.exec(since);
+  const time = match && onTheCalendar(match) ? Date.parse(since) : Number.NaN;
   if (Number.isNaN(time)) {
-    throw new Error(`--since ${since} is not a UTC time such as 2026-10-08T21:16:31Z`);
+    throw new Error(`--since ${since} is not a time with its zone, such as 2026-10-08T21:16:31Z`);
   }
   return time;
 }

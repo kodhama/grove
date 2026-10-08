@@ -37,7 +37,7 @@ type Result = {
   transcripts: { session_id: string; scope?: string }[];
 };
 interface ReceiptCheckModule {
-  checkReceipts(options: { bindings: unknown; since?: string | null }): Result;
+  checkReceipts(options: { bindings: unknown; since?: string | null; handoff?: string }): Result;
 }
 const { checkReceipts } = receiptCheck as unknown as ReceiptCheckModule;
 
@@ -183,7 +183,7 @@ describe("calls count from the load of the level skill", () => {
     expect(rowOf(result, "story-worker/post-work-note").state).toBe("used");
     expect(result.unbound.map((u) => u.name)).toEqual(["grove:project-lead"]);
     expect(run(bindings).stdout).toMatch(
-      new RegExp(`^transcript ${SESSION}: read .*story-worker never loaded here, so every call counts`, "m"),
+      new RegExp(`^transcript ${SESSION}: read .*no load of story-worker found here, so every call counts`, "m"),
     );
   });
 
@@ -233,5 +233,95 @@ describe("--since: calls before the story's start do not count", () => {
 
   it("exits 2 on a time with no zone, rather than read it as the machine's local time", () => {
     expect(run(twoReviews(), "--since", "2026-10-08T11:00:00").status).toBe(2);
+  });
+});
+
+describe("edges of the scope and the time", () => {
+  it("says when the level skill loaded at no recorded time", () => {
+    const bindings = bindingsOf([null, skill("grove:story-worker")], ["2026-10-08T10:03:00.000Z", tool("SendMessage")]);
+    expect(run(bindings).stdout).toMatch(
+      new RegExp(`^transcript ${SESSION}: read .*story-worker loaded at no recorded time, so every call counts`, "m"),
+    );
+  });
+
+  it("reads a --since with an offset zone at the same instant as its UTC form", () => {
+    const bindings = bindingsOf(["2026-10-08T09:00:00.000Z", skill("grove:story-worker")]);
+    subagent("earlierstory", ["2026-10-08T09:30:00.000Z", skill("code-review")]);
+    subagent("thisstory", ["2026-10-08T11:30:00.000Z", skill("code-review")]);
+    const row = rowOf(checkReceipts({ bindings, since: "2026-10-08T12:00:00+01:00" }), "story-worker/review");
+    expect(row.where).toBe(`${SESSION} subagent agent-thisstory`);
+  });
+
+  it("exits 2 on a date the calendar does not have", () => {
+    const bindings = bindingsOf(["2026-10-08T09:00:00.000Z", skill("grove:story-worker")]);
+    expect(run(bindings, "--since", "2026-02-30T00:00:00Z").status).toBe(2);
+    expect(run(bindings, "--since", "2026-10-08T24:00:00Z").status).toBe(2);
+  });
+
+  it("credits a carried used (shared) line for an unread session, and reports it shared", () => {
+    const file = JSON.parse(readFileSync(EXAMPLE, "utf8"));
+    file.transcripts = [{ session_id: SESSION, path: join(dir, `${SESSION}.jsonl`) }];
+    const handoff = join(dir, "handoff.md");
+    const used = (op: string) =>
+      `session-restart/${op}: used (shared): /opt/homebrew/bin/herdr in ${SESSION}; ` +
+      "also bound to the others; the check cannot tell which ran";
+    writeFileSync(handoff, ["## Receipt check", "", `transcript ${SESSION}: read x (0 subagent files)`, ...HERDR_OPS.map(used), ""].join("\n"));
+    const row = rowOf(checkReceipts({ bindings: file, handoff }), "session-restart/read-pane");
+    expect(row.state).toBe("used");
+    expect(row.where).toBe(`${SESSION} (carried from handoff)`);
+    expect(row.shared).toHaveLength(3);
+  });
+});
+
+describe("a Codex rollout's calls count from the level skill's SKILL.md read", () => {
+  const THREAD = "01a30000-0000-7000-8000-0000000000f0";
+  const read = (at: string, skillName: string) => ({
+    timestamp: at,
+    type: "event_msg",
+    payload: {
+      type: "item_completed",
+      item: {
+        type: "CommandExecution",
+        id: `cmd-${skillName}`,
+        command: ["/bin/zsh", "-lc", `cat /codex/skills/${skillName}/SKILL.md`],
+        parsed_cmd: [{ type: "read", cmd: "cat", name: "SKILL.md", path: `/codex/skills/${skillName}/SKILL.md` }],
+        status: "completed",
+        exit_code: 0,
+      },
+    },
+  });
+  const call = (at: string, name: string) => [
+    { timestamp: at, type: "response_item", payload: { type: "function_call", name, call_id: `c-${name}`, arguments: "{}" } },
+    { timestamp: at, type: "response_item", payload: { type: "function_call_output", call_id: `c-${name}`, output: "ok" } },
+  ];
+  const codexBindings = () => {
+    const day = join(dir, "sessions", "2026", "10", "08");
+    mkdirSync(day, { recursive: true });
+    const path = join(day, `rollout-2026-10-08T10-00-00-${THREAD}.jsonl`);
+    const records = [
+      { timestamp: "2026-10-08T10:00:00.000Z", type: "session_meta", payload: { id: THREAD } },
+      ...call("2026-10-08T10:01:00.000Z", "SendMessage"),
+      read("2026-10-08T10:02:00.000Z", "story-worker"),
+      read("2026-10-08T10:03:00.000Z", "ce-work"),
+    ];
+    writeFileSync(path, records.map((r) => `${JSON.stringify(r)}\n`).join(""));
+    const file = JSON.parse(readFileSync(EXAMPLE, "utf8"));
+    file.transcripts = [{ session_id: THREAD, path }];
+    return file;
+  };
+
+  it("credits no call made before the load, and names when it loaded", () => {
+    const bindings = codexBindings();
+    const result = checkReceipts({ bindings });
+    expect(rowOf(result, "story-worker/hand-back").state).toBe("bound-but-unused");
+    expect(rowOf(result, "story-worker/build").state).toBe("used");
+    expect(run(bindings).stdout).toMatch(
+      new RegExp(`^transcript ${THREAD}: read .*counted from 2026-10-08T10:02:00.000Z, when story-worker loaded`, "m"),
+    );
+  });
+
+  it("drops a call before --since", () => {
+    const result = checkReceipts({ bindings: codexBindings(), since: "2026-10-08T10:04:00Z" });
+    expect(rowOf(result, "story-worker/build").state).toBe("bound-but-unused");
   });
 });

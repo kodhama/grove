@@ -55,8 +55,9 @@
  * Which calls count (`call-scope.mjs`): a session's calls count from the
  * first call in its main transcript that loaded the level skill, its
  * subagents' included, and its transcript line names that time; a session
- * where the level skill never loaded keeps every call, and its line says so.
- * With `--since <UTC time>`, calls before that time do not count either, in
+ * where no such call is found keeps every call, and its line says so. A
+ * level skill a person started with a slash command leaves no such call.
+ * With `--since <time>`, calls before that time do not count either, in
  * any session, and the report's header says so: a worker passes its story's
  * start, so a session that worked an earlier story credits none of its
  * calls. A call or a load with no recorded time is never cut.
@@ -265,7 +266,7 @@ function scopeText(scope, skill) {
     case "untimed":
       return `; ${skill} loaded at no recorded time, so every call counts`;
     case "never":
-      return `; ${skill} never loaded here, so every call counts`;
+      return `; no load of ${skill} found here, so every call counts`;
     default:
       return "";
   }
