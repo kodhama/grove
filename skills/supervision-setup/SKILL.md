@@ -41,7 +41,8 @@ The level skill passes, or the handoff holds:
 - the session's name, read from the live system as the harness notes say,
   never typed from memory;
 - a routing table: the path of the level skill's `routing.toml`, or a handoff
-  whose filled table is the seed.
+  whose filled table is the seed. On a seeded run the table file itself is
+  still the one beside the skill, as step 1 says.
 
 ## 1. Merge the repo's override
 
@@ -63,9 +64,10 @@ loaded the level skill from, or session-restart's own for a session that runs
 no level skill. The handoff names that skill, and its `skill` field picks the
 same override the first run merged. The table path the handoff records is a
 record only: a plugin update or a move can take that folder away, or leave an
-older copy there, so never read the table from it. Comparing its sha256 with
-the table you read says whether the table changed. The handoff's bound
-performers are candidates to recheck, never bindings.
+older copy there, so never read the table from it. Where the earlier
+bindings file the handoff names still resolves, comparing the sha256 it
+recorded with the table you read says whether the table changed. The
+handoff's bound performers are candidates to recheck, never bindings.
 
 ## 2. Record the header
 

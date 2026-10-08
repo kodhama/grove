@@ -243,7 +243,10 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   (verified in openai/codex `codex-rs/core-plugins/src/store.rs`,
   `remove_old_plugin_versions`, 2026-10-08; the local cache held one version
   per plugin on codex-cli 0.160.0). A table path recorded at setup is gone
-  after the first update. The session's skills list gives each skill's file
+  after the first update, and so, inferred from the same code, are the
+  skill text and scripts a running session loaded from that folder: such a
+  session restarts as a new session, which loads the new version. The
+  session's skills list gives each skill's file
   path (verified in the [skills docs](https://developers.openai.com/codex/skills.md),
   2026-10-08); whether a skill's text gets a root substitution is
   **unknown**.

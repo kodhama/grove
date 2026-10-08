@@ -582,6 +582,13 @@ describe("GRO-11 · a routing table that moved", () => {
     expect(read.error).toContain(resolve("skills", "no-such-skill", "routing.toml"));
   });
 
+  it("never falls back for a skill name that is a path step", () => {
+    for (const skill of [".", ".."]) {
+      const read = readRoutingTable({ skill, table: { path: GONE } });
+      expect(read.error, skill).toBe(`cannot read the routing table ${GONE}: ENOENT: no such file or directory, open '${GONE}'`);
+    }
+  });
+
   it("says in the report that the recorded table is gone and which one it read", () => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-moved-"));
     try {

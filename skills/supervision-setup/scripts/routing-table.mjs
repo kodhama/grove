@@ -69,7 +69,9 @@ export function readRoutingTable(bindings, bindingsPath = null) {
   let path = tablePath(relative, bindingsPath);
   let moved;
   const skill = bindings.skill;
-  if (!existsSync(path) && typeof skill === "string" && skill !== "" && basename(skill) === skill) {
+  // A skill name is one folder name, never a path step out of the skills folder.
+  const oneFolder = typeof skill === "string" && basename(skill) === skill && !["", ".", ".."].includes(skill);
+  if (!existsSync(path) && oneFolder) {
     const beside = join(SKILLS, skill, "routing.toml");
     if (!existsSync(beside)) {
       return { error: `cannot read the routing table ${path}, nor ${beside} beside this checker` };
