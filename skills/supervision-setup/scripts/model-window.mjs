@@ -8,7 +8,8 @@
  *   {"id":"claude-opus-5-5","context_window":1000000,"evidence":"<page>: \"<quote>\" (checked <date>)"}
  *
  * Exit 0 is a known window, 1 is unknown (`context_window` null, evidence
- * `unverified`, and a `reason`), 2 is bad arguments.
+ * `unverified`, and a `reason`), 2 is bad arguments or a table it cannot
+ * read, said in one line on stderr.
  *
  * The windows come from `../references/claude-code-windows.json`, quoted
  * from Claude Code's docs, or Anthropic's model docs where those do not name
@@ -20,8 +21,10 @@
  * - `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` holds the 1M rows to 200,000, and sizes
  *   a `[1m]` id like its model's row, so it reads 200,000 too, or unknown with
  *   no row. Any value but `1` makes every id unknown: the docs name only `1`;
- * - `CLAUDE_CODE_MAX_CONTEXT_TOKENS` set makes every id unknown, since how it
- *   applies depends on how Claude Code resolves the id;
+ * - `CLAUDE_CODE_MAX_CONTEXT_TOKENS` set leaves an id with a row its window
+ *   while `DISABLE_COMPACT` is unset, since the docs make it inert for a
+ *   model Claude Code recognizes until then; it makes every other id unknown,
+ *   and so does `DISABLE_COMPACT` set: its value is never read as the window;
  * - any other id is unknown. Never match an id by its family: a new model
  *   gets a row once the docs give its window.
  */
@@ -46,14 +49,38 @@ function unknown(id, reason) {
   return { id, context_window: null, evidence: "unverified", reason };
 }
 
+/** The table, or a throw naming what is wrong with it. */
+function readTable() {
+  const table = JSON.parse(readFileSync(TABLE, "utf8"));
+  if (!Array.isArray(table?.models) || typeof table.rules !== "object" || table.rules === null)
+    throw new Error("it has no models list or no rules");
+  return table;
+}
+
 /** The window for `id` under the environment `env`. */
-export function windowFor(id, env) {
-  const { models, rules } = JSON.parse(readFileSync(TABLE, "utf8"));
-  if (env.CLAUDE_CODE_MAX_CONTEXT_TOKENS)
+export function windowFor(id, env, table = readTable()) {
+  const { models, rules } = table;
+  if (!env.CLAUDE_CODE_MAX_CONTEXT_TOKENS) return lookup(id, env, table);
+  if (env.DISABLE_COMPACT)
+    return unknown(
+      id,
+      `CLAUDE_CODE_MAX_CONTEXT_TOKENS and DISABLE_COMPACT are both set, so the override can apply: ${cite(rules.max_context_inert)}`,
+    );
+  if (!models.some((row) => row.id === id))
     return unknown(
       id,
       `CLAUDE_CODE_MAX_CONTEXT_TOKENS is set, and how it applies depends on how Claude Code resolves the id: ${cite(rules.max_context_tokens)}`,
     );
+  const found = lookup(id, env, table);
+  if (found.context_window === null) return found;
+  return {
+    ...found,
+    evidence: `CLAUDE_CODE_MAX_CONTEXT_TOKENS is set without DISABLE_COMPACT: ${cite(rules.max_context_inert)}; ${found.evidence}`,
+  };
+}
+
+/** The window for `id` from the table alone, with the 1M turn-off applied. */
+function lookup(id, env, { models, rules }) {
   const turnOff = env.CLAUDE_CODE_DISABLE_1M_CONTEXT ?? "";
   if (turnOff !== "" && turnOff !== "1")
     return unknown(id, `CLAUDE_CODE_DISABLE_1M_CONTEXT is "${turnOff}", and the docs name only 1: ${cite(rules.disable_1m)}`);
@@ -67,7 +94,7 @@ export function windowFor(id, env) {
   if (!row)
     return unknown(
       id,
-      `no row for "${model}" in ${TABLE_NAME}; add one only with the window, page and quote from ${rules.suffix_1m.source}`,
+      `no row for "${model}" in ${TABLE_NAME}; add one only with the window, page and quote from ${rules.suffix_1m.source} or the model's own overview on platform.claude.com`,
     );
   const resolved = suffixed ? `${cite(rules.suffix_resolves)}; ` : "";
   if (disabled && row.context_window === ONE_MILLION)
@@ -82,7 +109,14 @@ function main(args) {
     process.stderr.write("usage: model-window.mjs <model id>\n");
     return 2;
   }
-  const found = windowFor(args[0], process.env);
+  let table;
+  try {
+    table = readTable();
+  } catch (error) {
+    process.stderr.write(`model-window.mjs: cannot read ${TABLE}: ${String(error?.message ?? error).split("\n")[0]}\n`);
+    return 2;
+  }
+  const found = windowFor(args[0], process.env, table);
   process.stdout.write(`${JSON.stringify(found)}\n`);
   return found.context_window === null ? 1 : 0;
 }

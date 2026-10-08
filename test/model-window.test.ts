@@ -9,15 +9,17 @@
  * Code's docs say which models run with the 1M window with no suffix, and the
  * table copies that with the quote, its page and the date it was checked. An
  * id the table lacks still reads unknown: the window is recorded only when a
- * source gives it. The two environment variables that change the window
- * Claude Code assumes are honoured, or make the window unknown.
+ * source gives it. The environment variables that change the window Claude
+ * Code assumes are honoured, or make the window unknown. A table the script
+ * cannot read exits 2, so a broken install never reads as an unknown id.
  *
  * If this goes red: make the table and the script agree with the docs again.
  * Add a row only with its quote, page and date; never widen the match to a
  * family pattern.
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -72,6 +74,7 @@ describe("the table: every row is sourced and dated", () => {
       expect([1_000_000, 200_000], row.id).toContain(row.context_window);
       expect(row.source, row.id).toMatch(/^https:\/\/(code|platform)\.claude\.com\/docs\/en\/[a-z0-9/-]+\.md$/u);
       expect(row.quote.length, row.id).toBeGreaterThan(20);
+      expect(row.quote, row.id).toMatch(row.context_window === 200_000 ? /200[Kk]/u : /1M/u);
       expect(row.checked, row.id).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
     }
   });
@@ -115,6 +118,8 @@ describe("looking up a model id", () => {
       expect(found.evidence, id).toBe("unverified");
       expect(found.reason, id).toContain("claude-code-windows.json");
       expect(found.reason, id).toContain("code.claude.com/docs/en/model-config.md");
+      expect(found.reason, id).toContain("platform.claude.com");
+      expect(found.reason, id).not.toContain("\n");
     }
   });
 
@@ -154,8 +159,37 @@ describe("looking up a model id", () => {
     }
   });
 
-  it("reads unknown whenever the window override is set, since how it applies depends on the id", () => {
-    for (const id of ["claude-opus-5-5", "claude-opus-5-5[1m]", "claude-haiku-4-5"]) {
+  it("keeps a listed id's window when the window override is set without DISABLE_COMPACT, since it is inert then", () => {
+    for (const [id, window] of [
+      ["claude-opus-5-5", 1_000_000],
+      ["claude-haiku-4-5", 200_000],
+    ] as const) {
+      const found = windowFor(id, { CLAUDE_CODE_MAX_CONTEXT_TOKENS: "500000" });
+      expect(found.context_window, id).toBe(window);
+      expect(found.evidence, id).toContain("CLAUDE_CODE_MAX_CONTEXT_TOKENS");
+      expect(found.evidence, id).toContain("the variable takes effect only when you also set [`DISABLE_COMPACT`]");
+    }
+  });
+
+  it("still holds a listed 1M id to 200K under the inert override when 1M context is off", () => {
+    const found = windowFor("claude-opus-5-5", {
+      CLAUDE_CODE_MAX_CONTEXT_TOKENS: "500000",
+      CLAUDE_CODE_DISABLE_1M_CONTEXT: "1",
+    });
+    expect(found.context_window).toBe(200_000);
+    expect(found.evidence).toContain("DISABLE_COMPACT");
+  });
+
+  it("reads unknown when the window override is set with DISABLE_COMPACT, never taking its value as the window", () => {
+    for (const compact of ["1", "true"]) {
+      const found = windowFor("claude-opus-5-5", { CLAUDE_CODE_MAX_CONTEXT_TOKENS: "500000", DISABLE_COMPACT: compact });
+      expect(found.context_window, compact).toBeNull();
+      expect(found.reason, compact).toContain("DISABLE_COMPACT");
+    }
+  });
+
+  it("reads unknown when the window override is set for an id with no row, [1m] ids included", () => {
+    for (const id of ["claude-opus-5-5[1m]", "claude-opus-9", "gateway/claude-opus-5-5"]) {
       const found = windowFor(id, { CLAUDE_CODE_MAX_CONTEXT_TOKENS: "500000" });
       expect(found.context_window, id).toBeNull();
       expect(found.reason, id).toContain("CLAUDE_CODE_MAX_CONTEXT_TOKENS");
@@ -168,6 +202,7 @@ describe("the command setup runs", () => {
     const base = { ...process.env };
     delete base.CLAUDE_CODE_DISABLE_1M_CONTEXT;
     delete base.CLAUDE_CODE_MAX_CONTEXT_TOKENS;
+    delete base.DISABLE_COMPACT;
     const run = spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8", env: { ...base, ...env } });
     return { code: run.status, out: run.stdout, err: run.stderr };
   }
@@ -202,6 +237,24 @@ describe("the command setup runs", () => {
       const run = lookup(args);
       expect(run.code).toBe(2);
       expect(run.err).toMatch(/usage/iu);
+    }
+  });
+
+  it("exits 2 naming the table when the table is missing or corrupt, never 1, which reads as an unknown id", () => {
+    for (const table of [null, "{ not json", '{"models": "none"}']) {
+      const root = mkdtempSync(join(tmpdir(), "model-window-"));
+      mkdirSync(join(root, "scripts"));
+      mkdirSync(join(root, "references"));
+      copyFileSync(SCRIPT, join(root, "scripts", "model-window.mjs"));
+      if (table !== null) writeFileSync(join(root, "references", "claude-code-windows.json"), table);
+      const run = spawnSync(process.execPath, [join(root, "scripts", "model-window.mjs"), "claude-opus-5-5"], {
+        encoding: "utf8",
+      });
+      rmSync(root, { recursive: true, force: true });
+      expect(run.status, String(table)).toBe(2);
+      expect(run.stdout, String(table)).toBe("");
+      expect(run.stderr, String(table)).toContain("claude-code-windows.json");
+      expect(run.stderr.trim().split("\n"), String(table)).toHaveLength(1);
     }
   });
 });

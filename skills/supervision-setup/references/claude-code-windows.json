@@ -143,6 +143,12 @@
       "source": "https://code.claude.com/docs/en/env-vars.md",
       "quote": "Override the context window size Claude Code assumes for the active model. As of v2.1.193, how it applies depends on how Claude Code resolves the model ID",
       "checked": "2026-10-08"
+    },
+    "max_context_inert": {
+      "variable": "DISABLE_COMPACT",
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "If the ID resolves to a model Claude Code recognizes, or the ID is a bare `claude-` name with no suffix for Claude Code to strip, in any casing, the variable takes effect only when you also set [`DISABLE_COMPACT`](/docs/en/env-vars), which disables all compaction.",
+      "checked": "2026-10-08"
     }
   }
 }

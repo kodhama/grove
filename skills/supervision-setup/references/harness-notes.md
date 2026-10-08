@@ -95,10 +95,13 @@ unless 1M context is turned off, and a window is still never guessed. Run
 from the Bash tool and record the `context_window` and `evidence` it prints.
 It reads `references/claude-code-windows.json`, a table of model ids quoted
 from Claude Code's docs (or Anthropic's model docs, where Claude Code's do
-not name the model) with the page and the date each was checked, and the two
-variables that change the window: `CLAUDE_CODE_DISABLE_1M_CONTEXT` and
-`CLAUDE_CODE_MAX_CONTEXT_TOKENS`. An id with no row prints a `null` window
-and says why; add the row from the docs, never by the model's family. Claude
+not name the model) with the page and the date each was checked, and the
+variables that change the window: `CLAUDE_CODE_DISABLE_1M_CONTEXT`, and
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS`, which leaves a listed id its window until
+`DISABLE_COMPACT` is also set. An id with no row prints a `null` window
+and says why; add the row from the docs, never by the model's family. Exit 2
+means the table itself could not be read: a broken install, not an unknown
+id, so tell the maintainer. Claude
 Code reports the window itself only to a status line command, which a session
 cannot read (`context_window.context_window_size` in its input; observed on
 2.1.293, 2026-10-08). Plain `claude-opus-5-5` sessions on the maintainer's
