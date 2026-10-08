@@ -1,0 +1,128 @@
+{
+  "about": "The context window Claude Code runs each model id with, quoted from Claude Code's own docs. Setup records a window only from a row here, from a [1m] suffix, or from the rules in model-window.mjs; an id with no row reads unknown. Add a row only with its page, its verbatim quote and the date you checked it.",
+  "models": [
+    {
+      "id": "claude-fable-5-1",
+      "context_window": 1000000,
+      "native_1m": true,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-fable-5",
+      "context_window": 1000000,
+      "native_1m": true,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-opus-5-5",
+      "context_window": 1000000,
+      "native_1m": true,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-opus-5",
+      "context_window": 1000000,
+      "native_1m": true,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-opus-4-8",
+      "context_window": 1000000,
+      "native_1m": true,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-opus-4-7",
+      "context_window": 1000000,
+      "native_1m": true,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "context_window": 1000000,
+      "native_1m": true,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-sonnet-5",
+      "context_window": 1000000,
+      "native_1m": true,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "context_window": 1000000,
+      "native_1m": true,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-opus-4-6",
+      "context_window": 200000,
+      "native_1m": false,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Sonnet 4.6 and Opus 4.6 without [extended context](#extended-context) compact at the 200K boundary",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "context_window": 200000,
+      "native_1m": false,
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "Sonnet 4.6 and Opus 4.6 without [extended context](#extended-context) compact at the 200K boundary",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "context_window": 200000,
+      "native_1m": false,
+      "source": "https://code.claude.com/docs/en/statusline.md",
+      "quote": "Maximum context window size in tokens. 200000 by default, or 1000000 for models with extended context.",
+      "checked": "2026-10-08"
+    },
+    {
+      "id": "claude-haiku-4-5-20251001",
+      "context_window": 200000,
+      "native_1m": false,
+      "source": "https://code.claude.com/docs/en/statusline.md",
+      "quote": "Maximum context window size in tokens. 200000 by default, or 1000000 for models with extended context.",
+      "checked": "2026-10-08"
+    }
+  ],
+  "rules": {
+    "suffix_1m": {
+      "source": "https://code.claude.com/docs/en/model-config.md",
+      "quote": "To select a 1M variant by name, append the `[1m]` suffix to a model alias or a full model name",
+      "checked": "2026-10-08"
+    },
+    "disable_1m": {
+      "variable": "CLAUDE_CODE_DISABLE_1M_CONTEXT",
+      "source": "https://code.claude.com/docs/en/env-vars.md",
+      "quote": "Set to `1` to turn off [1M context window](/docs/en/model-config#extended-context) support. Claude Code removes `[1m]` model variants from the model picker and holds models that run with the 1M window by default to a 200K window.",
+      "checked": "2026-10-08"
+    },
+    "max_context_tokens": {
+      "variable": "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
+      "source": "https://code.claude.com/docs/en/env-vars.md",
+      "quote": "Override the context window size Claude Code assumes for the active model. As of v2.1.193, how it applies depends on how Claude Code resolves the model ID",
+      "checked": "2026-10-08"
+    }
+  }
+}
