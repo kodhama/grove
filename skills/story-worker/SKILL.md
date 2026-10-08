@@ -287,9 +287,10 @@ acceptance; never call it complete or merged.
   `node "<supervision-setup's folder>/scripts/receipt-check.mjs" --bindings
   "<the bindings file>" --since <the receipt's Started time>`,
   supervision-setup's folder being the one beside this skill's own. Add
-  `--not-run <table/op>,...` for each operation the receipt lists under Not
-  run, and for `post-work-note` and `hand-back` when their first use is the
-  hand-back still to come; add `--handoff "<path>"` when you resumed from a
+  `--not-run <table/op>,...` for each operation this story did not run, the
+  receipt's Not run list, and for `story-worker/post-work-note` and
+  `story-worker/hand-back` when their first use is the hand-back still to
+  come; add `--handoff "<path>"` when you resumed from a
   handoff whose receipt-check section holds a result, as the restart skill
   does.
 - **Write the receipt** from `references/receipt.md`, filled from observed

@@ -57,7 +57,7 @@
  * subagents' included, and its transcript line names that time; a session
  * where no such call is found keeps every call, and its line says so. A
  * level skill a person started with a slash command leaves no such call.
- * With `--since <time>`, calls before that time do not count either, in
+ * With `--since <zoned time>`, calls before that time do not count either, in
  * any session, and the report's header says so: a worker passes its story's
  * start, so a session that worked an earlier story credits none of its
  * calls. A call or a load with no recorded time is never cut.
@@ -85,7 +85,7 @@
  * no longer carries. Only a session spanning that change is affected.
  *
  * Usage: receipt-check.mjs --bindings <bindings.json> [--not-run <table/op>,...]
- * [--handoff <handoff.md>] [--since <UTC time>]. Exits 1 when any operation is
+ * [--handoff <handoff.md>] [--since <zoned time>]. Exits 1 when any operation is
  * bound-but-unused, attempted-failed or has no evidence, or when the routing
  * table or the repo's override changed since setup read it (the bindings then
  * follow other suggestions), 2 on bad arguments (a `--since` that is not a
@@ -148,7 +148,7 @@ function sharedWith(binding, credited, bindings) {
 /**
  * Check one bindings file against its transcripts, and a handoff's earlier
  * result when one is given. `table` is its routing table as
- * `routing-table.mjs` reads it, read here when not given; `since` a UTC time
+ * `routing-table.mjs` reads it, read here when not given; `since` a zoned time
  * before which calls are not counted (`call-scope.mjs`). Returns the
  * transcripts read, each read one with its `scope`, the table, one row per
  * operation `{ table, id, performer, state, where, note, shared }`, and the
@@ -380,7 +380,7 @@ function main(argv) {
   const loaded = options.error ? options : loadBindings(options.bindings);
   if (loaded.error) {
     process.stderr.write(
-      `receipt-check: ${loaded.error}\nUsage: receipt-check.mjs --bindings <path> [--not-run <table/op>,...] [--handoff <path>] [--since <UTC time>]\n`,
+      `receipt-check: ${loaded.error}\nUsage: receipt-check.mjs --bindings <path> [--not-run <table/op>,...] [--handoff <path>] [--since <zoned time>]\n`,
     );
     return 2;
   }

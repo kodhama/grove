@@ -76,7 +76,7 @@ function scopeOf(load) {
  * The calls that count, and each read session's scope: `{ state: "loaded",
  * at }` when its first load of the level skill was recorded at a time that
  * parses, `{ state: "untimed" }` when it was not, and `{ state: "never" }`
- * when the skill never loaded there. `since` is milliseconds or null, as
+ * when no load of the skill is found there. `since` is milliseconds or null, as
  * `sinceTime` gives it.
  */
 export function scopeCalls(uses, sessions, { skill, since = null }) {

@@ -38,7 +38,7 @@ Bindings:        <bindings file path>, complete at <its complete.at>; "the routi
                   since the earlier setup" and when, if a setup said so
 Rebound:         <operation: from → to, why, when — or "none">
 By fallback:     <operation: suggested <names> unavailable, step run by fallback — or "none">
-Not run:         <operation: why, e.g. "browser-test: no page touched" — or "none">
+Not run:         <table/operation: why, e.g. "story-worker/browser-test: no page touched" — or "none">
 Decided myself:  <the calls you made without asking, one line each — or "none">
 Receipt check:   <the check's output, run with --since the Started time, pasted unchanged; or
                   "unavailable: <why it could not run>">

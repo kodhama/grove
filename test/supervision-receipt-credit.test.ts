@@ -177,7 +177,7 @@ describe("calls count from the load of the level skill", () => {
     expect(rowOf(checkReceipts({ bindings }), "story-worker/review").state).toBe("bound-but-unused");
   });
 
-  it("keeps every call of a session where the level skill never loaded, and says so", () => {
+  it("keeps every call of a session where no load of the level skill is found, and says so", () => {
     const bindings = bindingsOf(...led(false));
     const result = checkReceipts({ bindings });
     expect(rowOf(result, "story-worker/post-work-note").state).toBe("used");
