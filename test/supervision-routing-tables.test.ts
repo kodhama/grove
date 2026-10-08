@@ -516,11 +516,14 @@ function section(text: string, heading: string): string {
   return text.slice(start, next < 0 ? undefined : next);
 }
 
+/** A file's text, or "" when it is missing, so the assertion reading it fails. */
+const read = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : "");
+
+const LEAD = join(SKILLS_TREE, "project-lead", "SKILL.md");
+const WORKER = join(SKILLS_TREE, "story-worker", "SKILL.md");
+
 describe("MQ-373 · the defect route's text", () => {
-  const LEAD = join(SKILLS_TREE, "project-lead", "SKILL.md");
   const REFERENCE = join(SKILLS_TREE, "project-lead", "references", "defect-run.md");
-  const WORKER = join(SKILLS_TREE, "story-worker", "SKILL.md");
-  const read = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : "");
 
   it("project-lead links its defect-run reference, and the reference exists", () => {
     expect(read(LEAD)).toContain("references/defect-run.md");
@@ -579,12 +582,10 @@ describe("MQ-373 · the defect route's text", () => {
  * adds no routing operation, so a consumer's overrides keep matching.
  */
 describe("GRO-7 · the intent route's text", () => {
-  const LEAD = join(SKILLS_TREE, "project-lead", "SKILL.md");
   const REFERENCE = join(SKILLS_TREE, "project-lead", "references", "intent-run.md");
-  const WORKER = join(SKILLS_TREE, "story-worker", "SKILL.md");
   const RECEIPT = join(SKILLS_TREE, "story-worker", "references", "receipt.md");
-  const read = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : "");
   const description = (text: string) => text.match(/^description: (.*)$/m)?.[1] ?? "";
+  const workerGiven = () => section(read(WORKER), "What you are given");
 
   it("project-lead links its intent-run reference, and the reference exists", () => {
     expect(read(LEAD)).toContain("references/intent-run.md");
@@ -597,7 +598,7 @@ describe("GRO-7 · the intent route's text", () => {
 
   it.each([
     ["the intent-run reference", () => read(REFERENCE)],
-    ["story-worker's \"What you are given\"", () => section(read(WORKER), "What you are given")],
+    ["story-worker's \"What you are given\"", workerGiven],
   ])("%s names no harness, path, version or tracker", (_name, text) => {
     expect(text()).not.toBe("");
     expect(textProblems(text())).toEqual([]);
@@ -619,7 +620,7 @@ describe("GRO-7 · the intent route's text", () => {
   });
 
   it.each([
-    ["story-worker's \"What you are given\"", () => section(read(WORKER), "What you are given")],
+    ["story-worker's \"What you are given\"", workerGiven],
     ["the receipt", () => read(RECEIPT)],
   ])("%s takes a work item filed from plain intent as its own source", (_name, text) => {
     expect(text().replace(/\s+/g, " ")).toMatch(/filed from plain intent/);

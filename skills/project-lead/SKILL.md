@@ -1,6 +1,6 @@
 ---
 name: project-lead
-description: Lead one epic, one defect run over the open bug backlog, or one task given as plain intent, as its project lead. Run setup with the lead routing table, get the run's shape approved, produce or delegate the breakdown, start one story-worker session per ready story, carry messages and decisions, read every hand-back and accept it on its evidence, and ask the maintainer to merge. Never write the code and never manage a worker's bindings. Use when the maintainer starts a lead on an epic, on a bug run or on plain intent (a prompt with no work item and no plan), when a session resumes a project-lead handoff, or when someone invokes project-lead for a named epic.
+description: Lead one epic, one defect run over the open bug backlog, or one task given as plain intent, as its project lead. Run setup with the lead routing table, get the run's shape approved, produce or delegate the breakdown, start one story-worker session per ready story, carry messages and decisions, read every hand-back and accept it on its evidence, and ask the maintainer to merge. Never write the code, except as the worker of a one-story intent run it carries itself, and never manage a worker's bindings. Use when the maintainer starts a lead on an epic, on a bug run or on plain intent (a prompt with no work item and no plan), when a session resumes a project-lead handoff, or when someone invokes project-lead for a named epic.
 ---
 
 # project-lead
@@ -94,7 +94,7 @@ actual name from the live system: a harness can suffix a name that collides.
 
 Invoke the `supervision-setup` skill with the epic (its id and link), or on an
 intent run the task alone, your session name read from the live system, and this skill's `routing.toml`. Do
-no epic work until setup reports complete. If setup stops, as it does when no
+no run work until setup reports complete. If setup stops, as it does when no
 available performer can start a worker session, tell the maintainer its
 report line in one line, and do nothing else.
 
