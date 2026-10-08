@@ -139,7 +139,7 @@ another.
 
 ## Routing table
 
-- skill: <the bindings file's skill>; table <path>; override <path or none>
+- skill: <the bindings file's skill>; table <path> (sha256 <hex>); override <path or none> (sha256 <hex>)
 - bindings file: .context/supervision/<session-name>/bindings.json
 - harness: <name> <version> (<the bindings file's harness evidence>)
 - transcripts: <every session id and path the bindings file lists>
@@ -182,7 +182,8 @@ or "The successor" on the new-session path.
 
 The routing table is inline because a successor on another machine cannot
 read the bindings file. The harness and transcripts lines let its
-seeded setup keep the earlier transcripts all the same. The receipt check is
+seeded setup keep the earlier transcripts all the same, and the table's
+and the override's sha256 let it see a table or override that changed since. The receipt check is
 inline for the same reason: such a successor cannot read your transcripts, so
 its own check reads your result from this section (`--handoff`) and counts
 each operation it shows used in a session it cannot read itself. That
@@ -206,8 +207,11 @@ The prompt that wakes you names the handoff.
    `routing.toml` beside the level skill you run or, for a session that runs
    no level skill, beside this skill. The table path the handoff records is a
    record only, since an update or a move can take that folder away. Setup
-   rechecks every seeded binding and appends your new transcript. Do no task
-   work until it completes.
+   rechecks every seeded binding, or binds every operation as on a first run
+   when the table changed, and appends your new transcript. Do no task work
+   until it completes. If it reports "the routing table changed since the
+   earlier setup", tell your lead that line, or your reporter when you have
+   no lead.
 5. Write `resumed <date and time>, session <new session id>` under Restart
    record, and delete `restart-pending`.
 6. Carry on from "What I am doing", keeping the live commitments.
