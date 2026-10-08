@@ -44,7 +44,6 @@ const AT_200K = ["claude-haiku-4-5", "claude-haiku-4-5-20251001", "claude-opus-4
 interface Row {
   id: string;
   context_window: number;
-  native_1m: boolean;
   source: string;
   quote: string;
   checked: string;
@@ -62,7 +61,6 @@ describe("the table: every row is sourced and dated", () => {
   it("gives each row a window, the docs page, a verbatim quote and the date it was checked", () => {
     for (const row of rows()) {
       expect([1_000_000, 200_000], row.id).toContain(row.context_window);
-      expect(row.native_1m, row.id).toBe(row.context_window === 1_000_000);
       expect(row.source, row.id).toMatch(/^https:\/\/code\.claude\.com\/docs\/en\/[a-z-]+\.md$/u);
       expect(row.quote.length, row.id).toBeGreaterThan(20);
       expect(row.checked, row.id).toMatch(/^\d{4}-\d{2}-\d{2}$/u);

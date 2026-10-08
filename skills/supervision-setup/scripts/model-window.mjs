@@ -41,9 +41,9 @@ function unknown(id, reason) {
   return { id, context_window: null, evidence: "unverified", reason };
 }
 
-/** The window for `id` under the environment `env`, from `table` (the parsed windows file). */
-export function windowFor(id, env, table = JSON.parse(readFileSync(TABLE, "utf8"))) {
-  const { models, rules } = table;
+/** The window for `id` under the environment `env`. */
+export function windowFor(id, env) {
+  const { models, rules } = JSON.parse(readFileSync(TABLE, "utf8"));
   if (env.CLAUDE_CODE_MAX_CONTEXT_TOKENS)
     return unknown(
       id,
@@ -61,7 +61,7 @@ export function windowFor(id, env, table = JSON.parse(readFileSync(TABLE, "utf8"
       id,
       `no row for "${id}" in ${TABLE_NAME}; add one only with the window, page and quote from ${rules.suffix_1m.source}`,
     );
-  if (disabled && row.native_1m)
+  if (disabled && row.context_window === ONE_MILLION)
     return { id, context_window: HELD, evidence: `CLAUDE_CODE_DISABLE_1M_CONTEXT=1: ${cite(rules.disable_1m)}` };
   return { id, context_window: row.context_window, evidence: cite(row) };
 }
