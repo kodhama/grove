@@ -4,7 +4,7 @@ title: "Supervision operating model: the live decisions"
 description: The supervision epic's live decisions, moved out of the retired epic state file. Each is restated as it stands today, with its original date, where it is carried now and a link to its archived D-entry; every other D-entry gets one line saying what carries or closed it, and D07 an entry for its 2026-10-02 supersession.
 tags: [agent-workflow, supervision, decisions]
 decided: 2026-10-02
-status: restates the decisions of 2026-09-20 to 2026-09-23 and where each is carried now; records one later maintainer ruling (D07, 2026-10-02), and makes none of its own
+status: restates the decisions of 2026-09-20 to 2026-09-23 and where each is carried now; records later maintainer rulings (D07, 2026-10-02; D27, 2026-10-08), and makes none of its own
 ticket: MQ-355
 ---
 
@@ -182,6 +182,25 @@ review and draft-PR steps rest on D08, D11, D17, D25 and D26.
   its Never list; the `review` fallback in `story-worker/routing.toml`; the
   receipt's "Reviewed by" line in `story-worker/references/receipt.md`.
 
+### D27 — A lead may carry a one-story intent run itself, as that story's worker
+
+- 2026-10-08 · maintainer, on GRO-7 · changes D01 for this route only
+- **Decision:** a lead started on plain intent, with no epic, work item or
+  plan, sizes the task and puts a route in its run's shape. When the maintainer
+  approves carrying a one-story run itself, the lead's session becomes that
+  story's worker: it runs `story-worker` on the story with the maintainer as
+  its lead, keeping the worker's review, receipt, draft pull request and merge
+  gate. Every other lead still never writes code. The lead files the work items
+  once the shape is approved; there is no untracked run.
+- **Why:** the maintainer's direction of 2026-10-02 (on GRO-1) that a lead's
+  input can be just a big task, and that a task which turns out small should
+  not go through the full breakdown-and-workers machinery. Carrying it as a
+  worker, not as ad-hoc edits by the lead, keeps every gate a worker's change
+  passes. Filing keeps the work note, the receipt and the handoffs, which all
+  rest on a work item.
+- **Carried by:** `project-lead/references/intent-run.md`; the intent-run
+  paragraph, the code exception and its Never entry in `project-lead/SKILL.md`.
+
 ## Carried or closed by the plan
 
 None of these has a `Superseded by` line in the archive. Each is now carried by
@@ -192,7 +211,9 @@ entry under [Superseded since](#superseded-since).
   carried. The lead never writes code (`project-lead/SKILL.md`), and each
   worker decides how its story is built (`story-worker/SKILL.md`). Its
   persisted state with HTML views is closed by the plan's retirement of the
-  state file (R27, R29).
+  state file (R27, R29). **Changed since:** [D27](#d27--a-lead-may-carry-a-one-story-intent-run-itself-as-that-storys-worker),
+  2026-10-08: a lead carrying a one-story intent run itself writes its code,
+  as that story's worker.
 - **D02**, two supervisory layers (2026-09-20, [archived](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/archive/reproducible-agent-supervision-epic-state.md#d02--two-supervisory-layers-epic-supervisor-and-issue-owner)):
   carried as the project lead and the story worker (plan R1, R2). Only the lead
   asks for the OK before it starts. The worker reports its setup and starts.
@@ -205,7 +226,9 @@ entry under [Superseded since](#superseded-since).
   epic to Droid's Missions"), and by the receipt's "Operating model" line.
 - **D06**, an epic, not a mission (2026-09-20, [archived](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/archive/reproducible-agent-supervision-epic-state.md#d06--the-unit-of-work-above-an-issue-is-an-epic-not-a-mission)):
   carried by `AGENTS.md` ("An epic is a Linear project") and
-  `project-lead/SKILL.md`.
+  `project-lead/SKILL.md`. **Changed since:** 2026-10-08, a lead also starts
+  from plain intent, with no epic, and files the work items itself
+  ([D27](#d27--a-lead-may-carry-a-one-story-intent-run-itself-as-that-storys-worker)).
 - **D10**, epic state tracked in git (2026-09-20, [archived](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/archive/reproducible-agent-supervision-epic-state.md#d10--epic-state-is-tracked-in-git-under-docs-provisionally)):
   closed. The plan retires the state file (R27, KTD13).
 - **D14**, the MQ-232 bug supervisor as a working base (2026-09-22, [archived](https://github.com/kodhama/math-quest/blob/65747f43afd97956700023e39d074b010a0defec/docs/archive/reproducible-agent-supervision-epic-state.md#d14--the-mq-232-bug-supervisor-is-merged-as-a-working-base-to-generalise-from)):
