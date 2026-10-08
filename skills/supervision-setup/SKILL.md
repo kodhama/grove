@@ -41,7 +41,8 @@ The level skill passes, or the handoff holds:
 - the session's name, read from the live system as the harness notes say,
   never typed from memory;
 - a routing table: the path of the level skill's `routing.toml`, or a handoff
-  whose filled table is the seed.
+  whose filled table is the seed. On a seeded run the table file itself is
+  still the one beside the skill, as step 1 says.
 
 ## 1. Merge the repo's override
 
@@ -58,9 +59,15 @@ operations, the report line `the override for <skill> names <id>, which its
 table lacks`, and no completion marker. Then tell the maintainer. A typo
 in an override must never silently do nothing.
 
-On a seeded run, the table comes from the handoff, and its `skill` field picks
-the same override the first run merged. The handoff's bound performers are
-candidates to recheck, never bindings.
+On a seeded run, the table is the `routing.toml` in the folder this session
+loaded the level skill from, or session-restart's own for a session that runs
+no level skill. The handoff names that skill, and its `skill` field picks the
+same override the first run merged. The table path the handoff records is a
+record only: a plugin update or a move can take that folder away, or leave an
+older copy there, so never read the table from it. Where the earlier
+bindings file the handoff names still resolves, comparing the sha256 it
+recorded with the table you read says whether the table changed. The
+handoff's bound performers are candidates to recheck, never bindings.
 
 ## 2. Record the header
 
@@ -169,7 +176,7 @@ path, the binding is `seed-rechecked`. Every
 other seeded operation goes to discovery. So does a seeded binding of an
 operation the table marks `fresh_context = true` to an agent, or to a tool
 that starts a subagent, even when it passes that recheck. The handoff's rows
-do not carry the mark: read it from the table file the handoff names. An
+do not carry the mark: read it from the table step 1 read. An
 operation the seed does not carry goes through the check as on a first run.
 
 ## 5. Discovery

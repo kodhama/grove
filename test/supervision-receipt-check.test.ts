@@ -36,6 +36,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -522,6 +523,86 @@ describe("the checker runs from a plugin install, with no npm install", () => {
   it("package.json lists no runtime dependency", () => {
     const manifest = JSON.parse(readFileSync("package.json", "utf8"));
     expect(manifest.dependencies ?? {}).toEqual({});
+  });
+});
+
+/**
+ * GRO-11 — a plugin update or move takes away the table a bindings file
+ * names. Codex deletes an old version's folder as soon as an update installs,
+ * and Claude Code deletes it 14 days later, so a recorded path can name a
+ * file that is gone. The checker then reads the table by skill name, beside
+ * its own skill, and says it did.
+ */
+describe("GRO-11 · a routing table that moved", () => {
+  /** A versioned plugin path that no longer exists, as an update leaves it. */
+  const GONE = "/Users/maintainer/.claude/plugins/cache/grove/grove/0.0.1/skills/story-worker/routing.toml";
+
+  it("reads the skill's table beside the checker when the recorded path is gone", () => {
+    const read = readRoutingTable({ skill: "story-worker", table: { path: GONE } });
+    expect(read.error).toBeUndefined();
+    expect(read.path).toBe(resolve(TABLE));
+    expect(read.moved).toBe(GONE);
+    expect(read.marked).toEqual(["review", "review-escalation"]);
+  });
+
+  it("keeps the recorded path while it exists, and sets no moved", () => {
+    const read = readRoutingTable({ skill: "story-worker", table: { path: resolve(TABLE) } });
+    expect(read.path).toBe(resolve(TABLE));
+    expect(read.moved).toBeUndefined();
+  });
+
+  it("resolves beside a copy of the skills, not beside the repo", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-moved-"));
+    try {
+      for (const skill of ["supervision-setup", "story-worker"]) {
+        cpSync(join("skills", skill), join(dir, "skills", skill), { recursive: true });
+      }
+      const script = `import { readRoutingTable } from "./skills/supervision-setup/scripts/routing-table.mjs";
+        const read = readRoutingTable({ skill: "story-worker", table: { path: ${JSON.stringify(GONE)} } });
+        process.stdout.write(JSON.stringify(read));`;
+      const run = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+        cwd: dir,
+        encoding: "utf8",
+      });
+      expect(run.stderr).toBe("");
+      const read = JSON.parse(run.stdout);
+      expect(read.path).toBe(join(realpathSync(dir), "skills", "story-worker", "routing.toml"));
+      expect(read.moved).toBe(GONE);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("is an error naming both paths when the skill has no table beside the checker either", () => {
+    const read = readRoutingTable({
+      skill: "no-such-skill",
+      table: { path: GONE.replace("story-worker", "no-such-skill") },
+    });
+    expect(read.error).toContain(GONE.replace("story-worker", "no-such-skill"));
+    expect(read.error).toContain(resolve("skills", "no-such-skill", "routing.toml"));
+  });
+
+  it("never falls back for a skill name that is a path step", () => {
+    for (const skill of [".", ".."]) {
+      const read = readRoutingTable({ skill, table: { path: GONE } });
+      expect(read.error, skill).toBe(`cannot read the routing table ${GONE}: ENOENT: no such file or directory, open '${GONE}'`);
+    }
+  });
+
+  it("says in the report that the recorded table is gone and which one it read", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-moved-"));
+    try {
+      const file = bindingsReading([AFTER, "claude-after-restart"]);
+      Object.assign(file.table as object, { path: GONE });
+      const path = join(dir, "bindings.json");
+      writeFileSync(path, JSON.stringify(file));
+      const result = spawnSync("node", [SCRIPT, "--bindings", path], { encoding: "utf8" });
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain(`table ${GONE}: gone; read ${resolve(TABLE)} instead`);
+      expect(result.stdout).toContain("fresh_context on review, review-escalation");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -1438,9 +1519,12 @@ describe("MQ-353 · the command line", () => {
   it("exits 2 with one line when the routing table cannot be read", () => {
     const broken = join(dir, "broken-routing.toml");
     writeFileSync(broken, "[[operation\nid = ");
+    // A missing path falls back to the skill's table beside the checker
+    // (GRO-11), so the missing case names a skill that has none there either.
     for (const table of [{ path: "nowhere/routing.toml" }, { path: broken }, undefined]) {
       const file = bindingsReading([AFTER, "claude-after-restart"]);
       file.table = table;
+      if (table?.path === "nowhere/routing.toml") file.skill = "no-such-skill";
       const result = run(file);
       expect(result.status, JSON.stringify(table)).toBe(2);
       expect(result.stderr.trim().split("\n"), JSON.stringify(table)).toHaveLength(1);
