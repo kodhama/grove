@@ -730,6 +730,63 @@ describe("a skill's script run from wherever the skill is installed", () => {
   });
 });
 
+describe("a command inside quoted text that holds a separator", () => {
+  const usesOf = (line: string, kind: string) =>
+    (shellUses(line) as { kind: string; name: string }[])
+      .filter((use) => use.kind === kind)
+      .map((use) => use.name);
+  const clisOf = (line: string) => usesOf(line, "cli");
+  const scriptOf = (line: string) => usesOf(line, "skill-script");
+
+  const PLUGIN_SCRIPT = ".claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/x.mjs";
+  const REPO_SCRIPT = ".agents/skills/context-gauge/scripts/x.mjs";
+
+  it.each([
+    ["an & in double quotes", `node "/Users/A&B/${PLUGIN_SCRIPT}"`],
+    ["a ; and a | in single quotes", `node '/p/a;b|c/${PLUGIN_SCRIPT}'`],
+    ["a ; in double quotes", `node "/p/a;b/${PLUGIN_SCRIPT}"`],
+  ])("credits a script whose quoted path holds %s, and its interpreter", (_how, line) => {
+    expect(clisOf(line)).toEqual(["node"]);
+    expect(scriptOf(line)).toEqual(["grove:context-gauge"]);
+  });
+
+  it.each([
+    ["after a separator", `echo "a; $(gh pr view)"`, ["echo", "gh"]],
+    ["before a separator", `echo "$(date) and; more"`, ["echo", "date"]],
+    ["holding its own separator", `echo "$(printf 'a'; gh pr view)"`, ["echo", "printf", "gh"]],
+  ])("reads a $( in double quotes %s as a command", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["unquoted", `OUT=$(node "/p/a;b/${REPO_SCRIPT}")`],
+    ["in double quotes", `OUT="$(node "/p/a;b/${REPO_SCRIPT}")"`],
+  ])("reads a quoted path inside a $( %s as one word", (_where, line) => {
+    expect(clisOf(line)).toEqual(["node"]);
+    expect(scriptOf(line)).toEqual(["context-gauge"]);
+  });
+
+  it("reads a $( nested in a $(, and a subshell inside a $( whose ) does not close it", () => {
+    expect(clisOf("X=$(echo $(gh pr view))")).toEqual(["echo", "gh"]);
+    expect(clisOf("X=$( (cd /r && gh pr view) )")).toEqual(["cd", "gh"]);
+  });
+
+  it.each([
+    ["a commit message", `git commit -m "fix: a; rm -rf x | tee"`, ["git"]],
+    ["a string with an escaped quote", String.raw`echo "a \" ; gh"`, ["echo"]],
+    ["an unclosed quote, which runs to the end of the line", `echo "abc; gh`, ["echo"]],
+  ])("never reads quoted text as a command: %s", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("joins a line continued by a backslash, and skips a comment", () => {
+    expect(clisOf("cd /r && \\\n  gh pr view")).toEqual(["cd", "gh"]);
+    expect(clisOf(`node \\\n  /r/${REPO_SCRIPT}`)).toEqual(["node"]);
+    expect(scriptOf(`node \\\n  /r/${REPO_SCRIPT}`)).toEqual(["context-gauge"]);
+    expect(clisOf("# Check the PR's state\ngh pr view 12")).toEqual(["gh"]);
+  });
+});
+
 describe("MQ-377 · a Claude Code call counts only when it ran", () => {
   const REFUSED: [string, string] = ["77770007-0000-4000-8000-000000000007", "claude-outcomes"];
   const RAN: [string, string] = ["88880008-0000-4000-8000-000000000008", "claude-outcomes"];

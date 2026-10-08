@@ -10,12 +10,15 @@
  *   { kind: "cli", name: "cd" }, { kind: "cli", name: "gh" }
  *
  * - a cli: the first word of each command. The line is split at `&&`, `||`,
- *   `;`, `|`, newlines and `$(`, which starts a command even inside double
- *   quotes (`PR="$(gh pr view)"`) unless a backslash escapes it; leading `NAME=value` settings are skipped,
- *   a leading `(` starts the command, and text is never a command: heredoc
- *   bodies are dropped, and quoted text holding a separator is blanked. A
- *   quoted or escaped space stays inside its word, so
- *   `node "/Users/Jane Doe/x.mjs"` runs one script, not two words;
+ *   `;`, `|` and newlines outside quotes, and a `$(` outside single quotes
+ *   opens a command that runs to its matching `)`, even inside double quotes
+ *   (`PR="$(gh pr view)"`), unless a backslash escapes it. Leading
+ *   `NAME=value` settings are skipped, a leading `(` starts the command, and
+ *   text is never a command: heredoc bodies and comments are dropped, and
+ *   quoted text stays inside its word, separators and all. A quoted or
+ *   escaped space stays inside its word too, so `node "/Users/Jane Doe/x.mjs"`
+ *   runs one script, not two words, and `git commit -m "fix: a; b"` runs
+ *   only `git`;
  * - a skill-script: a command that runs a file in a skill's own `scripts/`
  *   folder, as its first word or after `bash`, `sh`, `node` or `python`. The
  *   skill sits in a repo's `.agents/skills/<skill>/` or `.claude/skills/<skill>/`,
@@ -51,16 +54,71 @@ const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
 const HEREDOC = /<<-?\s*(['"]?)(\w+)\1([^\n]*)\n[\s\S]*?\n\s*\2(?=\s*(?:\n|$))/g;
 
 /**
- * A shell line with its heredoc bodies dropped and quoted text holding a
- * separator blanked. In single quotes `$(` is text too; in double quotes it
- * runs a command, so it stays.
+ * A shell line's commands as text, read left to right once its heredoc
+ * bodies are dropped. Outside quotes `&&`, `||`, `;`, `|` and a newline end a
+ * command; inside quotes they are text, and quoted text stays inside its
+ * word. A `$(` outside single quotes and not escaped opens a command that
+ * ends at its matching `)`, a subshell's own `(` and `)` counting as depth,
+ * and inside double quotes the quotes resume after it. A backslash-newline
+ * outside single quotes joins the lines, a `#` that starts a word outside
+ * quotes runs a comment to the newline, and an unclosed quote runs to the
+ * end. A command comes before the ones it opens: `echo "a; $(date)"` gives
+ * `echo "a; "` and `date`.
  */
-function withoutText(line) {
-  return line
-    .replace(HEREDOC, "$3")
-    .replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, (quoted) =>
-      /[|;&\n]/.test(quoted) || (quoted.startsWith("'") && quoted.includes("$(")) ? "''" : quoted,
-    );
+function commandTexts(line) {
+  const text = line.replace(HEREDOC, "$3");
+  const found = [""];
+  const frames = [{ at: 0, depth: 0, quoted: false }];
+  let quote = "";
+  let wordStart = true;
+  const add = (chars) => (found[frames.at(-1).at] += chars);
+  const next = () => {
+    frames.at(-1).at = found.push("") - 1;
+    wordStart = true;
+  };
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const after = text[i + 1];
+    const frame = frames.at(-1);
+    if (quote === "'") {
+      if (char === "'") quote = "";
+      add(char);
+    } else if (char === "\\") {
+      if (after === "\n") i++;
+      else if (after !== undefined) add(char + text[++i]);
+      else add(char);
+      if (!quote) wordStart = false;
+    } else if (char === "$" && after === "(") {
+      i++;
+      frames.push({ at: 0, depth: 0, quoted: quote === '"' });
+      quote = "";
+      next();
+    } else if (quote === '"') {
+      if (char === '"') quote = "";
+      add(char);
+    } else if (char === "'" || char === '"') {
+      quote = char;
+      add(char);
+      wordStart = false;
+    } else if (char === "#" && wordStart) {
+      while (i + 1 < text.length && text[i + 1] !== "\n") i++;
+    } else if (char === ")" && frames.length > 1 && frame.depth === 0) {
+      frames.pop();
+      if (frame.quoted) quote = '"';
+      wordStart = false;
+    } else if ((char === "&" && after === "&") || (char === "|" && after === "|")) {
+      i++;
+      next();
+    } else if (char === ";" || char === "|" || char === "\n") {
+      next();
+    } else {
+      if (frames.length > 1 && char === "(") frame.depth++;
+      if (frames.length > 1 && char === ")") frame.depth--;
+      add(char);
+      wordStart = /[\s()]/.test(char);
+    }
+  }
+  return found;
 }
 
 /**
@@ -102,12 +160,11 @@ function shellWords(part) {
  * The commands a shell line runs, as words with leading `NAME=value` settings
  * skipped: `cd /repo && FOO=1 gh pr view` gives `cd /repo` and `gh pr view`.
  * `$(` starts a command and a leading `(` opens one, and a command's own `)`
- * is dropped: `PR=$(gh pr view)` and `(gh pr view)` both give `gh pr view)`,
+ * is dropped: `PR=$(gh pr view)` and `(gh pr view)` both give `gh pr view`,
  * and `echo $(date)` gives `echo` and `date`.
  */
 function commands(line) {
-  return withoutText(line)
-    .split(/&&|\|\||(?<=(?:^|[^\\])(?:\\\\)*)\$\(|[;|\n]/)
+  return commandTexts(line)
     .map((part) => shellWords(part).filter(Boolean))
     .map((words) => {
       const start = words.findIndex((word) => !SETTING.test(word));
