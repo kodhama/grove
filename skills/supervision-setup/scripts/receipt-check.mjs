@@ -72,10 +72,10 @@
  * calls, not at the step that should have used it: setup's own probes count
  * too, where setup runs after the level skill loads (it runs the context
  * gauge once, and starts its check as a general-purpose agent). A use carried
- * from a handoff has no time, so neither cut applies to it. It reads only the sessions the bindings file
- * lists, with their subagent transcripts, so work done in a sibling
- * session is not seen; that is why story-worker runs its review in a
- * subagent. A handoff carries only `used` lines, so after a restart onto
+ * from a handoff has no time, so neither cut applies to it. It reads only the
+ * sessions the bindings file lists, with their subagent transcripts, so work
+ * done in a sibling session is not seen; that is why story-worker runs its
+ * review in a subagent. A handoff carries only `used` lines, so after a restart onto
  * another machine an `attempted-failed` operation reads `bound-but-unused`,
  * which fails the same way. And a handoff written by the check before MQ-377
  * may carry a `used` line for a call that never ran, and a review line
@@ -105,7 +105,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { scopeCalls, sinceTime } from "./call-scope.mjs";
 import { CARRIED, readHandoff } from "./handoff-receipt.mjs";
-import { judge, matches, unqualified } from "./operation-state.mjs";
+import { hasPerformer, judge, matches, unqualified } from "./operation-state.mjs";
 import { readRoutingTable } from "./routing-table.mjs";
 import { readTranscripts } from "./transcript-uses.mjs";
 
@@ -137,15 +137,10 @@ function tableOf(bindings) {
   return table;
 }
 
-/** Whether a binding names a performer to find: neither by fallback nor unavailable. */
-function findable(binding) {
-  return binding.how_bound !== "fallback" && binding.how_bound !== "unavailable" && binding.native_id;
-}
-
 /** The other operations whose bindings match the use a row was credited for, as `table/op` keys. */
 function sharedWith(binding, credited, bindings) {
   return bindings.operations
-    .filter((other) => other !== binding && findable(other) && matches(other, credited))
+    .filter((other) => other !== binding && hasPerformer(other) && matches(other, credited))
     .map((other) => `${other.table}/${other.id}`);
 }
 
@@ -264,10 +259,16 @@ function tableLines(table) {
 
 /** Where a read session's calls were counted from, as its transcript line's ending. */
 function scopeText(scope, skill) {
-  if (!scope) return "";
-  if (scope.untimed) return `; ${skill} loaded at no recorded time, so every call counts`;
-  if (scope.loaded === null) return `; ${skill} never loaded here, so every call counts`;
-  return `; counted from ${scope.loaded}, when ${skill} loaded`;
+  switch (scope?.state) {
+    case "loaded":
+      return `; counted from ${scope.at}, when ${skill} loaded`;
+    case "untimed":
+      return `; ${skill} loaded at no recorded time, so every call counts`;
+    case "never":
+      return `; ${skill} never loaded here, so every call counts`;
+    default:
+      return "";
+  }
 }
 
 /** The whole report, one line per transcript, operation and unbound skill. */

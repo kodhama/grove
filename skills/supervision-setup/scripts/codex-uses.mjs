@@ -156,27 +156,27 @@ export function timeOf(record) {
 
 /**
  * What one Codex rollout record shows was used, each use tagged with whether
- * it ran: its item's outcome, unless the use carries its own (a SKILL.md read).
+ * it ran (its item's outcome, unless the use carries its own: a SKILL.md
+ * read) and when (`at`, the record's time).
  */
 function recordUses(record, answered) {
+  const at = timeOf(record);
   const payload = record?.type === "response_item" ? record.payload : null;
   if (CALL.test(payload?.type ?? "")) {
     const name = payload.namespace ? `${payload.namespace}.${payload.name}` : payload.name;
-    return [{ kind: "tool", name, outcome: callOutcome(name, payload.call_id, answered) }];
+    return [{ kind: "tool", name, outcome: callOutcome(name, payload.call_id, answered), at }];
   }
   const item = codexItem(record);
   const uses = itemUses(item);
   if (uses.length === 0) return uses;
   const outcome = itemOutcome(item);
-  return uses.map((use) => ({ outcome, ...use }));
+  return uses.map((use) => ({ outcome, ...use, at }));
 }
 
 /** Every use one Codex rollout's records show, in order, each tagged with whether it ran and when (`at`). */
 export function codexUses(recorded) {
   const answered = answers(recorded);
-  return recorded.flatMap((record) =>
-    recordUses(record, answered).map((use) => ({ ...use, at: timeOf(record) })),
-  );
+  return recorded.flatMap((record) => recordUses(record, answered));
 }
 
 /** Where a rollout's Codex home keeps rollouts: `sessions/` by date, and `archived_sessions/` flat. */

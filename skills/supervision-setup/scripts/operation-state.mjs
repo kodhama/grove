@@ -77,6 +77,11 @@ function contextNote(calls, partial) {
   return `${outside}: in ${named.join(", in ")}`;
 }
 
+/** Whether a binding names a performer to find: it is neither by fallback nor unavailable. */
+export function hasPerformer(binding) {
+  return binding.how_bound !== "fallback" && binding.how_bound !== "unavailable" && Boolean(binding.native_id);
+}
+
 /** A row with its note, when there is one. */
 function noted(row, note) {
   return note ? { ...row, note } : row;
@@ -99,15 +104,14 @@ function carriedUse(binding, carried, marked) {
  * or for an operation the routing table marks `fresh_context`, one inside a
  * fresh-context subagent. `context` holds every call, the marked operations,
  * the handoff's carried uses, the operations declared not run, and whether a
- * listed transcript is missing. A `used` row also carries `credited`: the
- * call it was found in, or for a carried use the performer the handoff
- * names, as a use, so the caller can tell whether another operation's
- * binding matches it too.
+ * listed transcript is missing. A `used` row also carries `credited`, the
+ * use it was credited for: the call, or for a carried use the performer the
+ * handoff names.
  */
 export function judge(binding, context) {
   const key = `${binding.table}/${binding.id}`;
   if (binding.how_bound === "fallback") return { state: "by fallback" };
-  if (binding.how_bound === "unavailable" || !binding.native_id) return { state: "unavailable" };
+  if (!hasPerformer(binding)) return { state: "unavailable" };
   const marked = context.marked.has(key);
   const calls = context.calls.filter((call) => matches(binding, call));
   const allowed = calls.filter((call) => call.fresh || !marked);

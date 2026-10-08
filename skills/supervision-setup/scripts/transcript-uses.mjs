@@ -286,22 +286,23 @@ function locate(path, sessionId) {
 /**
  * Every use one transcript file records, each tagged with whether its call
  * ran, when (`at`, its record's `timestamp`, or null), where it was found,
- * and its transcript's context (`fresh` when that is a fresh-context subagent). A Claude Code call is paired with its result
- * in the same file, a Codex call with its outcome records (`codex-uses.mjs`).
+ * and its transcript's context (`fresh` when that is a fresh-context
+ * subagent). A Claude Code call is paired with its result in the same file, a
+ * Codex call with its outcome records (`codex-uses.mjs`).
  * A fork's replay of its parent's `Agent` call, the call its sidecar names,
  * is skipped: it is the parent's call, not the fork's (KTD5).
  */
 function usesIn(recorded, where, context, replayed = null) {
   const tag = { where, context, fresh: context === FRESH };
   const results = claudeResults(recorded);
-  const claude = recorded.flatMap((record) =>
-    claudeToolCalls(record).flatMap((call) => {
+  const claude = recorded.flatMap((record) => {
+    const at = timeOf(record);
+    return claudeToolCalls(record).flatMap((call) => {
       if (call.id === replayed) return [];
       const outcome = claudeOutcome(call, results.get(call.id));
-      const at = timeOf(record);
       return claudeUses(call).map((use) => ({ ...use, outcome, at, ...tag }));
-    }),
-  );
+    });
+  });
   return claude.concat(codexUses(recorded).map((use) => ({ ...use, ...tag })));
 }
 

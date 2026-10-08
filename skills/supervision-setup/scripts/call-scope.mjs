@@ -33,36 +33,54 @@ export function sinceTime(since) {
   return time;
 }
 
-/** Whether a call ran and loaded the level skill `skill`, in its session's main transcript. */
-function isLoad(use, skill) {
-  return (
-    use.kind === "skill" &&
-    use.outcome === "ran" &&
-    use.where === use.session &&
-    unqualified(use.name) === unqualified(skill)
-  );
+/** A use's time as milliseconds, or null when it has none that parses. */
+function timeMs(use) {
+  const time = Date.parse(use.at ?? "");
+  return Number.isNaN(time) ? null : time;
+}
+
+/** The first call in each session's main transcript that ran and loaded the level skill `skill`. */
+function firstLoads(uses, skill) {
+  const name = unqualified(skill);
+  const loads = new Map();
+  for (const use of uses) {
+    const loaded =
+      use.kind === "skill" &&
+      use.outcome === "ran" &&
+      use.where === use.session &&
+      unqualified(use.name) === name;
+    if (loaded && !loads.has(use.session)) loads.set(use.session, use);
+  }
+  return loads;
+}
+
+/** A session's scope from its first load: `loaded` at its time, `untimed`, or `never`. */
+function scopeOf(load) {
+  if (!load) return { state: "never" };
+  return timeMs(load) === null ? { state: "untimed" } : { state: "loaded", at: load.at };
 }
 
 /**
- * The calls that count, and each read session's scope: `{ loaded }`, the
- * time its first load of the level skill was recorded at, or null when it
- * never loaded, with `untimed: true` when it loaded at no time that parses.
- * `since` is milliseconds or null, as `sinceTime` gives it.
+ * The calls that count, and each read session's scope: `{ state: "loaded",
+ * at }` when its first load of the level skill was recorded at a time that
+ * parses, `{ state: "untimed" }` when it was not, and `{ state: "never" }`
+ * when the skill never loaded there. `since` is milliseconds or null, as
+ * `sinceTime` gives it.
  */
 export function scopeCalls(uses, sessions, { skill, since = null }) {
-  const scopes = new Map();
-  const cut = new Map();
-  for (const session of sessions) {
-    const load = uses.find((use) => use.session === session && isLoad(use, skill));
-    const time = load ? Date.parse(load.at ?? "") : Number.NaN;
-    scopes.set(session, { loaded: load?.at ?? null, ...(load && Number.isNaN(time) && { untimed: true }) });
-    if (!Number.isNaN(time)) cut.set(session, time);
-  }
+  const loads = firstLoads(uses, skill);
+  const scopes = new Map(sessions.map((session) => [session, scopeOf(loads.get(session))]));
+  const cuts = new Map(
+    sessions.flatMap((session) => {
+      const time = scopes.get(session).state === "loaded" ? timeMs(loads.get(session)) : null;
+      return time === null ? [] : [[session, time]];
+    }),
+  );
   const counts = (use) => {
-    const at = Date.parse(use.at ?? "");
-    if (Number.isNaN(at)) return true;
+    const at = timeMs(use);
+    if (at === null) return true;
     if (since !== null && at < since) return false;
-    return !cut.has(use.session) || at >= cut.get(use.session);
+    return !cuts.has(use.session) || at >= cuts.get(use.session);
   };
   return { uses: uses.filter(counts), scopes };
 }
