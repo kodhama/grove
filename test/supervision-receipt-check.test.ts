@@ -798,6 +798,15 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf("echo ${a:-${b%)}} && gh pr view")).toEqual(["echo", "gh"]);
     expect(clisOf("echo ${a:-$(gh pr view)}")).toEqual(["echo", "gh"]);
   });
+
+  it.each([
+    ["a case", "X=$(case no in yes) gh pr view;; esac)", ["case", "esac"]],
+    ["a case nested in a case", "X=$(case a in x) case b in y) echo;; esac;; esac) && gh pr view", ["case", "esac", "esac", "gh"]],
+    ["a pattern opened by its own (", "X=$(case a in (x) echo;; esac) && gh pr view", ["case", "esac", "gh"]],
+    ["a pattern with alternatives", "X=$(case a in x|y) echo;; esac) && gh pr view", ["case", "esac", "gh"]],
+  ])("never lets a pattern's ) in %s close the $( around it", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
 });
 
 describe("MQ-377 · a Claude Code call counts only when it ran", () => {

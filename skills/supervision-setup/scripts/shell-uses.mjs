@@ -46,6 +46,10 @@ const INTERPRETERS = new Set(["bash", "sh", "zsh", "node", "python", "python3"])
  */
 const SKILL_SCRIPT =
   /(?:^|\/)(?:\.(?:agents|claude)\/skills|plugins\/cache\/[^/]+\/([^/]+)\/[^/]+\/skills)\/([^/]+)\/scripts\//;
+/** What ends a word outside quotes. */
+const WORD_END = /[\s;&|()<>]/;
+/** Keywords after which a command can start, as a `case` can. */
+const BODY_OPENERS = new Set(["then", "do", "else"]);
 /** A leading `NAME=value` setting. */
 const SETTING = /^[A-Za-z_]\w*=/;
 /** What a backslash escapes inside double quotes; before anything else it stays. */
@@ -65,7 +69,9 @@ const HEREDOC = /<<-?\s*\\?(['"]?)([^\s'"\\;&|<>()]+)\1([^\n]*)\n[\s\S]*?\n\s*\2
  * ends at its matching `)`, a subshell's own `(` and `)` counting as depth,
  * and inside double quotes the quotes resume after it. A `$((` opens
  * arithmetic, which is no command, though a `$(` inside it is. A `${` runs to
- * its matching `}`, a `)` or a separator inside it being text. A
+ * its matching `}`, a `)` or a separator inside it being text. A `case`
+ * pattern's `)` and `|` are text too, from its `in` or `;;` to the `)`, so a
+ * pattern never closes a `$(` or splits a command. A
  * backslash-newline outside single quotes is dropped, joining the lines, a
  * `#` that starts a word outside quotes runs a comment to the newline, and an
  * unclosed quote runs to the end. A command comes before the ones it opens:
@@ -74,7 +80,9 @@ const HEREDOC = /<<-?\s*\\?(['"]?)([^\s'"\\;&|<>()]+)\1([^\n]*)\n[\s\S]*?\n\s*\2
 function commandTexts(line) {
   const text = line.replace(HEREDOC, "$3");
   const found = [""];
-  const frames = [{ at: 0, depth: 0, braces: 0, quoted: false }];
+  // Each frame's `cases` holds one state per open `case`: "word" until its
+  // `in`, then "pattern" up to a pattern's `)`, then "body" up to its `;;`.
+  const frames = [{ at: 0, depth: 0, braces: 0, cases: [], quoted: false }];
   let quote = "";
   let wordStart = true;
   // An arithmetic frame's `at` is null: its text belongs to no command.
@@ -86,6 +94,18 @@ function commandTexts(line) {
     const frame = frames.at(-1);
     if (frame.at !== null) frame.at = found.push("") - 1;
     wordStart = true;
+  };
+  const wordAt = (i, word) =>
+    text.startsWith(word, i) && (i + word.length === text.length || WORD_END.test(text[i + word.length]));
+  // Whether a command can start at i: first, or after a separator, a paren, a
+  // brace, or a keyword that opens a body.
+  const commandCanStart = (i) => {
+    let end = i - 1;
+    while (end >= 0 && (text[end] === " " || text[end] === "\t")) end--;
+    if (end < 0 || /[;&|(){}\n]/.test(text[end])) return true;
+    let start = end;
+    while (start >= 0 && /\w/.test(text[start])) start--;
+    return BODY_OPENERS.has(text.slice(start + 1, end + 1)) && (start < 0 || WORD_END.test(text[start]));
   };
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -110,7 +130,7 @@ function commandTexts(line) {
     } else if (char === "$" && after === "(") {
       i++;
       const arithmetic = text[i + 1] === "(";
-      frames.push({ at: arithmetic ? null : 0, depth: 0, braces: 0, quoted: quote === '"' });
+      frames.push({ at: arithmetic ? null : 0, depth: 0, braces: 0, cases: [], quoted: quote === '"' });
       quote = "";
       if (!arithmetic) next();
     } else if (quote === '"') {
@@ -135,6 +155,10 @@ function commandTexts(line) {
       add(char);
     } else if (char === "#" && wordStart) {
       while (i + 1 < text.length && text[i + 1] !== "\n") i++;
+    } else if (frame.cases.at(-1) === "pattern" && frame.depth === 0 && (char === ")" || char === "|")) {
+      if (char === ")") frame.cases[frame.cases.length - 1] = "body";
+      add(char);
+      wordStart = true;
     } else if (char === ")" && nested && frame.depth === 0) {
       frames.pop();
       if (frame.quoted) quote = '"';
@@ -143,9 +167,17 @@ function commandTexts(line) {
       i++;
       next();
     } else if (char === ";" || char === "|" || char === "\n") {
+      if (char === ";" && (after === ";" || after === "&") && frame.cases.at(-1) === "body") {
+        frame.cases[frame.cases.length - 1] = "pattern";
+      }
       next();
     } else {
-      if (nested && char === "(") frame.depth++;
+      if (wordStart && wordAt(i, "case") && commandCanStart(i)) frame.cases.push("word");
+      else if (wordStart && frame.cases.at(-1) === "word" && wordAt(i, "in")) frame.cases[frame.cases.length - 1] = "pattern";
+      else if (wordStart && frame.cases.length > 0 && wordAt(i, "esac")) frame.cases.pop();
+      // A pattern's own leading `(` pairs with its `)`, which ends the pattern.
+      const patternParen = frame.cases.at(-1) === "pattern" && frame.depth === 0;
+      if (nested && char === "(" && !patternParen) frame.depth++;
       if (nested && char === ")") frame.depth--;
       add(char);
       wordStart = /[\s()]/.test(char);
