@@ -998,6 +998,14 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf(line)).toEqual(clis);
   });
 
+  it.each([
+    ["a < <(", "while read -r n; do echo $n; done < <(gh pr list)", ["read", "echo", "gh"]],
+    ["two <(", "diff <(gh pr view 1) <(gh pr view 2)", ["diff", "gh", "gh"]],
+    ["a >(", "gh pr view > >(tee out)", ["gh", "tee"]],
+  ])("reads a command in a process substitution, %s", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
   it("drops a closing keyword right before a backtick", () => {
     expect(clisOf("X=`if true; then gh pr view; fi`; jq .")).toEqual(["true", "gh", "jq"]);
   });

@@ -104,9 +104,10 @@ const heredocCommands = (body) => {
  * quoted text stays inside its word; in a `$'…'` quote a backslash escapes
  * the next character, a quote included. A `$(` or a backtick outside single
  * quotes and not escaped opens a command that ends at its matching `)` or
- * backtick, and inside double quotes the quotes resume after it. A `$((`
- * opens arithmetic, which is no command, though a `$(` inside it is. A `${`
- * runs to its matching `}`, a `)` or a separator inside it being text.
+ * backtick, and inside double quotes the quotes resume after it; so does a
+ * process substitution's `<(` or `>(`. A `$((` opens arithmetic, which is
+ * no command, though a `$(` inside it is. A `${` runs to its matching `}`,
+ * a `)` or a separator inside it being text.
  *
  * Each frame knows whether a command starts at its next word, and only
  * there is a word read as a reserved word. `if`, `then`, `do`, `!`, `{`,
@@ -324,6 +325,9 @@ function scan(line) {
     } else if (frame.parens.at(-1) === "array" && char !== ")") {
       // An array's words, as in `a=(x y)`, are no commands, on any line.
       wordStart = /\s/.test(char);
+    } else if (char === "(" && /[<>]/.test(text[i - 1]) && frame.at !== null) {
+      // A process substitution, `<(…)` or `>(…)`, runs a command as `$(` does.
+      push("substitution");
     } else if (char === "(" && wordStart && frame.at !== null && after === "(" && (frame.command || frame.arithmetic) && closesAsArithmetic(i)) {
       push("arithmetic-command");
     } else if (char === "(") {
