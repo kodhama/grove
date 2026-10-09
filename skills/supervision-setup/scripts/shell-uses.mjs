@@ -48,8 +48,8 @@ const SKILL_SCRIPT =
   /(?:^|\/)(?:\.(?:agents|claude)\/skills|plugins\/cache\/[^/]+\/([^/]+)\/[^/]+\/skills)\/([^/]+)\/scripts\//;
 /** What ends a word outside quotes. */
 const WORD_END = /[\s;&|()<>]/;
-/** Keywords after which a command can start, as a `case` can. */
-const BODY_OPENERS = new Set(["then", "do", "else"]);
+/** Words after which a command still starts, as a `case` can. */
+const COMMAND_PREFIXES = new Set(["then", "do", "else", "elif", "if", "while", "until", "!", "time", "{"]);
 /** A leading `NAME=value` setting. */
 const SETTING = /^[A-Za-z_]\w*=/;
 /** What a backslash escapes inside double quotes; before anything else it stays. */
@@ -73,11 +73,12 @@ const HEREDOC = /<<-?\s*\\?(['"]?)([^\s'"\\;&|<>()]+)\1([^\n]*)\n[\s\S]*?\n\s*\2
  * pattern, from its `in` or `;;` to its `)`, belongs to no command: its `)`
  * and `|` neither close a `$(` nor split a command, and a command starts
  * after its `)`. A `case` opens and an `esac` closes only where a command or,
- * for `esac`, a pattern can start. A backslash-newline outside single quotes
- * is dropped, joining the lines, a `#` that starts a word outside quotes runs
- * a comment to the newline, and an unclosed quote runs to the end. A command
- * comes before the ones it opens: `echo "a; $(date)"` gives `echo "a; "` and
- * `date`.
+ * for `esac`, a pattern can start, and a separator in a case's word or
+ * pattern shows the `case` was only a word. A backslash-newline outside
+ * single quotes is dropped, joining the lines, a `#` that starts a word
+ * outside quotes runs a comment to the newline, and an unclosed quote runs to
+ * the end. A command comes before the ones it opens: `echo "a; $(date)"`
+ * gives `echo "a; "` and `date`.
  */
 function commandTexts(line) {
   const text = line.replace(HEREDOC, "$3");
@@ -105,15 +106,13 @@ function commandTexts(line) {
   };
   const wordAt = (i, word) =>
     text.startsWith(word, i) && (i + word.length === text.length || WORD_END.test(text[i + word.length]));
-  // Whether a command can start at i: first, or after a separator, a paren, a
-  // brace, or a keyword that opens a body.
-  const commandCanStart = (i) => {
-    let end = i - 1;
-    while (end >= 0 && (text[end] === " " || text[end] === "\t")) end--;
-    if (end < 0 || /[;&|(){}\n]/.test(text[end])) return true;
-    let start = end;
-    while (start >= 0 && /\w/.test(text[start])) start--;
-    return BODY_OPENERS.has(text.slice(start + 1, end + 1)) && (start < 0 || WORD_END.test(text[start]));
+  // Whether the next word stands where a command starts: the command read so
+  // far holds only words a command can follow, such as `then` or a `(`.
+  const commandCanStart = () => {
+    const { at } = frames.at(-1);
+    if (at === null) return false;
+    const words = found[at].split(/[\s(]+/).filter(Boolean);
+    return words.every((word) => COMMAND_PREFIXES.has(word));
   };
   // Whether a case pattern starts at i: after the case's `in`, or after a
   // `;;`, `;&` or newline that ends a body. An `esac` there closes the case.
@@ -126,7 +125,7 @@ function commandTexts(line) {
   // Whether an `esac` at i closes the open case: never as the word it tests,
   // in a pattern only where one starts, in a body only where a command can.
   const closesCase = (i, { state }) =>
-    state === "pattern" ? patternCanStart(i) : state === "body" && commandCanStart(i);
+    state === "pattern" ? patternCanStart(i) : state === "body" && commandCanStart();
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     const after = text[i + 1];
@@ -134,6 +133,12 @@ function commandTexts(line) {
     const nested = frames.length > 1;
     const openCase = frame.cases.at(-1);
     const pattern = inPattern(frame);
+    // A case's word or pattern never holds a `;`, `&&`, `||` or `|`, so one
+    // there shows the `case` was only a word: drop it, or it would hide what
+    // follows as pattern text.
+    const dropFalseCase = () => {
+      if (openCase && openCase.state !== "body" && openCase.depth === frame.depth) frame.cases.pop();
+    };
     if (quote === "'") {
       if (char === "'") quote = "";
       add(char);
@@ -188,14 +193,18 @@ function commandTexts(line) {
       wordStart = false;
     } else if ((char === "&" && after === "&") || (char === "|" && after === "|")) {
       i++;
+      dropFalseCase();
       next();
     } else if (char === ";" || char === "|" || char === "\n") {
-      if (char === ";" && (after === ";" || after === "&") && openCase?.state === "body") {
+      const endsBody = char === ";" && (after === ";" || after === "&");
+      if (endsBody && openCase?.state === "body" && openCase.depth === frame.depth) {
+        // The whole `;;`, `;&` or `;;&` ends the body.
+        i += after === ";" && text[i + 2] === "&" ? 2 : 1;
         openCase.state = "pattern";
-      }
+      } else if (char !== "\n") dropFalseCase();
       next();
     } else {
-      if (wordStart && !pattern && wordAt(i, "case") && commandCanStart(i)) frame.cases.push({ state: "word", depth: frame.depth });
+      if (wordStart && !pattern && wordAt(i, "case") && commandCanStart()) frame.cases.push({ state: "word", depth: frame.depth });
       else if (wordStart && openCase?.state === "word" && wordAt(i, "in")) openCase.state = "pattern";
       else if (wordStart && openCase && wordAt(i, "esac") && closesCase(i, openCase)) frame.cases.pop();
       // A pattern's own leading `(` pairs with its `)`, which ends the pattern.

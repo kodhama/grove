@@ -839,6 +839,28 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf("case x in a) echo;; case) gh pr merge;; esac; herdr x")).toEqual(["case", "echo", "gh", "esac", "herdr"]);
   });
 
+  it.each([
+    ["after a ${", "echo ${n} case in point; gh pr merge 1", ["echo", "gh"]],
+    ["after a $( )", "echo $(date) case in a b; gh pr view", ["echo", "date", "gh"]],
+    ["after a word that opens a body", "echo what to do case by case; for x in a b; do :; done; gh pr view", ["echo", "for", "do", "done", "gh"]],
+    ["before an && in its word", "echo do case x && gh pr view", ["echo", "gh"]],
+  ])("drops a case that a separator shows was only a word %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["!", 'X="$(! case x in a) gh pr view;; esac)"', ["!", "gh", "esac"]],
+    ["if", "X=$(if case x in a) true;; esac; then gh pr view; fi)", ["if", "true", "esac", "then", "fi"]],
+  ])("opens a case after %s, so its pattern's ) never closes the $( around it", (_after, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("ends a body at a ;; only at its case's own depth, never inside a (( ))", () => {
+    expect(clisOf("X=$(case a in (x) for ((;;)); do break; done; gh pr view;; esac); jq .")).toEqual([
+      "case", "for", "do", "done", "gh", "esac", "jq",
+    ]);
+  });
+
   it("reads the command right after a pattern's )", () => {
     expect(clisOf('case "$s" in OPEN) gh pr merge 12;; esac')).toEqual(["case", "gh", "esac"]);
   });
