@@ -64,18 +64,27 @@ loaded the level skill from, or session-restart's own for a session that runs
 no level skill. The handoff names that skill, and its `skill` field picks the
 same override the first run merged. The table path the handoff records is a
 record only: a plugin update or a move can take that folder away, or leave an
-older copy there, so never read the table from it. Where the earlier
-bindings file the handoff names still resolves, comparing the sha256 it
-recorded with the table you read says whether the table changed. The
-handoff's bound performers are candidates to recheck, never bindings.
+older copy there, so never read the table from it. Comparing the sha256 the
+earlier bindings file recorded, or the handoff where that file does not
+resolve, with the table you read says whether the table changed. A handoff
+that carries no sha256 for the table, as one written before handoffs carried
+it, counts as changed. The repo's override is compared the same way, by the
+sha256 recorded for it, and an override that changed, appeared or went away
+counts as a changed table. When it changed, the bindings you write follow the table you read now: bind every
+operation as on a first run, since the seed's performers were chosen from
+the old table's suggestions, and an operation the table dropped gets no
+binding. The header records the new sha256, and step 9's report names the
+change. The receipt check fails bindings whose table or override changed after setup
+read it. The handoff's bound performers are candidates to recheck, never bindings.
 
 ## 2. Record the header
 
 - `harness`: its name (`claude-code`, `codex`), its version, and the
   quoted output that showed the version.
 - `model`: the model id, and its context window in tokens, with the evidence.
-  The context gauge reads the window from here. When the harness notes give no
-  way to know the window, record `null` with the evidence `unverified`; step 6
+  The context gauge reads the window from here. Find it as the harness notes
+  say for your harness. When they give no way to know the window, or their
+  lookup answers unknown, record `null` with the evidence `unverified`; step 6
   then binds the measuring operation as unavailable. Never guess a window.
 - `table`: the table's path and `sha256`, and the override's path and
   `sha256`, or `null` for both when the repo has none (`shasum -a 256`).
@@ -295,7 +304,9 @@ End with one line listing each operation's performer and how it was bound,
 for example `setup: build=compound-engineering:ce-work (check), review=code-review
 (check), measure-context=unavailable`. When the measuring operation is
 unavailable, add once: "This session cannot measure its context, so it will
-not restart itself." After a stop, give the report line instead, and do no
+not restart itself." When a seeded run found the table changed, add once:
+"the routing table changed since the earlier setup", which the level skill
+carries into its hand-back. After a stop, give the report line instead, and do no
 task work.
 
 ## Using the bindings

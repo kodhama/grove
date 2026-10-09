@@ -99,7 +99,9 @@ setup stops, as it does when no available performer can start a worker
 session, tell the maintainer its report line in one line, and do nothing else.
 
 Setup ends with one line listing each operation's performer. Tell the
-maintainer that line once, with the start-up lines below.
+maintainer that line once, with the start-up lines below. When a seeded setup
+after a restart reports "the routing table changed since the earlier setup",
+tell the maintainer that line too, in your next report.
 
 When you resume from a handoff, the restart skill's resume steps run setup
 seeded with the handoff's filled table. Then carry on from the handoff's

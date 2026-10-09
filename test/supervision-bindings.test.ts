@@ -255,6 +255,9 @@ function windowProblems(file: Bindings): string[] {
   const known = window === null || (Number.isInteger(window) && window > 0);
   if (!known || !isEvidence(file.model?.evidence))
     problems.push("model needs a context window in tokens, or null, and quoted evidence");
+  // A window is recorded only when a source gives it, never guessed.
+  if (window !== null && file.model?.evidence === "unverified")
+    problems.push("a context window needs its source quoted as evidence, never unverified");
   // With no known window the gauge cannot measure, so measuring is unavailable.
   const measuring = file.operations.find((b) => b.table === file.skill && b.id === MEASURE);
   if (window === null && measuring !== undefined && measuring.how_bound !== "unavailable")
@@ -535,6 +538,25 @@ describe("MQ-350 · what a bindings file may not hold", () => {
       source: null,
     });
     expect(bindingsProblems(file)).toEqual([]);
+  });
+
+  it("keeps measuring for a model id with no [1m] suffix when a source gives its window", () => {
+    const file = example();
+    file.model = {
+      id: "claude-opus-5-5",
+      context_window: 1000000,
+      evidence:
+        'https://code.claude.com/docs/en/model-config.md: "Fable 5.1, Fable 5, Sonnet 5 and later, Haiku 5.5, and Opus 4.7 and later run with the 1M window by default, with no `[1m]` suffix needed." (checked 2026-10-08)',
+    };
+    expect(bindingsProblems(file)).toEqual([]);
+  });
+
+  it("fails a window recorded without a source, since a window is never guessed", () => {
+    const file = example();
+    file.model = { id: "claude-opus-5-5", context_window: 1000000, evidence: "unverified" };
+    expect(bindingsProblems(file)).toContain(
+      "a context window needs its source quoted as evidence, never unverified",
+    );
   });
 
   it("fails a stop file with no operations that no override typo explains", () => {

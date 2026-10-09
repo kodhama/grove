@@ -31,8 +31,15 @@ const HANDOFF_SECTION = "## Receipt check";
 export const CARRIED = "(carried from handoff)";
 /** The carried mark as regex text, its special characters escaped. */
 const CARRIED_TEXT = CARRIED.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** A used line: its `table/op` key, its performer, and its place, less any carried mark. */
-const USED_LINE = new RegExp(String.raw`^(\S+\/\S+): used (\S+) in (\S+.*?)(?: ${CARRIED_TEXT})?$`);
+/**
+ * A used line, plain or shared: its `table/op` key, its performer, and its
+ * place, less any carried mark and a shared line's `; also bound to …` tail.
+ * The place's first word stops at a `;`, which a shared line can put right
+ * after the session id.
+ */
+const USED_LINE = new RegExp(
+  String.raw`^(\S+\/\S+): used (?:\(shared\): )?(\S+) in ([^\s;]+.*?)(?: ${CARRIED_TEXT})?(?:; also bound to .*)?$`,
+);
 
 /** The keys a section's lines match: each line's first group, for lines that match. */
 function keysMatching(lines, pattern) {

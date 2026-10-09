@@ -71,6 +71,13 @@ const ROLLOUT = {
 const HANDOFF = `${FIXTURES}/handoff-with-receipt.md`;
 /** The routing table the example bindings name, which marks the review operations. */
 const TABLE = "skills/story-worker/routing.toml";
+/** The table's sha256 as setup would record it now. */
+const TABLE_SHA256 = createHash("sha256").update(readFileSync(TABLE)).digest("hex");
+/** The repo override the example bindings name, and its sha256 as setup would record it now. */
+const OVERRIDE = "test/fixtures/supervision/routing-overrides/story-worker.toml";
+const OVERRIDE_SHA256 = createHash("sha256").update(readFileSync(OVERRIDE)).digest("hex");
+/** A sha256 setup recorded for some earlier version of the table. */
+const STALE_SHA256 = "4d5275bed367a1eb6d5f23d6de6280d194c8afb2297cb7d0a810829438ba0b4d";
 
 type Row = {
   table: string;
@@ -111,6 +118,8 @@ type Bindings = {
 
 function bindingsReading(...transcripts: [string, string][]): Bindings {
   const file = JSON.parse(readFileSync(EXAMPLE, "utf8")) as Bindings;
+  // Setup records the sha256 of the table it read; a stale one fails the check (GRO-12).
+  Object.assign(file.table as object, { sha256: TABLE_SHA256, override_sha256: OVERRIDE_SHA256 });
   file.transcripts = transcripts.map(([sessionId, dir]) => ({
     session_id: sessionId,
     path: `${FIXTURES}/${dir}/${sessionId}.jsonl`,
@@ -545,6 +554,13 @@ describe("GRO-11 · a routing table that moved", () => {
     expect(read.marked).toEqual(["review", "review-escalation"]);
   });
 
+  it("GRO-12 · reports a relative recorded path that is gone as the path it resolved", () => {
+    const relative = "nowhere/skills/story-worker/routing.toml";
+    const read = readRoutingTable({ skill: "story-worker", table: { path: relative } });
+    expect(read.path).toBe(resolve(TABLE));
+    expect(read.moved).toBe(resolve(relative));
+  });
+
   it("keeps the recorded path while it exists, and sets no moved", () => {
     const read = readRoutingTable({ skill: "story-worker", table: { path: resolve(TABLE) } });
     expect(read.path).toBe(resolve(TABLE));
@@ -593,25 +609,41 @@ describe("GRO-11 · a routing table that moved", () => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-moved-"));
     try {
       const file = bindingsReading([AFTER, "claude-after-restart"]);
+      file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
       Object.assign(file.table as object, { path: GONE });
       const path = join(dir, "bindings.json");
+      const check = () => spawnSync("node", [SCRIPT, "--bindings", path, "--not-run", "story-worker/plan"], { encoding: "utf8" });
       writeFileSync(path, JSON.stringify(file));
-      const result = spawnSync("node", [SCRIPT, "--bindings", path], { encoding: "utf8" });
+      const result = check();
       expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
       expect(result.stdout).toContain(`table ${GONE}: gone; read ${resolve(TABLE)} instead`);
+      // A move that keeps the table's content is not a change (GRO-12).
+      expect(result.stdout).not.toContain("changed since setup read it");
+      expect(result.stdout).not.toMatch(/^summary: .*the table changed/m);
       expect(result.stdout).toContain("fresh_context on review, review-escalation");
+      // Moved and changed: the table read in its place is not the one setup bound.
+      Object.assign(file.table as object, { sha256: STALE_SHA256 });
+      writeFileSync(path, JSON.stringify(file));
+      const changed = check();
+      expect(changed.status).toBe(1);
+      expect(changed.stdout).toContain(`table ${GONE}: gone; read ${resolve(TABLE)} instead`);
+      expect(changed.stdout).toContain(`table ${resolve(TABLE)}: changed since setup read it`);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 });
 
-describe("a skill's script run from wherever the skill is installed", () => {
-  const scriptOf = (line: string) =>
-    (shellUses(line) as { kind: string; name: string }[])
-      .filter((use) => use.kind === "skill-script")
-      .map((use) => use.name);
+/** The names of the uses of one kind that a shell line reads as. */
+const usesOf = (line: string, kind: string) =>
+  (shellUses(line) as { kind: string; name: string }[])
+    .filter((use) => use.kind === kind)
+    .map((use) => use.name);
+const clisOf = (line: string) => usesOf(line, "cli");
+const scriptOf = (line: string) => usesOf(line, "skill-script");
 
+describe("a skill's script run from wherever the skill is installed", () => {
   const CLAUDE_CACHE = "/Users/maintainer/.claude/plugins/cache";
   const CODEX_CACHE = "/Users/maintainer/.codex/plugins/cache";
 
@@ -643,11 +675,6 @@ describe("a skill's script run from wherever the skill is installed", () => {
     expect((shellUses(`node ${path}`) as { kind: string; name: string }[])[0]).toEqual({ kind: "cli", name: "node" });
     expect(scriptOf(`OUT="$(${path} --harness x)"`)).toEqual(["grove:context-gauge"]);
   });
-
-  const clisOf = (line: string) =>
-    (shellUses(line) as { kind: string; name: string }[])
-      .filter((use) => use.kind === "cli")
-      .map((use) => use.name);
 
   it.each([
     ["inside double quotes", `PR="$(gh pr view --json url)"`, ["gh"]],
@@ -698,6 +725,161 @@ describe("a skill's script run from wherever the skill is installed", () => {
     expect(
       scriptOf("/Users/maintainer/.claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/run.sh"),
     ).toEqual([]);
+  });
+});
+
+describe("a shell line's commands, read past quoted text, $( and comments", () => {
+  const PLUGIN_SCRIPT = ".claude/plugins/cache/grove/grove/0.1.0/skills/context-gauge/scripts/x.mjs";
+  const REPO_SCRIPT = ".agents/skills/context-gauge/scripts/x.mjs";
+
+  it.each([
+    ["an & in double quotes", `node "/Users/A&B/${PLUGIN_SCRIPT}"`],
+    ["a ; and a | in single quotes", `node '/p/a;b|c/${PLUGIN_SCRIPT}'`],
+    ["a ; in double quotes", `node "/p/a;b/${PLUGIN_SCRIPT}"`],
+  ])("credits a script whose quoted path holds %s, and its interpreter", (_how, line) => {
+    expect(clisOf(line)).toEqual(["node"]);
+    expect(scriptOf(line)).toEqual(["grove:context-gauge"]);
+  });
+
+  it.each([
+    ["after a separator", `echo "a; $(gh pr view)"`, ["echo", "gh"]],
+    ["before a separator", `echo "$(date) and; more"`, ["echo", "date"]],
+    ["holding its own separator", `echo "$(printf 'a'; gh pr view)"`, ["echo", "printf", "gh"]],
+  ])("reads a $( in double quotes %s as a command", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["unquoted", `OUT=$(node "/p/a;b/${REPO_SCRIPT}")`],
+    ["in double quotes", `OUT="$(node "/p/a;b/${REPO_SCRIPT}")"`],
+  ])("reads a quoted path inside a $( %s as one word", (_where, line) => {
+    expect(clisOf(line)).toEqual(["node"]);
+    expect(scriptOf(line)).toEqual(["context-gauge"]);
+  });
+
+  it("reads a $( nested in a $(, and a subshell inside a $( whose ) does not close it", () => {
+    expect(clisOf("X=$(echo $(gh pr view))")).toEqual(["echo", "gh"]);
+    expect(clisOf("X=$( (cd /r && gh pr view) )")).toEqual(["cd", "gh"]);
+  });
+
+  it.each([
+    ["a commit message", `git commit -m "fix: a; rm -rf x | tee"`, ["git"]],
+    ["a string with an escaped quote", String.raw`echo "a \" ; gh"`, ["echo"]],
+    ["an unclosed quote, which runs to the end of the line", `echo "abc; gh`, ["echo"]],
+  ])("never reads quoted text as a command: %s", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("joins a line continued by a backslash, and skips a comment", () => {
+    expect(clisOf("cd /r && \\\n  gh pr view")).toEqual(["cd", "gh"]);
+    const continued = `node \\\n  /r/${REPO_SCRIPT}`;
+    expect(clisOf(continued)).toEqual(["node"]);
+    expect(scriptOf(continued)).toEqual(["context-gauge"]);
+    expect(clisOf("# Check the PR's state\ngh pr view 12")).toEqual(["gh"]);
+  });
+
+  it.each([
+    ["a heredoc whose delimiter holds a dash", "cat <<END-OF-BODY > f\nit's here\nEND-OF-BODY\ngh pr create --body-file f", ["cat", "gh"]],
+    ["a heredoc whose delimiter is escaped", "cat <<\\EOF > f\nit's here\nEOF\ngh pr view", ["cat", "gh"]],
+    ["an ANSI-C quote holding an escaped quote", String.raw`echo $'it\'s'; gh pr view`, ["echo", "gh"]],
+    ["a comment after a continued line", "gh pr view 1 \\\n# it's a note\ngh pr merge", ["gh", "gh"]],
+  ])("never lets an apostrophe in %s hide the commands after it", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("reads a $( inside $(( arithmetic as a command, and the arithmetic as none", () => {
+    expect(clisOf("echo $(( $(wc -l < f) + 1 ))")).toEqual(["echo", "wc"]);
+    expect(clisOf("i=$(( i + 1 )) && gh pr view")).toEqual(["gh"]);
+  });
+
+  it("reads a ) or a separator inside a ${ parameter expansion as text, and a $( inside it as a command", () => {
+    expect(clisOf("X=$(echo ${x%)} gh pr view)")).toEqual(["echo"]);
+    expect(clisOf("echo ${x#*;}; gh pr view")).toEqual(["echo", "gh"]);
+    expect(clisOf("echo ${a:-${b%)}} && gh pr view")).toEqual(["echo", "gh"]);
+    expect(clisOf("echo ${a:-$(gh pr view)}")).toEqual(["echo", "gh"]);
+  });
+
+  it.each([
+    ["a case", "X=$(case no in yes) gh pr view;; esac)", ["case", "gh", "esac"]],
+    ["a case nested in a case", "X=$(case a in x) case b in y) echo;; esac;; esac) && gh pr view", ["case", "case", "echo", "esac", "esac", "gh"]],
+    ["a pattern opened by its own (", "X=$(case a in (x) echo;; esac) && gh pr view", ["case", "echo", "esac", "gh"]],
+    ["a pattern with alternatives", "X=$(case a in x|y) echo;; esac) && gh pr view", ["case", "echo", "esac", "gh"]],
+    ["a case in a subshell", 'X="$( (case a in x) echo;; esac); gh pr view )"', ["case", "echo", "esac", "gh"]],
+  ])("never lets a pattern's ) in %s close the $( around it", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["on lines of their own", 'case "$1" in\n gh) echo pick ;;\n herdr) echo ok ;;\nesac', ["case", "echo", "echo", "esac"]],
+    ["quoted", 'case "$1" in "gh pr") echo pick ;; esac', ["case", "echo", "esac"]],
+  ])("never reads a case pattern %s as a command", (_how, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["an argument in a body", 'X="$(case x in a) echo esac;; b) gh pr view;; esac)"', ["case", "echo", "gh", "esac"]],
+    ["a pattern's second alternative", "case x in a | esac) echo hi;; esac; gh pr view", ["case", "echo", "esac", "gh"]],
+    ["the word a case tests", "case esac in a) echo;; esac; gh pr view", ["case", "echo", "esac", "gh"]],
+    ["an argument a later pattern follows", "case x in a) git log --grep esac;; b) gh pr merge;; esac", ["case", "git", "gh", "esac"]],
+    ["a pattern in its own (", "case x in a) echo;; (esac) gh pr merge;; esac", ["case", "echo", "gh", "esac"]],
+  ])("closes a case only on an esac where one can stand, never on %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["right after its in", "case x in esac; gh pr view", ["case", "gh"]],
+    ["after a body with no ;;", "case x in a) echo\nesac; gh pr view", ["case", "echo", "esac", "gh"]],
+    ["after a ;& fall-through", "case x in a) echo;& esac; gh pr view", ["case", "echo", "esac", "gh"]],
+    ["after a ;;& that tests on", "case x in a) echo;;& esac; gh pr view", ["case", "echo", "esac", "gh"]],
+  ])("closes a case on an esac %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("never opens a case on a pattern named case", () => {
+    expect(clisOf("case x in a) echo;; case) gh pr merge;; esac; herdr x")).toEqual(["case", "echo", "gh", "esac", "herdr"]);
+  });
+
+  it.each([
+    ["after a ${", "echo ${n} case in point; gh pr merge 1", ["echo", "gh"]],
+    ["after a $( )", "echo $(date) case in a b; gh pr view", ["echo", "date", "gh"]],
+    ["after a word that opens a body", "echo what to do case by case; for x in a b; do :; done; gh pr view", ["echo", "for", "do", "done", "gh"]],
+    ["before an && in its word", "echo do case x && gh pr view", ["echo", "gh"]],
+  ])("drops a case that a separator shows was only a word %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["!", 'X="$(! case x in a) gh pr view;; esac)"', ["!", "gh", "esac"]],
+    ["if", "X=$(if case x in a) true;; esac; then :; fi); gh pr view", ["if", "true", "esac", "then", "fi", "gh"]],
+    ["a lone &", 'X="$(sleep 1 & case x in a) echo;; esac)"; gh pr view', ["sleep", "echo", "esac", "gh"]],
+  ])("opens a case after %s, so its pattern's ) never closes the $( around it", (_after, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["f() { … }", "f() { case $1 in a) echo;; merge) gh pr merge;; esac; }; f a", ["f(", "echo", "gh", "esac", "}", "f"]],
+    ["function f { … }", "function f { case $1 in a) gh pr view;; esac; }", ["function", "gh", "esac", "}"]],
+    ["f() ( … )", "f() ( case $1 in a) gh pr view;; esac )", ["f(", "gh", "esac"]],
+  ])("opens a case at the start of a function body, %s", (_shape, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("never credits a pattern after a lone & as a command", () => {
+    expect(clisOf("sleep 1 & case x in a) echo;; gh) jq;; esac")).toEqual(["sleep", "echo", "jq", "esac"]);
+  });
+
+  it("ends a body at a ;; only at its case's own depth, never inside a (( ))", () => {
+    expect(clisOf("X=$(case a in (x) for ((;;)); do break; done; gh pr view;; esac); jq .")).toEqual([
+      "case", "for", "do", "done", "gh", "esac", "jq",
+    ]);
+  });
+
+  it("reads the command right after a pattern's )", () => {
+    expect(clisOf('case "$s" in OPEN) gh pr merge 12;; esac')).toEqual(["case", "gh", "esac"]);
+  });
+
+  it("ends a comment at the newline, never at a ; inside it", () => {
+    expect(clisOf("echo a # x; gh pr merge")).toEqual(["echo"]);
   });
 });
 
@@ -1335,13 +1517,66 @@ describe("MQ-353 · the command line", () => {
     expect(result.status).toBe(0);
   });
 
+  it("GRO-12 · exits 1 when the table changed since setup, naming the remedy, with every operation clean", () => {
+    const file = bindingsReading([AFTER, "claude-after-restart"]);
+    file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
+    expect(run(file, "--not-run", "story-worker/plan").status).toBe(0);
+    Object.assign(file.table as object, { sha256: STALE_SHA256 });
+    const result = run(file, "--not-run", "story-worker/plan");
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      `changed since setup read it (sha256 ${TABLE_SHA256}, setup recorded ${STALE_SHA256}); ` +
+        "rerun setup (seeded with the handoff when this session restarted), then this check",
+    );
+    expect(result.stdout).toMatch(/^summary: .*; the table changed since setup$/m);
+  });
+
+  it("GRO-12 · exits 1 when the override changed since setup, naming the remedy", () => {
+    const file = bindingsReading([AFTER, "claude-after-restart"]);
+    file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
+    Object.assign(file.table as object, { override_sha256: STALE_SHA256 });
+    const result = run(file, "--not-run", "story-worker/plan");
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      `override ${resolve(OVERRIDE)}: changed since setup read it (sha256 ${OVERRIDE_SHA256}, setup recorded ${STALE_SHA256}); ` +
+        "rerun setup (seeded with the handoff when this session restarted), then this check",
+    );
+    expect(result.stdout).toMatch(/^summary: .*; the override changed since setup$/m);
+    expect(result.stdout).not.toContain("the table changed since setup");
+  });
+
+  it("GRO-12 · exits 1 when the override setup read is gone", () => {
+    const file = bindingsReading([AFTER, "claude-after-restart"]);
+    file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
+    const gone = OVERRIDE.replace("story-worker.toml", "no-such-override.toml");
+    Object.assign(file.table as object, { override: gone });
+    const result = run(file, "--not-run", "story-worker/plan");
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      `override ${resolve(gone)}: changed since setup read it (gone, setup recorded ${OVERRIDE_SHA256})`,
+    );
+  });
+
+  it("GRO-12 · exits 2 on a bindings file that recorded no sha256 for its table or its override", () => {
+    const noTable = bindingsReading([AFTER, "claude-after-restart"]);
+    delete (noTable.table as Record<string, unknown>).sha256;
+    const table = run(noTable);
+    expect(table.status).toBe(2);
+    expect(table.stderr).toContain("records no table.sha256");
+    const noOverride = bindingsReading([AFTER, "claude-after-restart"]);
+    Object.assign(noOverride.table as object, { override_sha256: null });
+    const override = run(noOverride);
+    expect(override.status).toBe(2);
+    expect(override.stderr).toContain("records no table.override_sha256");
+  });
+
   it("prints attempted-failed, counts it apart in the summary, and exits 1 on it alone", () => {
     const file = bindingsOfCalls(dir, [SEND, REFUSED]);
     file.operations = file.operations.filter((o) => o.id === "hand-back");
     const result = run(file);
     expect(result.stdout).toMatch(/^story-worker\/hand-back: attempted-failed SendMessage$/m);
     expect(result.stdout).toMatch(
-      /^summary: 0 used, 0 bound-but-unused, 1 attempted-failed, 0 not reached, 0 no evidence, /m,
+      /^summary: 0 used, 0 used \(shared\), 0 bound-but-unused, 1 attempted-failed, 0 not reached, 0 no evidence, /m,
     );
     expect(result.status).toBe(1);
   });
@@ -1455,11 +1690,11 @@ describe("MQ-353 · the command line", () => {
 
   it("lists the operations the table marks fresh_context, and says when the table changed", () => {
     const file = bindingsReading([AFTER, "claude-after-restart"]);
+    Object.assign(file.table as object, { sha256: STALE_SHA256 });
     const changed = run(file).stdout;
     expect(changed).toContain("fresh_context on review, review-escalation");
     expect(changed).toContain("changed since setup read it");
-    const sha256 = createHash("sha256").update(readFileSync(TABLE)).digest("hex");
-    Object.assign(file.table as object, { sha256 });
+    Object.assign(file.table as object, { sha256: TABLE_SHA256 });
     const same = run(file).stdout;
     expect(same).toContain("fresh_context on review, review-escalation");
     expect(same).not.toContain("changed since setup read it");

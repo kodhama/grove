@@ -139,7 +139,7 @@ another.
 
 ## Routing table
 
-- skill: <the bindings file's skill>; table <path>; override <path or none>
+- skill: <the bindings file's skill>; table <path> (sha256 <hex>); override <path or none> (sha256 <hex>)
 - bindings file: .context/supervision/<session-name>/bindings.json
 - harness: <name> <version> (<the bindings file's harness evidence>)
 - transcripts: <every session id and path the bindings file lists>
@@ -154,9 +154,10 @@ another.
 <the receipt check's output, pasted unchanged, line for line:
 `node "<supervision-setup's folder>/scripts/receipt-check.mjs" --bindings "<the bindings file>"`,
 supervision-setup's folder being the one beside this skill's own, adding
-`--handoff "<path>"`, with the handoff you started from saved to that
-path, whenever that handoff's own receipt-check section holds a result; or
-`unavailable: <why it could not run>`>
+`--since <the story's Started time>` in a session working a story, and
+leaving it out in one with no story, and adding `--handoff "<path>"`, with
+the handoff you started from saved to that path, whenever that handoff's own
+receipt-check section holds a result; or `unavailable: <why it could not run>`>
 
 ## What I am doing
 
@@ -182,10 +183,14 @@ or "The successor" on the new-session path.
 
 The routing table is inline because a successor on another machine cannot
 read the bindings file. The harness and transcripts lines let its
-seeded setup keep the earlier transcripts all the same. The receipt check is
+seeded setup keep the earlier transcripts all the same, and the table's
+and the override's sha256 let it see a table or override that changed since. The receipt check is
 inline for the same reason: such a successor cannot read your transcripts, so
 its own check reads your result from this section (`--handoff`) and counts
-each operation it shows used in a session it cannot read itself. That
+each operation it shows used in a session it cannot read itself. A carried
+use has no time, so no later check can cut it: `--since` is what keeps a use
+from before the story out of this handoff, and so out of the restarts that
+carry it on. That
 transcript stays listed, and missing, through every later restart, so each
 one passes on the handoff it started from in the same way; a result it does
 not need is ignored, never harmful. A line
@@ -206,8 +211,11 @@ The prompt that wakes you names the handoff.
    `routing.toml` beside the level skill you run or, for a session that runs
    no level skill, beside this skill. The table path the handoff records is a
    record only, since an update or a move can take that folder away. Setup
-   rechecks every seeded binding and appends your new transcript. Do no task
-   work until it completes.
+   rechecks every seeded binding, or binds every operation as on a first run
+   when the table changed, and appends your new transcript. Do no task work
+   until it completes. If it reports "the routing table changed since the
+   earlier setup", tell your lead that line, or your reporter when you have
+   no lead.
 5. Write `resumed <date and time>, session <new session id>` under Restart
    record, and delete `restart-pending`.
 6. Carry on from "What I am doing", keeping the live commitments.
