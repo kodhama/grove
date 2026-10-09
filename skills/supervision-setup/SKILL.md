@@ -82,8 +82,9 @@ read it. The handoff's bound performers are candidates to recheck, never binding
 - `harness`: its name (`claude-code`, `codex`), its version, and the
   quoted output that showed the version.
 - `model`: the model id, and its context window in tokens, with the evidence.
-  The context gauge reads the window from here. When the harness notes give no
-  way to know the window, record `null` with the evidence `unverified`; step 6
+  The context gauge reads the window from here. Find it as the harness notes
+  say for your harness. When they give no way to know the window, or their
+  lookup answers unknown, record `null` with the evidence `unverified`; step 6
   then binds the measuring operation as unavailable. Never guess a window.
 - `table`: the table's path and `sha256`, and the override's path and
   `sha256`, or `null` for both when the repo has none (`shasum -a 256`).

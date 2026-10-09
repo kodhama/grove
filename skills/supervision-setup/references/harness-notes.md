@@ -87,6 +87,27 @@ carries no window size, so setup records it (observed on 2.1.284, 2026-09-28).
 Without the suffix, no window is known: record `null`, and measuring binds as
 unavailable (maintainer, 2026-09-29).
 
+**Superseded narrowly on 2026-10-08** (maintainer): an id without the suffix
+gets a window when a real source gives one, and keeps `null` where none does.
+Only the "without the suffix" rule changed: the suffix still means 1,000,000
+unless 1M context is turned off, and a window is still never guessed. Run
+`node "<supervision-setup's folder>/scripts/model-window.mjs" <model id>`
+from the Bash tool and record the `context_window` and `evidence` it prints.
+It reads `references/claude-code-windows.json`, a table of model ids quoted
+from Claude Code's docs (or Anthropic's model docs, where Claude Code's do
+not name the model) with the page and the date each was checked, and the
+variables that change the window: `CLAUDE_CODE_DISABLE_1M_CONTEXT`, and
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS`, which leaves an id whose model has a row,
+`[1m]` or not, its window until `DISABLE_COMPACT` is also set. An id with no row prints a `null` window
+and says why; add the row from the docs, never by the model's family. Exit 2
+means the table itself could not be read: a broken install, not an unknown
+id, so tell the maintainer. Claude
+Code reports the window itself only to a status line command, which a session
+cannot read (`context_window.context_window_size` in its input; observed on
+2.1.293, 2026-10-08). Plain `claude-opus-5-5` sessions on the maintainer's
+machine ran past 200,000 tokens up to 962,756, which agrees with the docs
+(2026-10-08).
+
 **The session's name** is its `-n` name. Read it from `ListAgents`, or from
 the transcript's `agent-name` record, `{"type":"agent-name","agentName":"<name>",...}`
 (observed on 2.1.284, 2026-09-28).
