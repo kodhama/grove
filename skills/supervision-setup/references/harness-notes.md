@@ -97,8 +97,8 @@ It reads `references/claude-code-windows.json`, a table of model ids quoted
 from Claude Code's docs (or Anthropic's model docs, where Claude Code's do
 not name the model) with the page and the date each was checked, and the
 variables that change the window: `CLAUDE_CODE_DISABLE_1M_CONTEXT`, and
-`CLAUDE_CODE_MAX_CONTEXT_TOKENS`, which leaves a listed id its window until
-`DISABLE_COMPACT` is also set. An id with no row prints a `null` window
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS`, which leaves an id whose model has a row,
+`[1m]` or not, its window until `DISABLE_COMPACT` is also set. An id with no row prints a `null` window
 and says why; add the row from the docs, never by the model's family. Exit 2
 means the table itself could not be read: a broken install, not an unknown
 id, so tell the maintainer. Claude

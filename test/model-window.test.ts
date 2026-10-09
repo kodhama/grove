@@ -188,8 +188,22 @@ describe("looking up a model id", () => {
     }
   });
 
-  it("reads unknown when the window override is set for an id with no row, [1m] ids included", () => {
-    for (const id of ["claude-opus-5-5[1m]", "claude-opus-9", "gateway/claude-opus-5-5"]) {
+  it.each([
+    ["claude-opus-4-6[1m]", {}, 1_000_000],
+    ["claude-opus-4-8[1m]", {}, 1_000_000],
+    ["claude-opus-4-6[1m]", { CLAUDE_CODE_DISABLE_1M_CONTEXT: "1" }, 200_000],
+    ["claude-opus-4-8[1m]", { CLAUDE_CODE_DISABLE_1M_CONTEXT: "1" }, 200_000],
+  ] as const)(
+    "sizes %s %j as usual under the inert override, since a [1m] id resolves to its model's row",
+    (id, env, window) => {
+      const found = windowFor(id, { CLAUDE_CODE_MAX_CONTEXT_TOKENS: "500000", ...env });
+      expect(found.context_window).toBe(window);
+      expect(found.evidence).toContain("the variable takes effect only when you also set [`DISABLE_COMPACT`]");
+    },
+  );
+
+  it("reads unknown when the window override is set for an id with no row, with or without [1m]", () => {
+    for (const id of ["claude-someday-9[1m]", "claude-opus-9", "gateway/claude-opus-5-5"]) {
       const found = windowFor(id, { CLAUDE_CODE_MAX_CONTEXT_TOKENS: "500000" });
       expect(found.context_window, id).toBeNull();
       expect(found.reason, id).toContain("CLAUDE_CODE_MAX_CONTEXT_TOKENS");
@@ -241,13 +255,13 @@ describe("the command setup runs", () => {
   });
 
   it("exits 2 naming the table when the table is missing or corrupt, never 1, which reads as an unknown id", () => {
-    for (const table of [null, "{ not json", '{"models": "none"}']) {
+    for (const table of [null, "{ not json", '{"models": "none"}', '{"models":[],"rules":{}}']) {
       const root = mkdtempSync(join(tmpdir(), "model-window-"));
       mkdirSync(join(root, "scripts"));
       mkdirSync(join(root, "references"));
       copyFileSync(SCRIPT, join(root, "scripts", "model-window.mjs"));
       if (table !== null) writeFileSync(join(root, "references", "claude-code-windows.json"), table);
-      const run = spawnSync(process.execPath, [join(root, "scripts", "model-window.mjs"), "claude-opus-5-5"], {
+      const run = spawnSync(process.execPath, [join(root, "scripts", "model-window.mjs"), "claude-opus-9"], {
         encoding: "utf8",
       });
       rmSync(root, { recursive: true, force: true });

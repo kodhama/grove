@@ -9,7 +9,7 @@
  *
  * Exit 0 is a known window, 1 is unknown (`context_window` null, evidence
  * `unverified`, and a `reason`), 2 is bad arguments or a table it cannot
- * read, said in one line on stderr.
+ * read or use, said in one line on stderr.
  *
  * The windows come from `../references/claude-code-windows.json`, quoted
  * from Claude Code's docs, or Anthropic's model docs where those do not name
@@ -21,8 +21,8 @@
  * - `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` holds the 1M rows to 200,000, and sizes
  *   a `[1m]` id like its model's row, so it reads 200,000 too, or unknown with
  *   no row. Any value but `1` makes every id unknown: the docs name only `1`;
- * - `CLAUDE_CODE_MAX_CONTEXT_TOKENS` set leaves an id with a row its window
- *   while `DISABLE_COMPACT` is unset, since the docs make it inert for a
+ * - `CLAUDE_CODE_MAX_CONTEXT_TOKENS` set leaves an id whose model has a row,
+ *   `[1m]` or not, its usual window while `DISABLE_COMPACT` is unset, since the docs make it inert for a
  *   model Claude Code recognizes until then; it makes every other id unknown,
  *   and so does `DISABLE_COMPACT` set: its value is never read as the window;
  * - any other id is unknown. Never match an id by its family: a new model
@@ -58,7 +58,8 @@ function readTable() {
 }
 
 /** The window for `id` under the environment `env`. */
-export function windowFor(id, env, table = readTable()) {
+export function windowFor(id, env) {
+  const table = readTable();
   const { models, rules } = table;
   if (!env.CLAUDE_CODE_MAX_CONTEXT_TOKENS) return lookup(id, env, table);
   if (env.DISABLE_COMPACT)
@@ -66,7 +67,8 @@ export function windowFor(id, env, table = readTable()) {
       id,
       `CLAUDE_CODE_MAX_CONTEXT_TOKENS and DISABLE_COMPACT are both set, so the override can apply: ${cite(rules.max_context_inert)}`,
     );
-  if (!models.some((row) => row.id === id))
+  // A [1m] id resolves to its model, which Claude Code then recognizes.
+  if (!models.some((row) => row.id === id.replace(SUFFIX_1M, "")))
     return unknown(
       id,
       `CLAUDE_CODE_MAX_CONTEXT_TOKENS is set, and how it applies depends on how Claude Code resolves the id: ${cite(rules.max_context_tokens)}`,
@@ -109,14 +111,13 @@ function main(args) {
     process.stderr.write("usage: model-window.mjs <model id>\n");
     return 2;
   }
-  let table;
+  let found;
   try {
-    table = readTable();
+    found = windowFor(args[0], process.env);
   } catch (error) {
-    process.stderr.write(`model-window.mjs: cannot read ${TABLE}: ${String(error?.message ?? error).split("\n")[0]}\n`);
+    process.stderr.write(`model-window.mjs: cannot use ${TABLE}: ${String(error?.message ?? error).split("\n")[0]}\n`);
     return 2;
   }
-  const found = windowFor(args[0], process.env, table);
   process.stdout.write(`${JSON.stringify(found)}\n`);
   return found.context_window === null ? 1 : 0;
 }
