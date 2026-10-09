@@ -133,8 +133,9 @@ lead and become its worker:
    lead's steps no longer apply, and you start no other worker. If the story
    grows past one pull request, that is work beyond the story, and it goes to
    the maintainer as `story-worker` says. Your receipt says that this session
-   led the run before it carried the story, since the receipt check reads the
-   whole session. Your hand-back names the worktree, for the maintainer to
+   led the run before it carried the story. The receipt check leaves the
+   lead's calls out, since it counts only from the story's Started time.
+   Your hand-back names the worktree, for the maintainer to
    remove once the branch has merged.
 
 This is the one case where a project lead's session writes code, and only
