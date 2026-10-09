@@ -965,6 +965,43 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf("f() case $1 in a) echo;; merge) gh pr merge;; esac")).toEqual(["echo", "gh"]);
   });
 
+  it.each([
+    ["an unmatched backtick", "cat <<EOF\nunclosed `tick\nEOF\ngh pr view", ["cat", "gh"]],
+    ["an unclosed $(", "cat <<EOF\n$(oops\nEOF\ngh pr view", ["cat", "gh"]],
+  ])("never lets %s in a heredoc's body hide the commands after it", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("never reads a here-string's <<< as a heredoc", () => {
+    expect(clisOf("grep x <<< EOF\ngh pr merge 1\nEOF")).toEqual(["grep", "gh", "EOF"]);
+  });
+
+  it.each([
+    ["holding two commands", "((gh pr view 1; gh pr view 2) 2>&1) | jq .", ["gh", "gh", "jq"]],
+    ["closed apart", "((echo a) )", ["echo"]],
+  ])("reads a (( whose parens close apart as subshells, %s", (_how, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["grouped options", "env -iu HOME gh pr view", ["env", "gh"]],
+    ["-S, whose value is a command line", "env -S 'gh pr view'", ["env"]],
+    ["called by its path", "/usr/bin/env gh pr view", ["/usr/bin/env", "gh"]],
+  ])("reads the command env runs past %s", (_how, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["on one line", "a=(x y z); gh pr view", ["gh"]],
+    ["across lines", "cmd=(\n gh pr merge 12\n)", []],
+  ])("never reads an array's words as commands, %s", (_how, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("drops a closing keyword right before a backtick", () => {
+    expect(clisOf("X=`if true; then gh pr view; fi`; jq .")).toEqual(["true", "gh", "jq"]);
+  });
+
   it("never lets an extglob's ) end a case pattern", () => {
     expect(clisOf("case x in @(a|b)) gh pr view;; esac; jq .")).toEqual(["gh", "jq"]);
   });

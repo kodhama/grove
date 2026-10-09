@@ -17,9 +17,9 @@
  *   shell's reserved words where a command starts (`if`, `then`, `do`, `!`,
  *   `{`, `time` and the like), a `(` there and a function's `name()`; a
  *   command `env` runs is read too. Text is never a command: comments,
- *   `case` words and patterns, `for` lists, arithmetic and quoted heredoc
- *   bodies are dropped, an unquoted heredoc's body is read as a
- *   double-quoted word, and quoted text stays inside its word, separators
+ *   `case` words and patterns, `for` lists, arrays, arithmetic and quoted
+ *   heredoc bodies are dropped, an unquoted heredoc's body is read for the
+ *   commands it expands, and quoted text stays inside its word, separators
  *   and all. A quoted or escaped space stays inside its word too, so
  *   `node "/Users/Jane Doe/x.mjs"` runs one script, not two words, and
  *   `git commit -m "fix: a; b"` runs only `git`;
@@ -51,7 +51,7 @@ const INTERPRETERS = new Set(["bash", "sh", "zsh", "node", "python", "python3"])
 const SKILL_SCRIPT =
   /(?:^|\/)(?:\.(?:agents|claude)\/skills|plugins\/cache\/[^/]+\/([^/]+)\/[^/]+\/skills)\/([^/]+)\/scripts\//;
 /** What ends a word outside quotes. */
-const WORD_END = /[\s;&|()<>]/;
+const WORD_END = /[\s;&|()<>`]/;
 /** What a word never starts with: blanks, operators and a comment's `#`. */
 const NOT_A_WORD = /[\s;&|()<>#]/;
 /** Reserved words after which a command still starts. */
@@ -62,8 +62,10 @@ const COMPOUND_ENDS = ["fi", "done", "}"];
 const SETTING = /^[A-Za-z_]\w*=/;
 /** A `NAME=value` setting where a word starts. */
 const SETTING_AT = /[A-Za-z_]\w*=/y;
-/** The options of `env` that take the next word as their value. */
-const ENV_VALUE_OPTIONS = new Set(["-u", "--unset", "-C", "--chdir", "-P"]);
+/** The long options of `env` that take the next word as their value. */
+const ENV_VALUE_OPTIONS = new Set(["--unset", "--chdir", "--split-string"]);
+/** Short `env` options, grouped or not, whose last takes the next word as its value. */
+const ENV_VALUE_FLAGS = /^-[^-]*[uCPS]$/;
 /** `time` and its option, after which a command still starts. */
 const TIME = /time(?:[ \t]+-p)?(?=[\s;&|()<>]|$)/y;
 /** A function's definition up to its body: `name()` or `function name`, `()` optional. */
@@ -75,22 +77,28 @@ const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
  * its delimiter, the delimiter, the rest of its opening line, then its body
  * up to its terminator.
  */
-const HEREDOC = /<<-?\s*(\\?)(['"]?)([^\s'"\\;&|<>()]+)\2([^\n]*)\n([\s\S]*?)\n\s*\3(?=\s*(?:\n|$))/g;
+const HEREDOC = /(?<!<)<<(?!<)-?\s*(\\?)(['"]?)([^\s'"\\;&|<>()]+)\2([^\n]*)\n([\s\S]*?)\n\s*\3(?=\s*(?:\n|$))/g;
+
+/** Where an unquoted heredoc's body stood: its commands are read there. */
+const HEREDOC_MARK = "\uE000";
 
 /**
- * A heredoc's body as the shell expands it, which is as a double-quoted word
- * would be: none for a quoted or escaped delimiter, whose body is only text.
- * Inside it a backslash escapes only `$`, `` ` ``, `\` and a newline, and a
- * `"` is text.
+ * The commands an unquoted heredoc's body runs, read as the shell expands
+ * it, which is as a double-quoted word would be: inside it a backslash
+ * escapes only `$`, `` ` ``, `\` and a newline, and a `"` is text. A body
+ * whose `$(` or backtick never closes runs nothing, and hides nothing after
+ * it.
  */
-const heredocBody = (escaped, quoted, body) =>
-  escaped || quoted
-    ? ""
-    : ` "${body.replace(/\\([$`\\\n])|\\|"/g, (match, kept) => (kept ? match : match === "\\" ? "\\\\" : '\\"'))}"`;
+const heredocCommands = (body) => {
+  const word = `: "${body.replace(/\\([$`\\\n])|\\|"/g, (match, kept) => (kept ? match : match === "\\" ? "\\\\" : '\\"'))}"`;
+  const { found, closed } = scan(word);
+  return closed ? found.slice(1) : [];
+};
 
 /**
- * A shell line's commands as text, read left to right once each heredoc is
- * read: an unquoted one's body as a double-quoted word, any other's dropped.
+ * A shell line's commands as text, read left to right. A heredoc's body is
+ * read on its own, where it stood: an unquoted one's for the commands it
+ * expands, any other's dropped; a `<<<` here-string is no heredoc.
  * Outside quotes `&&`, `||`, `;`, `|`, `|&`, a `&` that is not part of a
  * redirect and a newline end a command; inside quotes they are text, and
  * quoted text stays inside its word; in a `$'…'` quote a backslash escapes
@@ -103,7 +111,8 @@ const heredocBody = (escaped, quoted, body) =>
  * Each frame knows whether a command starts at its next word, and only
  * there is a word read as a reserved word. `if`, `then`, `do`, `!`, `{`,
  * `time` and the like are dropped and a command still starts after them; a
- * `(` opens a subshell there and a `((` arithmetic. A function's `name()`
+ * `(` opens a subshell there and a `((` arithmetic, unless its parens close
+ * apart, as in `((a) )`. A function's `name()`
  * or `function name` is dropped and its body starts a command. `fi`,
  * `done`, `}`, a subshell's `)` and an arithmetic command's `))` end a
  * compound command, and the redirects after them belong to no command. So
@@ -112,14 +121,25 @@ const heredocBody = (escaped, quoted, body) =>
  * `;;&` to their `)`, where its body starts a command, and an `esac`
  * closes it where a pattern or a command can start. A pattern's `)` and `|`
  * neither close a `$(` nor split a command, and an extglob's `(` and `)`
- * inside it pair up. A backslash-newline outside single quotes is dropped,
+ * inside it pair up. An array's words, as in `a=(x y)`, are no commands. A
+ * backslash-newline outside single quotes is dropped,
  * joining the lines, a `#` that starts a word outside quotes runs a comment
  * to the newline, and an unclosed quote runs to the end. A command comes
  * before the ones it opens: `echo "a; $(date)"` gives `echo "a; "` and
  * `date`.
  */
 function commandTexts(line) {
-  const text = line.replace(HEREDOC, (_all, escaped, quoted, _word, rest, body) => heredocBody(escaped, quoted, body) + rest);
+  return scan(line).found;
+}
+
+/** A line's commands as text, and whether it closed every quote, `$(`, backtick and `${` it opened. */
+function scan(line) {
+  const bodies = [];
+  const text = line.replace(HEREDOC, (_all, escaped, quoted, _word, rest, body) => {
+    if (escaped || quoted) return rest;
+    bodies.push(body);
+    return HEREDOC_MARK + rest;
+  });
   const found = [""];
   // A frame is the line itself, a `$(` or backtick (`at` its command's
   // index), or arithmetic (`at` null: its text belongs to no command).
@@ -154,6 +174,16 @@ function commandTexts(line) {
   };
   // A compound command ends: what follows up to a separator is no command.
   const ended = (frame) => Object.assign(frame, { command: false, skip: true, arithmetic: false });
+  // Whether the `((` at i closes as `))`, as arithmetic does: bash reads one
+  // whose parens close apart, as in `((a) )`, as two subshells.
+  const closesAsArithmetic = (i) => {
+    let depth = 0;
+    for (let k = i; k < text.length; k++) {
+      if (text[k] === "(") depth++;
+      else if (text[k] === ")" && --depth === 1) return text[k + 1] === ")";
+    }
+    return false;
+  };
   const wordAt = (i, word) =>
     text.startsWith(word, i) && (i + word.length === text.length || WORD_END.test(text[i + word.length]));
   const matchAt = (pattern, i) => {
@@ -225,6 +255,10 @@ function commandTexts(line) {
     const char = text[i];
     const after = text[i + 1];
     const frame = frames.at(-1);
+    if (char === HEREDOC_MARK) {
+      found.push(...heredocCommands(bodies.shift()));
+      continue;
+    }
     if (!quote && wordStart && frame.braces === 0 && frame.at !== null && !NOT_A_WORD.test(char)) {
       const taken = reserved(i, frame);
       if (taken) {
@@ -287,13 +321,15 @@ function commandTexts(line) {
         openCase.state = "body";
         next();
       }
-    } else if (char === "(" && wordStart && frame.at !== null && after === "(" && (frame.command || frame.arithmetic)) {
+    } else if (frame.parens.at(-1) === "array" && char !== ")") {
+      // An array's words, as in `a=(x y)`, are no commands, on any line.
+      wordStart = /\s/.test(char);
+    } else if (char === "(" && wordStart && frame.at !== null && after === "(" && (frame.command || frame.arithmetic) && closesAsArithmetic(i)) {
       push("arithmetic-command");
     } else if (char === "(") {
       const subshell = wordStart && frame.command && frame.at !== null;
-      frame.parens.push(subshell ? "subshell" : "word");
+      frame.parens.push(subshell ? "subshell" : text[i - 1] === "=" ? "array" : "word");
       if (!subshell) add(char);
-      // An array's words, as in `a=(x y)`, are no commands.
       frame.command = subshell;
       wordStart = true;
     } else if (char === ")" && frame.parens.length > 0) {
@@ -322,7 +358,7 @@ function commandTexts(line) {
       wordStart = /\s/.test(char);
     }
   }
-  return found;
+  return { found, closed: frames.length === 1 && !quote && frames[0].braces === 0 };
 }
 
 /**
@@ -373,9 +409,11 @@ function commands(line) {
     if (start < 0) return [];
     const [first, ...rest] = words.slice(start);
     const name = first.replace(/^\(+|\)+$/g, "");
-    if (name !== "env") return [name ? [name, ...rest] : rest];
+    if (basename(name) !== "env") return [name ? [name, ...rest] : rest];
     let run = 0;
-    while (run < rest.length && rest[run].startsWith("-")) run += ENV_VALUE_OPTIONS.has(rest[run]) ? 2 : 1;
+    while (run < rest.length && rest[run].startsWith("-")) {
+      run += ENV_VALUE_OPTIONS.has(rest[run]) || ENV_VALUE_FLAGS.test(rest[run]) ? 2 : 1;
+    }
     return [[name, ...rest], ...(run < rest.length ? command(rest.slice(run)) : [])];
   };
   return commandTexts(line)
