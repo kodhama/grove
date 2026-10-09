@@ -60,6 +60,8 @@ const COMMAND_PREFIXES = ["then", "do", "else", "elif", "if", "while", "until", 
 const COMPOUND_ENDS = ["fi", "done", "}"];
 /** A leading `NAME=value` setting. */
 const SETTING = /^[A-Za-z_]\w*=/;
+/** A `NAME=value` setting where a word starts. */
+const SETTING_AT = /[A-Za-z_]\w*=/y;
 /** The options of `env` that take the next word as their value. */
 const ENV_VALUE_OPTIONS = new Set(["-u", "--unset", "-C", "--chdir", "-P"]);
 /** `time` and its option, after which a command still starts. */
@@ -73,7 +75,7 @@ const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
  * its delimiter, the delimiter, the rest of its opening line, then its body
  * up to its terminator.
  */
-const HEREDOC = /<<-?\s*(\\?)(['"]?)([^\s'"\;&|<>()]+)\2([^\n]*)\n([\s\S]*?)\n\s*\3(?=\s*(?:\n|$))/g;
+const HEREDOC = /<<-?\s*(\\?)(['"]?)([^\s'"\\;&|<>()]+)\2([^\n]*)\n([\s\S]*?)\n\s*\3(?=\s*(?:\n|$))/g;
 
 /**
  * A heredoc's body as the shell expands it, which is as a double-quoted word
@@ -158,7 +160,9 @@ function commandTexts(line) {
     pattern.lastIndex = i;
     return pattern.exec(text)?.[0];
   };
-  const push = (kind, at) => {
+  // Arithmetic holds no command, so its frame has no index.
+  const push = (kind) => {
+    const at = kind === "arithmetic" || kind === "arithmetic-command" ? null : 0;
     frames.push(frameOf(kind, at, quote === '"'));
     quote = "";
     if (at !== null) next();
@@ -174,6 +178,8 @@ function commandTexts(line) {
   };
   // The reserved word or function definition at i, where a word starts in a
   // frame that holds commands: how many characters it takes, or 0 for none.
+  // It updates the frame as the word does: a case's state, and whether a
+  // command still starts after it.
   const reserved = (i, frame) => {
     const openCase = frame.cases.at(-1);
     const atDepth = openCase?.depth === frame.parens.length;
@@ -212,7 +218,7 @@ function commandTexts(line) {
     }
     const definition = matchAt(FUNCTION, i);
     if (definition) return definition.length;
-    frame.command = SETTING.test(text.slice(i, i + 256));
+    frame.command = matchAt(SETTING_AT, i) !== undefined;
     return 0;
   };
   for (let i = 0; i < text.length; i++) {
@@ -246,11 +252,10 @@ function commandTexts(line) {
       }
     } else if (char === "`") {
       if (!quote && frame.kind === "backtick") pop();
-      else push("backtick", 0);
+      else push("backtick");
     } else if (char === "$" && after === "(") {
       i++;
-      const arithmetic = text[i + 1] === "(";
-      push(arithmetic ? "arithmetic" : "substitution", arithmetic ? null : 0);
+      push(text[i + 1] === "(" ? "arithmetic" : "substitution");
     } else if (quote === '"') {
       if (char === '"') quote = "";
       add(char);
@@ -283,7 +288,7 @@ function commandTexts(line) {
         next();
       }
     } else if (char === "(" && wordStart && frame.at !== null && after === "(" && (frame.command || frame.arithmetic)) {
-      push("arithmetic-command", null);
+      push("arithmetic-command");
     } else if (char === "(") {
       const subshell = wordStart && frame.command && frame.at !== null;
       frame.parens.push(subshell ? "subshell" : "word");
