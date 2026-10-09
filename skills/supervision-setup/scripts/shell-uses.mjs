@@ -17,10 +17,10 @@
  *   shell's reserved words where a command starts (`if`, `then`, `do`, `!`,
  *   `{`, `time` and the like), a `(` there and a function's `name()`; a
  *   command `env` runs is read too. Text is never a command: comments,
- *   `case` words and patterns, `for` lists, arrays, arithmetic and quoted
- *   heredoc bodies are dropped, an unquoted heredoc's body is read for the
- *   commands it expands, and quoted text stays inside its word, separators
- *   and all. A quoted or escaped space stays inside its word too, so
+ *   `case` words and patterns, `for` lists, `[[` tests, arrays, arithmetic
+ *   and quoted heredoc bodies are dropped, an unquoted heredoc's body is
+ *   read for the commands it expands, and quoted text stays inside its word,
+ *   separators and all. A quoted or escaped space stays inside its word too, so
  *   `node "/Users/Jane Doe/x.mjs"` runs one script, not two words, and
  *   `git commit -m "fix: a; b"` runs only `git`;
  * - a skill-script: a command that runs a file in a skill's own `scripts/`
@@ -116,7 +116,7 @@ const heredocCommands = (body) => {
  * or `function name` is dropped and its body starts a command. `fi`,
  * `done`, `}`, a subshell's `)` and an arithmetic command's `))` end a
  * compound command, and the redirects after them belong to no command. So
- * does a `for` or `select` up to its `do`. A `case` and its word belong to
+ * does a `for` or `select` up to its `do`, and a `[[` test up to its `]]`. A `case` and its word belong to
  * no command either; its patterns run from its `in` or a `;;`, `;&` or
  * `;;&` to their `)`, where its body starts a command, and an `esac`
  * closes it where a pattern or a command can start. A pattern's `)` and `|`
@@ -179,7 +179,7 @@ function scan(line) {
   // no command, `arithmetic` that a `((` there opens arithmetic, as after a
   // `for`.
   const frameOf = (kind, at, quoted) => ({
-    kind, at, quoted, parens: [], braces: 0, cases: [], command: true, skip: false, arithmetic: false,
+    kind, at, quoted, parens: [], braces: 0, cases: [], command: true, skip: false, arithmetic: false, test: false,
   });
   const frames = [frameOf("line", 0, false)];
   let quote = "";
@@ -196,7 +196,7 @@ function scan(line) {
   const next = () => {
     const frame = frames.at(-1);
     if (frame.at !== null) frame.at = found.push("") - 1;
-    Object.assign(frame, { command: true, skip: false, arithmetic: false });
+    Object.assign(frame, { command: true, skip: false, arithmetic: false, test: false });
     wordStart = true;
   };
   // A compound command ends: what follows up to a separator is no command.
@@ -238,6 +238,10 @@ function scan(line) {
   // It updates the frame as the word does: a case's state, and whether a
   // command still starts after it.
   const reserved = (i, frame) => {
+    if (frame.test) {
+      if (wordAt(i, "]]")) frame.test = false;
+      return 0;
+    }
     const openCase = frame.cases.at(-1);
     const atDepth = openCase?.depth === frame.parens.length;
     if (atDepth && openCase.state === "pattern") {
@@ -261,6 +265,12 @@ function scan(line) {
       if (end === "esac") frame.cases.pop();
       ended(frame);
       return end.length;
+    }
+    if (wordAt(i, "[[")) {
+      // A `[[` test runs no command up to its `]]`, though a `$(` in it does.
+      ended(frame);
+      frame.test = true;
+      return 2;
     }
     if (wordAt(i, "case")) {
       frame.cases.push({ state: "word", depth: frame.parens.length, patternStart: false, extglob: 0 });
@@ -339,6 +349,9 @@ function scan(line) {
       add(char);
     } else if (char === "#" && wordStart) {
       while (i + 1 < text.length && text[i + 1] !== "\n") i++;
+    } else if (frame.test && /[&|()<>\n]/.test(char)) {
+      // A test's operators and grouping split no command.
+      wordStart = true;
     } else if (pattern && (char === "(" || char === ")" || char === "|")) {
       // A pattern's own leading `(` is dropped; an extglob's pairs with its `)`.
       if (char === "(" && !openCase.patternStart) openCase.extglob++;

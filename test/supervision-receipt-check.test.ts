@@ -1028,6 +1028,19 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf(line)).toEqual(clis);
   });
 
+  it.each([
+    ["an extglob", "[[ $x == @(a|gh) ]] && jq .", ["jq"]],
+    ["an && and an -f", "[[ -n $x && -f y ]] && gh pr view", ["gh"]],
+    ["a regex alternative", "[[ $x =~ a|gh ]] && jq .", ["jq"]],
+    ["a grouped test after if", "if [[ ( -f a ) || -f b ]]; then gh pr view; fi", ["gh"]],
+  ])("never reads the words of a [[ test as commands: %s", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("reads a $( inside a [[ test as a command", () => {
+    expect(clisOf("[[ -n $(gh pr view --json url) ]] && jq .")).toEqual(["gh", "jq"]);
+  });
+
   it("drops a closing keyword right before a backtick", () => {
     expect(clisOf("X=`if true; then gh pr view; fi`; jq .")).toEqual(["true", "gh", "jq"]);
   });
