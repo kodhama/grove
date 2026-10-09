@@ -37,7 +37,7 @@ The level skill passes, or the handoff holds:
 
 - the task definition: the story or epic, with its work item's id and link,
   or the task alone where the level skill files its work item only once setup
-  completes, as a defect run's lead does;
+  completes, as the lead of a defect run or an intent run does;
 - the session's name, read from the live system as the harness notes say,
   never typed from memory;
 - a routing table: the path of the level skill's `routing.toml`, or a handoff

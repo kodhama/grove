@@ -516,11 +516,14 @@ function section(text: string, heading: string): string {
   return text.slice(start, next < 0 ? undefined : next);
 }
 
+/** A file's text, or "" when it is missing, so the assertion reading it fails. */
+const read = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : "");
+
+const LEAD = join(SKILLS_TREE, "project-lead", "SKILL.md");
+const WORKER = join(SKILLS_TREE, "story-worker", "SKILL.md");
+
 describe("MQ-373 · the defect route's text", () => {
-  const LEAD = join(SKILLS_TREE, "project-lead", "SKILL.md");
   const REFERENCE = join(SKILLS_TREE, "project-lead", "references", "defect-run.md");
-  const WORKER = join(SKILLS_TREE, "story-worker", "SKILL.md");
-  const read = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : "");
 
   it("project-lead links its defect-run reference, and the reference exists", () => {
     expect(read(LEAD)).toContain("references/defect-run.md");
@@ -570,6 +573,87 @@ describe("MQ-373 · the defect route's text", () => {
   ])("the reference uses the lead operation %s, which the lead table defines", (id) => {
     expect(idsOf("project-lead")).toContain(id);
     expect(read(REFERENCE)).toContain(`\`${id}\``);
+  });
+});
+
+/**
+ * GRO-7 — a lead can start from plain intent: a prompt with no epic, no work
+ * item and no plan. The intent run is a reference beside the defect run's; it
+ * adds no routing operation, so a consumer's overrides keep matching.
+ */
+describe("GRO-7 · the intent route's text", () => {
+  const REFERENCE = join(SKILLS_TREE, "project-lead", "references", "intent-run.md");
+  const RECEIPT = join(SKILLS_TREE, "story-worker", "references", "receipt.md");
+  const description = (text: string) => text.match(/^description: (.*)$/m)?.[1] ?? "";
+  const workerGiven = () => section(read(WORKER), "What you are given");
+
+  it("project-lead links its intent-run reference, and the reference exists", () => {
+    expect(read(LEAD)).toContain("references/intent-run.md");
+    expect(existsSync(REFERENCE)).toBe(true);
+  });
+
+  it("project-lead's description says it takes plain intent", () => {
+    expect(description(read(LEAD))).toMatch(/plain intent/);
+  });
+
+  it.each([
+    ["the intent-run reference", () => read(REFERENCE)],
+    ["story-worker's \"What you are given\"", workerGiven],
+  ])("%s names no harness, path, version or tracker", (_name, text) => {
+    expect(text()).not.toBe("");
+    expect(textProblems(text())).toEqual([]);
+  });
+
+  it.each([
+    "produce-breakdown",
+    "file-stories",
+    "post-work-note",
+    "start-worker",
+    "report-to-maintainer",
+  ])("the reference uses the lead operation %s, which the lead table defines", (id) => {
+    expect(idsOf("project-lead")).toContain(id);
+    expect(read(REFERENCE)).toContain(`\`${id}\``);
+  });
+
+  it("the reference hands a one-story run it carries itself to the story-worker skill", () => {
+    expect(read(REFERENCE)).toContain("`story-worker`");
+  });
+
+  it.each([
+    ["story-worker's \"What you are given\"", workerGiven],
+    ["the receipt", () => read(RECEIPT)],
+  ])("%s takes a work item filed from plain intent as its own source", (_name, text) => {
+    expect(text().replace(/\s+/g, " ")).toMatch(/filed from plain intent/);
+  });
+
+  it("the lead table keeps exactly its operation ids, so every consumer's override keeps matching", () => {
+    expect([...idsOf("project-lead")].sort()).toEqual(
+      [
+        "start-worker",
+        "message-session",
+        "message-pane",
+        "measure-context",
+        "restart-self",
+        "report-to-maintainer",
+        "write-handoff",
+        "produce-breakdown",
+        "file-stories",
+        "find-work-items",
+        "update-work-item",
+        "post-work-note",
+        "read-work-notes",
+        "wake-on-timer",
+        "review-before-merge",
+      ].sort(),
+    );
+  });
+
+  it("the reference posts a breakdown's plan where a worker can read it", () => {
+    expect(read(REFERENCE).replace(/\s+/g, " ")).toMatch(/post the confirmed plan on the run item/i);
+  });
+
+  it("the reference moves a session carrying its story into the story's worktree", () => {
+    expect(read(REFERENCE).replace(/\s+/g, " ")).toMatch(/move the session into the worktree/i);
   });
 });
 

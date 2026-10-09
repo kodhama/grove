@@ -1,15 +1,16 @@
 # grove
 
 **Agent supervision skills, shipped as one plugin for Claude Code and
-Codex.** A project lead runs an epic or a defect run and starts one story
-worker per story; each worker carries its story to a pull request ready for
-review. Neither merges: the maintainer approves every merge.
+Codex.** A project lead runs an epic, a defect run or a task given as plain
+intent, and starts one story worker per story, or carries a small one-story
+task itself as its worker; each worker carries its story to a pull request
+ready for review. Neither merges: the maintainer approves every merge.
 
 ## The skills
 
 | skill | what it does |
 | --- | --- |
-| `project-lead` | Leads one epic or defect run: gets its shape approved, starts the workers, carries decisions, accepts each hand-back on its evidence. Never writes the code. |
+| `project-lead` | Leads one epic, defect run or plain-intent task: gets its shape approved, starts the workers, carries decisions, accepts each hand-back on its evidence. Never writes the code, unless it carries a one-story intent run itself as that story's worker. |
 | `story-worker` | Carries one story or defect to a pull request ready for review, through its routing table, with a review by someone other than itself. |
 | `supervision-setup` | Binds a level skill's routing table to the performers this session can invoke, and writes the session's bindings file. Ships the receipt checker. |
 | `session-restart` | Restarts a session at a quiet point from a handoff, in place in its herdr pane when it can. |
@@ -46,6 +47,28 @@ An install reaches new sessions only: start a fresh one after installing.
 **Remove any bare copy first.** A skill installed both as `grove:story-worker`
 and as a bare `story-worker` in a skills folder is a clash under setup's
 matching rule, and setup then binds that operation by discovery.
+
+## Updating
+
+A merged version bump reaches an install only when the install updates, and,
+like an install, an update reaches new sessions only: start a fresh one after
+updating.
+
+**Claude Code:**
+
+```sh
+claude plugin update grove@grove
+```
+
+**Codex:**
+
+```sh
+codex plugin marketplace upgrade grove
+```
+
+This refreshes grove's marketplace copy and reinstalls the enabled plugin from
+it; a new Codex session also runs the same upgrade in the background when it
+starts. This was read from Codex's source at codex-cli 0.160.0, not yet run.
 
 ## Adopt it in a repo
 

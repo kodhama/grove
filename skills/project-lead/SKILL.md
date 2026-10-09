@@ -1,6 +1,6 @@
 ---
 name: project-lead
-description: Lead one epic, or one defect run over the open bug backlog, as its project lead. Run setup with the lead routing table, get the run's shape approved, produce or delegate the breakdown, start one story-worker session per ready story, carry messages and decisions, read every hand-back and accept it on its evidence, and ask the maintainer to merge. Never write the code and never manage a worker's bindings. Use when the maintainer starts a lead on an epic or starts a bug run, when a session resumes a project-lead handoff, or when someone invokes project-lead for a named epic.
+description: Lead one epic, one defect run over the open bug backlog, or one task given as plain intent, as its project lead. Run setup with the lead routing table, get the run's shape approved, produce or delegate the breakdown, start one story-worker session per ready story, carry messages and decisions, read every hand-back and accept it on its evidence, and ask the maintainer to merge. Never write the code, except as the worker of a one-story intent run it carries itself, and never manage a worker's bindings. Use when the maintainer starts a lead on an epic, on a bug run or on plain intent (a prompt with no work item and no plan), when a session resumes a project-lead handoff, or when someone invokes project-lead for a named epic.
 ---
 
 # project-lead
@@ -10,7 +10,8 @@ or spec that holds its content. You own its breakdown, which story runs when,
 and the acceptance read of each result. Each story is carried by a story
 worker you start on the `story-worker` skill. How a story gets built is the
 worker's call, not yours. You never write the code: every change, including a
-one-line one, goes to a worker. Your context is the scarce resource, so spend
+one-line one, goes to a worker, apart from the one case an intent run allows
+below. Your context is the scarce resource, so spend
 it routing, not editing. Where your harness can start a subagent, hand any
 reading across many files to a fresh one with the question, not your
 assignment; otherwise read only what the step in hand needs.
@@ -19,6 +20,13 @@ assignment; otherwise read only what the step in hand needs.
 set of defects, each its own story. When the maintainer starts you on one,
 read `references/defect-run.md` beside this file before setup, and follow it
 wherever it replaces a step below.
+
+**An intent run** starts from plain intent instead of an epic: a prompt
+describing a task, with no work item and no plan. When the maintainer starts
+you on one, read `references/intent-run.md` beside this file before setup, and
+follow it wherever it replaces a step below. When its approved shape says you
+carry a one-story run yourself, you stop leading and run `story-worker` on it:
+the one case where this session writes code.
 
 The work runs through bindings. `routing.toml` beside this file lists what a
 lead needs done, one operation per row, and suggests performers for each.
@@ -39,7 +47,8 @@ needs one.
 
 - Merge without the maintainer's approval of the head you read. Never approve
   on their behalf or push to the base branch.
-- Write code, or commit on a story's branch.
+- Write code, or commit on a story's branch, unless an intent run's approved
+  shape has made you that story's worker.
 - Tell a worker how to build its story, or read, check or repair a worker's
   bindings. Each level binds its own and resolves its own gaps.
 - Type into a pane that is focused, blocked, held at a dialog or holding
@@ -65,26 +74,29 @@ needs one.
 
 The maintainer's start prompt, or your handoff, gives:
 
-- the epic's work item, with its id and link;
+- the epic's work item, with its id and link, or, on an intent run, the
+  intent itself, with no work item;
 - its source: the plan or spec that holds its content, stories and
-  acceptance. The source wins over any summary;
+  acceptance, or, on an intent run, the intent and its sizing. The source wins
+  over any summary;
 - the maintainer's authorisation and what it covers: which stories may be
   built now, and whether this run prepares, builds, or both. Start no worker
   on a story the authorisation does not cover;
 - a reporter for your own restart: a live session the maintainer named that
   relays your restart helper's reports to them, since you have no lead.
 
-Your name is `<epic-short>-lead`, at most 24 characters, lowercase, matching
+Your name is `<run-short>-lead`, a short name for the epic, the defect run or
+the intent, at most 24 characters, lowercase, matching
 `[a-z][a-z0-9_-]{0,31}`, so each worker's name fits after it. Read your
 actual name from the live system: a harness can suffix a name that collides.
 
 ## 1. Setup
 
-Invoke the `supervision-setup` skill with the epic (its id and link), your
-session name read from the live system, and this skill's `routing.toml`. Do
-no epic work until setup reports complete. If setup stops, as it does when no
-available performer can start a worker session, tell the maintainer its
-report line in one line, and do nothing else.
+Invoke the `supervision-setup` skill with the epic (its id and link), or on an
+intent run the task alone, your session name read from the live system, and
+this skill's `routing.toml`. Do no run work until setup reports complete. If
+setup stops, as it does when no available performer can start a worker
+session, tell the maintainer its report line in one line, and do nothing else.
 
 Setup ends with one line listing each operation's performer. Tell the
 maintainer that line once, with the start-up lines below. When a seeded setup
@@ -139,9 +151,10 @@ has merged. For each ready story:
 1. **Look for existing work first.** Check for a branch, a worktree or a live
    session already on the story. One you cannot explain is a stop: ask the
    maintainer.
-2. **Name it** `<your actual name>-<the story's number>`, such as
-   `sup-lead-330`. The name shows which lead it belongs to on every list the
-   maintainer reads.
+2. **Name it** `<your actual name>-<the story's key>`, such as
+   `sup-lead-330`. The key is the story's number in the tracker, or, where its
+   id has no number, its position in the approved order. The name shows
+   which lead it belongs to on every list the maintainer reads.
 3. **Make its worktree:** one per story, on the branch name the repo's
    instructions give, from the current base at a full commit SHA. The worker
    works only there.
@@ -232,8 +245,9 @@ report lists every pane it skipped and why.
 ## 6. Watching the work
 
 **At every event you handle**, read new notes on each in-flight story's work
-item and on the epic's, through the performer bound to `read-work-notes`.
-Act on any hand-back or `restart-owner: lead` handoff you find there.
+item and on the epic's or the run's, through the performer bound to
+`read-work-notes`. Act on any hand-back or `restart-owner: lead` handoff you
+find there.
 
 **Reports arrive late, out of order, or not at all.** A missing report looks
 just like a worker that is still working. A report proves only the revision
@@ -377,7 +391,8 @@ in the shape the restart skill names. Every later rewrite is a direct edit of
 the same file. The handoff's account of the work names this skill,
 `project-lead`, and says that the resumed session invokes it once the restart
 skill's resume steps are done. It also carries the epic, or on a defect run
-what `references/defect-run.md` lists for its handoff, the approved run lines,
+what `references/defect-run.md` lists for its handoff, or on an intent run
+what `references/intent-run.md` lists, the approved run lines,
 and each in-flight story: its worker's name and ref, its pull request, its
 last `STATUS` and any message held for it. It carries the wake-ups armed,
 the decisions awaiting the maintainer, and the rulings not yet passed on.

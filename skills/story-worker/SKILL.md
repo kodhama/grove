@@ -51,8 +51,9 @@ need:
 
 - the story's work item, with its id and link;
 - its source: the plan, spec or unit that holds its content and acceptance,
-  or, for a defect whose work item carries its own detail, the work item
-  itself (see "A defect: diagnose first"). The acceptance comes from there;
+  or the work item itself: for a defect whose work item carries its own
+  detail (see "A defect: diagnose first"), or for a story filed from plain
+  intent whose work item holds the intent. The acceptance comes from there;
   the source wins over any summary. If the story has no such source, that is
   a blocker to raise, not a gap to fill;
 - the worktree, the branch and the base commit, as a full SHA;
@@ -332,6 +333,10 @@ through a terminal transport, first check that your lead's pane is not
 focused, since the maintainer may be typing there. A message that is refused
 or skipped is retried at your next event, and the work note is the backstop
 for a hand-back.
+
+With no lead ("none: the maintainer"), the maintainer is your lead: give each
+of these lines to them directly, a `DECISION` through the question tool where
+your harness has one, and post your hand-back note as usual.
 
 Each message to your lead is one line, in one of two shapes:
 

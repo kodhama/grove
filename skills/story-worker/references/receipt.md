@@ -16,7 +16,7 @@ points into.
 <the outcome, as Outcome below gives it, and what the maintainer must do, if anything — e.g. "PR ready for review; nothing for you yet: the lead accepts it, then asks you to merge">
 
 Story:           <work item id and link>   Source: <plan, spec or unit, with its section; for a
-                  defect, the work item itself>
+                  defect, or a story filed from plain intent, the work item itself>
 Owner:           <session name, read from the live system>   Worktree: <path>   Branch: <name>
 Started:         <UTC time, as YYYY-MM-DDTHH:MM:SSZ, recorded at the story's start>   Base: <full SHA the branch was cut from>
 Operating model: <own team | fully delegated to <runner>>
