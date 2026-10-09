@@ -791,6 +791,13 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf("echo $(( $(wc -l < f) + 1 ))")).toEqual(["echo", "wc"]);
     expect(clisOf("i=$(( i + 1 )) && gh pr view")).toEqual(["gh"]);
   });
+
+  it("reads a ) or a separator inside a ${ parameter expansion as text, and a $( inside it as a command", () => {
+    expect(clisOf("X=$(echo ${x%)} gh pr view)")).toEqual(["echo"]);
+    expect(clisOf("echo ${x#*;}; gh pr view")).toEqual(["echo", "gh"]);
+    expect(clisOf("echo ${a:-${b%)}} && gh pr view")).toEqual(["echo", "gh"]);
+    expect(clisOf("echo ${a:-$(gh pr view)}")).toEqual(["echo", "gh"]);
+  });
 });
 
 describe("MQ-377 · a Claude Code call counts only when it ran", () => {

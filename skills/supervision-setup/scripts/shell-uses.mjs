@@ -64,16 +64,17 @@ const HEREDOC = /<<-?\s*\\?(['"]?)([^\s'"\\;&|<>()]+)\1([^\n]*)\n[\s\S]*?\n\s*\2
  * included. A `$(` outside single quotes and not escaped opens a command that
  * ends at its matching `)`, a subshell's own `(` and `)` counting as depth,
  * and inside double quotes the quotes resume after it. A `$((` opens
- * arithmetic, which is no command, though a `$(` inside it is. A
+ * arithmetic, which is no command, though a `$(` inside it is. A `${` runs to
+ * its matching `}`, a `)` or a separator inside it being text. A
  * backslash-newline outside single quotes is dropped, joining the lines, a
  * `#` that starts a word outside quotes runs a comment to the newline, and an
- * unclosed quote runs to the end. A command comes before the ones it opens: `echo "a; $(date)"` gives
- * `echo "a; "` and `date`.
+ * unclosed quote runs to the end. A command comes before the ones it opens:
+ * `echo "a; $(date)"` gives `echo "a; "` and `date`.
  */
 function commandTexts(line) {
   const text = line.replace(HEREDOC, "$3");
   const found = [""];
-  const frames = [{ at: 0, depth: 0, quoted: false }];
+  const frames = [{ at: 0, depth: 0, braces: 0, quoted: false }];
   let quote = "";
   let wordStart = true;
   // An arithmetic frame's `at` is null: its text belongs to no command.
@@ -109,7 +110,7 @@ function commandTexts(line) {
     } else if (char === "$" && after === "(") {
       i++;
       const arithmetic = text[i + 1] === "(";
-      frames.push({ at: arithmetic ? null : 0, depth: 0, quoted: quote === '"' });
+      frames.push({ at: arithmetic ? null : 0, depth: 0, braces: 0, quoted: quote === '"' });
       quote = "";
       if (!arithmetic) next();
     } else if (quote === '"') {
@@ -124,6 +125,14 @@ function commandTexts(line) {
       quote = char;
       add(char);
       wordStart = false;
+    } else if (char === "$" && after === "{") {
+      i++;
+      frame.braces++;
+      add("${");
+      wordStart = false;
+    } else if (frame.braces > 0) {
+      if (char === "}") frame.braces--;
+      add(char);
     } else if (char === "#" && wordStart) {
       while (i + 1 < text.length && text[i + 1] !== "\n") i++;
     } else if (char === ")" && nested && frame.depth === 0) {
