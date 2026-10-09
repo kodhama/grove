@@ -18,7 +18,7 @@ points into.
 Story:           <work item id and link>   Source: <plan, spec or unit, with its section; for a
                   defect, the work item itself>
 Owner:           <session name, read from the live system>   Worktree: <path>   Branch: <name>
-Started:         <date and time>   Base: <full SHA the branch was cut from>
+Started:         <UTC time, as YYYY-MM-DDTHH:MM:SSZ, recorded at the story's start>   Base: <full SHA the branch was cut from>
 Operating model: <own team | fully delegated to <runner>>
 
 Model requested: <model + effort, as the lead asked, or "none requested">
@@ -38,8 +38,10 @@ Bindings:        <bindings file path>, complete at <its complete.at>; "the routi
                   since the earlier setup" and when, if a setup said so
 Rebound:         <operation: from → to, why, when — or "none">
 By fallback:     <operation: suggested <names> unavailable, step run by fallback — or "none">
-Not run:         <operation: why, e.g. "browser-test: no page touched" — or "none">
+Not run:         <table/operation: why, e.g. "story-worker/browser-test: no page touched" — or "none">
 Decided myself:  <the calls you made without asking, one line each — or "none">
+Receipt check:   <the check's output, run with --since the Started time, pasted unchanged; or
+                  "unavailable: <why it could not run>">
 
 Evidence:        <PR link / head and base SHAs / diff stat>
 Checks:          <each check as its command and result; any required check that did not run,
@@ -109,3 +111,8 @@ the line says "self-checked".
 file and the session's transcripts, which the file lists, are what prove it.
 A rebind or a fallback that is in the bindings file but missing here, or the
 other way round, is a defect in the receipt.
+
+**A `used (shared)` line passes, and is disclosed.** It means the call that
+credits the operation also matches another operation's binding, so the check
+cannot tell which of them it was for. Paste it as it is; where you know which
+operation the call was for, say so under it.

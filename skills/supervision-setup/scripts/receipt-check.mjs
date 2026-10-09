@@ -48,21 +48,40 @@
  * - `bound-but-unused`: otherwise.
  * The last two carry the marked operation's note above. `operation-state.mjs`
  * applies these rules.
- * It also lists skills whose call ran that no binding names
- * (used-but-unbound), except the level skill and `supervision-setup`, which
- * produced the bindings.
+ * It also lists skills whose call ran, among the calls counted (below), that
+ * no binding names (used-but-unbound), except the level skill and
+ * `supervision-setup`, which produced the bindings.
  *
- * Its limits. It proves a performer was used at least once in the session,
- * not at the step that should have used it: setup's own probes count too (it
- * runs the context gauge once, and starts its check as a general-purpose
- * agent). It finds uses of a performer, not of an operation: where several
- * operations bind one performer, as session-restart's four herdr operations
- * do, one call marks them all used, and where `review` and
- * `review-escalation` bind one review skill, as they do on Codex, one fresh
- * run of it credits both. It reads only the sessions the bindings file
- * lists, with their subagent transcripts, so work done in a sibling
- * session is not seen; that is why story-worker runs its review in a
- * subagent. A handoff carries only `used` lines, so after a restart onto
+ * Which calls count (`call-scope.mjs`): a session's calls count from the
+ * first call in its main transcript that loaded the level skill, its
+ * subagents' included, and its transcript line names that time; a session
+ * where no such call is found keeps every call, and its line says so. A
+ * level skill a person started with a slash command leaves no such call. A
+ * session that resumed from a handoff, any listed after the first, counts
+ * from its last load of the restart skill before that, so its resume steps
+ * count.
+ * With `--since <zoned time>`, calls before that time do not count either, in
+ * any session, and the report's header says so: a worker passes its story's
+ * start, so a session that worked an earlier story credits none of its
+ * calls. A call or a load with no recorded time is never cut.
+ *
+ * Shared performers: where the call that credits an operation also matches
+ * another operation's binding, as one herdr call matches session-restart's
+ * four herdr operations, or one fresh review run matches both `review` and
+ * `review-escalation` where they bind one skill, as on Codex, the line reads
+ * `used (shared)` and names the others, since the check cannot tell which
+ * operation the call was for. It passes, and the summary counts it apart.
+ *
+ * Its limits. It proves a performer was used at least once in the counted
+ * calls, not at the step that should have used it: setup's own probes can
+ * count too (it runs the context gauge once, and starts its check as a
+ * general-purpose agent), where setup runs after the level skill loads or,
+ * in a resumed session, among the resume steps, unless a `--since` set at a
+ * story's start, after setup, cuts them. A use carried
+ * from a handoff has no time, so neither cut applies to it. It reads only the
+ * sessions the bindings file lists, with their subagent transcripts, so work
+ * done in a sibling session is not seen; that is why story-worker runs its
+ * review in a subagent. A handoff carries only `used` lines, so after a restart onto
  * another machine an `attempted-failed` operation reads `bound-but-unused`,
  * which fails the same way. And a handoff written by the check before MQ-377
  * may carry a `used` line for a call that never ran, and a review line
@@ -71,14 +90,15 @@
  * no longer carries. Only a session spanning that change is affected.
  *
  * Usage: receipt-check.mjs --bindings <bindings.json> [--not-run <table/op>,...]
- * [--handoff <handoff.md>]. Exits 1 when any operation is bound-but-unused,
- * attempted-failed or has no evidence, or when the routing table or the repo's
- * override changed since setup read it (the bindings then follow other
- * suggestions), 2 on bad arguments or unusable input (a bindings file setup
- * did not complete, one listing no transcripts, one recording no sha256 for
- * its table or its override, or a malformed entry, a transcript or a handoff that is not a
- * file, a routing table that cannot be read or belongs to another skill),
- * else 0. It reads files only.
+ * [--handoff <handoff.md>] [--since <zoned time>]. Exits 1 when any operation is
+ * bound-but-unused, attempted-failed or has no evidence, or when the routing
+ * table or the repo's override changed since setup read it (the bindings then
+ * follow other suggestions), 2 on bad arguments (a `--since` that is not a
+ * time with its zone, such as `2026-10-08T21:16:31Z`, included) or unusable
+ * input (a bindings file setup did not complete, one listing no transcripts,
+ * one recording no sha256 for its table or its override, or a malformed
+ * entry, a transcript or a handoff that is not a file, a routing table that
+ * cannot be read or belongs to another skill), else 0. It reads files only.
  *
  * Plan: docs/plans/2026-09-25-0105-feat-supervision-operating-model-plan.md,
  * U8 and KTD12; outcomes and fresh-context review, MQ-377:
@@ -89,8 +109,9 @@ import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { scopeCalls, sinceTime } from "./call-scope.mjs";
 import { CARRIED, readHandoff } from "./handoff-receipt.mjs";
-import { judge, matches, unqualified } from "./operation-state.mjs";
+import { creditable, hasPerformer, judge, matches, unqualified } from "./operation-state.mjs";
 import { readRoutingTable } from "./routing-table.mjs";
 import { readTranscripts } from "./transcript-uses.mjs";
 
@@ -123,18 +144,41 @@ function tableOf(bindings) {
 }
 
 /**
+ * The other operations the use a row was credited for could have credited
+ * too, as `table/op` keys: their bindings match it, and it is creditable to
+ * them under `marked`, the operations the routing table marks.
+ */
+function sharedWith(binding, credited, bindings, marked) {
+  return bindings.operations
+    .filter((other) => other !== binding && hasPerformer(other) && matches(other, credited))
+    .map((other) => `${other.table}/${other.id}`)
+    .filter((key) => creditable(credited, marked.has(key)));
+}
+
+/**
  * Check one bindings file against its transcripts, and a handoff's earlier
  * result when one is given. `table` is its routing table as
- * `routing-table.mjs` reads it, read here when not given. Returns the
- * transcripts read, the table, one row per operation `{ table, id,
- * performer, state, where, note }`, and the unbound skills.
+ * `routing-table.mjs` reads it, read here when not given; `since` a zoned time
+ * before which calls are not counted (`call-scope.mjs`). Returns the
+ * transcripts read, each read one with its `scope`, the table, one row per
+ * operation `{ table, id, performer, state, where, note, shared }`, and the
+ * unbound skills. `shared` names the other operations the call a used row was
+ * credited for could have credited too; it is absent when there are none.
  */
-export function checkReceipts({ bindings, notRun = [], handoff = null, table = null }) {
+export function checkReceipts({ bindings, notRun = [], handoff = null, table = null, since = null }) {
   const routing = table ?? tableOf(bindings);
   const found = readTranscripts(bindings.transcripts ?? []);
   const { transcripts } = found;
+  const sessions = transcripts.filter((t) => t.status === "read").map((t) => t.session_id);
+  const skill = bindings.skill ?? "";
+  // A skill with its own table in the bindings, as the restart skill, may load before the level skill to resume,
+  // in any session setup listed after the first, since each restart appends one.
+  const resumeSkills = [...new Set((bindings.operations ?? []).map((op) => op.table).filter((t) => t && t !== skill))];
+  const resumed = new Set((bindings.transcripts ?? []).slice(1).map((t) => t.session_id));
+  const scoped = scopeCalls(found.uses, sessions, { skill, resumeSkills, resumed, since: sinceTime(since) });
+  for (const t of transcripts) if (scoped.scopes.has(t.session_id)) t.scope = scoped.scopes.get(t.session_id);
   // Only a call that ran is a use; a refused or still-pending one is not.
-  const uses = found.uses.filter((use) => use.outcome === "ran");
+  const uses = scoped.uses.filter((use) => use.outcome === "ran");
   const carried = handoff ? readHandoff(handoff) : { used: new Map(), covered: new Set() };
   for (const t of transcripts) {
     if (t.status === "missing" && carried.covered.has(t.session_id)) t.status = "covered";
@@ -150,20 +194,26 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
   }
   // Every call, whatever its outcome: `judge` credits only one that ran (`uses`).
   const context = {
-    calls: found.uses,
+    calls: scoped.uses,
     marked: new Set(routing.marked.map((id) => `${routing.skill}/${id}`)),
     carried: carried.used,
     notRun: new Set(notRun),
     missing: transcripts.some((transcript) => transcript.status === "missing"),
   };
-  const operations = bindings.operations.map((binding) => ({
-    table: binding.table,
-    id: binding.id,
-    performer: binding.native_id,
-    ...judge(binding, context),
-  }));
+  const operations = bindings.operations.map((binding) => {
+    const { credited, ...row } = judge(binding, context);
+    const shared = credited ? sharedWith(binding, credited, bindings, context.marked) : [];
+    return {
+      table: binding.table,
+      id: binding.id,
+      performer: binding.native_id,
+      ...row,
+      ...(shared.length > 0 && { shared }),
+    };
+  });
   return {
     transcripts,
+    since,
     table: routing,
     operations,
     unbound: unboundSkills(bindings, uses),
@@ -179,7 +229,10 @@ function operationLine(row) {
   const note = row.note ? ` (${row.note})` : "";
   switch (row.state) {
     case "used":
-      return `${name}: used ${row.performer} in ${row.where}`;
+      return row.shared
+        ? `${name}: used (shared): ${row.performer} in ${row.where}; ` +
+            `also bound to ${row.shared.join(", ")}; the check cannot tell which ran`
+        : `${name}: used ${row.performer} in ${row.where}`;
     case "by fallback":
     case "unavailable":
       return `${name}: ${row.state} (no performer to find)`;
@@ -220,13 +273,31 @@ function tableLines(table) {
   return lines;
 }
 
+/** Where a read session's calls were counted from, as its transcript line's ending. */
+function scopeText(scope, skill) {
+  switch (scope?.state) {
+    case "loaded":
+      return scope.resumedBy
+        ? `; counted from ${scope.at}, when ${scope.resumedBy} loaded to resume`
+        : `; counted from ${scope.at}, when ${skill} loaded`;
+    case "untimed":
+      return `; ${skill} loaded at no recorded time, so every call counts`;
+    case "never":
+      return `; no load of ${skill} found here, so every call counts`;
+    default:
+      return "";
+  }
+}
+
 /** The whole report, one line per transcript, operation and unbound skill. */
 function formatReport(result, bindings, bindingsPath) {
   const lines = [`receipt-check: ${bindingsPath} (${bindings.skill}, session ${bindings.session})`];
   lines.push(...tableLines(result.table));
+  if (result.since) lines.push(`since ${result.since}: calls before it are not counted`);
   for (const t of result.transcripts) {
     const listed = t.listed ? `; listed at ${t.listed}` : "";
-    const read = `read ${t.path} (${t.subagents} subagent files${listed})`;
+    const scope = scopeText(t.scope, bindings.skill);
+    const read = `read ${t.path} (${t.subagents} subagent files${listed})${scope}`;
     const other = t.status === "covered" ? "covered by handoff" : "missing";
     lines.push(`transcript ${t.session_id}: ${t.status === "read" ? read : `${other} ${t.path}`}`);
   }
@@ -236,8 +307,9 @@ function formatReport(result, bindings, bindingsPath) {
   lines.push(...result.operations.map(operationLine));
   lines.push(...result.unbound.map((u) => `used-but-unbound: ${u.name} in ${u.where}`));
   const count = (state) => result.operations.filter((row) => row.state === state).length;
+  const shared = result.operations.filter((row) => row.shared).length;
   lines.push(
-    `summary: ${count("used")} used, ${count("bound-but-unused")} bound-but-unused, ` +
+    `summary: ${count("used") - shared} used, ${shared} used (shared), ${count("bound-but-unused")} bound-but-unused, ` +
       `${count("attempted-failed")} attempted-failed, ${count("not reached")} not reached, ${count("no evidence")} no evidence, ` +
       `${result.unbound.length} used-but-unbound` +
       (result.table.changed ? "; the table changed since setup" : "") +
@@ -251,14 +323,20 @@ function readOptions(argv) {
   const text = { type: "string" };
   let values;
   try {
-    const options = { bindings: text, handoff: text, "not-run": { ...text, multiple: true } };
+    const options = { bindings: text, handoff: text, since: text, "not-run": { ...text, multiple: true } };
     ({ values } = parseArgs({ args: argv, options }));
   } catch (error) {
     return { error: error.message };
   }
   if (!values.bindings) return { error: "--bindings <path> is required" };
   const notRun = (values["not-run"] ?? []).flatMap((list) => list.split(",")).filter(Boolean);
-  return { bindings: values.bindings, handoff: values.handoff ?? null, notRun };
+  const since = values.since ?? null;
+  try {
+    sinceTime(since);
+  } catch (error) {
+    return { error: error.message };
+  }
+  return { bindings: values.bindings, handoff: values.handoff ?? null, notRun, since };
 }
 
 /** Load a bindings file setup completed, or return the reason it cannot be used. */
@@ -319,7 +397,7 @@ function main(argv) {
   const loaded = options.error ? options : loadBindings(options.bindings);
   if (loaded.error) {
     process.stderr.write(
-      `receipt-check: ${loaded.error}\nUsage: receipt-check.mjs --bindings <path> [--not-run <table/op>,...] [--handoff <path>]\n`,
+      `receipt-check: ${loaded.error}\nUsage: receipt-check.mjs --bindings <path> [--not-run <table/op>,...] [--handoff <path>] [--since <zoned time>]\n`,
     );
     return 2;
   }

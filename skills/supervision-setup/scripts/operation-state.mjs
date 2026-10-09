@@ -77,20 +77,35 @@ function contextNote(calls, partial) {
   return `${outside}: in ${named.join(", in ")}`;
 }
 
+/** Whether a binding names a performer to find: it is neither by fallback nor unavailable. */
+export function hasPerformer(binding) {
+  return binding.how_bound !== "fallback" && binding.how_bound !== "unavailable" && Boolean(binding.native_id);
+}
+
 /** A row with its note, when there is one. */
 function noted(row, note) {
   return note ? { ...row, note } : row;
 }
 
 /**
- * The use a handoff carries for an operation, when it stands: its performer
- * is the one bound, and for a marked operation its place names a subagent:
- * the check writes a marked operation's `used` line only from a fresh-context
- * subagent.
+ * Whether a use of an operation's performer can credit it: any use for an
+ * unmarked operation, and for a marked one only a use with `fresh` set, made
+ * in a fresh-context subagent.
+ */
+export function creditable(use, marked) {
+  return use.fresh || !marked;
+}
+
+/**
+ * The use a handoff carries for an operation, as the use it credits, when it
+ * stands: its performer is the one bound, and for a marked operation its place
+ * names a subagent: the check writes a marked operation's `used` line only
+ * from a fresh-context subagent.
  */
 function carriedUse(binding, carried, marked) {
-  if (!carried || !matches(binding, { kind: binding.kind, name: carried.performer })) return null;
-  return !marked || isSubagentPlace(carried.place) ? carried : null;
+  if (!carried) return null;
+  const use = { kind: binding.kind, name: carried.performer, fresh: isSubagentPlace(carried.place) };
+  return matches(binding, use) && creditable(use, marked) ? use : null;
 }
 
 /**
@@ -99,19 +114,22 @@ function carriedUse(binding, carried, marked) {
  * or for an operation the routing table marks `fresh_context`, one inside a
  * fresh-context subagent. `context` holds every call, the marked operations,
  * the handoff's carried uses, the operations declared not run, and whether a
- * listed transcript is missing.
+ * listed transcript is missing. A `used` row also carries `credited`, the
+ * use it was credited for: the call, or for a carried use the performer the
+ * handoff names, `fresh` when its place names a subagent.
  */
 export function judge(binding, context) {
   const key = `${binding.table}/${binding.id}`;
   if (binding.how_bound === "fallback") return { state: "by fallback" };
-  if (binding.how_bound === "unavailable" || !binding.native_id) return { state: "unavailable" };
+  if (!hasPerformer(binding)) return { state: "unavailable" };
   const marked = context.marked.has(key);
   const calls = context.calls.filter((call) => matches(binding, call));
-  const allowed = calls.filter((call) => call.fresh || !marked);
+  const allowed = calls.filter((call) => creditable(call, marked));
   const ran = allowed.find((call) => call.outcome === "ran");
-  if (ran) return { state: "used", where: ran.where };
-  const carried = carriedUse(binding, context.carried.get(key), marked);
-  if (carried) return { state: "used", where: `${carried.place} ${CARRIED}` };
+  if (ran) return { state: "used", where: ran.where, credited: ran };
+  const carried = context.carried.get(key);
+  const credited = carriedUse(binding, carried, marked);
+  if (credited) return { state: "used", where: `${carried.place} ${CARRIED}`, credited };
   const count = (outcome) => allowed.filter((call) => call.outcome === outcome).length;
   const failed = count("failed");
   if (context.notRun.has(key)) {
