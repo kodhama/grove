@@ -1006,6 +1006,13 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf(line)).toEqual(clis);
   });
 
+  it.each([
+    ["a $(", "$(gh pr view --json url) jq", ["jq", "gh"]],
+    ["backticks", "`gh pr view --json url` jq", ["jq", "gh"]],
+  ])("reads the word after a leading %s as a command, which bash runs when the substitution expands to nothing", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
   it("drops a closing keyword right before a backtick", () => {
     expect(clisOf("X=`if true; then gh pr view; fi`; jq .")).toEqual(["true", "gh", "jq"]);
   });
