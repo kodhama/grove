@@ -14,11 +14,11 @@
  *   opens a command that runs to its matching `)`, even inside double quotes
  *   (`PR="$(gh pr view)"`), unless a backslash escapes it. Leading
  *   `NAME=value` settings are skipped, a leading `(` starts the command, and
- *   text is never a command: heredoc bodies and comments are dropped, and
- *   quoted text stays inside its word, separators and all. A quoted or
- *   escaped space stays inside its word too, so `node "/Users/Jane Doe/x.mjs"`
- *   runs one script, not two words, and `git commit -m "fix: a; b"` runs
- *   only `git`;
+ *   text is never a command: heredoc bodies, comments and `case` patterns
+ *   are dropped, and quoted text stays inside its word, separators and
+ *   all. A quoted or escaped space stays inside its word too, so
+ *   `node "/Users/Jane Doe/x.mjs"` runs one script, not two words, and
+ *   `git commit -m "fix: a; b"` runs only `git`;
  * - a skill-script: a command that runs a file in a skill's own `scripts/`
  *   folder, as its first word or after `bash`, `sh`, `node` or `python`. The
  *   skill sits in a repo's `.agents/skills/<skill>/` or `.claude/skills/<skill>/`,
@@ -70,9 +70,9 @@ const HEREDOC = /<<-?\s*\\?(['"]?)([^\s'"\\;&|<>()]+)\1([^\n]*)\n[\s\S]*?\n\s*\2
  * and inside double quotes the quotes resume after it. A `$((` opens
  * arithmetic, which is no command, though a `$(` inside it is. A `${` runs to
  * its matching `}`, a `)` or a separator inside it being text. A `case`
- * pattern's `)` and `|` are text too, from its `in` or `;;` to the `)`, so a
- * pattern never closes a `$(` or splits a command. A
- * backslash-newline outside single quotes is dropped, joining the lines, a
+ * pattern, from its `in` or `;;` to its `)`, belongs to no command: its `)`
+ * and `|` neither close a `$(` nor split a command, and a command starts
+ * after its `)`. A backslash-newline outside single quotes is dropped, joining the lines, a
  * `#` that starts a word outside quotes runs a comment to the newline, and an
  * unclosed quote runs to the end. A command comes before the ones it opens:
  * `echo "a; $(date)"` gives `echo "a; "` and `date`.
@@ -80,15 +80,17 @@ const HEREDOC = /<<-?\s*\\?(['"]?)([^\s'"\\;&|<>()]+)\1([^\n]*)\n[\s\S]*?\n\s*\2
 function commandTexts(line) {
   const text = line.replace(HEREDOC, "$3");
   const found = [""];
-  // Each frame's `cases` holds one state per open `case`: "word" until its
-  // `in`, then "pattern" up to a pattern's `)`, then "body" up to its `;;`.
+  // Each frame's `cases` holds one entry per open `case`: its state, "word"
+  // until its `in`, then "pattern" up to a pattern's `)`, then "body" up to
+  // its `;;`; and the subshell depth it opened at, where its `)`s count.
   const frames = [{ at: 0, depth: 0, braces: 0, cases: [], quoted: false }];
   let quote = "";
   let wordStart = true;
-  // An arithmetic frame's `at` is null: its text belongs to no command.
+  // An arithmetic frame's `at` is null: its text belongs to no command, and
+  // nor does a case pattern's.
   const add = (chars) => {
-    const { at } = frames.at(-1);
-    if (at !== null) found[at] += chars;
+    const { at, cases } = frames.at(-1);
+    if (at !== null && cases.at(-1)?.state !== "pattern") found[at] += chars;
   };
   const next = () => {
     const frame = frames.at(-1);
@@ -112,6 +114,9 @@ function commandTexts(line) {
     const after = text[i + 1];
     const frame = frames.at(-1);
     const nested = frames.length > 1;
+    const openCase = frame.cases.at(-1);
+    // A pattern's own `(` and `)` sit at the depth its case opened at.
+    const inPattern = openCase?.state === "pattern" && frame.depth === openCase.depth;
     if (quote === "'") {
       if (char === "'") quote = "";
       add(char);
@@ -155,10 +160,11 @@ function commandTexts(line) {
       add(char);
     } else if (char === "#" && wordStart) {
       while (i + 1 < text.length && text[i + 1] !== "\n") i++;
-    } else if (frame.cases.at(-1) === "pattern" && frame.depth === 0 && (char === ")" || char === "|")) {
-      if (char === ")") frame.cases[frame.cases.length - 1] = "body";
-      add(char);
-      wordStart = true;
+    } else if (inPattern && (char === ")" || char === "|")) {
+      if (char === ")") {
+        openCase.state = "body";
+        next();
+      }
     } else if (char === ")" && nested && frame.depth === 0) {
       frames.pop();
       if (frame.quoted) quote = '"';
@@ -167,17 +173,16 @@ function commandTexts(line) {
       i++;
       next();
     } else if (char === ";" || char === "|" || char === "\n") {
-      if (char === ";" && (after === ";" || after === "&") && frame.cases.at(-1) === "body") {
-        frame.cases[frame.cases.length - 1] = "pattern";
+      if (char === ";" && (after === ";" || after === "&") && openCase?.state === "body") {
+        openCase.state = "pattern";
       }
       next();
     } else {
-      if (wordStart && wordAt(i, "case") && commandCanStart(i)) frame.cases.push("word");
-      else if (wordStart && frame.cases.at(-1) === "word" && wordAt(i, "in")) frame.cases[frame.cases.length - 1] = "pattern";
-      else if (wordStart && frame.cases.length > 0 && wordAt(i, "esac")) frame.cases.pop();
+      if (wordStart && wordAt(i, "case") && commandCanStart(i)) frame.cases.push({ state: "word", depth: frame.depth });
+      else if (wordStart && openCase?.state === "word" && wordAt(i, "in")) openCase.state = "pattern";
+      else if (wordStart && openCase && wordAt(i, "esac")) frame.cases.pop();
       // A pattern's own leading `(` pairs with its `)`, which ends the pattern.
-      const patternParen = frame.cases.at(-1) === "pattern" && frame.depth === 0;
-      if (nested && char === "(" && !patternParen) frame.depth++;
+      if (nested && char === "(" && !inPattern) frame.depth++;
       if (nested && char === ")") frame.depth--;
       add(char);
       wordStart = /[\s()]/.test(char);

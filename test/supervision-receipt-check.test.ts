@@ -800,12 +800,28 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
   });
 
   it.each([
-    ["a case", "X=$(case no in yes) gh pr view;; esac)", ["case", "esac"]],
-    ["a case nested in a case", "X=$(case a in x) case b in y) echo;; esac;; esac) && gh pr view", ["case", "esac", "esac", "gh"]],
-    ["a pattern opened by its own (", "X=$(case a in (x) echo;; esac) && gh pr view", ["case", "esac", "gh"]],
-    ["a pattern with alternatives", "X=$(case a in x|y) echo;; esac) && gh pr view", ["case", "esac", "gh"]],
+    ["a case", "X=$(case no in yes) gh pr view;; esac)", ["case", "gh", "esac"]],
+    ["a case nested in a case", "X=$(case a in x) case b in y) echo;; esac;; esac) && gh pr view", ["case", "case", "echo", "esac", "esac", "gh"]],
+    ["a pattern opened by its own (", "X=$(case a in (x) echo;; esac) && gh pr view", ["case", "echo", "esac", "gh"]],
+    ["a pattern with alternatives", "X=$(case a in x|y) echo;; esac) && gh pr view", ["case", "echo", "esac", "gh"]],
+    ["a case in a subshell", 'X="$( (case a in x) echo;; esac); gh pr view )"', ["case", "echo", "esac", "gh"]],
   ])("never lets a pattern's ) in %s close the $( around it", (_what, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["on lines of their own", 'case "$1" in\n gh) echo pick ;;\n herdr) echo ok ;;\nesac', ["case", "echo", "echo", "esac"]],
+    ["quoted", 'case "$1" in "gh pr") echo pick ;; esac', ["case", "echo", "esac"]],
+  ])("never reads a case pattern %s as a command", (_how, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("reads the command right after a pattern's )", () => {
+    expect(clisOf('case "$s" in OPEN) gh pr merge 12;; esac')).toEqual(["case", "gh", "esac"]);
+  });
+
+  it("ends a comment at the newline, never at a ; inside it", () => {
+    expect(clisOf("echo a # x; gh pr merge")).toEqual(["echo"]);
   });
 });
 
