@@ -154,9 +154,10 @@ another.
 <the receipt check's output, pasted unchanged, line for line:
 `node "<supervision-setup's folder>/scripts/receipt-check.mjs" --bindings "<the bindings file>"`,
 supervision-setup's folder being the one beside this skill's own, adding
-`--handoff "<path>"`, with the handoff you started from saved to that
-path, whenever that handoff's own receipt-check section holds a result; or
-`unavailable: <why it could not run>`>
+`--since <the story's Started time>` in a session working a story, and
+leaving it out in one with no story, and adding `--handoff "<path>"`, with
+the handoff you started from saved to that path, whenever that handoff's own
+receipt-check section holds a result; or `unavailable: <why it could not run>`>
 
 ## What I am doing
 
@@ -186,7 +187,10 @@ seeded setup keep the earlier transcripts all the same, and the table's
 and the override's sha256 let it see a table or override that changed since. The receipt check is
 inline for the same reason: such a successor cannot read your transcripts, so
 its own check reads your result from this section (`--handoff`) and counts
-each operation it shows used in a session it cannot read itself. That
+each operation it shows used in a session it cannot read itself. A carried
+use has no time, so no later check can cut it: `--since` is what keeps a use
+from before the story out of the handoff, and so out of every restart after
+it. That
 transcript stays listed, and missing, through every later restart, so each
 one passes on the handoff it started from in the same way; a result it does
 not need is ignored, never harmful. A line

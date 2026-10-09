@@ -81,6 +81,12 @@ Setup ends with one line listing each operation's performer. Send it to your
 lead as `STATUS: started`, so the lead knows what you will run without asking.
 You need no answer before you start.
 
+**Record the story's start** once setup completes, before any story step:
+read the time with `date -u +%Y-%m-%dT%H:%M:%SZ` and write it as Started in
+the receipt so far. The receipt check takes it as `--since` at the hand-back,
+long after the start, so it must be written down now. A session that resumes
+the story keeps the Started its handoff carries and never records a new one.
+
 ## 2. Before the first edit
 
 - **The worktree is fixed.** Work only there. One writer per worktree: if you
@@ -378,8 +384,8 @@ names this skill, `story-worker`, and says that the resumed session invokes it
 once the restart skill's resume steps are done, before any story step: a
 harness can drop a skill across the clear, and a resumed session that never
 loads this skill never runs its seeded setup. The account also carries the
-story, the branch, the base SHA, the pull request's link if there is one, the
-step in hand and the receipt so far. Where the restart skill has you paste
+story, its Started time, the branch, the base SHA, the pull request's link if
+there is one, the step in hand and the receipt so far. Where the restart skill has you paste
 the receipt check's output into the handoff, pass `--since` your story's
 start there too, so a successor on another machine carries no use from before
 the story. If measuring is bound as unavailable, setup said so once, and you

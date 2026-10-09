@@ -12,7 +12,11 @@
  *   call, or a Codex SKILL.md read, whose name after its last `:` is the
  *   level skill's). Its subagents' calls are cut at the same time. A session
  *   with no such call keeps every call, and its report line says so; a level
- *   skill a person started with a slash command leaves no such call;
+ *   skill a person started with a slash command leaves no such call. A
+ *   session that resumed from a handoff loaded the restart skill first, and
+ *   ran its resume steps before it loaded the level skill, so where a skill
+ *   with its own table in the bindings, as the restart skill, loaded before
+ *   the level skill, its calls count from the last such load instead;
  * - `since`: calls before that time are not counted, in any session.
  *
  * A call's time is its record's `timestamp`. A call with none that parses is
@@ -40,7 +44,7 @@ export function sinceTime(since) {
   const match = ZONED_TIME.exec(since);
   const time = match && onTheCalendar(match) ? Date.parse(since) : Number.NaN;
   if (Number.isNaN(time)) {
-    throw new Error(`--since ${since} is not a time with its zone, such as 2026-10-08T21:16:31Z`);
+    throw new Error(`--since ${since} is not a time with its zone: write it as YYYY-MM-DDTHH:MM:SSZ, such as 2026-10-08T21:16:31Z`);
   }
   return time;
 }
@@ -51,41 +55,63 @@ function timeMs(use) {
   return Number.isNaN(time) ? null : time;
 }
 
-/** The first call in each session's main transcript that ran and loaded the level skill `skill`. */
-function firstLoads(uses, skill) {
-  const name = unqualified(skill);
-  const loads = new Map();
-  for (const use of uses) {
-    const loaded =
-      use.kind === "skill" &&
-      use.outcome === "ran" &&
-      use.where === use.session &&
-      unqualified(use.name) === name;
-    if (loaded && !loads.has(use.session)) loads.set(use.session, use);
-  }
-  return loads;
+/** Whether a call ran in its session's main transcript and loaded a skill named in `names`, unqualified. */
+function loads(use, names) {
+  return use.kind === "skill" && use.outcome === "ran" && use.where === use.session && names.has(unqualified(use.name));
 }
 
-/** A session's scope from its first load: `loaded` at its time, `untimed`, or `never`. */
-function scopeOf(load) {
+/** The first call in each session's main transcript that ran and loaded the level skill `skill`. */
+function firstLoads(uses, skill) {
+  const names = new Set([unqualified(skill)]);
+  const found = new Map();
+  for (const use of uses) {
+    if (loads(use, names) && !found.has(use.session)) found.set(use.session, use);
+  }
+  return found;
+}
+
+/**
+ * Each session's last timed load of a resume skill (`resumeSkills`) made no
+ * later than its first load of the level skill, as `levels` holds them.
+ */
+function resumeLoads(uses, resumeSkills, levels) {
+  const names = new Set(resumeSkills.map(unqualified));
+  const found = new Map();
+  for (const use of uses) {
+    const level = timeMs(levels.get(use.session) ?? {});
+    const at = timeMs(use);
+    const latest = timeMs(found.get(use.session) ?? {}) ?? -Infinity;
+    if (level !== null && at !== null && at <= level && at >= latest && loads(use, names)) {
+      found.set(use.session, use);
+    }
+  }
+  return found;
+}
+
+/** A session's scope from its first load and any resume load before it: `loaded` at its time, `untimed`, or `never`. */
+function scopeOf(load, resume) {
   if (!load) return { state: "never" };
-  return timeMs(load) === null ? { state: "untimed" } : { state: "loaded", at: load.at };
+  if (timeMs(load) === null) return { state: "untimed" };
+  return resume ? { state: "loaded", at: resume.at, resumedBy: unqualified(resume.name) } : { state: "loaded", at: load.at };
 }
 
 /**
  * The calls that count, and each read session's scope: `{ state: "loaded",
  * at }` when its first load of the level skill was recorded at a time that
- * parses, `{ state: "untimed" }` when it was not, and `{ state: "never" }`
- * when no load of the skill is found there. `since` is milliseconds or null, as
- * `sinceTime` gives it.
+ * parses, with `resumedBy` naming the resume skill when the cut starts at its
+ * load instead, `{ state: "untimed" }` when the level skill's load was not,
+ * and `{ state: "never" }` when no load of the skill is found there.
+ * `resumeSkills` names the skills with their own table in the bindings.
+ * `since` is milliseconds or null, as `sinceTime` gives it.
  */
-export function scopeCalls(uses, sessions, { skill, since = null }) {
-  const loads = firstLoads(uses, skill);
-  const scopes = new Map(sessions.map((session) => [session, scopeOf(loads.get(session))]));
+export function scopeCalls(uses, sessions, { skill, resumeSkills = [], since = null }) {
+  const levels = firstLoads(uses, skill);
+  const resumes = resumeLoads(uses, resumeSkills, levels);
+  const scopes = new Map(sessions.map((session) => [session, scopeOf(levels.get(session), resumes.get(session))]));
   const cuts = new Map(
     sessions.flatMap((session) => {
-      const time = scopes.get(session).state === "loaded" ? timeMs(loads.get(session)) : null;
-      return time === null ? [] : [[session, time]];
+      const scope = scopes.get(session);
+      return scope.state === "loaded" ? [[session, Date.parse(scope.at)]] : [];
     }),
   );
   const counts = (use) => {

@@ -18,7 +18,7 @@ points into.
 Story:           <work item id and link>   Source: <plan, spec or unit, with its section; for a
                   defect, the work item itself>
 Owner:           <session name, read from the live system>   Worktree: <path>   Branch: <name>
-Started:         <UTC time, as YYYY-MM-DDTHH:MM:SSZ>   Base: <full SHA the branch was cut from>
+Started:         <UTC time, as YYYY-MM-DDTHH:MM:SSZ, recorded at the story's start>   Base: <full SHA the branch was cut from>
 Operating model: <own team | fully delegated to <runner>>
 
 Model requested: <model + effort, as the lead asked, or "none requested">

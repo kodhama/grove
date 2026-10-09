@@ -56,7 +56,9 @@
  * first call in its main transcript that loaded the level skill, its
  * subagents' included, and its transcript line names that time; a session
  * where no such call is found keeps every call, and its line says so. A
- * level skill a person started with a slash command leaves no such call.
+ * level skill a person started with a slash command leaves no such call. A
+ * session that resumed from a handoff counts from its last load of the
+ * restart skill before that, so its resume steps count.
  * With `--since <zoned time>`, calls before that time do not count either, in
  * any session, and the report's header says so: a worker passes its story's
  * start, so a session that worked an earlier story credits none of its
@@ -165,7 +167,10 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
   const found = readTranscripts(bindings.transcripts ?? []);
   const { transcripts } = found;
   const sessions = transcripts.filter((t) => t.status === "read").map((t) => t.session_id);
-  const scoped = scopeCalls(found.uses, sessions, { skill: bindings.skill ?? "", since: sinceTime(since) });
+  const skill = bindings.skill ?? "";
+  // A skill with its own table in the bindings, as the restart skill, may load before the level skill to resume.
+  const resumeSkills = [...new Set((bindings.operations ?? []).map((op) => op.table).filter((t) => t && t !== skill))];
+  const scoped = scopeCalls(found.uses, sessions, { skill, resumeSkills, since: sinceTime(since) });
   for (const t of transcripts) if (scoped.scopes.has(t.session_id)) t.scope = scoped.scopes.get(t.session_id);
   // Only a call that ran is a use; a refused or still-pending one is not.
   const uses = scoped.uses.filter((use) => use.outcome === "ran");
@@ -267,7 +272,9 @@ function tableLines(table) {
 function scopeText(scope, skill) {
   switch (scope?.state) {
     case "loaded":
-      return `; counted from ${scope.at}, when ${skill} loaded`;
+      return scope.resumedBy
+        ? `; counted from ${scope.at}, when ${scope.resumedBy} loaded to resume`
+        : `; counted from ${scope.at}, when ${skill} loaded`;
     case "untimed":
       return `; ${skill} loaded at no recorded time, so every call counts`;
     case "never":

@@ -16,6 +16,7 @@
  * the top-level `timestamp` real Claude Code records carry.
  */
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -155,6 +156,17 @@ describe("a call several operations' bindings match", () => {
     expect(out).toMatch(/^summary: 0 used, 4 used \(shared\), \d+ bound-but-unused, /m);
   });
 
+  it("exits 0 when the only rows are shared ones", () => {
+    const file = bindingsOf([null, bash("herdr agent list")]);
+    file.operations = file.operations.filter((o: Row) => o.table === "session-restart" && HERDR_OPS.includes(o.id));
+    // Record the table's and the override's sha256 as setup would now, so only the rows decide the exit.
+    const sha256 = (path: string) => createHash("sha256").update(readFileSync(path)).digest("hex");
+    Object.assign(file.table, { sha256: sha256(file.table.path), override_sha256: sha256(file.table.override) });
+    const result = run(file);
+    expect(result.stdout).toMatch(/^summary: 0 used, 4 used \(shared\), 0 bound-but-unused, /m);
+    expect(result.status).toBe(0);
+  });
+
   it("carries a used (shared) line across a handoff", () => {
     const handoff = join(dir, "handoff.md");
     writeFileSync(
@@ -214,6 +226,37 @@ describe("calls count from the load of the level skill", () => {
     );
   });
 
+  it("counts a successor's resume steps, made after it loaded the restart skill and before the level skill", () => {
+    const file = bindingsOf(
+      ["2026-10-08T10:00:00.000Z", skill("grove:session-restart")],
+      ["2026-10-08T10:01:00.000Z", tool("mcp__claude_ai_Linear__list_comments")],
+      ["2026-10-08T10:02:00.000Z", skill("grove:story-worker")],
+    );
+    // A successor on another machine: the session before it is listed, but its transcript is not here.
+    file.transcripts.unshift({ session_id: "0dd00000-0000-4000-8000-000000000002", path: join(dir, "elsewhere.jsonl") });
+    expect(rowOf(checkReceipts({ bindings: file }), "session-restart/read-work-notes").state).toBe("used");
+    expect(run(file).stdout).toMatch(
+      new RegExp(`^transcript ${SESSION}: read .*counted from 2026-10-08T10:00:00.000Z, when session-restart loaded to resume`, "m"),
+    );
+  });
+
+  it("reaches back no further than the last load of the restart skill before the level skill", () => {
+    const result = checkReceipts({
+      bindings: bindingsOf(
+        ["2026-10-08T09:00:00.000Z", skill("grove:session-restart")],
+        ["2026-10-08T09:30:00.000Z", tool("mcp__claude_ai_Linear__list_comments")],
+        ["2026-10-08T09:59:00.000Z", skill("grove:session-restart")],
+        ["2026-10-08T10:02:00.000Z", skill("grove:story-worker")],
+      ),
+    });
+    expect(rowOf(result, "session-restart/read-work-notes").state).toBe("bound-but-unused");
+  });
+
+  it("keeps the level skill's load as the cut when the restart skill loads only after it", () => {
+    const bindings = bindingsOf(...led(true), ["2026-10-08T10:04:00.000Z", skill("grove:session-restart")]);
+    expect(rowOf(checkReceipts({ bindings }), "story-worker/post-work-note").state).toBe("bound-but-unused");
+  });
+
   it("does not scope a session whose calls carry no time", () => {
     const untimed = led(true).map(([, call]) => [null, call] as Timed);
     const result = checkReceipts({ bindings: bindingsOf(...untimed) });
@@ -250,6 +293,12 @@ describe("--since: calls before the story's start do not count", () => {
     const result = run(twoReviews(), "--since", "yesterday");
     expect(result.status).toBe(2);
     expect(result.stderr).toMatch(/--since/);
+  });
+
+  it("exits 2 on a Started value written as a plain date and time, naming the format in one line", () => {
+    const result = run(twoReviews(), "--since", "2026-10-08 11:00");
+    expect(result.status).toBe(2);
+    expect(result.stderr.split("\n")[0]).toMatch(/--since 2026-10-08 11:00 .*YYYY-MM-DDTHH:MM:SSZ/);
   });
 
   it("exits 2 on a time with no zone, rather than read it as the machine's local time", () => {
