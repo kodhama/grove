@@ -72,10 +72,12 @@ const HEREDOC = /<<-?\s*\\?(['"]?)([^\s'"\\;&|<>()]+)\1([^\n]*)\n[\s\S]*?\n\s*\2
  * its matching `}`, a `)` or a separator inside it being text. A `case`
  * pattern, from its `in` or `;;` to its `)`, belongs to no command: its `)`
  * and `|` neither close a `$(` nor split a command, and a command starts
- * after its `)`. A backslash-newline outside single quotes is dropped, joining the lines, a
- * `#` that starts a word outside quotes runs a comment to the newline, and an
- * unclosed quote runs to the end. A command comes before the ones it opens:
- * `echo "a; $(date)"` gives `echo "a; "` and `date`.
+ * after its `)`. A `case` opens and an `esac` closes only where a command or,
+ * for `esac`, a pattern can start. A backslash-newline outside single quotes
+ * is dropped, joining the lines, a `#` that starts a word outside quotes runs
+ * a comment to the newline, and an unclosed quote runs to the end. A command
+ * comes before the ones it opens: `echo "a; $(date)"` gives `echo "a; "` and
+ * `date`.
  */
 function commandTexts(line) {
   const text = line.replace(HEREDOC, "$3");
@@ -86,11 +88,15 @@ function commandTexts(line) {
   const frames = [{ at: 0, depth: 0, braces: 0, cases: [], quoted: false }];
   let quote = "";
   let wordStart = true;
+  // Whether a frame's open case is in a pattern: a pattern's own `(` and `)`
+  // sit at the depth its case opened at.
+  const inPattern = ({ cases, depth }) =>
+    cases.at(-1)?.state === "pattern" && depth === cases.at(-1).depth;
   // An arithmetic frame's `at` is null: its text belongs to no command, and
   // nor does a case pattern's.
   const add = (chars) => {
-    const { at, cases } = frames.at(-1);
-    if (at !== null && cases.at(-1)?.state !== "pattern") found[at] += chars;
+    const { at } = frames.at(-1);
+    if (at !== null && !inPattern(frames.at(-1))) found[at] += chars;
   };
   const next = () => {
     const frame = frames.at(-1);
@@ -109,14 +115,25 @@ function commandTexts(line) {
     while (start >= 0 && /\w/.test(text[start])) start--;
     return BODY_OPENERS.has(text.slice(start + 1, end + 1)) && (start < 0 || WORD_END.test(text[start]));
   };
+  // Whether a case pattern starts at i: after the case's `in`, or after a
+  // `;;`, `;&` or newline that ends a body. An `esac` there closes the case.
+  const patternCanStart = (i) => {
+    let end = i - 1;
+    while (end >= 0 && (text[end] === " " || text[end] === "\t")) end--;
+    if (/[;&\n]/.test(text[end])) return true;
+    return text.slice(end - 1, end + 1) === "in" && (end < 2 || WORD_END.test(text[end - 2]));
+  };
+  // Whether an `esac` at i closes the open case: never as the word it tests,
+  // in a pattern only where one starts, in a body only where a command can.
+  const closesCase = (i, { state }) =>
+    state === "pattern" ? patternCanStart(i) : state === "body" && commandCanStart(i);
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     const after = text[i + 1];
     const frame = frames.at(-1);
     const nested = frames.length > 1;
     const openCase = frame.cases.at(-1);
-    // A pattern's own `(` and `)` sit at the depth its case opened at.
-    const inPattern = openCase?.state === "pattern" && frame.depth === openCase.depth;
+    const pattern = inPattern(frame);
     if (quote === "'") {
       if (char === "'") quote = "";
       add(char);
@@ -160,7 +177,7 @@ function commandTexts(line) {
       add(char);
     } else if (char === "#" && wordStart) {
       while (i + 1 < text.length && text[i + 1] !== "\n") i++;
-    } else if (inPattern && (char === ")" || char === "|")) {
+    } else if (pattern && (char === ")" || char === "|")) {
       if (char === ")") {
         openCase.state = "body";
         next();
@@ -178,11 +195,11 @@ function commandTexts(line) {
       }
       next();
     } else {
-      if (wordStart && wordAt(i, "case") && commandCanStart(i)) frame.cases.push({ state: "word", depth: frame.depth });
+      if (wordStart && !pattern && wordAt(i, "case") && commandCanStart(i)) frame.cases.push({ state: "word", depth: frame.depth });
       else if (wordStart && openCase?.state === "word" && wordAt(i, "in")) openCase.state = "pattern";
-      else if (wordStart && openCase && wordAt(i, "esac")) frame.cases.pop();
+      else if (wordStart && openCase && wordAt(i, "esac") && closesCase(i, openCase)) frame.cases.pop();
       // A pattern's own leading `(` pairs with its `)`, which ends the pattern.
-      if (nested && char === "(" && !inPattern) frame.depth++;
+      if (nested && char === "(" && !pattern) frame.depth++;
       if (nested && char === ")") frame.depth--;
       add(char);
       wordStart = /[\s()]/.test(char);

@@ -816,6 +816,29 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf(line)).toEqual(clis);
   });
 
+  it.each([
+    ["an argument in a body", 'X="$(case x in a) echo esac;; b) gh pr view;; esac)"', ["case", "echo", "gh", "esac"]],
+    ["a pattern's second alternative", "case x in a | esac) echo hi;; esac; gh pr view", ["case", "echo", "esac", "gh"]],
+    ["the word a case tests", "case esac in a) echo;; esac; gh pr view", ["case", "echo", "esac", "gh"]],
+    ["an argument a later pattern follows", "case x in a) git log --grep esac;; b) gh pr merge;; esac", ["case", "git", "gh", "esac"]],
+    ["a pattern in its own (", "case x in a) echo;; (esac) gh pr merge;; esac", ["case", "echo", "gh", "esac"]],
+  ])("closes a case only on an esac where one can stand, never on %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["right after its in", "case x in esac; gh pr view", ["case", "gh"]],
+    ["after a body with no ;;", "case x in a) echo\nesac; gh pr view", ["case", "echo", "esac", "gh"]],
+    ["after a ;& fall-through", "case x in a) echo;& esac; gh pr view", ["case", "echo", "esac", "gh"]],
+    ["after a ;;& that tests on", "case x in a) echo;;& esac; gh pr view", ["case", "echo", "esac", "gh"]],
+  ])("closes a case on an esac %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("never opens a case on a pattern named case", () => {
+    expect(clisOf("case x in a) echo;; case) gh pr merge;; esac; herdr x")).toEqual(["case", "echo", "gh", "esac", "herdr"]);
+  });
+
   it("reads the command right after a pattern's )", () => {
     expect(clisOf('case "$s" in OPEN) gh pr merge 12;; esac')).toEqual(["case", "gh", "esac"]);
   });
