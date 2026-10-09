@@ -106,13 +106,17 @@ function commandTexts(line) {
   };
   const wordAt = (i, word) =>
     text.startsWith(word, i) && (i + word.length === text.length || WORD_END.test(text[i + word.length]));
-  // Whether the next word stands where a command starts: the command read so
-  // far holds only words a command can follow, such as `then` or a `(`.
-  const commandCanStart = () => {
+  // Whether a command starts at i: right after a separator, a `(` or a `{`,
+  // as in a function's body, or where the command read so far holds only
+  // words a command can follow, such as `then`. A `)` or `}` before it ends
+  // a `$(` or `${`, which a command never follows.
+  const commandCanStart = (i) => {
     const { at } = frames.at(-1);
     if (at === null) return false;
-    const words = found[at].split(/[\s(]+/).filter(Boolean);
-    return words.every((word) => COMMAND_PREFIXES.has(word));
+    let end = i - 1;
+    while (end >= 0 && (text[end] === " " || text[end] === "\t")) end--;
+    if (/[;&|({\n]/.test(text[end])) return true;
+    return found[at].split(/[\s(]+/).filter(Boolean).every((word) => COMMAND_PREFIXES.has(word));
   };
   // Whether a case pattern starts at i: after the case's `in`, or after a
   // `;;`, `;&` or newline that ends a body. An `esac` there closes the case.
@@ -125,7 +129,7 @@ function commandTexts(line) {
   // Whether an `esac` at i closes the open case: never as the word it tests,
   // in a pattern only where one starts, in a body only where a command can.
   const closesCase = (i, { state }) =>
-    state === "pattern" ? patternCanStart(i) : state === "body" && commandCanStart();
+    state === "pattern" ? patternCanStart(i) : state === "body" && commandCanStart(i);
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     const after = text[i + 1];
@@ -204,7 +208,7 @@ function commandTexts(line) {
       } else if (char !== "\n") dropFalseCase();
       next();
     } else {
-      if (wordStart && !pattern && wordAt(i, "case") && commandCanStart()) frame.cases.push({ state: "word", depth: frame.depth });
+      if (wordStart && !pattern && wordAt(i, "case") && commandCanStart(i)) frame.cases.push({ state: "word", depth: frame.depth });
       else if (wordStart && openCase?.state === "word" && wordAt(i, "in")) openCase.state = "pattern";
       else if (wordStart && openCase && wordAt(i, "esac") && closesCase(i, openCase)) frame.cases.pop();
       // A pattern's own leading `(` pairs with its `)`, which ends the pattern.

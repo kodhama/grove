@@ -850,9 +850,22 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
 
   it.each([
     ["!", 'X="$(! case x in a) gh pr view;; esac)"', ["!", "gh", "esac"]],
-    ["if", "X=$(if case x in a) true;; esac; then gh pr view; fi)", ["if", "true", "esac", "then", "fi"]],
+    ["if", "X=$(if case x in a) true;; esac; then :; fi); gh pr view", ["if", "true", "esac", "then", "fi", "gh"]],
+    ["a lone &", 'X="$(sleep 1 & case x in a) echo;; esac)"; gh pr view', ["sleep", "echo", "esac", "gh"]],
   ])("opens a case after %s, so its pattern's ) never closes the $( around it", (_after, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["f() { … }", "f() { case $1 in a) echo;; merge) gh pr merge;; esac; }; f a", ["f(", "echo", "gh", "esac", "}", "f"]],
+    ["function f { … }", "function f { case $1 in a) gh pr view;; esac; }", ["function", "gh", "esac", "}"]],
+    ["f() ( … )", "f() ( case $1 in a) gh pr view;; esac )", ["f(", "gh", "esac"]],
+  ])("opens a case at the start of a function body, %s", (_shape, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("never credits a pattern after a lone & as a command", () => {
+    expect(clisOf("sleep 1 & case x in a) echo;; gh) jq;; esac")).toEqual(["sleep", "echo", "jq", "esac"]);
   });
 
   it("ends a body at a ;; only at its case's own depth, never inside a (( ))", () => {
