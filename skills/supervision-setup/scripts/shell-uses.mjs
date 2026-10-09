@@ -10,13 +10,17 @@
  *   { kind: "cli", name: "cd" }, { kind: "cli", name: "gh" }
  *
  * - a cli: the first word of each command. The line is split at `&&`, `||`,
- *   `;`, `|` and newlines outside quotes, and a `$(` outside single quotes
- *   opens a command that runs to its matching `)`, even inside double quotes
- *   (`PR="$(gh pr view)"`), unless a backslash escapes it. Leading
- *   `NAME=value` settings are skipped, a leading `(` starts the command, and
- *   text is never a command: heredoc bodies, comments and `case` patterns
- *   are dropped, and quoted text stays inside its word, separators and
- *   all. A quoted or escaped space stays inside its word too, so
+ *   `;`, `|`, `|&`, a lone `&` and newlines outside quotes, and a `$(` or a
+ *   backtick outside single quotes opens a command that runs to its match,
+ *   even inside double quotes (`PR="$(gh pr view)"`), unless a backslash
+ *   escapes it. Leading `NAME=value` settings are skipped, and so are the
+ *   shell's reserved words where a command starts (`if`, `then`, `do`, `!`,
+ *   `{`, `time` and the like), a `(` there and a function's `name()`; a
+ *   command `env` runs is read too. Text is never a command: comments,
+ *   `case` words and patterns, `for` lists, arithmetic and quoted heredoc
+ *   bodies are dropped, an unquoted heredoc's body is read as a
+ *   double-quoted word, and quoted text stays inside its word, separators
+ *   and all. A quoted or escaped space stays inside its word too, so
  *   `node "/Users/Jane Doe/x.mjs"` runs one script, not two words, and
  *   `git commit -m "fix: a; b"` runs only `git`;
  * - a skill-script: a command that runs a file in a skill's own `scripts/`
@@ -48,101 +52,183 @@ const SKILL_SCRIPT =
   /(?:^|\/)(?:\.(?:agents|claude)\/skills|plugins\/cache\/[^/]+\/([^/]+)\/[^/]+\/skills)\/([^/]+)\/scripts\//;
 /** What ends a word outside quotes. */
 const WORD_END = /[\s;&|()<>]/;
-/** Words after which a command still starts, as a `case` can. */
-const COMMAND_PREFIXES = new Set(["then", "do", "else", "elif", "if", "while", "until", "!", "time", "{"]);
+/** What a word never starts with: blanks, operators and a comment's `#`. */
+const NOT_A_WORD = /[\s;&|()<>#]/;
+/** Reserved words after which a command still starts. */
+const COMMAND_PREFIXES = ["then", "do", "else", "elif", "if", "while", "until", "!", "{"];
+/** Reserved words that end a compound command: what follows is a redirect or a separator. */
+const COMPOUND_ENDS = ["fi", "done", "}"];
 /** A leading `NAME=value` setting. */
 const SETTING = /^[A-Za-z_]\w*=/;
+/** The options of `env` that take the next word as their value. */
+const ENV_VALUE_OPTIONS = new Set(["-u", "--unset", "-C", "--chdir", "-P"]);
+/** `time` and its option, after which a command still starts. */
+const TIME = /time(?:[ \t]+-p)?(?=[\s;&|()<>]|$)/y;
+/** A function's definition up to its body: `name()` or `function name`, `()` optional. */
+const FUNCTION = /(?:function[ \t]+[^\s;&|()<>]+(?:[ \t]*\([ \t]*\))?|[^\s;&|()<>'"\\$`=]+[ \t]*\([ \t]*\))/y;
 /** What a backslash escapes inside double quotes; before anything else it stays. */
 const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
 /**
- * A heredoc: its opening line, kept as group 3, then its body up to its
- * terminator. The delimiter is a word, bare, quoted or backslash-escaped.
+ * A heredoc: its opening line up to the operator, the backslash or quote on
+ * its delimiter, the delimiter, the rest of its opening line, then its body
+ * up to its terminator.
  */
-const HEREDOC = /<<-?\s*\\?(['"]?)([^\s'"\\;&|<>()]+)\1([^\n]*)\n[\s\S]*?\n\s*\2(?=\s*(?:\n|$))/g;
+const HEREDOC = /<<-?\s*(\\?)(['"]?)([^\s'"\;&|<>()]+)\2([^\n]*)\n([\s\S]*?)\n\s*\3(?=\s*(?:\n|$))/g;
 
 /**
- * A shell line's commands as text, read left to right once its heredoc
- * bodies are dropped. Outside quotes `&&`, `||`, `;`, `|` and a newline end a
- * command; inside quotes they are text, and quoted text stays inside its
- * word; in a `$'…'` quote a backslash escapes the next character, a quote
- * included. A `$(` outside single quotes and not escaped opens a command that
- * ends at its matching `)`, a subshell's own `(` and `)` counting as depth,
- * and inside double quotes the quotes resume after it. A `$((` opens
- * arithmetic, which is no command, though a `$(` inside it is. A `${` runs to
- * its matching `}`, a `)` or a separator inside it being text. A `case`
- * pattern, from its `in` or `;;` to its `)`, belongs to no command: its `)`
- * and `|` neither close a `$(` nor split a command, and a command starts
- * after its `)`. A `case` opens and an `esac` closes only where a command or,
- * for `esac`, a pattern can start, and a separator in a case's word or
- * pattern shows the `case` was only a word. A backslash-newline outside
- * single quotes is dropped, joining the lines, a `#` that starts a word
- * outside quotes runs a comment to the newline, and an unclosed quote runs to
- * the end. A command comes before the ones it opens: `echo "a; $(date)"`
- * gives `echo "a; "` and `date`.
+ * A heredoc's body as the shell expands it, which is as a double-quoted word
+ * would be: none for a quoted or escaped delimiter, whose body is only text.
+ * Inside it a backslash escapes only `$`, `` ` ``, `\` and a newline, and a
+ * `"` is text.
+ */
+const heredocBody = (escaped, quoted, body) =>
+  escaped || quoted
+    ? ""
+    : ` "${body.replace(/\\([$`\\\n])|\\|"/g, (match, kept) => (kept ? match : match === "\\" ? "\\\\" : '\\"'))}"`;
+
+/**
+ * A shell line's commands as text, read left to right once each heredoc is
+ * read: an unquoted one's body as a double-quoted word, any other's dropped.
+ * Outside quotes `&&`, `||`, `;`, `|`, `|&`, a `&` that is not part of a
+ * redirect and a newline end a command; inside quotes they are text, and
+ * quoted text stays inside its word; in a `$'…'` quote a backslash escapes
+ * the next character, a quote included. A `$(` or a backtick outside single
+ * quotes and not escaped opens a command that ends at its matching `)` or
+ * backtick, and inside double quotes the quotes resume after it. A `$((`
+ * opens arithmetic, which is no command, though a `$(` inside it is. A `${`
+ * runs to its matching `}`, a `)` or a separator inside it being text.
+ *
+ * Each frame knows whether a command starts at its next word, and only
+ * there is a word read as a reserved word. `if`, `then`, `do`, `!`, `{`,
+ * `time` and the like are dropped and a command still starts after them; a
+ * `(` opens a subshell there and a `((` arithmetic. A function's `name()`
+ * or `function name` is dropped and its body starts a command. `fi`,
+ * `done`, `}`, a subshell's `)` and an arithmetic command's `))` end a
+ * compound command, and the redirects after them belong to no command. So
+ * does a `for` or `select` up to its `do`. A `case` and its word belong to
+ * no command either; its patterns run from its `in` or a `;;`, `;&` or
+ * `;;&` to their `)`, where its body starts a command, and an `esac`
+ * closes it where a pattern or a command can start. A pattern's `)` and `|`
+ * neither close a `$(` nor split a command, and an extglob's `(` and `)`
+ * inside it pair up. A backslash-newline outside single quotes is dropped,
+ * joining the lines, a `#` that starts a word outside quotes runs a comment
+ * to the newline, and an unclosed quote runs to the end. A command comes
+ * before the ones it opens: `echo "a; $(date)"` gives `echo "a; "` and
+ * `date`.
  */
 function commandTexts(line) {
-  const text = line.replace(HEREDOC, "$3");
+  const text = line.replace(HEREDOC, (_all, escaped, quoted, _word, rest, body) => heredocBody(escaped, quoted, body) + rest);
   const found = [""];
-  // Each frame's `cases` holds one entry per open `case`: its state, "word"
+  // A frame is the line itself, a `$(` or backtick (`at` its command's
+  // index), or arithmetic (`at` null: its text belongs to no command).
+  // `parens` holds each open `(`: a subshell's or a word's, such as an
+  // array's. `cases` holds one entry per open `case`: its state, "word"
   // until its `in`, then "pattern" up to a pattern's `)`, then "body" up to
-  // its `;;`; and the subshell depth it opened at, where its `)`s count.
-  const frames = [{ at: 0, depth: 0, braces: 0, cases: [], quoted: false }];
+  // its `;;`; the paren depth it opened at; whether a pattern starts at the
+  // next word; and its extglob depth. `command` says a command starts at
+  // the next word, `skip` that the text up to the next separator belongs to
+  // no command, `arithmetic` that a `((` there opens arithmetic, as after a
+  // `for`.
+  const frameOf = (kind, at, quoted) => ({
+    kind, at, quoted, parens: [], braces: 0, cases: [], command: true, skip: false, arithmetic: false,
+  });
+  const frames = [frameOf("line", 0, false)];
   let quote = "";
   let wordStart = true;
   // Whether a frame's open case is in a pattern: a pattern's own `(` and `)`
   // sit at the depth its case opened at.
-  const inPattern = ({ cases, depth }) =>
-    cases.at(-1)?.state === "pattern" && depth === cases.at(-1).depth;
-  // An arithmetic frame's `at` is null: its text belongs to no command, and
-  // nor does a case pattern's.
+  const inPattern = ({ cases, parens }) =>
+    cases.at(-1)?.state === "pattern" && parens.length === cases.at(-1).depth;
   const add = (chars) => {
-    const { at } = frames.at(-1);
-    if (at !== null && !inPattern(frames.at(-1))) found[at] += chars;
+    const frame = frames.at(-1);
+    if (frame.at !== null && !frame.skip && !inPattern(frame)) found[frame.at] += chars;
   };
+  // A command starts: in a frame that holds commands, at a new index.
   const next = () => {
     const frame = frames.at(-1);
     if (frame.at !== null) frame.at = found.push("") - 1;
+    Object.assign(frame, { command: true, skip: false, arithmetic: false });
     wordStart = true;
   };
+  // A compound command ends: what follows up to a separator is no command.
+  const ended = (frame) => Object.assign(frame, { command: false, skip: true, arithmetic: false });
   const wordAt = (i, word) =>
     text.startsWith(word, i) && (i + word.length === text.length || WORD_END.test(text[i + word.length]));
-  // Whether a command starts at i: right after a separator, a `(` or a `{`,
-  // as in a function's body, or where the command read so far holds only
-  // words a command can follow, such as `then`. A `)` or `}` before it ends
-  // a `$(` or `${`, which a command never follows.
-  const commandCanStart = (i) => {
-    const { at } = frames.at(-1);
-    if (at === null) return false;
-    let end = i - 1;
-    while (end >= 0 && (text[end] === " " || text[end] === "\t")) end--;
-    if (/[;&|({\n]/.test(text[end])) return true;
-    return found[at].split(/[\s(]+/).filter(Boolean).every((word) => COMMAND_PREFIXES.has(word));
+  const matchAt = (pattern, i) => {
+    pattern.lastIndex = i;
+    return pattern.exec(text)?.[0];
   };
-  // Whether a case pattern starts at i: after the case's `in`, or after a
-  // `;;`, `;&` or newline that ends a body. An `esac` there closes the case.
-  const patternCanStart = (i) => {
-    let end = i - 1;
-    while (end >= 0 && (text[end] === " " || text[end] === "\t")) end--;
-    if (/[;&\n]/.test(text[end])) return true;
-    return text.slice(end - 1, end + 1) === "in" && (end < 2 || WORD_END.test(text[end - 2]));
+  const push = (kind, at) => {
+    frames.push(frameOf(kind, at, quote === '"'));
+    quote = "";
+    if (at !== null) next();
   };
-  // Whether an `esac` at i closes the open case: never as the word it tests,
-  // in a pattern only where one starts, in a body only where a command can.
-  const closesCase = (i, { state }) =>
-    state === "pattern" ? patternCanStart(i) : state === "body" && commandCanStart(i);
+  const pop = () => {
+    const frame = frames.pop();
+    if (frame.quoted) quote = '"';
+    wordStart = false;
+    if (frame.kind === "arithmetic-command") {
+      ended(frames.at(-1));
+      wordStart = true;
+    }
+  };
+  // The reserved word or function definition at i, where a word starts in a
+  // frame that holds commands: how many characters it takes, or 0 for none.
+  const reserved = (i, frame) => {
+    const openCase = frame.cases.at(-1);
+    const atDepth = openCase?.depth === frame.parens.length;
+    if (atDepth && openCase.state === "pattern") {
+      const closes = openCase.patternStart && wordAt(i, "esac");
+      openCase.patternStart = false;
+      if (!closes) return 0;
+      frame.cases.pop();
+      ended(frame);
+      return 4;
+    }
+    if (atDepth && openCase.state === "word") {
+      if (!wordAt(i, "in")) return 0;
+      Object.assign(openCase, { state: "pattern", patternStart: true });
+      return 2;
+    }
+    if (!frame.command) return 0;
+    const prefix = COMMAND_PREFIXES.find((word) => wordAt(i, word)) ?? matchAt(TIME, i);
+    if (prefix) return prefix.length;
+    const end = COMPOUND_ENDS.find((word) => wordAt(i, word)) ?? (atDepth && openCase.state === "body" && wordAt(i, "esac") ? "esac" : "");
+    if (end) {
+      if (end === "esac") frame.cases.pop();
+      ended(frame);
+      return end.length;
+    }
+    if (wordAt(i, "case")) {
+      frame.cases.push({ state: "word", depth: frame.parens.length, patternStart: false, extglob: 0 });
+      ended(frame);
+      return 4;
+    }
+    const loop = ["for", "select"].find((word) => wordAt(i, word));
+    if (loop) {
+      ended(frame);
+      frame.arithmetic = true;
+      return loop.length;
+    }
+    const definition = matchAt(FUNCTION, i);
+    if (definition) return definition.length;
+    frame.command = SETTING.test(text.slice(i, i + 256));
+    return 0;
+  };
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     const after = text[i + 1];
     const frame = frames.at(-1);
-    const nested = frames.length > 1;
+    if (!quote && wordStart && frame.braces === 0 && frame.at !== null && !NOT_A_WORD.test(char)) {
+      const taken = reserved(i, frame);
+      if (taken) {
+        i += taken - 1;
+        wordStart = true;
+        continue;
+      }
+    }
     const openCase = frame.cases.at(-1);
     const pattern = inPattern(frame);
-    // A case's word or pattern never holds a `;`, `&&`, `||` or `|`, so one
-    // there shows the `case` was only a word: drop it, or it would hide what
-    // follows as pattern text.
-    const dropFalseCase = () => {
-      if (openCase && openCase.state !== "body" && openCase.depth === frame.depth) frame.cases.pop();
-    };
     if (quote === "'") {
       if (char === "'") quote = "";
       add(char);
@@ -158,12 +244,13 @@ function commandTexts(line) {
         add(after === undefined ? char : char + text[++i]);
         if (!quote) wordStart = false;
       }
+    } else if (char === "`") {
+      if (!quote && frame.kind === "backtick") pop();
+      else push("backtick", 0);
     } else if (char === "$" && after === "(") {
       i++;
       const arithmetic = text[i + 1] === "(";
-      frames.push({ at: arithmetic ? null : 0, depth: 0, braces: 0, cases: [], quoted: quote === '"' });
-      quote = "";
-      if (!arithmetic) next();
+      push(arithmetic ? "arithmetic" : "substitution", arithmetic ? null : 0);
     } else if (quote === '"') {
       if (char === '"') quote = "";
       add(char);
@@ -186,36 +273,48 @@ function commandTexts(line) {
       add(char);
     } else if (char === "#" && wordStart) {
       while (i + 1 < text.length && text[i + 1] !== "\n") i++;
-    } else if (pattern && (char === ")" || char === "|")) {
-      if (char === ")") {
+    } else if (pattern && (char === "(" || char === ")" || char === "|")) {
+      // A pattern's own leading `(` is dropped; an extglob's pairs with its `)`.
+      if (char === "(" && !openCase.patternStart) openCase.extglob++;
+      openCase.patternStart = false;
+      if (char === ")" && openCase.extglob > 0) openCase.extglob--;
+      else if (char === ")") {
         openCase.state = "body";
         next();
       }
-    } else if (char === ")" && nested && frame.depth === 0) {
-      frames.pop();
-      if (frame.quoted) quote = '"';
-      wordStart = false;
+    } else if (char === "(" && wordStart && frame.at !== null && after === "(" && (frame.command || frame.arithmetic)) {
+      push("arithmetic-command", null);
+    } else if (char === "(") {
+      const subshell = wordStart && frame.command && frame.at !== null;
+      frame.parens.push(subshell ? "subshell" : "word");
+      if (!subshell) add(char);
+      // An array's words, as in `a=(x y)`, are no commands.
+      frame.command = subshell;
+      wordStart = true;
+    } else if (char === ")" && frame.parens.length > 0) {
+      if (frame.parens.pop() === "subshell") {
+        next();
+        ended(frame);
+      } else add(char);
+      wordStart = true;
+    } else if (char === ")" && frames.length > 1 && frame.kind !== "backtick") {
+      pop();
     } else if ((char === "&" && after === "&") || (char === "|" && after === "|")) {
       i++;
-      dropFalseCase();
+      next();
+    } else if (char === "&" && !/[<>]/.test(text[i - 1]) && after !== ">") {
       next();
     } else if (char === ";" || char === "|" || char === "\n") {
       const endsBody = char === ";" && (after === ";" || after === "&");
-      if (endsBody && openCase?.state === "body" && openCase.depth === frame.depth) {
+      if (endsBody && openCase?.state === "body" && openCase.depth === frame.parens.length) {
         // The whole `;;`, `;&` or `;;&` ends the body.
         i += after === ";" && text[i + 2] === "&" ? 2 : 1;
-        openCase.state = "pattern";
-      } else if (char !== "\n") dropFalseCase();
+        Object.assign(openCase, { state: "pattern", patternStart: true });
+      } else if (char === "|" && after === "&") i++;
       next();
     } else {
-      if (wordStart && !pattern && wordAt(i, "case") && commandCanStart(i)) frame.cases.push({ state: "word", depth: frame.depth });
-      else if (wordStart && openCase?.state === "word" && wordAt(i, "in")) openCase.state = "pattern";
-      else if (wordStart && openCase && wordAt(i, "esac") && closesCase(i, openCase)) frame.cases.pop();
-      // A pattern's own leading `(` pairs with its `)`, which ends the pattern.
-      if (nested && char === "(" && !pattern) frame.depth++;
-      if (nested && char === ")") frame.depth--;
       add(char);
-      wordStart = /[\s()]/.test(char);
+      wordStart = /\s/.test(char);
     }
   }
   return found;
@@ -259,21 +358,23 @@ function shellWords(part) {
 /**
  * The commands a shell line runs, as words with leading `NAME=value` settings
  * skipped: `cd /repo && FOO=1 gh pr view` gives `cd /repo` and `gh pr view`.
- * `$(` starts a command and a leading `(` opens one, and a `(` or `)` around
- * its first word is dropped: `PR=$(gh pr view)` gives `gh pr view`,
- * `(gh pr view)` gives `gh pr view)`, and `echo $(date)` gives `echo` and
- * `date`.
+ * A `(` or `)` around a command's first word is dropped. A command `env`
+ * runs comes after it, past its options and settings: `env -u HOME X=1 gh pr
+ * view` gives `env -u HOME X=1 gh pr view` and `gh pr view`.
  */
 function commands(line) {
+  const command = (words) => {
+    const start = words.findIndex((word) => !SETTING.test(word));
+    if (start < 0) return [];
+    const [first, ...rest] = words.slice(start);
+    const name = first.replace(/^\(+|\)+$/g, "");
+    if (name !== "env") return [name ? [name, ...rest] : rest];
+    let run = 0;
+    while (run < rest.length && rest[run].startsWith("-")) run += ENV_VALUE_OPTIONS.has(rest[run]) ? 2 : 1;
+    return [[name, ...rest], ...(run < rest.length ? command(rest.slice(run)) : [])];
+  };
   return commandTexts(line)
-    .map((part) => shellWords(part).filter(Boolean))
-    .map((words) => {
-      const start = words.findIndex((word) => !SETTING.test(word));
-      if (start < 0) return [];
-      const [first, ...rest] = words.slice(start);
-      const command = first.replace(/^\(+|\)+$/g, "");
-      return command ? [command, ...rest] : rest;
-    })
+    .flatMap((part) => command(shellWords(part).filter(Boolean)))
     .filter((words) => words.length > 0);
 }
 
