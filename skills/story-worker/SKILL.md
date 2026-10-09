@@ -77,6 +77,14 @@ steps run setup seeded with the handoff's filled table. A Codex worker, whose
 resume the restart skill does not cover yet, runs that seeded setup itself
 before any step. Then carry on from the step the handoff names.
 
+**Record the story's start** once setup completes, before anything else:
+read the time with `date -u +%Y-%m-%dT%H:%M:%SZ` and write it as Started in
+the receipt so far. The receipt check takes it as `--since` at the hand-back,
+long after the start, so it must be written down now, and before the message
+below, which the check must count. A session that resumes the story keeps the
+Started its handoff carries and never records a new one; where the handoff
+carries none, the receipt says so, and the check runs without `--since`.
+
 Setup ends with one line listing each operation's performer. Send it to your
 lead as `STATUS: started`, so the lead knows what you will run without asking.
 You need no answer before you start.
@@ -282,6 +290,17 @@ the only two endings. An open `DECISION` is not one: it does not end the story
 or get a final receipt (see "Talking to your lead"). Call the work ready for
 acceptance; never call it complete or merged.
 
+- **Run the receipt check** on your bindings file, passing your story's start
+  as `--since`, so calls this session made before the story do not count:
+  `node "<supervision-setup's folder>/scripts/receipt-check.mjs" --bindings
+  "<the bindings file>" --since <the receipt's Started time>`,
+  supervision-setup's folder being the one beside this skill's own. Add
+  `--not-run <table/op>,...` for each operation this story did not run, the
+  receipt's Not run list, and for `story-worker/post-work-note` and
+  `story-worker/hand-back` when their first use is the hand-back still to
+  come; add `--handoff "<path>"` when you resumed from a
+  handoff whose receipt-check section holds a result, as the restart skill
+  does.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.
@@ -367,9 +386,12 @@ names this skill, `story-worker`, and says that the resumed session invokes it
 once the restart skill's resume steps are done, before any story step: a
 harness can drop a skill across the clear, and a resumed session that never
 loads this skill never runs its seeded setup. The account also carries the
-story, the branch, the base SHA, the pull request's link if there is one, the
-step in hand and the receipt so far. If measuring is bound as unavailable,
-setup said so once, and you never restart on a measurement.
+story, its Started time, the branch, the base SHA, the pull request's link if
+there is one, the step in hand and the receipt so far. Where the restart skill has you paste
+the receipt check's output into the handoff, pass `--since` your story's
+start there too, so a successor on another machine carries no use from before
+the story. If measuring is bound as unavailable, setup said so once, and you
+never restart on a measurement.
 
 **A Codex worker, until the restart skill restarts Codex sessions**,
 gets only "tell the maintainer" from it. Do this instead: write the handoff
