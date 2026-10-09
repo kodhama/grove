@@ -972,6 +972,21 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf(line)).toEqual(clis);
   });
 
+  it.each([
+    ["two heredocs in two commands", "cat <<A; cat <<B\nhello\nA\naa\nB\nbb", ["cat", "cat", "bb"]],
+    ["two heredocs in one command", "cat <<A <<'B'\nx\nA\n$(gh pr view)\nB\nbb", ["cat", "bb"]],
+    ["a terminator indented under <<", "cat <<'EOF'\nline\n  EOF\naa\nEOF\nbb", ["cat", "bb"]],
+  ])("never reads a heredoc's body as commands: %s", (_shape, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["the second of two", "cat <<A <<B\nx\nA\n$(gh pr view)\nB\njq .", ["cat", "gh", "jq"]],
+    ["one whose <<- strips tabs", "cat <<-EOF\n\t$(gh pr view)\n\tEOF\njq .", ["cat", "gh", "jq"]],
+  ])("reads the commands an unquoted heredoc expands: %s", (_shape, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
   it("never reads a here-string's <<< as a heredoc", () => {
     expect(clisOf("grep x <<< EOF\ngh pr merge 1\nEOF")).toEqual(["grep", "gh", "EOF"]);
   });

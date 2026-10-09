@@ -73,11 +73,10 @@ const FUNCTION = /(?:function[ \t]+[^\s;&|()<>]+(?:[ \t]*\([ \t]*\))?|[^\s;&|()<
 /** What a backslash escapes inside double quotes; before anything else it stays. */
 const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
 /**
- * A heredoc: its opening line up to the operator, the backslash or quote on
- * its delimiter, the delimiter, the rest of its opening line, then its body
- * up to its terminator.
+ * A heredoc's operator, `<<` or `<<-` but never a here-string's `<<<`, and
+ * its delimiter: bare, quoted or backslash-escaped.
  */
-const HEREDOC = /(?<!<)<<(?!<)-?\s*(\\?)(['"]?)([^\s'"\\;&|<>()]+)\2([^\n]*)\n([\s\S]*?)\n\s*\3(?=\s*(?:\n|$))/g;
+const HEREDOC = /(?<!<)<<(?!<)(-?)[ \t]*(\\?)(['"]?)([^\s'"\\;&|<>()]+)\3/g;
 
 /** Where an unquoted heredoc's body stood: its commands are read there. */
 const HEREDOC_MARK = "\uE000";
@@ -133,14 +132,41 @@ function commandTexts(line) {
   return scan(line).found;
 }
 
+/**
+ * A line with its heredocs taken out. Each operator's body follows the line
+ * it sits on, the bodies in the operators' order, each up to the line that
+ * is exactly its delimiter, or, after `<<-`, that line with its leading tabs
+ * dropped. An unquoted heredoc's operator becomes a mark where its body's
+ * commands are read; any other's is dropped, and every body is. An operator
+ * whose terminator never comes is left as text, with the lines after it.
+ */
+function readHeredocs(line) {
+  const lines = line.split("\n");
+  const kept = [];
+  const bodies = [];
+  for (let n = 0; n < lines.length; n++) {
+    let text = lines[n];
+    let next = n + 1;
+    const marks = [];
+    for (const operator of text.matchAll(HEREDOC)) {
+      const [taken, dash, escaped, quoted, word] = operator;
+      const end = lines.findIndex((body, k) => k >= next && (dash ? body.replace(/^\t+/, "") : body) === word);
+      if (end < 0) break;
+      const runs = !escaped && !quoted;
+      if (runs) bodies.push(lines.slice(next, end).join("\n"));
+      marks.push({ at: operator.index, length: taken.length, mark: runs ? HEREDOC_MARK : "" });
+      next = end + 1;
+    }
+    for (const { at, length, mark } of marks.reverse()) text = text.slice(0, at) + mark + text.slice(at + length);
+    kept.push(text);
+    n = next - 1;
+  }
+  return { text: kept.join("\n"), bodies };
+}
+
 /** A line's commands as text, and whether it closed every quote, `$(`, backtick and `${` it opened. */
 function scan(line) {
-  const bodies = [];
-  const text = line.replace(HEREDOC, (_all, escaped, quoted, _word, rest, body) => {
-    if (escaped || quoted) return rest;
-    bodies.push(body);
-    return HEREDOC_MARK + rest;
-  });
+  const { text, bodies } = readHeredocs(line);
   const found = [""];
   // A frame is the line itself, a `$(` or backtick (`at` its command's
   // index), or arithmetic (`at` null: its text belongs to no command).
