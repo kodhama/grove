@@ -13,15 +13,18 @@
  *   level skill's). Its subagents' calls are cut at the same time. A session
  *   with no such call keeps every call, and its report line says so; a level
  *   skill a person started with a slash command leaves no such call. A
- *   session that resumed from a handoff loaded the restart skill first, and
- *   ran its resume steps before it loaded the level skill, so where a skill
- *   with its own table in the bindings, as the restart skill, loaded before
- *   the level skill, its calls count from the last such load instead;
+ *   session that resumed from a handoff, any the bindings list after the
+ *   first, loaded the restart skill first and ran its resume steps before it
+ *   loaded the level skill, so where a skill with its own table in the
+ *   bindings, as the restart skill, loaded there before the level skill, its
+ *   calls count from the last such load instead. The first session listed
+ *   never resumed, so its cut never moves;
  * - `since`: calls before that time are not counted, in any session.
  *
  * A call's time is its record's `timestamp`. A call with none that parses is
- * never dropped, and a load with none that parses cuts nothing: the check
- * keeps what it cannot place rather than guess.
+ * never dropped, and a level skill's load with none that parses cuts nothing:
+ * the check keeps what it cannot place rather than guess. A resume load with
+ * no time is passed over, so the level skill's load cuts.
  */
 import { unqualified } from "./operation-state.mjs";
 
@@ -71,13 +74,14 @@ function firstLoads(uses, skill) {
 }
 
 /**
- * Each session's last timed load of a resume skill (`resumeSkills`) made no
- * later than its first load of the level skill, as `levels` holds them.
+ * Each resumed session's last timed load of a resume skill (`resumeSkills`)
+ * made no later than its first load of the level skill, as `levels` holds them.
  */
-function resumeLoads(uses, resumeSkills, levels) {
+function resumeLoads(uses, resumeSkills, resumed, levels) {
   const names = new Set(resumeSkills.map(unqualified));
   const found = new Map();
   for (const use of uses) {
+    if (!resumed.has(use.session)) continue;
     const level = timeMs(levels.get(use.session) ?? {});
     const at = timeMs(use);
     const latest = timeMs(found.get(use.session) ?? {}) ?? -Infinity;
@@ -101,12 +105,13 @@ function scopeOf(load, resume) {
  * parses, with `resumedBy` naming the resume skill when the cut starts at its
  * load instead, `{ state: "untimed" }` when the level skill's load was not,
  * and `{ state: "never" }` when no load of the skill is found there.
- * `resumeSkills` names the skills with their own table in the bindings.
- * `since` is milliseconds or null, as `sinceTime` gives it.
+ * `resumeSkills` names the skills with their own table in the bindings, and
+ * `resumed` the sessions that resumed from a handoff. `since` is milliseconds
+ * or null, as `sinceTime` gives it.
  */
-export function scopeCalls(uses, sessions, { skill, resumeSkills = [], since = null }) {
+export function scopeCalls(uses, sessions, { skill, resumeSkills = [], resumed = new Set(), since = null }) {
   const levels = firstLoads(uses, skill);
-  const resumes = resumeLoads(uses, resumeSkills, levels);
+  const resumes = resumeLoads(uses, resumeSkills, resumed, levels);
   const scopes = new Map(sessions.map((session) => [session, scopeOf(levels.get(session), resumes.get(session))]));
   const cuts = new Map(
     sessions.flatMap((session) => {

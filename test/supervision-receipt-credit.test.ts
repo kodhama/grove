@@ -241,14 +241,27 @@ describe("calls count from the load of the level skill", () => {
   });
 
   it("reaches back no further than the last load of the restart skill before the level skill", () => {
+    const file = bindingsOf(
+      ["2026-10-08T09:00:00.000Z", skill("grove:session-restart")],
+      ["2026-10-08T09:30:00.000Z", tool("mcp__claude_ai_Linear__list_comments")],
+      ["2026-10-08T09:59:00.000Z", skill("grove:session-restart")],
+      ["2026-10-08T10:02:00.000Z", skill("grove:story-worker")],
+    );
+    file.transcripts.unshift({ session_id: "0dd00000-0000-4000-8000-000000000002", path: join(dir, "elsewhere.jsonl") });
+    expect(rowOf(checkReceipts({ bindings: file }), "session-restart/read-work-notes").state).not.toBe("used");
+  });
+
+  it("never moves the cut in the first session the bindings list, which did not resume", () => {
     const result = checkReceipts({
       bindings: bindingsOf(
-        ["2026-10-08T09:00:00.000Z", skill("grove:session-restart")],
-        ["2026-10-08T09:30:00.000Z", tool("mcp__claude_ai_Linear__list_comments")],
-        ["2026-10-08T09:59:00.000Z", skill("grove:session-restart")],
-        ["2026-10-08T10:02:00.000Z", skill("grove:story-worker")],
+        ["2026-10-08T09:00:00.000Z", skill("grove:project-lead")],
+        ["2026-10-08T09:10:00.000Z", skill("grove:session-restart")],
+        ["2026-10-08T09:30:00.000Z", tool("mcp__claude_ai_Linear__save_comment")],
+        ["2026-10-08T09:40:00.000Z", tool("mcp__claude_ai_Linear__list_comments")],
+        ["2026-10-08T10:00:00.000Z", skill("grove:story-worker")],
       ),
     });
+    expect(rowOf(result, "story-worker/post-work-note").state).toBe("bound-but-unused");
     expect(rowOf(result, "session-restart/read-work-notes").state).toBe("bound-but-unused");
   });
 

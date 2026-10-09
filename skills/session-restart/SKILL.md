@@ -189,8 +189,8 @@ inline for the same reason: such a successor cannot read your transcripts, so
 its own check reads your result from this section (`--handoff`) and counts
 each operation it shows used in a session it cannot read itself. A carried
 use has no time, so no later check can cut it: `--since` is what keeps a use
-from before the story out of the handoff, and so out of every restart after
-it. That
+from before the story out of this handoff, and so out of the restarts that
+carry it on. That
 transcript stays listed, and missing, through every later restart, so each
 one passes on the handoff it started from in the same way; a result it does
 not need is ignored, never harmful. A line

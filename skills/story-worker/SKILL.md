@@ -77,15 +77,17 @@ steps run setup seeded with the handoff's filled table. A Codex worker, whose
 resume the restart skill does not cover yet, runs that seeded setup itself
 before any step. Then carry on from the step the handoff names.
 
+**Record the story's start** once setup completes, before anything else:
+read the time with `date -u +%Y-%m-%dT%H:%M:%SZ` and write it as Started in
+the receipt so far. The receipt check takes it as `--since` at the hand-back,
+long after the start, so it must be written down now, and before the message
+below, which the check must count. A session that resumes the story keeps the
+Started its handoff carries and never records a new one; where the handoff
+carries none, the receipt says so, and the check runs without `--since`.
+
 Setup ends with one line listing each operation's performer. Send it to your
 lead as `STATUS: started`, so the lead knows what you will run without asking.
 You need no answer before you start.
-
-**Record the story's start** once setup completes, before any story step:
-read the time with `date -u +%Y-%m-%dT%H:%M:%SZ` and write it as Started in
-the receipt so far. The receipt check takes it as `--since` at the hand-back,
-long after the start, so it must be written down now. A session that resumes
-the story keeps the Started its handoff carries and never records a new one.
 
 ## 2. Before the first edit
 
