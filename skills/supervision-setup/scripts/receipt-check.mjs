@@ -80,7 +80,8 @@
  * in a resumed session, among the resume steps, unless a `--since` set at a
  * story's start, after setup, cuts them. A use carried
  * from a handoff has no time, so neither cut applies to it; a handoff whose
- * check ran with another `--since`, as for an earlier story, carries none. It reads only the
+ * check ran with another `--since`, as for an earlier story, or with one
+ * where this run has none, or none where it has one, carries none. It reads only the
  * sessions the bindings file lists, with their subagent transcripts, so work
  * done in a sibling session is not seen; that is why story-worker runs its
  * review in a subagent. A handoff carries only `used` lines, so after a restart onto
