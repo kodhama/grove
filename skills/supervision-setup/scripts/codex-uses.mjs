@@ -120,8 +120,9 @@ function itemOutcome(item) {
   if (item.status === "completed") return "ran";
   const exit = item.type === "CommandExecution" && item.status === "failed" ? item.exit_code : null;
   const stderr = typeof item.stderr === "string" ? item.stderr : "";
-  const unparsed = SHELL_COULD_NOT_PARSE.codex.test(stderr);
-  return Number.isInteger(exit) && !SHELL_COULD_NOT_RUN.has(exit) && !unparsed ? "ran" : "failed";
+  const ran =
+    Number.isInteger(exit) && !SHELL_COULD_NOT_RUN.has(exit) && !SHELL_COULD_NOT_PARSE.codex.test(stderr);
+  return ran ? "ran" : "failed";
 }
 
 /** An output's text: a string, or a list of `input_text` blocks. */

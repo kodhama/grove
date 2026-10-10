@@ -45,10 +45,11 @@ export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
 /**
  * A line the top-level shell starts its own parse error with, so nothing in
  * the line ran, whatever the exit code: Claude Code's `Bash` evaluates the
- * line in zsh (`(eval):5: parse error`) or bash (`bash: eval: line 11:
- * syntax error`), and Codex runs it with `zsh -lc` (`zsh:1: parse error`). A
- * nested shell's or a script's own error (`bash: -c: line 1: syntax error`)
- * names another source, so it does not match and its call keeps its credit.
+ * line in zsh (`(eval):5: parse error`) or, by its form though not yet
+ * observed, bash (`bash: eval: line 11: syntax error`), and Codex runs it
+ * with `zsh -lc` (`zsh:1: parse error`). A nested shell's or a script's own
+ * error (`bash: -c: line 1: syntax error`) names another source, so it does
+ * not match and its call keeps its credit.
  */
 export const SHELL_COULD_NOT_PARSE = {
   claude: /^(?:\(eval\):\d+: parse error|bash: eval: line \d+: syntax error)/m,
