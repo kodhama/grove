@@ -209,14 +209,15 @@ const CODEX_CHILD = "01a30000-0000-7000-8000-0000000000e1";
 /**
  * A Codex `CommandExecution` record running this shell line, with no
  * `exit_code` when it is null; with `skill`, its `parsed_cmd` reads that
- * skill's SKILL.md; with `stderr`, it carries that text as its `stderr`.
+ * skill's SKILL.md; with `output`, it carries that `stdout` and `stderr`, each
+ * "" when not given, as a real rollout does.
  */
 function commandRecord(
   line: string,
   status: string,
   exitCode: number | null,
   skill?: string,
-  stderr?: string,
+  output?: { stdout?: string; stderr?: string },
 ) {
   const part = skill
     ? { type: "read", cmd: line, name: "SKILL.md", path: `/codex/skills/${skill}/SKILL.md` }
@@ -228,7 +229,7 @@ function commandRecord(
     parsed_cmd: [part],
     status,
     ...(exitCode === null ? {} : { exit_code: exitCode }),
-    ...(stderr === undefined ? {} : { stderr }),
+    ...(output === undefined ? {} : { stdout: output.stdout ?? "", stderr: output.stderr ?? "" }),
   };
   return { type: "event_msg", payload: { type: "item_completed", item } };
 }
@@ -1252,12 +1253,15 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
     }
   });
 
+  // Codex writes the shell's own error to the item's `stdout`, with `stderr`
+  // left "", as every local rollout read on 2026-10-10 does.
   it.each([
-    ["zsh's parse error", "failed", 1, "zsh:1: parse error near `)'"],
-    ["a tool's own parse error", "ran", 2, "rg: regex parse error:\n    (?:a\nerror: unclosed group"],
-  ])("reads a failed CommandExecution whose stderr shows %s as %s", (_what, outcome, exitCode, stderr) => {
+    ["zsh's parse error in stdout", "failed", 1, { stdout: "zsh:1: parse error near `)'\n" }],
+    ["zsh's parse error in stderr", "failed", 1, { stderr: "zsh:1: parse error near `)'" }],
+    ["a tool's own parse error", "ran", 2, { stdout: "rg: regex parse error:\n    (?:a\nerror: unclosed group" }],
+  ])("reads a failed CommandExecution whose output shows %s as %s", (_what, outcome, exitCode, output) => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-parse-"));
-    const record = commandRecord("herdr agent list", "failed", exitCode, undefined, stderr);
+    const record = commandRecord("herdr agent list", "failed", exitCode, undefined, output);
     const file = codexBindingsOf(dir, [record]);
     const state = stateOf(checkReceipts({ bindings: file }), "session-restart/read-pane");
     const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
