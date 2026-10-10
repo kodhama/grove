@@ -39,6 +39,11 @@ again whenever a step needs one, because they can change during a story.
 - Touch another checkout, another worktree or another session's files. Close,
   reassign or re-scope another work item.
 - Widen your own permissions, or relax a check to get past it.
+- Retry, rephrase or hand to another session a command your harness's
+  permission check refused: repeated refusals hold a session at a prompt only
+  the maintainer can answer. For a refused git command, such as a reset or a
+  rebase, redo the work in a fresh clone of your own and push from there,
+  within the rules above, then tell your lead what was refused.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
@@ -92,7 +97,8 @@ You need no answer before you start.
 
 ## 2. Before the first edit
 
-- **The worktree is fixed.** Work only there. One writer per worktree: if you
+- **The worktree is fixed.** Work only there, apart from the fresh clone a
+  refused git command sends you to (see Never). One writer per worktree: if you
   find an unexplained branch, worktree or running session on this story, stop
   and ask your lead.
 - **Dependencies.** If the repo's dependencies are missing or its lockfile
