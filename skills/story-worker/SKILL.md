@@ -41,9 +41,12 @@ again whenever a step needs one, because they can change during a story.
 - Widen your own permissions, or relax a check to get past it.
 - Retry, rephrase or hand to another session a command your harness's
   permission check refused: repeated refusals hold a session at a prompt only
-  the maintainer can answer. For a refused git command, such as a reset or a
-  rebase, redo the work in a fresh clone of your own and push from there,
-  within the rules above, then tell your lead what was refused.
+  the maintainer can answer. When the refused command is a git command that
+  rewrites your branch or worktree, such as a reset or a rebase, redo the
+  work in a fresh clone of your own instead: bring in your unpushed commits
+  from the worktree, keep to the rules above, and push from there when the
+  story's steps reach a push. That clone is your worktree from then on. Tell
+  your lead what was refused.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
@@ -97,8 +100,8 @@ You need no answer before you start.
 
 ## 2. Before the first edit
 
-- **The worktree is fixed.** Work only there, apart from the fresh clone a
-  refused git command sends you to (see Never). One writer per worktree: if you
+- **The worktree is fixed.** Work only there, until a refused git command
+  moves you to a fresh clone (see Never). One writer per worktree: if you
   find an unexplained branch, worktree or running session on this story, stop
   and ask your lead.
 - **Dependencies.** If the repo's dependencies are missing or its lockfile
@@ -336,9 +339,9 @@ you learn it is, send the lead a one-line pointer at most.
 Every message to your lead goes through the performer bound to `hand-back`,
 the only exception being a setup stop, when nothing is bound yet. If it goes
 through a terminal transport, first check that your lead's pane is not
-focused, since the maintainer may be typing there. A message that is refused
-or skipped is retried at your next event, and the work note is the backstop
-for a hand-back.
+focused, since the maintainer may be typing there. A message the transport
+refuses or skips is retried at your next event, and the work note is the
+backstop for a hand-back.
 
 With no lead ("none: the maintainer"), the maintainer is your lead: give each
 of these lines to them directly, a `DECISION` through the question tool where
