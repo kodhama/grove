@@ -987,6 +987,34 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf(line)).toEqual(clis);
   });
 
+  it("reads quotes inside a $( in an unquoted heredoc's body as quotes", () => {
+    expect(clisOf('cat <<EOF\n$(echo "x; gh pr view")\nEOF')).toEqual(["cat", "echo"]);
+    expect(scriptOf('cat <<EOF\n$(node "/a b/.claude/skills/foo/scripts/x.mjs")\nEOF')).toEqual(["foo"]);
+  });
+
+  it.each([
+    ["a << inside quotes", "echo \"a<<b\" && cat <<'EOF'\ngh pr merge 1\nEOF", ["echo", "cat"]],
+    ["a shift in arithmetic", "echo $((1<<n)) && cat <<'EOF'\ngh pr merge 1\nEOF", ["echo", "cat"]],
+  ])("still reads the heredocs after %s, which has no terminator", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["a quoted one", "if true; then\n  cat <<'EOF'\n  gh pr merge 1\n  EOF\nfi", ["true", "cat"]],
+    // Outside a compound bash runs this body to the end and gh does run: a
+    // miss, the safe direction, kept so an `if` like the one above never credits.
+    ["an unquoted one", "  cat <<EOF\n  $(gh pr merge 1)\n  EOF", ["cat"]],
+  ])("drops the body of a heredoc whose terminator is only indented under <<: %s", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["as the last word", "echo x >| gh", ["echo"]],
+    ["before a pipe", "echo x >| f | jq .", ["echo", "jq"]],
+  ])("never splits a command at the | of a >| redirect, %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
   it("never reads a here-string's <<< as a heredoc", () => {
     expect(clisOf("grep x <<< EOF\ngh pr merge 1\nEOF")).toEqual(["grep", "gh", "EOF"]);
   });

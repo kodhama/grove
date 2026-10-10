@@ -10,7 +10,7 @@
  *   { kind: "cli", name: "cd" }, { kind: "cli", name: "gh" }
  *
  * - a cli: the first word of each command. The line is split at `&&`, `||`,
- *   `;`, `|`, `|&`, a lone `&` and newlines outside quotes, and a `$(` or a
+ *   `;`, `|&`, a `|` or lone `&` outside a redirect and newlines outside quotes, and a `$(` or a
  *   backtick outside single quotes opens a command that runs to its match,
  *   even inside double quotes (`PR="$(gh pr view)"`), unless a backslash
  *   escapes it. Leading `NAME=value` settings are skipped, and so are the
@@ -83,14 +83,13 @@ const HEREDOC_MARK = "\uE000";
 
 /**
  * The commands an unquoted heredoc's body runs, read as the shell expands
- * it, which is as a double-quoted word would be: inside it a backslash
- * escapes only `$`, `` ` ``, `\` and a newline, and a `"` is text. A body
- * whose `$(` or backtick never closes runs nothing, and hides nothing after
- * it.
+ * it, which is as a double-quoted word would be, except that a `"` in the
+ * body itself is text; inside a `$(` or backtick in it, quotes are quotes
+ * again. A body whose `$(` or backtick never closes runs nothing, and hides
+ * nothing after it.
  */
 const heredocCommands = (body) => {
-  const word = `: "${body.replace(/\\([$`\\\n])|\\|"/g, (match, kept) => (kept ? match : match === "\\" ? "\\\\" : '\\"'))}"`;
-  const { found, closed } = scan(word);
+  const { found, closed } = scan(body, true);
   return closed ? found.slice(1) : [];
 };
 
@@ -98,8 +97,8 @@ const heredocCommands = (body) => {
  * A shell line's commands as text, read left to right. A heredoc's body is
  * read on its own, where it stood: an unquoted one's for the commands it
  * expands, any other's dropped; a `<<<` here-string is no heredoc.
- * Outside quotes `&&`, `||`, `;`, `|`, `|&`, a `&` that is not part of a
- * redirect and a newline end a command; inside quotes they are text, and
+ * Outside quotes `&&`, `||`, `;`, `|&`, a `|` or `&` that is not part of a
+ * redirect (`>|`, `2>&1`) and a newline end a command; inside quotes they are text, and
  * quoted text stays inside its word; in a `$'…'` quote a backslash escapes
  * the next character, a quote included. A `$(` or a backtick outside single
  * quotes and not escaped opens a command that ends at its matching `)` or
@@ -137,8 +136,12 @@ function commandTexts(line) {
  * it sits on, the bodies in the operators' order, each up to the line that
  * is exactly its delimiter, or, after `<<-`, that line with its leading tabs
  * dropped. An unquoted heredoc's operator becomes a mark where its body's
- * commands are read; any other's is dropped, and every body is. An operator
- * whose terminator never comes is left as text, with the lines after it.
+ * commands are read; any other's is dropped, and every body is. Where no
+ * line is exactly the delimiter but one is once its blanks are trimmed,
+ * bash runs the body to the end of the input and fails inside a compound,
+ * so that body is dropped up to that line and its commands are not read. An
+ * operator with no such line either, as in quotes or `$((1<<n))`, is left as
+ * text, and the operators after it are still read.
  */
 function readHeredocs(line) {
   const lines = line.split("\n");
@@ -150,9 +153,10 @@ function readHeredocs(line) {
     const marks = [];
     for (const operator of text.matchAll(HEREDOC)) {
       const [taken, dash, escaped, quoted, word] = operator;
-      const end = lines.findIndex((body, k) => k >= next && (dash ? body.replace(/^\t+/, "") : body) === word);
-      if (end < 0) break;
-      const runs = !escaped && !quoted;
+      const exact = lines.findIndex((body, k) => k >= next && (dash ? body.replace(/^\t+/, "") : body) === word);
+      const end = exact < 0 ? lines.findIndex((body, k) => k >= next && body.trim() === word) : exact;
+      if (end < 0) continue;
+      const runs = exact >= 0 && !escaped && !quoted;
       if (runs) bodies.push(lines.slice(next, end).join("\n"));
       marks.push({ at: operator.index, length: taken.length, mark: runs ? HEREDOC_MARK : "" });
       next = end + 1;
@@ -164,8 +168,12 @@ function readHeredocs(line) {
   return { text: kept.join("\n"), bodies };
 }
 
-/** A line's commands as text, and whether it closed every quote, `$(`, backtick and `${` it opened. */
-function scan(line) {
+/**
+ * A line's commands as text, and whether it closed every quote, `$(`,
+ * backtick and `${` it opened. A heredoc's body is scanned as a line that
+ * starts inside a double quote no `"` closes.
+ */
+function scan(line, heredoc = false) {
   const { text, bodies } = readHeredocs(line);
   const found = [""];
   // A frame is the line itself, a `$(` or backtick (`at` its command's
@@ -181,8 +189,8 @@ function scan(line) {
   const frameOf = (kind, at, quoted) => ({
     kind, at, quoted, parens: [], braces: 0, cases: [], command: true, skip: false, arithmetic: false, test: false,
   });
-  const frames = [frameOf("line", 0, false)];
-  let quote = "";
+  const frames = [frameOf(heredoc ? "heredoc" : "line", 0, false)];
+  let quote = heredoc ? '"' : "";
   let wordStart = true;
   // Whether a frame's open case is in a pattern: a pattern's own `(` and `)`
   // sit at the depth its case opened at.
@@ -328,7 +336,7 @@ function scan(line) {
       i++;
       push(text[i + 1] === "(" ? "arithmetic" : "substitution");
     } else if (quote === '"') {
-      if (char === '"') quote = "";
+      if (char === '"' && frame.kind !== "heredoc") quote = "";
       add(char);
     } else if (char === "$" && after === "'") {
       i++;
@@ -383,6 +391,9 @@ function scan(line) {
       wordStart = true;
     } else if (char === ")" && frames.length > 1 && frame.kind !== "backtick") {
       pop();
+    } else if (char === "|" && text[i - 1] === ">" && text[i - 2] !== "\\") {
+      // A `>|` redirect's `|` splits no command.
+      add(char);
     } else if ((char === "&" && after === "&") || (char === "|" && after === "|")) {
       i++;
       next();
@@ -401,7 +412,7 @@ function scan(line) {
       wordStart = /\s/.test(char);
     }
   }
-  return { found, closed: frames.length === 1 && !quote && frames[0].braces === 0 };
+  return { found, closed: frames.length === 1 && quote === (heredoc ? '"' : "") && frames[0].braces === 0 };
 }
 
 /**
