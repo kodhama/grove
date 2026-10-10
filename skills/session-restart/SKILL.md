@@ -190,7 +190,9 @@ its own check reads your result from this section (`--handoff`) and counts
 each operation it shows used in a session it cannot read itself. A carried
 use has no time, so no later check can cut it: `--since` is what keeps a use
 from before the story out of this handoff, and so out of the restarts that
-carry it on. That
+carry it on. A check run with another `--since`, as for a later story, takes
+no use from this section, since its `since` line names the story it was
+scoped to. That
 transcript stays listed, and missing, through every later restart, so each
 one passes on the handoff it started from in the same way; a result it does
 not need is ignored, never harmful. A line

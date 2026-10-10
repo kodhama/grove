@@ -37,7 +37,8 @@
  * - `used`: an allowed call of its performer ran, in a transcript or one of
  *   its subagent transcripts;
  * - `used` carried: a handoff's receipt-check section, from before a restart
- *   onto another machine, reports it used (`handoff-receipt.mjs`);
+ *   onto another machine, reports it used (`handoff-receipt.mjs`), in a check
+ *   run with this run's `--since`, or with none when this run has none;
  * - `not reached`: declared with `--not-run`, noting how many allowed calls
  *   of its performer failed, since a performer several operations share may
  *   have failed at another one's step;
@@ -78,7 +79,8 @@
  * general-purpose agent), where setup runs after the level skill loads or,
  * in a resumed session, among the resume steps, unless a `--since` set at a
  * story's start, after setup, cuts them. A use carried
- * from a handoff has no time, so neither cut applies to it. It reads only the
+ * from a handoff has no time, so neither cut applies to it; a handoff whose
+ * check ran with another `--since`, as for an earlier story, carries none. It reads only the
  * sessions the bindings file lists, with their subagent transcripts, so work
  * done in a sibling session is not seen; that is why story-worker runs its
  * review in a subagent. A handoff carries only `used` lines, so after a restart onto
@@ -162,8 +164,10 @@ function sharedWith(binding, credited, bindings, marked) {
  * before which calls are not counted (`call-scope.mjs`). Returns the
  * transcripts read, each read one with its `scope`, the table, one row per
  * operation `{ table, id, performer, state, where, note, shared }`, and the
- * unbound skills. `shared` names the other operations the call a used row was
- * credited for could have credited too; it is absent when there are none.
+ * unbound skills, and for a handoff how many uses it carried and how many it
+ * dropped for a `--since` other than this run's. `shared` names the other
+ * operations the call a used row was credited for could have credited too;
+ * it is absent when there are none.
  */
 export function checkReceipts({ bindings, notRun = [], handoff = null, table = null, since = null }) {
   const routing = table ?? tableOf(bindings);
@@ -192,6 +196,11 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
   for (const [key, use] of carried.used) {
     if (read.has(use.session) && !unread.has(use.child)) carried.used.delete(key);
   }
+  // A carried use has no time to cut, so it counts only for the story its
+  // handoff's check was scoped to: one run with another `--since`, or with
+  // none where this run has one, carries nothing.
+  const dropped = handoff && !sameInstant(carried.since, since) ? carried.used.size : 0;
+  if (dropped > 0) carried.used.clear();
   // Every call, whatever its outcome: `judge` credits only one that ran (`uses`).
   const context = {
     calls: scoped.uses,
@@ -218,9 +227,24 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
     operations,
     unbound: unboundSkills(bindings, uses),
     handoff: handoff
-      ? { path: handoff, merged: operations.filter((row) => row.where?.endsWith(CARRIED)).length }
+      ? {
+          path: handoff,
+          merged: operations.filter((row) => row.where?.endsWith(CARRIED)).length,
+          dropped,
+          since: carried.since,
+        }
       : null,
   };
+}
+
+/** Whether two `--since` values, either absent, name one instant; one that does not read as a time matches nothing. */
+function sameInstant(a, b) {
+  if (a == null || b == null) return a == null && b == null;
+  try {
+    return sinceTime(a) === sinceTime(b);
+  } catch {
+    return false;
+  }
 }
 
 /** One report line for an operation. */
@@ -302,7 +326,9 @@ function formatReport(result, bindings, bindingsPath) {
     lines.push(`transcript ${t.session_id}: ${t.status === "read" ? read : `${other} ${t.path}`}`);
   }
   if (result.handoff) {
-    lines.push(`handoff: ${result.handoff.path} (${result.handoff.merged} earlier uses carried)`);
+    const { path, merged, dropped, since } = result.handoff;
+    const why = dropped > 0 ? `, ${dropped} dropped: carried since ${since ?? "none"}, this run's ${result.since ?? "none"}` : "";
+    lines.push(`handoff: ${path} (${merged} earlier uses carried${why})`);
   }
   lines.push(...result.operations.map(operationLine));
   lines.push(...result.unbound.map((u) => `used-but-unbound: ${u.name} in ${u.where}`));

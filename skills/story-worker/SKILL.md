@@ -301,7 +301,8 @@ acceptance; never call it complete or merged.
   `story-worker/hand-back` when their first use is the hand-back still to
   come; add `--handoff "<path>"` when you resumed from a
   handoff whose receipt-check section holds a result, as the restart skill
-  does.
+  does. A handoff written during an earlier story carries nothing into this
+  one: the check drops its uses and says how many.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.

@@ -1816,6 +1816,58 @@ describe("MQ-353 · the command line", () => {
     expect(after).toContain("story-worker/build: bound-but-unused");
   });
 
+  describe("GRO-15 · a handoff written for another story's --since carries nothing", () => {
+    const A_SINCE = "2026-10-01T09:00:00Z";
+    const B_SINCE = "2026-10-08T11:00:00Z";
+    // Story A's report, pasted into its handoff; `edit` stands in for a since line changed on the way.
+    const handoffOf = (since: string[], name: string, edit = (report: string) => report) => {
+      const report = run(bindingsReading([BEFORE, "claude-before-restart"]), ...since).stdout;
+      const path = join(dir, name);
+      writeFileSync(path, `# Handoff\n\n## Receipt check\n\n${edit(report)}\n## What I am doing\n`);
+      return path;
+    };
+    const storyB = (handoff: string, ...since: string[]) =>
+      run(bindingsReading([BY_HAND, "claude-built-by-hand"]), "--handoff", handoff, ...since).stdout;
+    const PLAN = `story-worker/plan: used compound-engineering:ce-plan in ${BEFORE} (carried from handoff)`;
+
+    it.each([
+      ["a different time", ["--since", A_SINCE], ["--since", B_SINCE], `carried since ${A_SINCE}, this run's ${B_SINCE}`],
+      ["a since this run lacks", ["--since", A_SINCE], [], `carried since ${A_SINCE}, this run's none`],
+      ["no since where this run has one", [], ["--since", B_SINCE], `carried since none, this run's ${B_SINCE}`],
+    ])("drops every carried use when the handoff's since is %s, and says how many", (_what, a, b, why) => {
+      const after = storyB(handoffOf(a, `handoff-${Math.random().toString(36).slice(2)}.md`), ...b);
+      expect(after).not.toContain(PLAN);
+      expect(after).toMatch(/^story-worker\/plan: bound-but-unused /m);
+      expect(after).toMatch(new RegExp(`\\(0 earlier uses carried, [1-9]\\d* dropped: ${why.replace(/[+]/g, "\\+")}\\)`));
+    });
+
+    it("keeps the carried uses when the two since times are one instant in two zones", () => {
+      const after = storyB(handoffOf(["--since", A_SINCE], "handoff-same.md"), "--since", "2026-10-01T10:00:00+01:00");
+      expect(after).toContain(PLAN);
+      expect(after).not.toContain("dropped:");
+    });
+
+    it("drops the carried uses, and still runs, when the handoff's since does not read as a time", () => {
+      const handoff = handoffOf(["--since", A_SINCE], "handoff-garbled.md", (report) =>
+        report.replace(`since ${A_SINCE}:`, "since yesterday:"),
+      );
+      const result = spawnSync(
+        "node",
+        [SCRIPT, "--bindings", writeBindings(), "--handoff", handoff, "--since", B_SINCE],
+        { encoding: "utf8" },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stdout).not.toContain(PLAN);
+      expect(result.stdout).toContain(`dropped: carried since yesterday, this run's ${B_SINCE}`);
+    });
+
+    function writeBindings() {
+      const path = join(dir, `bindings-${Math.random().toString(36).slice(2)}.json`);
+      writeFileSync(path, JSON.stringify(bindingsReading([BY_HAND, "claude-built-by-hand"])));
+      return path;
+    }
+  });
+
   it("carries a use from a transcript left on another machine through every later restart", () => {
     const elsewhere = { session_id: BEFORE, path: `/elsewhere/${BEFORE}.jsonl` };
     const handoffOf = (report: string, name: string) => {
