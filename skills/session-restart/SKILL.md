@@ -192,8 +192,11 @@ use has no time, so no later check can cut it: `--since` is what keeps a use
 from before the story out of this handoff, and so out of the restarts that
 carry it on. The section's `since` line names the story it was scoped to: a
 check run with another `--since`, as for a later story, or with one where the
-section has none, or none where it has one, takes no use from it, and nor
-does any check once that line is reformatted or lost. That
+section has none, or none where it has one, takes no use from it. A since
+line reformatted or lost on the way reads as none: a check run with
+`--since` then takes no use from it, but one run without takes every use. A
+section with two since lines, or a since line that does not read as a time,
+gives no use to any check. That
 transcript stays listed, and missing, through every later restart, so each
 one passes on the handoff it started from in the same way; a result it does
 not need is ignored, never harmful. A line

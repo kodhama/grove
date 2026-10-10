@@ -57,7 +57,9 @@ function keysMatching(lines, pattern) {
  * What a handoff's receipt-check section carries: each operation it reports
  * used, by `table/op` key, with the performer, the session it was used in and
  * the whole place; the session ids of the transcripts it read or itself
- * carried; and its `--since` as written, or null when it ran without one.
+ * carried; and its `--since` as written, or null when it ran without one,
+ * or, where the section holds more than one, all of them joined, which reads
+ * as no time.
  */
 export function readHandoff(path) {
   const lines = readFileSync(path, "utf8").split("\n");
@@ -79,6 +81,9 @@ export function readHandoff(path) {
   // The report gives no transcript line for a child thread it read, so a
   // used line placed in one is what shows it was read.
   for (const { child } of used.values()) if (child) covered.add(child);
-  const since = section.map((line) => SINCE_LINE.exec(line.trimEnd())?.[1]).find(Boolean) ?? null;
+  // Two since lines name no one story: joined, they read as no time, so they
+  // match no `--since` and carry nothing.
+  const sinces = section.flatMap((line) => SINCE_LINE.exec(line.trimEnd())?.slice(1, 2) ?? []);
+  const since = sinces.length > 0 ? sinces.join(" and ") : null;
   return { used, covered, since };
 }

@@ -1829,16 +1829,20 @@ describe("MQ-353 · the command line", () => {
     const storyB = (handoff: string, ...since: string[]) =>
       run(bindingsReading([BY_HAND, "claude-built-by-hand"]), "--handoff", handoff, ...since);
     const PLAN = `story-worker/plan: used compound-engineering:ce-plan in ${BEFORE} (carried from handoff)`;
+    // How many uses a handoff's section reports, each of which a drop must name.
+    const usedIn = (handoff: string) => readFileSync(handoff, "utf8").match(/^\S+: used /gm)?.length ?? 0;
 
     it.each([
       ["a different time", ["--since", A_SINCE], ["--since", B_SINCE], `carried since ${A_SINCE}, this run's ${B_SINCE}`],
       ["a since this run lacks", ["--since", A_SINCE], [], `carried since ${A_SINCE}, this run's none`],
       ["no since where this run has one", [], ["--since", B_SINCE], `carried since none, this run's ${B_SINCE}`],
     ])("drops every carried use when the handoff's since is %s, and says how many", (_what, a, b, why) => {
-      const after = storyB(handoffOf(a, `handoff-${Math.random().toString(36).slice(2)}.md`), ...b).stdout;
+      const handoff = handoffOf(a, `handoff-${Math.random().toString(36).slice(2)}.md`);
+      const after = storyB(handoff, ...b).stdout;
       expect(after).not.toContain(PLAN);
       expect(after).toMatch(/^story-worker\/plan: bound-but-unused /m);
-      expect(after).toMatch(new RegExp(`\\(0 earlier uses carried, [1-9]\\d* dropped: ${why}\\)`));
+      expect(usedIn(handoff)).toBeGreaterThan(0);
+      expect(after).toContain(`(0 earlier uses carried, ${usedIn(handoff)} dropped: ${why})`);
     });
 
     it("keeps the carried uses when the two since times are one instant in two zones", () => {
@@ -1853,8 +1857,34 @@ describe("MQ-353 · the command line", () => {
       );
       const result = storyB(handoff, "--since", B_SINCE);
       expect(result.status).toBe(1);
+      // Only the carried use credits plan, so its state shows the drop alone.
       expect(result.stdout).not.toContain(PLAN);
-      expect(result.stdout).toContain(`dropped: carried since yesterday, this run's ${B_SINCE}`);
+      expect(result.stdout).toMatch(/^story-worker\/plan: bound-but-unused /m);
+      expect(result.stdout).toContain(`${usedIn(handoff)} dropped: carried since yesterday, this run's ${B_SINCE}`);
+    });
+
+    it("drops the carried uses when the handoff's section holds two since lines, even when one matches", () => {
+      const handoff = handoffOf(["--since", A_SINCE], "handoff-two-since.md", (report) =>
+        report.replace(
+          `since ${A_SINCE}: calls before it are not counted`,
+          `since ${A_SINCE}: calls before it are not counted\nsince ${B_SINCE}: calls before it are not counted`,
+        ),
+      );
+      const after = storyB(handoff, "--since", A_SINCE).stdout;
+      expect(after).not.toContain(PLAN);
+      expect(after).toMatch(/^story-worker\/plan: bound-but-unused /m);
+      expect(after).toContain(`${usedIn(handoff)} dropped: carried since ${A_SINCE} and ${B_SINCE}, this run's ${A_SINCE}`);
+    });
+
+    it("keeps the carried uses through a chain of two restarts under one --since", () => {
+      const first = handoffOf(["--since", A_SINCE], "handoff-chain-1.md");
+      const second = join(dir, "handoff-chain-2.md");
+      const report = storyB(first, "--since", A_SINCE).stdout;
+      writeFileSync(second, `# Handoff\n\n## Receipt check\n\n${report}\n## What I am doing\n`);
+      const after = storyB(second, "--since", A_SINCE).stdout;
+      expect(report).toContain(PLAN);
+      expect(after).toContain(PLAN);
+      expect(after).not.toContain("dropped:");
     });
   });
 
