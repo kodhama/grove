@@ -138,10 +138,10 @@ function commandTexts(line) {
  * dropped. An unquoted heredoc's operator becomes a mark where its body's
  * commands are read; any other's is dropped, and every body is. Where no
  * line is exactly the delimiter but one is once its blanks are trimmed,
- * bash runs the body to the end of the input and fails inside a compound,
- * so that body is dropped up to that line and its commands are not read. An
- * operator with no such line either, as in quotes or `$((1<<n))`, is left as
- * text, and the operators after it are still read.
+ * bash runs the body to the end of the input, and fails inside a compound,
+ * so that body is dropped with every line after it, and nothing in it is
+ * read. An operator with no such line either, as in quotes or `$((1<<n))`,
+ * is left as text, and the operators after it are still read.
  */
 function readHeredocs(line) {
   const lines = line.split("\n");
@@ -159,7 +159,7 @@ function readHeredocs(line) {
       const runs = exact >= 0 && !escaped && !quoted;
       if (runs) bodies.push(lines.slice(next, end).join("\n"));
       marks.push({ at: operator.index, length: taken.length, mark: runs ? HEREDOC_MARK : "" });
-      next = end + 1;
+      next = exact < 0 ? lines.length : end + 1;
     }
     for (const { at, length, mark } of marks.reverse()) text = text.slice(0, at) + mark + text.slice(at + length);
     kept.push(text);
@@ -391,8 +391,8 @@ function scan(line, heredoc = false) {
       wordStart = true;
     } else if (char === ")" && frames.length > 1 && frame.kind !== "backtick") {
       pop();
-    } else if (char === "|" && text[i - 1] === ">" && text[i - 2] !== "\\") {
-      // A `>|` redirect's `|` splits no command.
+    } else if (char === "|" && text[i - 1] === ">" && /(?:^|[^\\])(?:\\\\)*>$/.test(text.slice(0, i))) {
+      // A `>|` redirect's `|` splits no command, unless its `>` is escaped.
       add(char);
     } else if ((char === "&" && after === "&") || (char === "|" && after === "|")) {
       i++;

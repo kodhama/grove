@@ -1002,15 +1002,18 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
   it.each([
     ["a quoted one", "if true; then\n  cat <<'EOF'\n  gh pr merge 1\n  EOF\nfi", ["true", "cat"]],
     // Outside a compound bash runs this body to the end and gh does run: a
-    // miss, the safe direction, kept so an `if` like the one above never credits.
+    // miss, the safe direction, kept so a body like the one above never credits.
     ["an unquoted one", "  cat <<EOF\n  $(gh pr merge 1)\n  EOF", ["cat"]],
-  ])("drops the body of a heredoc whose terminator is only indented under <<: %s", (_what, line, clis) => {
+    ["the lines after it", "cat <<'EOF'\nx\n  EOF\ngh pr view", ["cat"]],
+    ["a command after the compound", "if true; then\n  cat <<'EOF'\n  x\n  EOF\nfi\ngh x", ["true", "cat"]],
+  ])("drops to the end the body of a heredoc whose terminator is only indented under <<: %s", (_what, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
   });
 
   it.each([
     ["as the last word", "echo x >| gh", ["echo"]],
     ["before a pipe", "echo x >| f | jq .", ["echo", "jq"]],
+    ["after an escaped backslash", "echo a \\\\>| gh", ["echo"]],
   ])("never splits a command at the | of a >| redirect, %s", (_where, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
   });
