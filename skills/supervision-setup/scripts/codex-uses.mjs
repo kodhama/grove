@@ -21,7 +21,7 @@
  * - a command `ran` when its status is `completed`, or `failed` with an exit
  *   code other than 126 or 127 (it ran and exited non-zero) and no line of
  *   its output starting with zsh's own parse error (`zsh:1: parse error`,
- *   when it ran none of the line; Codex writes it to `stdout`, leaving
+ *   `zsh:1: unmatched "`, when it ran none of the line; Codex writes it to `stdout`, leaving
  *   `stderr` empty); else `failed`.
  *   A SKILL.md read in it `ran` only when its status is `completed`: the read
  *   shows the skill was loaded, not that a command ran, so it fails closed;

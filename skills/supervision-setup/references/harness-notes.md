@@ -149,8 +149,9 @@ but the command ran, so it counts, unless N is 126 or 127: the shell could not
 run the command (observed 2026-10-04; the version was not recorded). A
 command the shell could not parse ran not at all, whatever N is: its result
 reads `Exit code 1` then a line starting with zsh's own `(eval):1: parse
-error near ...`, and the receipt check does not count it (observed on Claude
-Code 2.1.296, 2026-10-10). Bash's own `bash: eval: line N: syntax error` is
+error near ...`, or `(eval):1: unmatched "` for an unclosed quote, and the
+receipt check does not count it (observed on Claude Code 2.1.296,
+2026-10-10). Bash's own `bash: eval: line N: syntax error` is
 read the same way but was not observed, though bash's `eval` runs the
 complete lines before its error, so a call read that way may have run some.
 A nested shell's error, such as `bash: -c: line 1: syntax error`, or a tool's
@@ -219,7 +220,8 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   2026-10-03).
 - **A command the shell could not parse** is a `CommandExecution` with
   `status: "failed"` and `exit_code` 1, whose `stdout` holds zsh's own
-  `zsh:1: parse error near ...`; its `stderr` is empty, as it is on every
+  `zsh:1: parse error near ...` or, for an unclosed quote, `zsh:1: unmatched
+  "`; its `stderr` is empty, as it is on every
   command item. Nothing in the line ran, so the receipt check does not credit
   it (observed on codex-cli 0.154.0, 2026-09-17).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
