@@ -89,7 +89,10 @@
  * may carry a `used` line for a call that never ran, and a review line
  * placed in any subagent, a fork included, still carries as fresh; one placed
  * in the main session, or carried before and so placed by its session alone,
- * no longer carries. Only a session spanning that change is affected.
+ * no longer carries. Only a session spanning that change is affected. So
+ * too for GRO-15: a check from before it, run with one story's `--since`,
+ * re-prints an earlier story's carried uses under that story's `since` line,
+ * and a handoff holding them still credits them.
  *
  * Usage: receipt-check.mjs --bindings <bindings.json> [--not-run <table/op>,...]
  * [--handoff <handoff.md>] [--since <zoned time>]. Exits 1 when any operation is
