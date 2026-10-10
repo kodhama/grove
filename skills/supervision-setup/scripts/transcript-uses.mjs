@@ -30,12 +30,15 @@
  * `failed` (refused, blocked or broken before it did anything). A `Bash`
  * result that starts `Exit code N` still `ran`, since the command ran and
  * only exited non-zero, unless N is 126 or 127, when the shell could not run
- * it. A call with no result yet, such as the last one in a live transcript,
- * is `pending`. Every use of one call shares that call's outcome, which
- * gives two known limits. In `cd x && herdr …` a failed `cd` still credits
- * herdr, since the line is split but the result cannot say which part
- * failed. And a CLI call, such as a herdr hand-back, reads `ran` when its
- * command exits 0 even if the tool it ran reported a false success.
+ * it, or a line of the result starts with the shell's own parse error, when
+ * it ran none of the line (`shell-uses.mjs`); a nested shell's or a tool's
+ * own error keeps the credit. A call with no result yet, such as the last
+ * one in a live transcript, is `pending`. Every use of one call shares that
+ * call's outcome, which gives two known limits. In `cd x && herdr …` a
+ * failed `cd` still credits herdr, since the line is split but the result
+ * cannot say which part failed. And a CLI call, such as a herdr hand-back,
+ * reads `ran` when its command exits 0 even if the tool it ran reported a
+ * false success.
  *
  * Subagents: Claude Code keeps them in `<session id>/subagents/*.jsonl`
  * beside the transcript. A session that entered another worktree writes
@@ -77,7 +80,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { codexChildren, codexUses, ROLLOUT_NAME, timeOf } from "./codex-uses.mjs";
-import { SHELL_COULD_NOT_RUN, shellUses } from "./shell-uses.mjs";
+import { SHELL_COULD_NOT_PARSE, SHELL_COULD_NOT_RUN, shellUses } from "./shell-uses.mjs";
 
 /** The type the Agent tool starts when a call names none. */
 const DEFAULT_AGENT = "general-purpose";
@@ -211,13 +214,18 @@ function resultText(content) {
  * Whether one Claude Code call ran, from its `tool_result`: `pending` with no
  * result yet, `ran` without `is_error: true`, and `failed` with it, except a
  * `Bash` call whose result starts `Exit code N`: its command ran and exited
- * non-zero, so it `ran`, unless N is 126 or 127 (the shell could not run it).
+ * non-zero, so it `ran`, unless N is 126 or 127 (the shell could not run it)
+ * or a line of the result starts with the shell's own parse error (it ran
+ * none of the line).
  */
 function claudeOutcome(call, result) {
   if (!result) return "pending";
   if (result.is_error !== true) return "ran";
-  const exit = call.name === "Bash" ? EXIT_CODE.exec(resultText(result.content)) : null;
-  return exit && !SHELL_COULD_NOT_RUN.has(Number(exit[1])) ? "ran" : "failed";
+  const text = call.name === "Bash" ? resultText(result.content) : "";
+  const exit = EXIT_CODE.exec(text);
+  const ran =
+    exit && !SHELL_COULD_NOT_RUN.has(Number(exit[1])) && !SHELL_COULD_NOT_PARSE.claude.test(text);
+  return ran ? "ran" : "failed";
 }
 
 /** The folder Claude Code keeps a session's subagent transcripts in, beside its transcript. */

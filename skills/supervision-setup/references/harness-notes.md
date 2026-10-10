@@ -146,7 +146,14 @@ as a `<tool_use_error>` or a denied permission, means the call was refused,
 and the receipt check does not count it as a use. A Bash command that exits
 non-zero also gets `is_error` set to true, with text starting `Exit code N`,
 but the command ran, so it counts, unless N is 126 or 127: the shell could not
-run the command (observed 2026-10-04; the version was not recorded).
+run the command (observed 2026-10-04; the version was not recorded). A
+command the shell could not parse ran not at all, whatever N is: its result
+reads `Exit code 1` then a line starting with zsh's own `(eval):1: parse
+error near ...`, and the receipt check does not count it (observed on Claude
+Code 2.1.296, 2026-10-10). Bash's own `bash: eval: line N: syntax error` is
+read the same way but was not observed. A nested shell's error, such as
+`bash: -c: line 1: syntax error`, or a tool's own, such as `rg: regex parse
+error`, still counts: the line ran.
 
 **Starting a cloud session.** `claude --cloud "<prompt>"` needs an interactive
 terminal. From the Bash tool it fails with `Error: --cloud requires an

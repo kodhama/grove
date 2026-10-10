@@ -209,9 +209,15 @@ const CODEX_CHILD = "01a30000-0000-7000-8000-0000000000e1";
 /**
  * A Codex `CommandExecution` record running this shell line, with no
  * `exit_code` when it is null; with `skill`, its `parsed_cmd` reads that
- * skill's SKILL.md.
+ * skill's SKILL.md; with `stderr`, it carries that text as its `stderr`.
  */
-function commandRecord(line: string, status: string, exitCode: number | null, skill?: string) {
+function commandRecord(
+  line: string,
+  status: string,
+  exitCode: number | null,
+  skill?: string,
+  stderr?: string,
+) {
   const part = skill
     ? { type: "read", cmd: line, name: "SKILL.md", path: `/codex/skills/${skill}/SKILL.md` }
     : { type: "unknown", cmd: line };
@@ -222,6 +228,7 @@ function commandRecord(line: string, status: string, exitCode: number | null, sk
     parsed_cmd: [part],
     status,
     ...(exitCode === null ? {} : { exit_code: exitCode }),
+    ...(stderr === undefined ? {} : { stderr }),
   };
   return { type: "event_msg", payload: { type: "item_completed", item } };
 }
@@ -1163,6 +1170,23 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     expect(state).toBe("attempted-failed");
     expect(outcomes).toEqual(["failed"]);
   });
+
+  it.each([
+    ["zsh's parse error", "failed", "Exit code 1\n(eval):5: parse error near `\\n'"],
+    ["bash's syntax error", "failed", "Exit code 2\nbash: eval: line 11: syntax error: unexpected end of file"],
+    ["a nested bash's syntax error", "ran", "Exit code 2\nbash: -c: line 1: syntax error near unexpected token `)'"],
+    ["a tool's own parse error", "ran", "Exit code 2\nrg: regex parse error:\n    (?:a\n    ^\nerror: unclosed group"],
+    ["a parse error not at a line's start", "ran", "Exit code 1\nlog: (eval):5: parse error"],
+  ])("reads a Bash call whose result shows %s as %s", (_what, outcome, text) => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-parse-"));
+    const call = { type: "tool_use", name: "Bash", input: { command: "herdr agent list\nif true; then" } };
+    const file = bindingsOfCalls(dir, [call, { content: text, is_error: true }]);
+    const state = stateOf(checkReceipts({ bindings: file }), "session-restart/read-pane");
+    const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
+    rmSync(dir, { recursive: true });
+    expect(state).toBe(outcome === "ran" ? "used" : "attempted-failed");
+    expect(outcomes).toEqual([outcome]);
+  });
 });
 
 describe("MQ-377 · a Codex call counts only when it ran", () => {
@@ -1226,6 +1250,20 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
       expect(state, String(exitCode)).toBe("attempted-failed");
       expect(outcomes, String(exitCode)).toEqual(["failed"]);
     }
+  });
+
+  it.each([
+    ["zsh's parse error", "failed", 1, "zsh:1: parse error near `)'"],
+    ["a tool's own parse error", "ran", 2, "rg: regex parse error:\n    (?:a\nerror: unclosed group"],
+  ])("reads a failed CommandExecution whose stderr shows %s as %s", (_what, outcome, exitCode, stderr) => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-parse-"));
+    const record = commandRecord("herdr agent list", "failed", exitCode, undefined, stderr);
+    const file = codexBindingsOf(dir, [record]);
+    const state = stateOf(checkReceipts({ bindings: file }), "session-restart/read-pane");
+    const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
+    rmSync(dir, { recursive: true });
+    expect(state).toBe(outcome === "ran" ? "used" : "attempted-failed");
+    expect(outcomes).toEqual([outcome]);
   });
 
   it("marks apply_patch used by a completed FileChange", () => {

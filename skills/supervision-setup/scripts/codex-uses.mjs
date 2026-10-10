@@ -19,7 +19,9 @@
  *
  * Whether it ran:
  * - a command `ran` when its status is `completed`, or `failed` with an exit
- *   code other than 126 or 127 (it ran and exited non-zero); else `failed`.
+ *   code other than 126 or 127 (it ran and exited non-zero) and no `stderr`
+ *   line starting with zsh's own parse error (`zsh:1: parse error`, when it
+ *   ran none of the line); else `failed`.
  *   A SKILL.md read in it `ran` only when its status is `completed`: the read
  *   shows the skill was loaded, not that a command ran, so it fails closed;
  * - an MCP call or a patch `ran` when its status is `completed`; any other
@@ -51,7 +53,7 @@
  */
 import { globSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { SHELL_COULD_NOT_RUN, shellUses } from "./shell-uses.mjs";
+import { SHELL_COULD_NOT_PARSE, SHELL_COULD_NOT_RUN, shellUses } from "./shell-uses.mjs";
 
 /** The tool that starts a child thread; a `started` activity, not its output, shows it ran. */
 const SPAWN = "collaboration.spawn_agent";
@@ -110,11 +112,16 @@ function itemUses(item) {
   }
 }
 
-/** Whether an item's call ran, from its own status and, for a command, its exit code. */
+/**
+ * Whether an item's call ran, from its own status and, for a command, its exit
+ * code and whether its `stderr` shows the shell could not parse the line.
+ */
 function itemOutcome(item) {
   if (item.status === "completed") return "ran";
   const exit = item.type === "CommandExecution" && item.status === "failed" ? item.exit_code : null;
-  return Number.isInteger(exit) && !SHELL_COULD_NOT_RUN.has(exit) ? "ran" : "failed";
+  const stderr = typeof item.stderr === "string" ? item.stderr : "";
+  const unparsed = SHELL_COULD_NOT_PARSE.codex.test(stderr);
+  return Number.isInteger(exit) && !SHELL_COULD_NOT_RUN.has(exit) && !unparsed ? "ran" : "failed";
 }
 
 /** An output's text: a string, or a list of `input_text` blocks. */
