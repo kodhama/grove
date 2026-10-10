@@ -239,7 +239,6 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
 
 /** Whether two `--since` values, either absent, name one instant; one that does not read as a time matches nothing. */
 function sameInstant(a, b) {
-  if (a == null || b == null) return a == null && b == null;
   try {
     return sinceTime(a) === sinceTime(b);
   } catch {

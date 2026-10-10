@@ -1827,7 +1827,7 @@ describe("MQ-353 · the command line", () => {
       return path;
     };
     const storyB = (handoff: string, ...since: string[]) =>
-      run(bindingsReading([BY_HAND, "claude-built-by-hand"]), "--handoff", handoff, ...since).stdout;
+      run(bindingsReading([BY_HAND, "claude-built-by-hand"]), "--handoff", handoff, ...since);
     const PLAN = `story-worker/plan: used compound-engineering:ce-plan in ${BEFORE} (carried from handoff)`;
 
     it.each([
@@ -1835,14 +1835,14 @@ describe("MQ-353 · the command line", () => {
       ["a since this run lacks", ["--since", A_SINCE], [], `carried since ${A_SINCE}, this run's none`],
       ["no since where this run has one", [], ["--since", B_SINCE], `carried since none, this run's ${B_SINCE}`],
     ])("drops every carried use when the handoff's since is %s, and says how many", (_what, a, b, why) => {
-      const after = storyB(handoffOf(a, `handoff-${Math.random().toString(36).slice(2)}.md`), ...b);
+      const after = storyB(handoffOf(a, `handoff-${Math.random().toString(36).slice(2)}.md`), ...b).stdout;
       expect(after).not.toContain(PLAN);
       expect(after).toMatch(/^story-worker\/plan: bound-but-unused /m);
-      expect(after).toMatch(new RegExp(`\\(0 earlier uses carried, [1-9]\\d* dropped: ${why.replace(/[+]/g, "\\+")}\\)`));
+      expect(after).toMatch(new RegExp(`\\(0 earlier uses carried, [1-9]\\d* dropped: ${why}\\)`));
     });
 
     it("keeps the carried uses when the two since times are one instant in two zones", () => {
-      const after = storyB(handoffOf(["--since", A_SINCE], "handoff-same.md"), "--since", "2026-10-01T10:00:00+01:00");
+      const after = storyB(handoffOf(["--since", A_SINCE], "handoff-same.md"), "--since", "2026-10-01T10:00:00+01:00").stdout;
       expect(after).toContain(PLAN);
       expect(after).not.toContain("dropped:");
     });
@@ -1851,21 +1851,11 @@ describe("MQ-353 · the command line", () => {
       const handoff = handoffOf(["--since", A_SINCE], "handoff-garbled.md", (report) =>
         report.replace(`since ${A_SINCE}:`, "since yesterday:"),
       );
-      const result = spawnSync(
-        "node",
-        [SCRIPT, "--bindings", writeBindings(), "--handoff", handoff, "--since", B_SINCE],
-        { encoding: "utf8" },
-      );
+      const result = storyB(handoff, "--since", B_SINCE);
       expect(result.status).toBe(1);
       expect(result.stdout).not.toContain(PLAN);
       expect(result.stdout).toContain(`dropped: carried since yesterday, this run's ${B_SINCE}`);
     });
-
-    function writeBindings() {
-      const path = join(dir, `bindings-${Math.random().toString(36).slice(2)}.json`);
-      writeFileSync(path, JSON.stringify(bindingsReading([BY_HAND, "claude-built-by-hand"])));
-      return path;
-    }
   });
 
   it("carries a use from a transcript left on another machine through every later restart", () => {
