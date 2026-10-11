@@ -153,8 +153,8 @@ error near ...`, or `(eval):1: unmatched "` for an unclosed quote (observed
 on Claude Code 2.1.296, 2026-10-10), or `(eval):2: closing brace expected`
 for an unclosed `${`, or `(eval):3: condition expected: a` for a malformed
 `[[` (both zsh 5.9, 2026-10-11). zsh leaves the line number out of some
-parse errors, as ``(eval): parse error near `()'`` for a `name()` followed
-by more on the same line (observed on Claude Code 2.1.296, 2026-10-11), or
+parse errors, as ``(eval): parse error near `()'`` for a `name()` with
+nothing after it (observed on Claude Code 2.1.296, 2026-10-11), or
 ``(eval): parse error near `)'`` then `(eval): unmatched "` where that sits
 inside a quoted `$(...)` (zsh 5.9, 2026-10-11). The check reads each of the
 four wordings with the number or without; the other two were not observed
@@ -195,7 +195,12 @@ worth it. In the local transcripts read that day, the only real calls that
 showed the error on a later line of an unflagged result, two of them, had
 carried on: an unquoted here-document held a backtick span zsh could not
 parse, so zsh skipped that one command and ran the ones after it. Both
-would have lost the credit their other commands earned.
+would have lost the credit their other commands earned. The first-line read
+takes that credit all the same where such a here-document sits in the
+line's first command: the error is then the first line, the commands after
+it ran, and the call reads as not run, the safe direction (a here-document
+in a `$(...)` holding `` `name()` ``, then an `echo` that ran; observed on
+2.1.296, 2026-10-11).
 
 A call run in the background keeps its credit as well, whatever the shell
 made of its line: its result is the notice that it started, and a parse
@@ -291,12 +296,14 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   observed in a Codex rollout). The check reads only the first line of a
   `completed` command, which cuts both ways. The stages that did run, such as
   that `head`, lose their credit, the safe direction, and so does a line
-  that carried on after a nested `zsh -c` printed the error first. A
+  that carried on after a nested `zsh -c` printed the error first, or after
+  an unquoted here-document in its first command held a backtick span zsh
+  could not parse. A
   `completed` command that shows the error only on a later line keeps its
   credit, as an unflagged result does on Claude Code: `echo a; cat f
   "$(if)" | wc -l` prints `a`, then the error, exits 0, and `cat` is counted
-  though it never ran (the nested and later-line cases were read from
-  `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex rollout).
+  though it never ran (the nested, here-document and later-line cases were
+  read from `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
   records `spawn_agent` in namespace `collaboration` as
   `collaboration.spawn_agent`, and the receipt check reads the call under that

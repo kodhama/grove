@@ -58,8 +58,8 @@ const BASH_PARSE_ERROR = /(?:\S*\/)?bash: eval: line \d+: (?:syntax error|unexpe
  * the line in zsh (`(eval):5: parse error`, `(eval):1: unmatched "` for an
  * unclosed quote, `(eval):2: closing brace expected` for an unclosed `${`,
  * `(eval):3: condition expected` for a malformed `[[`; zsh leaves the number
- * out of some, as `(eval): parse error near `()'` for a `name()` followed by
- * more on its line)
+ * out of some, as `(eval): parse error near `()'` for a `name()` with
+ * nothing after it)
  * or, by its form though not yet observed there, bash, which names itself as
  * it was started (`bash: eval: line 11: syntax error`, `/bin/bash: eval: line
  * 1: syntax error`, and for an unclosed quote, the only line a newer bash
