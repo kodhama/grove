@@ -389,3 +389,5 @@ This plan is the record of what was planned. Two things it says were left alone 
 - **OQ2 was closed.** `skills/supervision-setup/SKILL.md` now gives the evidence wording for an operation with no suggested name, and the fixture row uses it, so the "What restates or points at the change" row for setup and the Risks entry on evidence wording no longer describe the branch.
 
 The receipt's `Docs:` field also gained a third value, `not reached: <why>`, and its `By fallback:` field says where an operation bound by fallback that did not run is listed.
+
+**The fallback this plan quotes changed after the full review.** As planned, a repo whose project instructions named no docs got nothing changed and a `none needed` line, though it might still keep reference docs. The fallback now looks at the reference, architecture and design docs the repo keeps, and only a repo that keeps none is a reason to change nothing; the receipt's `Docs:` reason says the same. grove's `AGENTS.md` names `README.md` as the doc a change here keeps current.
