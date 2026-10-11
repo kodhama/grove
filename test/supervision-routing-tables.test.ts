@@ -704,6 +704,16 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
     expect(fallback).toContain("none needed and why");
   });
 
+  it("its fallback looks at the docs the repo keeps when the project instructions name none, and only a repo with none changes nothing", () => {
+    const fallback = oneLine(String(documentChange()?.fallback ?? ""));
+    expect(fallback).toContain(
+      "where they name none, the reference, architecture and design docs the repo keeps",
+    );
+    expect(fallback).toContain("or the repo keeps no such docs, change nothing");
+    // Instructions that name no docs are no reason to skip: the repo may still keep some.
+    expect(fallback).not.toContain("instructions name no such docs");
+  });
+
   it("document-change comes before capture-learning: the docs are final before the capture's test", () => {
     const ids = idsOf("story-worker");
     expect(ids).toContain("document-change");
@@ -778,7 +788,14 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
     );
     expect(field).toContain("never a plan or a captured learning");
     expect(field).toContain("not reached:");
-    expect(field).toContain("name no such docs");
+    // The fallback's own reason: a repo that keeps none, never instructions that name none.
+    expect(field).toContain("or the repo keeps no such docs>");
+    expect(field).not.toContain("name no such docs");
+  });
+
+  it("grove's own instructions name the doc a change keeps current, so a worker here need not guess", () => {
+    const instructions = oneLine(read("AGENTS.md"));
+    expect(instructions).toContain("`README.md` is the doc a change keeps current");
   });
 });
 

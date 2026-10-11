@@ -148,10 +148,11 @@ step = "at the completion checkpoint, before any learning is captured, when the 
 performers = []
 required = false
 fallback = """
-Update the docs the change makes stale yourself, where the repo's project
-instructions say they live and in the shape they ask for. Where nothing is
-stale, or the instructions name no such docs, change nothing, and say none
-needed and why."""
+Update the docs the change makes stale yourself: the ones the repo's project
+instructions name, in the shape they ask for, or, where they name none, the
+reference, architecture and design docs the repo keeps. Where nothing is
+stale, or the repo keeps no such docs, change nothing, and say none needed
+and why."""
 
 [[operation]]
 id = "capture-learning"

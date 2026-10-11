@@ -79,7 +79,9 @@ starts. This was read from Codex's source at codex-cli 0.160.0, not yet run.
   performer, because their performer is your repo's own. `story-worker`'s
   `document-change` is one: name the skill that keeps your reference,
   architecture and design docs. With none named, and none that setup finds,
-  the worker updates the stale docs itself, as your project instructions say.
+  the worker updates the stale docs itself: the ones your project instructions
+  name, or, where they name none, the reference, architecture and design docs
+  your repo keeps.
   The work-tracker operations are the others, and your overrides name your
   tracker's tools:
   - `story-worker`: `post-work-note`;
