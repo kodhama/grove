@@ -1176,10 +1176,12 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     ["zsh's parse error", "failed", "Exit code 1\n(eval):5: parse error near `\\n'"],
     ["bash's syntax error", "failed", "Exit code 1\nbash: eval: line 11: syntax error: unexpected end of file"],
     ["the syntax error of a bash started by path", "failed", "Exit code 1\n/bin/bash: eval: line 1: syntax error: unexpected end of file"],
+    ["a newer bash's unmatched quote", "failed", "Exit code 2\n/bin/bash: eval: line 1: unexpected EOF while looking for matching `\"'"],
     ["zsh's unmatched quote", "failed", 'Exit code 1\n(eval):1: unmatched "'],
     ["zsh's unclosed brace", "failed", "Exit code 1\n(eval):2: closing brace expected"],
     ["a nested bash's syntax error", "ran", "Exit code 2\nbash: -c: line 1: syntax error near unexpected token `)'"],
     ["the syntax error of a nested bash started by path", "ran", "Exit code 2\n/bin/bash: -c: line 1: syntax error: unexpected end of file"],
+    ["a nested bash's unmatched quote", "ran", "Exit code 2\nbash: -c: line 1: unexpected EOF while looking for matching `\"'"],
     ["a tool's own parse error", "ran", "Exit code 2\nrg: regex parse error:\n    (?:a\n    ^\nerror: unclosed group"],
     ["a parse error not at a line's start", "ran", "Exit code 1\nlog: (eval):5: parse error"],
   ])("reads a Bash call whose result shows %s as %s", (_what, outcome, text) => {

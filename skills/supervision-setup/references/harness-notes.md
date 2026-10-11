@@ -156,9 +156,12 @@ but zsh parses a `$(...)` or backtick substitution only when it reaches it,
 so the commands before one that will not parse have run: such a call loses
 its credit, the safe direction. Bash's own `bash: eval: line N: syntax
 error` is read the same way, with or without the path bash was started by
-(`/bin/bash: eval: ...`). That wording was read from a real `/bin/bash`
-3.2.57 (2026-10-11), not from a Claude Code session on bash, which was not
-observed. Bash's `eval` runs the complete lines before its error, so a call
+(`/bin/bash: eval: ...`), and so is `bash: eval: line N: unexpected EOF while
+looking for matching`, bash's line for an unclosed quote: bash 3.2.57 follows
+it with a `syntax error` line, and the bash on GitHub's `ubuntu-latest`
+runner prints it alone, with exit 2. Both wordings were read from a real
+`/bin/bash` (2026-10-11), not from a Claude Code session on bash, which was
+not observed. Bash's `eval` runs the complete lines before its error, so a call
 read that way may have run some. A nested shell's error, such as `bash: -c:
 line 1: syntax error` or `/bin/bash: -c: ...`, or a tool's own, such as `rg:
 regex parse error`, still counts: the line ran.

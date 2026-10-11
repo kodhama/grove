@@ -49,7 +49,9 @@ export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
  * unclosed quote, `(eval):2: closing brace expected` for an unclosed `${`)
  * or, by its form though not yet observed there, bash, which names itself as
  * it was started (`bash: eval: line 11: syntax error`, `/bin/bash: eval: line
- * 1: syntax error`), and Codex runs it with `zsh -lc` (`zsh:1: parse error`,
+ * 1: syntax error`, and for an unclosed quote, the only line a newer bash
+ * prints, `/bin/bash: eval: line 1: unexpected EOF while looking for
+ * matching`), and Codex runs it with `zsh -lc` (`zsh:1: parse error`,
  * `zsh:1: unmatched "`, `zsh:2: closing brace expected`). A nested shell's or
  * a script's own error (`bash: -c: line 1: syntax error`, `/bin/bash: -c:`)
  * names another source, so it does not match and its call keeps its credit.
@@ -63,7 +65,7 @@ export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
  * and carry on.
  */
 export const SHELL_COULD_NOT_PARSE = {
-  claude: /^(?:\(eval\):\d+: (?:parse error|unmatched |closing brace expected)|(?:\S*\/)?bash: eval: line \d+: syntax error)/m,
+  claude: /^(?:\(eval\):\d+: (?:parse error|unmatched |closing brace expected)|(?:\S*\/)?bash: eval: line \d+: (?:syntax error|unexpected EOF while looking for matching ))/m,
   codex: /^zsh:\d+: (?:parse error|unmatched |closing brace expected)/m,
 };
 /** Commands that run the script named after them. */
