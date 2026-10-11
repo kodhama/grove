@@ -334,7 +334,9 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
    later push cannot slip in. Then close the worker's session, or ask the
    maintainer to do so where your harness refuses the close. Remove its
    worktree, and any clone it reported moving to, once the branch has merged,
-   after checking that nothing in either is uncommitted.
+   after checking that nothing in either is uncommitted, and that the clone
+   holds no commit its remote lacks: removing a worktree keeps its commits in
+   the shared repository, and removing a clone does not.
 
 **A `restart-owner: lead` handoff** means the worker cannot launch its own
 successor. Launch it through `start-worker` from the handoff's launch line:

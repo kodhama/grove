@@ -744,6 +744,19 @@ describe("GRO-17 · the refused-call rule's text", () => {
     );
   });
 
+  it("the lead removes a moved worker's clone only once it holds no commit its remote lacks", () => {
+    expect(flat(section(read(LEAD), "7. A hand-back"))).toContain(
+      "Remove its worktree, and any clone it reported moving to, once the branch has merged, after checking that nothing in either is uncommitted, and that the clone holds no commit its remote lacks: removing a worktree keeps its commits in the shared repository, and removing a clone does not.",
+    );
+  });
+
+  it("a defect run removes a cancelled worker's clone under the same check", () => {
+    const reference = read(join(SKILLS_TREE, "project-lead", "references", "defect-run.md"));
+    expect(flat(section(reference, "6. Cancelling"))).toContain(
+      "remove its worktree, and any clone it reported moving to, after checking that nothing in either is uncommitted beyond the diagnosis's own reproducing test, and that the clone holds no commit its remote lacks.",
+    );
+  });
+
   it("the lead keeps a moved worker's branch in its clone and its session files in the worktree", () => {
     expect(leadMessages()).toContain(
       "- **A worker's `STATUS: moved`:** its branch lives in the clone the line names from then on, while its session's own files, its restart marker among them, stay in the worktree you made.",
