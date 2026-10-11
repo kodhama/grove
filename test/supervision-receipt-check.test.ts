@@ -1223,7 +1223,7 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
   // Claude Code clears `is_error` when it reads an exit as benign, as for a
   // grep's exit 1, so zsh's error can come back bare and unflagged. Only the
   // first line of such a result is read, and the last two rows pin the two
-  // limits that follows from: a complaint zsh's `[` words as a parse error
+  // limits that come with it: a complaint zsh's `[` words as a parse error
   // loses the credit of a call that carried on, and a parse error that comes
   // after earlier output keeps the credit of the commands it stopped.
   it.each([
