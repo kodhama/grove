@@ -17,8 +17,13 @@
  * its label and fits no form is `malformed`, and comes back with the forms it
  * could have taken. Each label appears exactly once: no such line is
  * `missing`, and two or more are `repeated`, with their count, since two can
- * disagree and a reader takes one. A line's trailing spaces and carriage
- * return are dropped first, since a host can return a body with CRLF endings.
+ * disagree and a reader takes one. A value that opens with `<` is a
+ * placeholder nobody filled in, so `Capture: captured <path>` is malformed
+ * too. A line ends at any break a reader could show as one (a line feed, a
+ * carriage return with or without one, a line or paragraph separator), since
+ * a host can return a body with CRLF endings and a quoted line must never
+ * carry a second line into the report; its trailing spaces are dropped, and
+ * so is a byte-order mark before the first line.
  *
  * Its limits. It reads the text it is given, so it proves the saved file, not
  * the pull request: saving the body unchanged, after its last edit, is the
@@ -54,11 +59,16 @@ const REQUIRED_LINES = [
   },
 ];
 
-/** Whether a line is its label, a colon, one space, a form's words and something after them. */
+/**
+ * Whether a line is its label, a colon, one space, a form's words and a value
+ * after them. A line never ends in a space, so something always follows the
+ * form's words; a value that opens with `<` is a template's placeholder left
+ * unfilled, not a value.
+ */
 function wellFormed(line, { label, forms }) {
   return forms.some(({ starts }) => {
     const opening = `${label}: ${starts}`;
-    return line.startsWith(opening) && line.slice(opening.length).trim() !== "";
+    return line.startsWith(opening) && !line.slice(opening.length).startsWith("<");
   });
 }
 
@@ -69,7 +79,11 @@ function wellFormed(line, { label, forms }) {
  * have taken written out, or `{ label, state: "repeated", count }`.
  */
 export function readBodyLines(text) {
-  const lines = text.split("\n").map((line) => line.trimEnd());
+  // Every break a reader could show as a new line ends one, so a quoted line holds no second line.
+  const lines = text
+    .replace(/^\uFEFF/, "")
+    .split(/\r\n?|\n|\u2028|\u2029/)
+    .map((line) => line.trimEnd());
   return REQUIRED_LINES.map((required) => {
     const { label, forms } = required;
     const labelled = lines.filter((line) => line.startsWith(`${label}:`));

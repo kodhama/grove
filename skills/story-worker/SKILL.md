@@ -273,11 +273,11 @@ for how each of them reviews and re-reviews.
    for Compound Engineering's capture skill). Run the checks on what it writes,
    then commit and push it, so the learning ships in this pull request and
    every reviewer sees it. Write the receipt's `Capture:` line, as
-   `references/receipt.md` gives it, and put the same line in the pull
-   request's body, at the start of a line of its own, with nothing before it:
-   `captured` with the path of what the capture wrote, or `skipped:` with the
-   reason, which is the answer the test above gives for this story. Then mark
-   the pull request ready. Capture does not rerun after the fix pass that
+   `references/receipt.md` gives it: `captured` with the path of what the
+   capture wrote, or `skipped:` with the reason, which is the answer the test
+   above gives for this story. Put it in the pull request's body too, as a
+   line of its own with nothing before it: the label, its colon, one space,
+   then the value, all on one line. Then mark the pull request ready. Capture does not rerun after the fix pass that
    follows a ready-time first review, unless that pass itself produced a lesson
    that meets the same test; then it runs once more and ships in that pass's
    push, and the `Capture:` line is brought up to date in both places. Check
@@ -313,8 +313,10 @@ acceptance; never call it complete or merged.
   beside your bindings file, unchanged and after your last edit to it, with
   the repo host's own tool, and add `--pr-body "<that file>"`. The check reads
   that file, never the host, and fails a body that lacks a line the receipt
-  requires of it, or holds one malformed or twice. A blocked hand-back leaves
-  `--pr-body` out, and the check's output then says the body was not checked.
+  requires of it, or holds one malformed or twice. When it does, fix the body,
+  save it again and rerun the check until it passes, before you hand back. A
+  blocked hand-back leaves `--pr-body` out, and the check's output then says
+  the body was not checked.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.

@@ -361,7 +361,7 @@ function bodyLines(body, skill) {
       case "found":
         return `${start} found "${row.line}"`;
       case "malformed":
-        return `${start} malformed "${row.line}": write ${row.accepts.map((form) => `"${form}"`).join(" or ")}`;
+        return `${start} malformed "${row.line}": write ${row.accepts.map((form) => `"${form}"`).join(" or ")}, with one space after the colon and the value filled in`;
       case "repeated":
         return `${start} repeated "${row.label}:": ${row.count} lines start with it, keep one`;
       default:

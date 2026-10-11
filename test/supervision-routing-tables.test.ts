@@ -736,6 +736,23 @@ describe("GRO-21 · the Capture line's text", () => {
     expect(field).toContain("pull request's body");
   });
 
+  it("step 7 gives the body's line its shape: one line, the label, one space, the value", () => {
+    expect(step7()).toContain("the label, its colon, one space, then the value, all on one line");
+    expect(step7()).toContain("with nothing before it");
+  });
+
+  it("step 8 has the worker fix a failing body and check again before handing back", () => {
+    expect(step8()).toContain("save it again and rerun the check until it passes, before you hand back");
+    expect(step8()).toContain("unchanged and after your last edit to it");
+  });
+
+  it("the lead's claims check passes only a pasted check that shows both of the body's lines found", () => {
+    const lead = oneLine(section(read(LEAD), "7. A hand-back"));
+    expect(lead).toContain("does not show both of the body's lines as `found`");
+    expect(lead).toContain("says the body was not checked");
+    expect(lead).toContain("read the receipt's lines yourself");
+  });
+
   it("the receipt's Receipt check field names --pr-body", () => {
     expect(receiptField("Receipt check")).toContain("--pr-body");
   });

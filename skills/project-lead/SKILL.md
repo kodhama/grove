@@ -287,8 +287,9 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
    `Docs:` line, each with a value, and the pull request's body carries the
    same two: the receipt check reads the body it was given, never the receipt
    its output is pasted into, so read the receipt's lines yourself. A
-   hand-back missing either line, or whose pasted check says the body was not
-   checked, goes back to the worker.
+   hand-back missing either line, or whose pasted check does not show both of
+   the body's lines as `found`, as when it says the body was not checked, goes
+   back to the worker.
 2. **Accept on the evidence.** Check the story's acceptance, taken from its
    source. The receipt must show a review from a context other than the
    author's, such as a fresh-context subagent the worker started, and say

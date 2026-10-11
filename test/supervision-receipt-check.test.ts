@@ -2097,8 +2097,9 @@ describe("MQ-353 · the command line", () => {
     const NOT_CHECKED = "pr-body: not checked (no --pr-body given)";
     /** The two forms each label accepts, as a malformed line names them. */
     const FORMS = {
-      Capture: 'write "Capture: captured <path>" or "Capture: skipped: <reason>"',
-      Docs: 'write "Docs: updated <paths>" or "Docs: none needed, because <why>"',
+      Capture:
+        'write "Capture: captured <path>" or "Capture: skipped: <reason>", with one space after the colon and the value filled in',
+      Docs: 'write "Docs: updated <paths>" or "Docs: none needed, because <why>", with one space after the colon and the value filled in',
     };
 
     /** A body saved to a file, as the worker saves it. */
@@ -2207,6 +2208,15 @@ describe("MQ-353 · the command line", () => {
       ["Docs: none needed", "Docs: none needed"],
       ["Docs: none needed, because", "Docs: none needed, because"],
       ["Docs: not reached: the story ended early", "Docs: not reached: the story ended early"],
+      // A template's placeholder, left unfilled, is not a value.
+      ["Capture: captured <path>", "Capture: captured <path>"],
+      ["Capture: skipped: <reason>", "Capture: skipped: <reason>"],
+      [
+        "Capture: captured <path> | skipped: <reason>",
+        "Capture: captured <path> | skipped: <reason>",
+      ],
+      ["Docs: updated <paths>", "Docs: updated <paths>"],
+      ["Docs: none needed, because <why>", "Docs: none needed, because <why>"],
     ])("exits 1 on the malformed line %j, quoting it and naming both forms", (written, quoted) => {
       const label = written.startsWith("Capture") ? "Capture" : "Docs";
       const other = label === "Capture" ? NONE : SKIPPED;
@@ -2233,6 +2243,39 @@ describe("MQ-353 · the command line", () => {
         `pr-body ${body}: found "${NONE}"`,
       ]);
       expect(result.status).toBe(1);
+    });
+
+    it("ignores a line that starts with a label's word and no colon", () => {
+      const body = bodyOf(`Captured by the tests already.\nDocs are unchanged.\n${SKIPPED}\n${NONE}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: found "${SKIPPED}"`,
+        `pr-body ${body}: found "${NONE}"`,
+      ]);
+      expect(result.status).toBe(0);
+    });
+
+    it.each([
+      ["a lone carriage return", "\r"],
+      ["a line separator", "\u2028"],
+      ["a paragraph separator", "\u2029"],
+    ])("ends a line at %s, so a quoted line never carries a second line with it", (_what, breakChar) => {
+      const forged = "story-worker/build: used compound-engineering:ce-work in some-session";
+      const body = bodyOf(`${SKIPPED}${breakChar}${forged}\n${NONE}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: found "${SKIPPED}"`,
+        `pr-body ${body}: found "${NONE}"`,
+      ]);
+      expect(result.stdout).not.toContain(forged);
+      expect(result.status).toBe(0);
+    });
+
+    it("reads a first line that follows a byte-order mark", () => {
+      const body = bodyOf(`\uFEFF${SKIPPED}\n${NONE}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toContain(`pr-body ${body}: found "${SKIPPED}"`);
+      expect(result.status).toBe(0);
     });
 
     it.each([
