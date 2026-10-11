@@ -45,8 +45,10 @@ again whenever a step needs one, because they can change during a story.
   rewrites your branch or worktree, such as a reset or a rebase, redo the
   work in a fresh clone of your own instead: bring in your unpushed commits
   from the worktree, keep to the rules above, and push from there when the
-  story's steps reach a push. That clone is your worktree from then on. Tell
-  your lead at once, with a `STATUS: refused` line.
+  story's steps reach a push. Work on the branch in that clone from then on;
+  your session's own files, such as its bindings and any restart marker, stay
+  where the session started. Tell your lead at once, with a `STATUS: refused`
+  line, for any refused command.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
@@ -351,7 +353,7 @@ Each message to your lead is one line, in one of two shapes:
 
 ```text
 <story id> DECISION: <question> · Options: <a>; <b> · Recommendation: <choice and why> · Blocked: <what waits>
-<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / refused <exact command>; working on in <clone path> / blocked: <reason>
+<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / refused <exact command>[; working on in <clone path>] / blocked: <reason>
 ```
 
 Ask your lead only about product, design and architecture choices, a new

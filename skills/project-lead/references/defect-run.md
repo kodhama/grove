@@ -143,8 +143,9 @@ maintainer as above.
 
 Once a defect with a worker is cancelled, end that worker as step 7 of `SKILL.md` does after
 a merge: close the worker's session, or ask the maintainer to where your
-harness refuses the close, and remove its worktree after checking that nothing
-in it is uncommitted beyond the diagnosis's own reproducing test.
+harness refuses the close, and remove its worktree, and any clone it reported
+moving to, after checking that nothing in either is uncommitted beyond the
+diagnosis's own reproducing test.
 
 ## 7. Merging
 

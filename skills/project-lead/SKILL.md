@@ -216,8 +216,9 @@ report lists every pane it skipped and why.
   each ruling once, on the work item of the story that needs it, and tell every
   live worker the ruling affects.
 - **A worker's `STATUS: refused`:** give the maintainer the exact command it
-  names, as you would your own, and take the clone it names as that worker's
-  worktree from then on.
+  names, as you would your own. Where it names a clone, that worker's branch
+  lives there from then on, while its session's own files, its restart marker
+  among them, stay in the worktree you made.
 - **A worker's `STATUS: restarting`:** send that worker nothing while its
   restart is pending. Keep what you had for it as live state, and write it
   into the handoff's live commitments when `write-handoff` runs. An in-place
@@ -321,8 +322,8 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
    than that head. Merge as the repo's rules say, pinned to that head so a
    later push cannot slip in. Then close the worker's session, or ask the
    maintainer to do so where your harness refuses the close. Remove its
-   worktree once the branch has merged, after checking that nothing in it is
-   uncommitted.
+   worktree, and any clone it reported moving to, once the branch has merged,
+   after checking that nothing in either is uncommitted.
 
 **A `restart-owner: lead` handoff** means the worker cannot launch its own
 successor. Launch it through `start-worker` from the handoff's launch line:
