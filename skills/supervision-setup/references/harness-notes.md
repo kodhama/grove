@@ -154,13 +154,34 @@ on Claude Code 2.1.296, 2026-10-10), or `(eval):2: closing brace expected`
 for an unclosed `${` (zsh 5.9, 2026-10-11). Usually nothing in the line ran,
 but zsh parses a `$(...)` or backtick substitution only when it reaches it,
 so the commands before one that will not parse have run: such a call loses
-its credit, the safe direction. Where Claude Code reads the exit as benign, as for a `grep`
-that exits 1, it leaves `is_error` off and the result is the bare error,
-which the check reads the same way (observed on 2.1.296, 2026-10-11). Bash's own `bash: eval: line N: syntax error` is
-read the same way but was not observed, though bash's `eval` runs the
-complete lines before its error, so a call read that way may have run some.
-A nested shell's error, such as `bash: -c: line 1: syntax error`, or a tool's
-own, such as `rg: regex parse error`, still counts: the line ran.
+its credit, the safe direction. Bash's own `bash: eval: line N: syntax
+error` is read the same way, with or without the path bash was started by
+(`/bin/bash: eval: ...`). That wording was read from a real `/bin/bash`
+3.2.57 (2026-10-11), not from a Claude Code session on bash, which was not
+observed. Bash's `eval` runs the complete lines before its error, so a call
+read that way may have run some. A nested shell's error, such as `bash: -c:
+line 1: syntax error` or `/bin/bash: -c: ...`, or a tool's own, such as `rg:
+regex parse error`, still counts: the line ran.
+
+Three more calls lose a credit they earned, since the check cannot tell
+their line from the shell's own: one whose nested `eval` or `zsh -c` printed
+the same `(eval):N:` prefix, one whose command printed such a line itself,
+and one where zsh's `[` or `test` worded a runtime complaint that way
+(`(eval):1: parse error: condition expected: =`) and the call carried on
+(zsh 5.9, 2026-10-11).
+
+Where Claude Code reads the exit as benign, as for a `grep` that exits 1, it
+leaves `is_error` off and the result is the bare error, which the check reads
+the same way when the result starts with it (observed on 2.1.296,
+2026-10-11). It reads only the first line of an unflagged result, which
+leaves one known false credit: `echo a; grep x f $(if)` prints `a`, stops at
+the substitution and exits 1 with the flag off, and `grep` is counted though
+it never ran (observed on 2.1.296, 2026-10-11). Reading every line was not
+worth it. In the local transcripts read that day, the only real calls that
+showed the error on a later line of an unflagged result, two of them, had
+carried on: an unquoted here-document held a backtick span zsh could not
+parse, so zsh skipped that one command and ran the ones after it. Both
+would have lost the credit their other commands earned.
 
 **Starting a cloud session.** `claude --cloud "<prompt>"` needs an interactive
 terminal. From the Bash tool it fails with `Error: --cloud requires an
@@ -230,7 +251,8 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   command item (observed on codex-cli 0.154.0, 2026-09-17). zsh's `zsh:2:
   closing brace expected`, for an unclosed `${`, is read the same way. The
   receipt check does not credit the call. Usually nothing in it ran, but
-  the commands before a `$(...)` that will not parse have, as on Claude Code.
+  the commands before a `$(...)` that will not parse have, as on Claude Code
+  (both read from `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
   records `spawn_agent` in namespace `collaboration` as
   `collaboration.spawn_agent`, and the receipt check reads the call under that

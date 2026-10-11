@@ -31,8 +31,8 @@
  * result that starts `Exit code N` still `ran`, since the command ran and
  * only exited non-zero, unless N is 126 or 127, when the shell could not run
  * it, or a line of the result starts with the shell's own parse error, when
- * it ran none of the line (`shell-uses.mjs`); a nested shell's or a tool's
- * own error keeps the credit. A call with no result yet, such as the last
+ * it did not run the line, or not all of it (`shell-uses.mjs` names the
+ * limits); a nested shell's or a tool's own error keeps the credit. A call with no result yet, such as the last
  * one in a live transcript, is `pending`. Every use of one call shares that
  * call's outcome, which gives two known limits. In `cd x && herdr …` a
  * failed `cd` still credits herdr, since the line is split but the result
@@ -217,17 +217,23 @@ function resultText(content) {
  * result yet, `ran` without `is_error: true`, and `failed` with it, except a
  * `Bash` call whose result starts `Exit code N`: its command ran and exited
  * non-zero, so it `ran`, unless N is 126 or 127 (the shell could not run it)
- * or a line of the result starts with the shell's own parse error (it ran
- * none of the line). A result without `is_error` that starts with that error
- * `failed` too: Claude Code leaves the flag off when it reads the exit as
- * benign.
+ * or a line of the result starts with the shell's own parse error (it did
+ * not run the line, or not all of it). A result without `is_error` that
+ * starts with that error `failed` too: Claude Code leaves the flag off when
+ * it reads the exit as benign.
  */
 function claudeOutcome(call, result) {
   if (!result) return "pending";
   const text = call.name === "Bash" ? resultText(result.content) : "";
   // Claude Code clears `is_error` when it reads an exit as benign, as for a
   // grep's exit 1, so the shell's parse error can come back bare: then the
-  // whole result starts with it.
+  // whole result starts with it. Only that first line is read. Where nothing
+  // ran, the error is all there is; on a later line it follows the output of
+  // commands that ran, and in a result Claude Code read as a success the call
+  // has mostly carried on past it, so reading every line would take credit
+  // from calls that ran. The cost is a known limit in the unsafe direction:
+  // `echo a; grep x f $(if)` stops at the `$(...)`, exits 1 with the flag
+  // off, and grep keeps a credit it did not earn.
   if (result.is_error !== true) return PARSE_ERROR_FIRST.test(text) ? "failed" : "ran";
   const exit = EXIT_CODE.exec(text);
   const ran =

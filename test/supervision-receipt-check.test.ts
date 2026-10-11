@@ -1174,10 +1174,12 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
 
   it.each([
     ["zsh's parse error", "failed", "Exit code 1\n(eval):5: parse error near `\\n'"],
-    ["bash's syntax error", "failed", "Exit code 2\nbash: eval: line 11: syntax error: unexpected end of file"],
+    ["bash's syntax error", "failed", "Exit code 1\nbash: eval: line 11: syntax error: unexpected end of file"],
+    ["the syntax error of a bash started by path", "failed", "Exit code 1\n/bin/bash: eval: line 1: syntax error: unexpected end of file"],
     ["zsh's unmatched quote", "failed", 'Exit code 1\n(eval):1: unmatched "'],
     ["zsh's unclosed brace", "failed", "Exit code 1\n(eval):2: closing brace expected"],
     ["a nested bash's syntax error", "ran", "Exit code 2\nbash: -c: line 1: syntax error near unexpected token `)'"],
+    ["the syntax error of a nested bash started by path", "ran", "Exit code 2\n/bin/bash: -c: line 1: syntax error: unexpected end of file"],
     ["a tool's own parse error", "ran", "Exit code 2\nrg: regex parse error:\n    (?:a\n    ^\nerror: unclosed group"],
     ["a parse error not at a line's start", "ran", "Exit code 1\nlog: (eval):5: parse error"],
   ])("reads a Bash call whose result shows %s as %s", (_what, outcome, text) => {
@@ -1191,13 +1193,45 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     expect(outcomes).toEqual([outcome]);
   });
 
+  // The strings above are typed by hand; these come from a real bash, whose
+  // error names it by the path it was started with and whose exit code and
+  // wording differ by version. `eval` is how Claude Code runs a call's line.
+  it.each([
+    ["an unclosed `if`", "failed", ["-c", "eval 'herdr agent list\nif true; then'"]],
+    ["an unclosed quote", "failed", ["-c", `eval 'herdr agent list "x'`]],
+    ["an unclosed `if` in a nested shell", "ran", ["-c", "if true; then"]],
+  ])("reads what a real /bin/bash prints for %s as %s", (_what, outcome, args) => {
+    const shell = spawnSync("/bin/bash", args, { encoding: "utf8", env: { PATH: "/nonexistent" } });
+    const text = `Exit code ${shell.status}\n${shell.stdout}${shell.stderr}`;
+    expect(shell.status, text).toBeGreaterThan(0);
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-real-bash-"));
+    const call = { type: "tool_use", name: "Bash", input: { command: "herdr agent list" } };
+    const file = bindingsOfCalls(dir, [call, { content: text, is_error: true }]);
+    const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
+    rmSync(dir, { recursive: true });
+    expect(outcomes, text).toEqual([outcome]);
+  });
+
+  it("reads a result as a shell's only for a Bash call", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-parse-tool-"));
+    const file = bindingsOfCalls(dir, [SEND, { content: "(eval):1: parse error near `)'" }]);
+    const outcomes = outcomesOf(file.transcripts, "tool", "SendMessage");
+    rmSync(dir, { recursive: true });
+    expect(outcomes).toEqual(["ran"]);
+  });
+
   // Claude Code clears `is_error` when it reads an exit as benign, as for a
-  // grep's exit 1, so zsh's error can come back bare and unflagged.
+  // grep's exit 1, so zsh's error can come back bare and unflagged. Only the
+  // first line of such a result is read, and the last two rows pin the two
+  // limits that follows from: a complaint zsh's `[` words as a parse error
+  // loses the credit of a call that carried on, and a parse error that comes
+  // after earlier output keeps the credit of the commands it stopped.
   it.each([
     ["starts with zsh's unmatched quote", "failed", '(eval):1: unmatched "'],
     ["starts with zsh's unclosed brace", "failed", "(eval):2: closing brace expected"],
     ["starts with zsh's parse error", "failed", "(eval):5: parse error near `\\n'"],
-    ["only mentions one on a later line", "ran", "ok\n(eval):1: parse error near `x'"],
+    ["starts with a complaint from zsh's `[`", "failed", "(eval):1: parse error: condition expected: =\nok"],
+    ["shows one only on a later line", "ran", "ok\n(eval):1: parse error near `x'"],
   ])("reads an unflagged Bash result that %s as %s", (_what, outcome, text) => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-parse-bare-"));
     const call = { type: "tool_use", name: "Bash", input: { command: 'herdr agent list "x' } };
