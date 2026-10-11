@@ -1189,6 +1189,21 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     expect(state).toBe(outcome === "ran" ? "used" : "attempted-failed");
     expect(outcomes).toEqual([outcome]);
   });
+
+  // Claude Code clears `is_error` when it reads an exit as benign, as for a
+  // grep's exit 1, so zsh's error can come back bare and unflagged.
+  it.each([
+    ["starts with zsh's unmatched quote", "failed", '(eval):1: unmatched "'],
+    ["starts with zsh's parse error", "failed", "(eval):5: parse error near `\\n'"],
+    ["only mentions one on a later line", "ran", "ok\n(eval):1: parse error near `x'"],
+  ])("reads an unflagged Bash result that %s as %s", (_what, outcome, text) => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-parse-bare-"));
+    const call = { type: "tool_use", name: "Bash", input: { command: 'herdr agent list "x' } };
+    const file = bindingsOfCalls(dir, [call, { content: text }]);
+    const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
+    rmSync(dir, { recursive: true });
+    expect(outcomes).toEqual([outcome]);
+  });
 });
 
 describe("MQ-377 · a Codex call counts only when it ran", () => {
@@ -1260,6 +1275,8 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
     ["zsh's parse error in stdout", "failed", 1, { stdout: "zsh:1: parse error near `)'\n" }],
     ["zsh's parse error in stderr", "failed", 1, { stderr: "zsh:1: parse error near `)'" }],
     ["zsh's unmatched quote", "failed", 1, { stdout: 'zsh:1: unmatched "\n' }],
+    ["zsh's parse error after another line", "failed", 1, { stdout: "warning: x\nzsh:1: parse error near `)'\n" }],
+    ["zsh's parse error not at a line's start", "ran", 1, { stdout: "log: zsh:1: parse error near `)'\n" }],
     ["a tool's own parse error", "ran", 2, { stdout: "rg: regex parse error:\n    (?:a\nerror: unclosed group" }],
   ])("reads a failed CommandExecution whose output shows %s as %s", (_what, outcome, exitCode, output) => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-parse-"));

@@ -50,9 +50,10 @@ export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
  * line 11: syntax error`), and Codex runs it with `zsh -lc` (`zsh:1: parse
  * error`, `zsh:1: unmatched "`). A nested shell's or a script's own
  * error (`bash: -c: line 1: syntax error`) names another source, so it does
- * not match and its call keeps its credit. Two limits lose credit, the safe
+ * not match and its call keeps its credit. Three limits lose credit, the safe
  * direction: bash's `eval` runs the complete lines before its error, which
- * zsh's does not, and a nested `eval` or `zsh -c` prints the same prefix.
+ * zsh's does not; a nested `eval` or `zsh -c` prints the same prefix; and so
+ * may a command that ran and printed such a line itself.
  */
 export const SHELL_COULD_NOT_PARSE = {
   claude: /^(?:\(eval\):\d+: (?:parse error|unmatched )|bash: eval: line \d+: syntax error)/m,

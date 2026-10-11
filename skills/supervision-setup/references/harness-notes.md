@@ -151,7 +151,9 @@ command the shell could not parse ran not at all, whatever N is: its result
 reads `Exit code 1` then a line starting with zsh's own `(eval):1: parse
 error near ...`, or `(eval):1: unmatched "` for an unclosed quote, and the
 receipt check does not count it (observed on Claude Code 2.1.296,
-2026-10-10). Bash's own `bash: eval: line N: syntax error` is
+2026-10-10). Where Claude Code reads the exit as benign, as for a `grep`
+that exits 1, it leaves `is_error` off and the result is the bare error,
+which the check reads the same way (observed on 2.1.296, 2026-10-11). Bash's own `bash: eval: line N: syntax error` is
 read the same way but was not observed, though bash's `eval` runs the
 complete lines before its error, so a call read that way may have run some.
 A nested shell's error, such as `bash: -c: line 1: syntax error`, or a tool's

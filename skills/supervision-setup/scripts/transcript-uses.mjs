@@ -82,6 +82,8 @@ import process from "node:process";
 import { codexChildren, codexUses, ROLLOUT_NAME, timeOf } from "./codex-uses.mjs";
 import { SHELL_COULD_NOT_PARSE, SHELL_COULD_NOT_RUN, shellUses } from "./shell-uses.mjs";
 
+/** The shell's own parse error as the first thing a `Bash` result holds. */
+const PARSE_ERROR_FIRST = new RegExp(SHELL_COULD_NOT_PARSE.claude.source);
 /** The type the Agent tool starts when a call names none. */
 const DEFAULT_AGENT = "general-purpose";
 /**
@@ -216,12 +218,17 @@ function resultText(content) {
  * `Bash` call whose result starts `Exit code N`: its command ran and exited
  * non-zero, so it `ran`, unless N is 126 or 127 (the shell could not run it)
  * or a line of the result starts with the shell's own parse error (it ran
- * none of the line).
+ * none of the line). A result without `is_error` that starts with that error
+ * `failed` too: Claude Code leaves the flag off when it reads the exit as
+ * benign.
  */
 function claudeOutcome(call, result) {
   if (!result) return "pending";
-  if (result.is_error !== true) return "ran";
   const text = call.name === "Bash" ? resultText(result.content) : "";
+  // Claude Code clears `is_error` when it reads an exit as benign, as for a
+  // grep's exit 1, so the shell's parse error can come back bare: then the
+  // whole result starts with it.
+  if (result.is_error !== true) return PARSE_ERROR_FIRST.test(text) ? "failed" : "ran";
   const exit = EXIT_CODE.exec(text);
   const ran =
     exit && !SHELL_COULD_NOT_RUN.has(Number(exit[1])) && !SHELL_COULD_NOT_PARSE.claude.test(text);
