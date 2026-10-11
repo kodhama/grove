@@ -16,7 +16,11 @@
  * lines carry, so a line reading `attempted-failed` or any other state never
  * does. The section's `transcript <id>: read` and `covered` lines name the
  * sessions it read or itself carried, and a used line placed in a subagent
- * names that subagent as read too. Lines outside that section never count.
+ * names that subagent as read too. Its `since <time>: calls before it are
+ * not counted` line, which the check prints when run with `--since`, gives
+ * the story start the section was scoped to, so a check for another story
+ * can tell its carried uses are not its own. Lines outside that section
+ * never count.
  *
  * Plan: docs/plans/2026-09-25-0105-feat-supervision-operating-model-plan.md,
  * U8 and KTD12; the whole place, MQ-377:
@@ -41,6 +45,9 @@ const USED_LINE = new RegExp(
   String.raw`^(\S+\/\S+): used (?:\(shared\): )?(\S+) in ([^\s;]+.*?)(?: ${CARRIED_TEXT})?(?:; also bound to .*)?$`,
 );
 
+/** The line the check prints for its `--since`; group 1 is the time as given. */
+const SINCE_LINE = /^since (\S+): calls before it are not counted$/;
+
 /** The keys a section's lines match: each line's first group, for lines that match. */
 function keysMatching(lines, pattern) {
   return new Set(lines.flatMap((line) => pattern.exec(line)?.slice(1, 2) ?? []));
@@ -49,8 +56,10 @@ function keysMatching(lines, pattern) {
 /**
  * What a handoff's receipt-check section carries: each operation it reports
  * used, by `table/op` key, with the performer, the session it was used in and
- * the whole place; and the session ids of the transcripts it read or itself
- * carried.
+ * the whole place; the session ids of the transcripts it read or itself
+ * carried; and its `--since` as written, or null when it ran without one,
+ * or, where the section holds more than one, all of them joined, which reads
+ * as no time.
  */
 export function readHandoff(path) {
   const lines = readFileSync(path, "utf8").split("\n");
@@ -72,5 +81,9 @@ export function readHandoff(path) {
   // The report gives no transcript line for a child thread it read, so a
   // used line placed in one is what shows it was read.
   for (const { child } of used.values()) if (child) covered.add(child);
-  return { used, covered };
+  // Two since lines name no one story: joined, they read as no time, so they
+  // match no `--since` and carry nothing.
+  const sinces = section.flatMap((line) => SINCE_LINE.exec(line.trimEnd())?.slice(1, 2) ?? []);
+  const since = sinces.length > 0 ? sinces.join(" and ") : null;
+  return { used, covered, since };
 }
