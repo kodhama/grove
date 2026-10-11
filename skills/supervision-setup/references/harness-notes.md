@@ -194,6 +194,11 @@ made of its line: its result is the notice that it started, and a parse
 error goes only to the output file the notice names (observed on 2.1.296,
 2026-10-11).
 
+One wording is not read yet. zsh prints some parse errors with no line
+number, as ``(eval): parse error near `()'`` for a `name()` followed by
+more on the same line, and runs nothing; the check looks for the number, so
+that call keeps its credit (zsh 5.9, 2026-10-11).
+
 **Starting a cloud session.** `claude --cloud "<prompt>"` needs an interactive
 terminal. From the Bash tool it fails with `Error: --cloud requires an
 interactive terminal.` It works when typed into a terminal pane, such as
@@ -264,8 +269,16 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   expected: a`, for a malformed `[[`, are read the same way. The receipt
   check does not credit the call. Usually nothing in it ran, but the
   commands before a `$(...)` that will not parse have, as on Claude Code
-  (these three read from `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex
-  rollout).
+  (the last two wordings and the `$(...)` case were read from `zsh -c` on
+  zsh 5.9, 2026-10-11, not from a Codex rollout). Two cases are still
+  credited today. Where zsh could not parse part of a line and the line
+  still exited 0, the item is `completed`, and the check counts a
+  `completed` item without reading its output: an `rg ... | head -80` came
+  back `completed` with `exit_code` 0 and a `stdout` starting `zsh:1:
+  unmatched "`, and `rg` is counted though it never ran (observed on
+  codex-cli 0.155.1, 2026-09-27). And zsh prints some parse errors with no
+  line number, as ``zsh: parse error near `()'``, which the check does not
+  read (zsh 5.9, 2026-10-11, not from a Codex rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
   records `spawn_agent` in namespace `collaboration` as
   `collaboration.spawn_agent`, and the receipt check reads the call under that
