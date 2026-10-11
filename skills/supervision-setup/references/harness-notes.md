@@ -147,11 +147,14 @@ and the receipt check does not count it as a use. A Bash command that exits
 non-zero also gets `is_error` set to true, with text starting `Exit code N`,
 but the command ran, so it counts, unless N is 126 or 127: the shell could not
 run the command (observed 2026-10-04; the version was not recorded). A
-command the shell could not parse ran not at all, whatever N is: its result
+command the shell could not parse is not counted, whatever N is: its result
 reads `Exit code 1` then a line starting with zsh's own `(eval):1: parse
-error near ...`, or `(eval):1: unmatched "` for an unclosed quote, and the
-receipt check does not count it (observed on Claude Code 2.1.296,
-2026-10-10). Where Claude Code reads the exit as benign, as for a `grep`
+error near ...`, or `(eval):1: unmatched "` for an unclosed quote (observed
+on Claude Code 2.1.296, 2026-10-10), or `(eval):2: closing brace expected`
+for an unclosed `${` (zsh 5.9, 2026-10-11). Usually nothing in the line ran,
+but zsh parses a `$(...)` or backtick substitution only when it reaches it,
+so the commands before one that will not parse have run: such a call loses
+its credit, the safe direction. Where Claude Code reads the exit as benign, as for a `grep`
 that exits 1, it leaves `is_error` off and the result is the bare error,
 which the check reads the same way (observed on 2.1.296, 2026-10-11). Bash's own `bash: eval: line N: syntax error` is
 read the same way but was not observed, though bash's `eval` runs the
@@ -224,8 +227,10 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   `status: "failed"` and `exit_code` 1, whose `stdout` holds zsh's own
   `zsh:1: parse error near ...` or, for an unclosed quote, `zsh:1: unmatched
   "`; its `stderr` is empty, as it is on every
-  command item. Nothing in the line ran, so the receipt check does not credit
-  it (observed on codex-cli 0.154.0, 2026-09-17).
+  command item (observed on codex-cli 0.154.0, 2026-09-17). zsh's `zsh:2:
+  closing brace expected`, for an unclosed `${`, is read the same way. The
+  receipt check does not credit the call. Usually nothing in it ran, but
+  the commands before a `$(...)` that will not parse have, as on Claude Code.
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
   records `spawn_agent` in namespace `collaboration` as
   `collaboration.spawn_agent`, and the receipt check reads the call under that

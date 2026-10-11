@@ -43,21 +43,24 @@ import { basename } from "node:path";
 /** Exit codes from a shell that could not run the command: not executable, not found. */
 export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
 /**
- * A line the top-level shell starts its own parse error with, so nothing in
- * the line ran, whatever the exit code: Claude Code's `Bash` evaluates the
- * line in zsh (`(eval):5: parse error`, or `(eval):1: unmatched "` for an
- * unclosed quote) or, by its form though not yet observed, bash (`bash: eval:
- * line 11: syntax error`), and Codex runs it with `zsh -lc` (`zsh:1: parse
- * error`, `zsh:1: unmatched "`). A nested shell's or a script's own
- * error (`bash: -c: line 1: syntax error`) names another source, so it does
- * not match and its call keeps its credit. Three limits lose credit, the safe
- * direction: bash's `eval` runs the complete lines before its error, which
- * zsh's does not; a nested `eval` or `zsh -c` prints the same prefix; and so
- * may a command that ran and printed such a line itself.
+ * A line the top-level shell starts its own parse error with, whatever the
+ * exit code, so the call is read as not run: Claude Code's `Bash` evaluates
+ * the line in zsh (`(eval):5: parse error`, `(eval):1: unmatched "` for an
+ * unclosed quote, `(eval):2: closing brace expected` for an unclosed `${`)
+ * or, by its form though not yet observed, bash (`bash: eval: line 11: syntax
+ * error`), and Codex runs it with `zsh -lc` (`zsh:1: parse error`, `zsh:1:
+ * unmatched "`, `zsh:2: closing brace expected`). A nested shell's or a
+ * script's own error (`bash: -c: line 1: syntax error`) names another source,
+ * so it does not match and its call keeps its credit. Four limits lose
+ * credit, the safe direction: bash's `eval` runs the complete lines before its
+ * error; zsh parses a `$(...)` or backtick substitution only when it reaches
+ * it, so the commands before one that will not parse have run; a nested
+ * `eval` or `zsh -c` prints the same prefix; and so may a command that ran
+ * and printed such a line itself.
  */
 export const SHELL_COULD_NOT_PARSE = {
-  claude: /^(?:\(eval\):\d+: (?:parse error|unmatched )|bash: eval: line \d+: syntax error)/m,
-  codex: /^zsh:\d+: (?:parse error|unmatched )/m,
+  claude: /^(?:\(eval\):\d+: (?:parse error|unmatched |closing brace expected)|bash: eval: line \d+: syntax error)/m,
+  codex: /^zsh:\d+: (?:parse error|unmatched |closing brace expected)/m,
 };
 /** Commands that run the script named after them. */
 const INTERPRETERS = new Set(["bash", "sh", "zsh", "node", "python", "python3"]);

@@ -1176,6 +1176,7 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     ["zsh's parse error", "failed", "Exit code 1\n(eval):5: parse error near `\\n'"],
     ["bash's syntax error", "failed", "Exit code 2\nbash: eval: line 11: syntax error: unexpected end of file"],
     ["zsh's unmatched quote", "failed", 'Exit code 1\n(eval):1: unmatched "'],
+    ["zsh's unclosed brace", "failed", "Exit code 1\n(eval):2: closing brace expected"],
     ["a nested bash's syntax error", "ran", "Exit code 2\nbash: -c: line 1: syntax error near unexpected token `)'"],
     ["a tool's own parse error", "ran", "Exit code 2\nrg: regex parse error:\n    (?:a\n    ^\nerror: unclosed group"],
     ["a parse error not at a line's start", "ran", "Exit code 1\nlog: (eval):5: parse error"],
@@ -1194,6 +1195,7 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
   // grep's exit 1, so zsh's error can come back bare and unflagged.
   it.each([
     ["starts with zsh's unmatched quote", "failed", '(eval):1: unmatched "'],
+    ["starts with zsh's unclosed brace", "failed", "(eval):2: closing brace expected"],
     ["starts with zsh's parse error", "failed", "(eval):5: parse error near `\\n'"],
     ["only mentions one on a later line", "ran", "ok\n(eval):1: parse error near `x'"],
   ])("reads an unflagged Bash result that %s as %s", (_what, outcome, text) => {
@@ -1275,6 +1277,7 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
     ["zsh's parse error in stdout", "failed", 1, { stdout: "zsh:1: parse error near `)'\n" }],
     ["zsh's parse error in stderr", "failed", 1, { stderr: "zsh:1: parse error near `)'" }],
     ["zsh's unmatched quote", "failed", 1, { stdout: 'zsh:1: unmatched "\n' }],
+    ["zsh's unclosed brace", "failed", 1, { stdout: "zsh:2: closing brace expected\n" }],
     ["zsh's parse error after another line", "failed", 1, { stdout: "warning: x\nzsh:1: parse error near `)'\n" }],
     ["zsh's parse error not at a line's start", "ran", 1, { stdout: "log: zsh:1: parse error near `)'\n" }],
     ["a tool's own parse error", "ran", 2, { stdout: "rg: regex parse error:\n    (?:a\nerror: unclosed group" }],
