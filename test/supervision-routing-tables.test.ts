@@ -508,6 +508,39 @@ describe("MQ-348 · routing overrides (R37)", () => {
   });
 });
 
+/**
+ * GRO-30 — a performer takes its repository from the directory its shell
+ * starts in, and that is the directory the session started in, not always the
+ * story's checkout. The helpers these tests call are declared below, and run
+ * only inside each test.
+ */
+describe("GRO-30 · a performer is given the story's checkout", () => {
+  /** Text with every run of whitespace collapsed to one space. */
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+
+  it("the bindings paragraph gives every performer that reads a repository the story's checkout", () => {
+    // Everything above the first `## ` heading: the skill's opening paragraphs.
+    const opening = flat(read(WORKER).split("\n## ")[0] ?? "");
+    expect(opening).toContain(
+      "Give every performer that reads a repository the story's checkout, by its full path or by the story's pull request: a performer's shell, and the shell of a subagent you start, can begin in the directory your session started in, which is not always the story's checkout.",
+    );
+  });
+
+  it("step 5 has the worker check the commit a review read, and discard a review that read another checkout", () => {
+    const review = flat(section(read(WORKER), "5. Review"));
+    expect(review).toContain(
+      "- **Check what it read.** Ask the reviewer for the commit it read. If that is not your head as it stood when you started the review, it read another checkout: discard its findings and run it again.",
+    );
+    // It sits with the other rules for pointing a reviewer, after the one that gives it the checkout.
+    expect(review.indexOf("**Check what it read.**")).toBeGreaterThan(
+      review.indexOf("**Give it the checkout when the diff reaches outside itself.**"),
+    );
+    expect(review.indexOf("**Check what it read.**")).toBeLessThan(
+      review.indexOf("**Ask for findings with evidence, not patches.**"),
+    );
+  });
+});
+
 /** One `## ` section of a Markdown file, from its heading to the next. */
 function section(text: string, heading: string): string {
   const start = text.indexOf(`\n## ${heading}\n`);
