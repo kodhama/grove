@@ -288,7 +288,11 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
    source. The receipt must show a review from a context other than the
    author's, such as a fresh-context subagent the worker started, and say
    whether the shipped revision was reviewed again. "Not reviewed", or the
-   author reviewing in its own context, is not acceptable work.
+   author reviewing in its own context, is not acceptable work. The receipt's
+   `Plan:` line must name the plan the story was built from, by a path that
+   resolves at the pull request's head or on its base branch, or, for a
+   defect, link its diagnosis note: a hand-back whose line is missing, does
+   neither, or says the plan was not reached goes back to the worker.
 3. **Review it again, from fresh context.** Invoke the performer bound to
    `review-before-merge` on the pull request, from a fresh-context subagent
    you start for it: never your own context, and never a fork of it. Ask for
