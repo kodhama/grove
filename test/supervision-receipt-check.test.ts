@@ -209,9 +209,16 @@ const CODEX_CHILD = "01a30000-0000-7000-8000-0000000000e1";
 /**
  * A Codex `CommandExecution` record running this shell line, with no
  * `exit_code` when it is null; with `skill`, its `parsed_cmd` reads that
- * skill's SKILL.md.
+ * skill's SKILL.md; with `output`, it carries that `stdout` and `stderr`, each
+ * "" when not given, as a real rollout does.
  */
-function commandRecord(line: string, status: string, exitCode: number | null, skill?: string) {
+function commandRecord(
+  line: string,
+  status: string,
+  exitCode: number | null,
+  skill?: string,
+  output?: { stdout?: string; stderr?: string },
+) {
   const part = skill
     ? { type: "read", cmd: line, name: "SKILL.md", path: `/codex/skills/${skill}/SKILL.md` }
     : { type: "unknown", cmd: line };
@@ -222,6 +229,7 @@ function commandRecord(line: string, status: string, exitCode: number | null, sk
     parsed_cmd: [part],
     status,
     ...(exitCode === null ? {} : { exit_code: exitCode }),
+    ...(output === undefined ? {} : { stdout: output.stdout ?? "", stderr: output.stderr ?? "" }),
   };
   return { type: "event_msg", payload: { type: "item_completed", item } };
 }
@@ -1163,6 +1171,78 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     expect(state).toBe("attempted-failed");
     expect(outcomes).toEqual(["failed"]);
   });
+
+  it.each([
+    ["zsh's parse error", "failed", "Exit code 1\n(eval):5: parse error near `\\n'"],
+    ["bash's syntax error", "failed", "Exit code 1\nbash: eval: line 11: syntax error: unexpected end of file"],
+    ["the syntax error of a bash started by path", "failed", "Exit code 1\n/bin/bash: eval: line 1: syntax error: unexpected end of file"],
+    ["a newer bash's unmatched quote", "failed", "Exit code 2\n/bin/bash: eval: line 1: unexpected EOF while looking for matching `\"'"],
+    ["zsh's unmatched quote", "failed", 'Exit code 1\n(eval):1: unmatched "'],
+    ["zsh's unclosed brace", "failed", "Exit code 1\n(eval):2: closing brace expected"],
+    ["a malformed `[[` in zsh", "failed", "Exit code 1\n(eval):3: condition expected: a"],
+    ["a nested bash's syntax error", "ran", "Exit code 2\nbash: -c: line 1: syntax error near unexpected token `)'"],
+    ["the syntax error of a nested bash started by path", "ran", "Exit code 2\n/bin/bash: -c: line 1: syntax error: unexpected end of file"],
+    ["a nested bash's unmatched quote", "ran", "Exit code 2\nbash: -c: line 1: unexpected EOF while looking for matching `\"'"],
+    ["a tool's own parse error", "ran", "Exit code 2\nrg: regex parse error:\n    (?:a\n    ^\nerror: unclosed group"],
+    ["a parse error not at a line's start", "ran", "Exit code 1\nlog: (eval):5: parse error"],
+  ])("reads a Bash call whose result shows %s as %s", (_what, outcome, text) => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-parse-"));
+    const call = { type: "tool_use", name: "Bash", input: { command: "herdr agent list\nif true; then" } };
+    const file = bindingsOfCalls(dir, [call, { content: text, is_error: true }]);
+    const state = stateOf(checkReceipts({ bindings: file }), "session-restart/read-pane");
+    const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
+    rmSync(dir, { recursive: true });
+    expect(state).toBe(outcome === "ran" ? "used" : "attempted-failed");
+    expect(outcomes).toEqual([outcome]);
+  });
+
+  // The strings above are typed by hand; these come from a real bash, whose
+  // error names it by the path it was started with and whose exit code and
+  // wording differ by version. `eval` is how Claude Code runs a call's line.
+  it.each([
+    ["an unclosed `if`", "failed", ["-c", "eval 'herdr agent list\nif true; then'"]],
+    ["an unclosed quote", "failed", ["-c", `eval 'herdr agent list "x'`]],
+    ["an unclosed `if` in a nested shell", "ran", ["-c", "if true; then"]],
+  ])("reads what a real /bin/bash prints for %s as %s", (_what, outcome, args) => {
+    const shell = spawnSync("/bin/bash", args, { encoding: "utf8", env: { PATH: "/nonexistent" } });
+    const text = `Exit code ${shell.status}\n${shell.stdout}${shell.stderr}`;
+    expect(shell.status, text).toBeGreaterThan(0);
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-real-bash-"));
+    const call = { type: "tool_use", name: "Bash", input: { command: "herdr agent list" } };
+    const file = bindingsOfCalls(dir, [call, { content: text, is_error: true }]);
+    const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
+    rmSync(dir, { recursive: true });
+    expect(outcomes, text).toEqual([outcome]);
+  });
+
+  it("reads a result as a shell's only for a Bash call", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-parse-tool-"));
+    const file = bindingsOfCalls(dir, [SEND, { content: "(eval):1: parse error near `)'" }]);
+    const outcomes = outcomesOf(file.transcripts, "tool", "SendMessage");
+    rmSync(dir, { recursive: true });
+    expect(outcomes).toEqual(["ran"]);
+  });
+
+  // Claude Code clears `is_error` when it reads an exit as benign, as for a
+  // grep's exit 1, so zsh's error can come back bare and unflagged. Only the
+  // first line of such a result is read, and the last two rows pin the two
+  // limits that come with it: a complaint zsh's `[` words as a parse error
+  // loses the credit of a call that carried on, and a parse error that comes
+  // after earlier output keeps the credit of the commands it stopped.
+  it.each([
+    ["starts with zsh's unmatched quote", "failed", '(eval):1: unmatched "'],
+    ["starts with zsh's unclosed brace", "failed", "(eval):2: closing brace expected"],
+    ["starts with zsh's parse error", "failed", "(eval):5: parse error near `\\n'"],
+    ["starts with a complaint from zsh's `[`", "failed", "(eval):1: parse error: condition expected: =\nok"],
+    ["shows one only on a later line", "ran", "ok\n(eval):1: parse error near `x'"],
+  ])("reads an unflagged Bash result that %s as %s", (_what, outcome, text) => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-parse-bare-"));
+    const call = { type: "tool_use", name: "Bash", input: { command: 'herdr agent list "x' } };
+    const file = bindingsOfCalls(dir, [call, { content: text }]);
+    const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
+    rmSync(dir, { recursive: true });
+    expect(outcomes).toEqual([outcome]);
+  });
 });
 
 describe("MQ-377 · a Codex call counts only when it ran", () => {
@@ -1226,6 +1306,28 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
       expect(state, String(exitCode)).toBe("attempted-failed");
       expect(outcomes, String(exitCode)).toEqual(["failed"]);
     }
+  });
+
+  // Codex writes the shell's own error to the item's `stdout`, with `stderr`
+  // left "", as every local rollout read on 2026-10-10 does.
+  it.each([
+    ["zsh's parse error in stdout", "failed", 1, { stdout: "zsh:1: parse error near `)'\n" }],
+    ["zsh's parse error in stderr", "failed", 1, { stderr: "zsh:1: parse error near `)'" }],
+    ["zsh's unmatched quote", "failed", 1, { stdout: 'zsh:1: unmatched "\n' }],
+    ["zsh's unclosed brace", "failed", 1, { stdout: "zsh:2: closing brace expected\n" }],
+    ["a malformed `[[` in zsh", "failed", 1, { stdout: "zsh:3: condition expected: a\n" }],
+    ["zsh's parse error after another line", "failed", 1, { stdout: "warning: x\nzsh:1: parse error near `)'\n" }],
+    ["zsh's parse error not at a line's start", "ran", 1, { stdout: "log: zsh:1: parse error near `)'\n" }],
+    ["a tool's own parse error", "ran", 2, { stdout: "rg: regex parse error:\n    (?:a\nerror: unclosed group" }],
+  ])("reads a failed CommandExecution whose output shows %s as %s", (_what, outcome, exitCode, output) => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-parse-"));
+    const record = commandRecord("herdr agent list", "failed", exitCode, undefined, output);
+    const file = codexBindingsOf(dir, [record]);
+    const state = stateOf(checkReceipts({ bindings: file }), "session-restart/read-pane");
+    const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
+    rmSync(dir, { recursive: true });
+    expect(state).toBe(outcome === "ran" ? "used" : "attempted-failed");
+    expect(outcomes).toEqual([outcome]);
   });
 
   it("marks apply_patch used by a completed FileChange", () => {
@@ -1814,6 +1916,78 @@ describe("MQ-353 · the command line", () => {
       `story-worker/review: used code-review in ${BEFORE} subagent agent-a1b2c3 (carried from handoff)`,
     );
     expect(after).toContain("story-worker/build: bound-but-unused");
+  });
+
+  describe("GRO-15 · a handoff written for another story's --since carries nothing", () => {
+    const A_SINCE = "2026-10-01T09:00:00Z";
+    const B_SINCE = "2026-10-08T11:00:00Z";
+    // Story A's report, pasted into its handoff; `edit` stands in for a since line changed on the way.
+    const handoffOf = (since: string[], name: string, edit = (report: string) => report) => {
+      const report = run(bindingsReading([BEFORE, "claude-before-restart"]), ...since).stdout;
+      const path = join(dir, name);
+      writeFileSync(path, `# Handoff\n\n## Receipt check\n\n${edit(report)}\n## What I am doing\n`);
+      return path;
+    };
+    const storyB = (handoff: string, ...since: string[]) =>
+      run(bindingsReading([BY_HAND, "claude-built-by-hand"]), "--handoff", handoff, ...since);
+    const PLAN = `story-worker/plan: used compound-engineering:ce-plan in ${BEFORE} (carried from handoff)`;
+    // How many uses a handoff's section reports, each of which a drop must name.
+    const usedIn = (handoff: string) => readFileSync(handoff, "utf8").match(/^\S+: used /gm)?.length ?? 0;
+
+    it.each([
+      ["a different time", ["--since", A_SINCE], ["--since", B_SINCE], `carried since ${A_SINCE}, this run's ${B_SINCE}`],
+      ["a since this run lacks", ["--since", A_SINCE], [], `carried since ${A_SINCE}, this run's none`],
+      ["no since where this run has one", [], ["--since", B_SINCE], `carried since none, this run's ${B_SINCE}`],
+    ])("drops every carried use when the handoff's since is %s, and says how many", (_what, a, b, why) => {
+      const handoff = handoffOf(a, `handoff-${Math.random().toString(36).slice(2)}.md`);
+      const after = storyB(handoff, ...b).stdout;
+      expect(after).not.toContain(PLAN);
+      expect(after).toMatch(/^story-worker\/plan: bound-but-unused /m);
+      expect(usedIn(handoff)).toBeGreaterThan(0);
+      expect(after).toContain(`(0 earlier uses carried, ${usedIn(handoff)} dropped: ${why})`);
+    });
+
+    it("keeps the carried uses when the two since times are one instant in two zones", () => {
+      const after = storyB(handoffOf(["--since", A_SINCE], "handoff-same.md"), "--since", "2026-10-01T10:00:00+01:00").stdout;
+      expect(after).toContain(PLAN);
+      expect(after).not.toContain("dropped:");
+    });
+
+    it("drops the carried uses, and still runs, when the handoff's since does not read as a time", () => {
+      const handoff = handoffOf(["--since", A_SINCE], "handoff-garbled.md", (report) =>
+        report.replace(`since ${A_SINCE}:`, "since yesterday:"),
+      );
+      const result = storyB(handoff, "--since", B_SINCE);
+      expect(result.status).toBe(1);
+      // Only the carried use credits plan, so its state shows the drop alone.
+      expect(result.stdout).not.toContain(PLAN);
+      expect(result.stdout).toMatch(/^story-worker\/plan: bound-but-unused /m);
+      expect(result.stdout).toContain(`${usedIn(handoff)} dropped: carried since yesterday, this run's ${B_SINCE}`);
+    });
+
+    it("drops the carried uses when the handoff's section holds two since lines, even when one matches", () => {
+      const handoff = handoffOf(["--since", A_SINCE], "handoff-two-since.md", (report) =>
+        report.replace(
+          `since ${A_SINCE}: calls before it are not counted`,
+          `since ${A_SINCE}: calls before it are not counted\nsince ${B_SINCE}: calls before it are not counted`,
+        ),
+      );
+      const after = storyB(handoff, "--since", A_SINCE).stdout;
+      expect(after).not.toContain(PLAN);
+      expect(after).toMatch(/^story-worker\/plan: bound-but-unused /m);
+      expect(after).toContain(`${usedIn(handoff)} dropped: carried since ${A_SINCE} and ${B_SINCE}, this run's ${A_SINCE}`);
+    });
+
+    it("keeps the carried uses through a chain of two restarts under one --since", () => {
+      const first = handoffOf(["--since", A_SINCE], "handoff-chain-1.md");
+      const second = join(dir, "handoff-chain-2.md");
+      const report = storyB(first, "--since", A_SINCE).stdout;
+      writeFileSync(second, `# Handoff\n\n## Receipt check\n\n${report}\n## What I am doing\n`);
+      const after = storyB(second, "--since", A_SINCE).stdout;
+      expect(report).toContain(PLAN);
+      expect(after).toContain(PLAN);
+      expect(after).not.toContain("dropped:");
+    });
   });
 
   it("carries a use from a transcript left on another machine through every later restart", () => {
