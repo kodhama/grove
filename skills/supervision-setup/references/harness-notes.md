@@ -154,9 +154,11 @@ on Claude Code 2.1.296, 2026-10-10), or `(eval):2: closing brace expected`
 for an unclosed `${`, or `(eval):3: condition expected: a` for a malformed
 `[[` (both zsh 5.9, 2026-10-11). zsh leaves the line number out of some
 parse errors, as ``(eval): parse error near `()'`` for a `name()` followed
-by more on the same line (observed on Claude Code 2.1.296, 2026-10-11), and
-the check reads each of the four wordings with the number or without; no
-other wording was observed without one. Usually nothing in the line ran,
+by more on the same line (observed on Claude Code 2.1.296, 2026-10-11), or
+``(eval): parse error near `)'`` then `(eval): unmatched "` where that sits
+inside a quoted `$(...)` (zsh 5.9, 2026-10-11). The check reads each of the
+four wordings with the number or without; the other two were not observed
+without one. Usually nothing in the line ran,
 but zsh parses a `$(...)` or backtick substitution only when it reaches it,
 so the commands before one that will not parse have run: such a call loses
 its credit, the safe direction. Bash's own `bash: eval: line N: syntax
@@ -272,9 +274,10 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   commands before a `$(...)` that will not parse have, as on Claude Code
   (the last two wordings and the `$(...)` case were read from `zsh -c` on
   zsh 5.9, 2026-10-11, not from a Codex rollout). zsh prints some parse
-  errors with no line number, as ``zsh: parse error near `()'``, and the
-  check reads each wording with the number or without (zsh 5.9, 2026-10-11,
-  not from a Codex rollout). The item can be `completed` instead. Where zsh
+  errors with no line number, as ``zsh: parse error near `()'``, or `zsh:
+  unmatched "` after one inside a quoted `$(...)`, and the check reads each
+  wording with the number or without (zsh 5.9, 2026-10-11, not from a Codex
+  rollout). The item can be `completed` instead. Where zsh
   could not parse part of a line and the line still exited 0, as when that
   part sits in an early stage of a pipeline, an `rg ... | head` came back
   `completed` with `exit_code` 0, an empty `stderr` and a `stdout` starting
