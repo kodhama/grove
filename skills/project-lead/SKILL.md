@@ -292,9 +292,11 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
    `Plan:` line must name the plan the story was built from: by a path that
    resolves at the pull request's head or on its base branch, or, where the
    plan is held in a note on a work item, by a link to that note. For a defect
-   it links the diagnosis note, and a plan path it gives beside the link
-   resolves the same way. A hand-back whose line is missing, names nothing
-   that resolves, or reads `not reached` goes back to the worker.
+   it links the diagnosis note. Every path and link the line gives must
+   resolve, and a story that is not a defect never lists `plan` under Not run.
+   A hand-back whose line is missing, gives a path or link that does not
+   resolve, or reads `not reached`, or that lists `plan` as not run for a
+   story that is not a defect, goes back to the worker.
 3. **Review it again, from fresh context.** Invoke the performer bound to
    `review-before-merge` on the pull request, from a fresh-context subagent
    you start for it: never your own context, and never a fork of it. Ask for

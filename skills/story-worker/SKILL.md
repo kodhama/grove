@@ -167,13 +167,13 @@ plan: write no copy of it. In every other case, ask the performer for a plan
 written to a file: the whole plan, or, for a plan unit, only the gaps it
 filled.
 
-Commit a plan file on your branch, so it ships in the pull request. Give the
-receipt's `Plan:` line as `references/receipt.md` gives it: the file's path,
-the plan unit the story was built from, or both where a file fills a unit's
-gaps. Where `plan` is bound by fallback, you do the planning yourself, any
-plan you write goes to a file all the same, and the line says so. A story
-that is not a defect lists `plan` under Not run only when it ended before this
-step.
+Commit any plan file written for the story on your branch, so it ships in the
+pull request. Give the receipt's `Plan:` line as `references/receipt.md` gives
+it: the file's path, the plan unit the story was built from, or both where a
+file fills a unit's gaps. Where `plan` is bound by fallback, you do the
+planning yourself, any plan you write goes to a file all the same, and the
+line says so. A story that is not a defect lists `plan` under Not run only
+when it ended before this step.
 
 Build only on settled ground. If the source is still changing, or a decision
 it cites turns out wrong or ambiguous against the code, send your lead a

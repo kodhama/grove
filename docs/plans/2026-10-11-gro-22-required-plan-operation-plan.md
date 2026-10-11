@@ -521,3 +521,17 @@ The review of the built branch changed four things this plan, amended, still say
 - **The README sentence** no longer calls planning the one step never skipped, since review is never skipped either.
 
 The tests now pin whole sentences, since a rule reversed inside a pinned fragment passed.
+
+## After the full review (2026-10-11)
+
+The full review of the pull request changed four more things; the text below wins over everything above it:
+
+- **The lead's clause checks every path and link, and the Not run list** (the lead's ruling). A line whose second path did not resolve passed "names nothing that resolves", and a story built from a plan unit could list `plan` as not run and repeat its source as its plan. The clause now reads: every path and link the line gives must resolve, and a story that is not a defect never lists `plan` under Not run.
+- **The two plan-unit forms have fixed shapes**: `<that plan's path or link>, unit <id or heading>`, and `<the file's path>, filling <that plan's path or link>, unit <id or heading>`. A unit with no id is named by its section's heading.
+- **`, by fallback` ends only a line that gives a plan's path or a plan unit.** A defect's "no plan" line and a "not reached" line never take it, and the rule sits inside the one field.
+- **Step 3 commits "any plan file written for the story"**, since a unit that is enough leaves no file.
+
+What a worker does when its hand-back goes back to it is its own work item, by the lead's ruling, not part of this change.
+
+The tests pin each of these sentences whole, and four earlier pins that stopped mid-sentence now run to the full stop.
+
