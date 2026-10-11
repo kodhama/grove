@@ -46,11 +46,12 @@ again whenever a step needs one, because they can change during a story.
   independent. Your lead brings the maintainer one choice: they run the
   command, or you redo the work in a fresh clone of your own. Take the clone
   only on that OK: bring in your unpushed commits from the worktree, keep to
-  the rules above, work on the branch in that clone from then on, and send
-  the line again with the clone's path. Your session's own files, its
+  the rules above, work on the branch in that clone from then on, and tell
+  your lead with a `STATUS: moved` line. Your session's own files, its
   bindings, its handoff and any restart marker, stay in the worktree, where
-  your lead looks for them: run setup and the restart from the worktree, by
-  its full path, never from the clone.
+  your lead looks for them: run setup and the restart with the worktree as
+  the working directory, reached by its full path, never from the clone,
+  since both write those files under the directory they run in.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
@@ -113,8 +114,8 @@ You need no answer before you start.
   check that answers "command not found" is a setup failure, never a check
   result.
 - **The branch.** Fetch, and confirm the base SHA is the commit you branch
-  from. A refused fetch leaves a stale base, which shows up as changes you did
-  not make: stop and say so. Move onto the story's branch before the first
+  from. A refused fetch is a refused command (see Never), and it leaves a
+  stale base, which shows up as changes you did not make. Move onto the story's branch before the first
   edit, and check `git branch --show-current` after the move and again before
   the first commit, because a branch command can appear to succeed without
   moving the worktree. Re-read any file you read before the move.
@@ -241,7 +242,8 @@ commit-and-PR skill). You watch the pull request yourself, as below.
 
 Once the draft is open, send your lead `STATUS: PR open <url> (draft)`.
 
-If you cannot push, say so to your lead and stop.
+A push your harness's permission check refuses is a refused command (see
+Never). If you cannot push for any other reason, say so to your lead and stop.
 
 ## 7. The pull-request round
 
@@ -355,7 +357,7 @@ Each message to your lead is one line, in one of two shapes:
 
 ```text
 <story id> DECISION: <question> · Options: <a>; <b> · Recommendation: <choice and why> · Blocked: <what waits>
-<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / refused <exact command>[; working on in <clone path>] / blocked: <reason>
+<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / refused <exact command> / moved to <clone path> / blocked: <reason>
 ```
 
 Ask your lead only about product, design and architecture choices, a new
@@ -389,9 +391,9 @@ worker that restarts from 35% never carries a step past 40%. A reading
 already past 40% at a boundary restarts there all the same.
 
 Restart through the performer bound to `restart-self`, which owns the
-mechanics, the new-session path included. After a move to a clone, run it from
-the worktree, by its full path: the bindings and the handoff are there, and
-your lead looks there for the restart marker. Send your lead `STATUS: restarting`
+mechanics, the new-session path included. After a move to a clone, run it with
+the worktree as the working directory, reached by its full path: the bindings
+and the handoff are there, and your lead looks there for the restart marker. Send your lead `STATUS: restarting`
 once per restart: on the in-place path before the restart ends your turn, and
 on the new-session path with the link to the posted handoff. Where the restart
 skill says to write the handoff, invoke the performer bound to `write-handoff`
@@ -407,7 +409,10 @@ once the restart skill's resume steps are done, before any story step: a
 harness can drop a skill across the clear, and a resumed session that never
 loads this skill never runs its seeded setup. The account also carries the
 story, its Started time, the branch, the base SHA, the pull request's link if
-there is one, the step in hand and the receipt so far. Where the restart skill has you paste
+there is one, the step in hand and the receipt so far. After a move to a
+clone, it also carries the clone's full path, where the branch now lives, that
+the maintainer approved the move, and the worktree's full path, where the
+session's own files stay, so the resumed session carries on in the clone. Where the restart skill has you paste
 the receipt check's output into the handoff, pass `--since` your story's
 start there too, so a successor on another machine carries no use from before
 the story. If measuring is bound as unavailable, setup said so once, and you

@@ -217,9 +217,10 @@ report lists every pane it skipped and why.
   live worker the ruling affects.
 - **A worker's `STATUS: refused`:** bring the maintainer one choice: they run
   the exact command it names, or the worker redoes the work in a fresh clone of
-  its own. Pass the answer back. Where a later line names a clone, that
-  worker's branch lives there from then on, while its session's own files, its
-  restart marker among them, stay in the worktree you made.
+  its own. Pass the answer back.
+- **A worker's `STATUS: moved`:** its branch lives in the clone the line names
+  from then on, while its session's own files, its restart marker among them,
+  stay in the worktree you made.
 - **A worker's `STATUS: restarting`:** send that worker nothing while its
   restart is pending. Keep what you had for it as live state, and write it
   into the handoff's live commitments when `write-handoff` runs. An in-place
@@ -400,7 +401,7 @@ skill's resume steps are done. It also carries the epic, or on a defect run
 what `references/defect-run.md` lists for its handoff, or on an intent run
 what `references/intent-run.md` lists, the approved run lines,
 and each in-flight story: its worker's name and ref, its pull request, its
-last `STATUS` and any message held for it. It carries the wake-ups armed,
+last `STATUS`, any clone it reported moving to, and any message held for it. It carries the wake-ups armed,
 the decisions awaiting the maintainer, and the rulings not yet passed on.
 
 Stop your wake-ups before the restart, as the restart skill says, and arm them
