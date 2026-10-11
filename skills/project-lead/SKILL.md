@@ -157,8 +157,8 @@ has merged. For each ready story:
    which lead it belongs to on every list the maintainer reads.
 3. **Make its worktree:** one per story, on the branch name the repo's
    instructions give, from the current base at a full commit SHA. The worker
-   works only there, until a refused git command moves it to a fresh clone it
-   reports.
+   works only there, unless the maintainer approves its move to a fresh clone
+   after a refused command.
 4. **Post its assignment** on the story's work item through the performer
    bound to `post-work-note`. Include only what is true of this story: the
    worktree, the branch and base SHA, your name and how to reach you, the
@@ -215,10 +215,11 @@ report lists every pane it skipped and why.
   it, and cite the source. Otherwise put it to the maintainer (step 8). Record
   each ruling once, on the work item of the story that needs it, and tell every
   live worker the ruling affects.
-- **A worker's `STATUS: refused`:** give the maintainer the exact command it
-  names, as you would your own. Where it names a clone, that worker's branch
-  lives there from then on, while its session's own files, its restart marker
-  among them, stay in the worktree you made.
+- **A worker's `STATUS: refused`:** bring the maintainer one choice: they run
+  the exact command it names, or the worker redoes the work in a fresh clone of
+  its own. Pass the answer back. Where a later line names a clone, that
+  worker's branch lives there from then on, while its session's own files, its
+  restart marker among them, stay in the worktree you made.
 - **A worker's `STATUS: restarting`:** send that worker nothing while its
   restart is pending. Keep what you had for it as live state, and write it
   into the handoff's live commitments when `write-handoff` runs. An in-place

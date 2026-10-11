@@ -41,14 +41,14 @@ again whenever a step needs one, because they can change during a story.
 - Widen your own permissions, or relax a check to get past it.
 - Retry, rephrase or hand to another session a command your harness's
   permission check refused: repeated refusals hold a session at a prompt only
-  the maintainer can answer. When the refused command is a git command that
-  rewrites your branch or worktree, such as a reset or a rebase, redo the
-  work in a fresh clone of your own instead: bring in your unpushed commits
-  from the worktree, keep to the rules above, and push from there when the
-  story's steps reach a push. Work on the branch in that clone from then on;
-  your session's own files, such as its bindings and any restart marker, stay
-  where the session started. Tell your lead at once, with a `STATUS: refused`
-  line, for any refused command.
+  the maintainer can answer. Stop the work that depends on it, tell your lead
+  at once with a `STATUS: refused` line, and keep working on anything
+  independent. Your lead brings the maintainer one choice: they run the
+  command, or you redo the work in a fresh clone of your own. Take the clone
+  only on that OK: bring in your unpushed commits from the worktree, keep to
+  the rules above, work on the branch in that clone from then on, and send
+  the line again with the clone's path. Your session's own files, such as its
+  bindings and any restart marker, stay where the session started.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
@@ -102,8 +102,8 @@ You need no answer before you start.
 
 ## 2. Before the first edit
 
-- **The worktree is fixed.** Work only there, until a refused git command
-  moves you to a fresh clone (see Never). One writer per worktree: if you
+- **The worktree is fixed.** Work only there, unless the maintainer approves
+  a move to a fresh clone after a refused command (see Never). One writer per worktree: if you
   find an unexplained branch, worktree or running session on this story, stop
   and ask your lead.
 - **Dependencies.** If the repo's dependencies are missing or its lockfile
