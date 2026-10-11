@@ -702,18 +702,32 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
     );
   });
 
-  it("its fallback has the worker update the stale docs itself, or say none needed and why", () => {
+  it("its fallback has the worker update the stale docs itself, and sends it to the receipt's Docs field for the line", () => {
     const fallback = oneLine(String(documentChange()?.fallback ?? ""));
     expect(fallback).toContain("yourself");
-    expect(fallback).toContain("none needed and why");
+    // The rule that picks the line's value lives in the field, which every worker reads.
+    expect(fallback).toContain("Then write the Docs line as the receipt's Docs field says.");
+    expect(fallback).not.toContain("none needed");
   });
 
-  it("its fallback has the Docs line list a doc the pull request updated before the checkpoint", () => {
+  it("the Docs field has the line list a doc the pull request updated before the checkpoint", () => {
     // Nothing is stale when the build already updated the doc: the line still says `updated`.
-    expect(oneLine(String(documentChange()?.fallback ?? ""))).toContain(
-      "The Docs line lists every such doc the pull request updates, whenever it did, and says none needed and why only where it updates none.",
+    expect(docsField()).toContain(
+      "The line lists every such doc the pull request updates, whenever it did, and says none needed only where it updates none>",
     );
     expect(docsField()).toContain("the docs already cover what it adds");
+  });
+
+  it("the Docs field says where its paths are read from", () => {
+    expect(docsField()).toContain(
+      "updated <the path of each reference, architecture or design doc this pull request updates, as the diff at the head lists it,",
+    );
+  });
+
+  it("step 7 says when the docs and the capture rerun after a ready-time fix pass", () => {
+    expect(prRound()).toContain(
+      "Neither operation reruns after the fix pass that follows a ready-time first review, unless that pass itself adds something the docs must carry, or produced a lesson that meets the capture's test; then that one runs once more and ships in that pass's push, and the `Docs:` line is brought up to date in both places.",
+    );
   });
 
   it("the README tells an adopter to update grove everywhere before naming the operation in an override", () => {

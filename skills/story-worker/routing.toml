@@ -151,9 +151,8 @@ fallback = """
 Update the docs the change makes stale yourself: the ones the repo's project
 instructions name, in the shape they ask for, or, where they name none, the
 reference, architecture and design docs the repo keeps. Where nothing is
-stale, or the repo keeps no such docs, change nothing. The Docs line lists
-every such doc the pull request updates, whenever it did, and says none needed
-and why only where it updates none."""
+stale, or the repo keeps no such docs, change nothing. Then write the Docs
+line as the receipt's Docs field says."""
 
 [[operation]]
 id = "capture-learning"
