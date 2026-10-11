@@ -40,7 +40,8 @@ Rebound:         <operation: from → to, why, when — or "none">
 By fallback:     <operation: suggested <names> unavailable, step run by fallback — or "none">
 Not run:         <table/operation: why, e.g. "story-worker/browser-test: no page touched" — or "none">
 Decided myself:  <the calls you made without asking, one line each — or "none">
-Receipt check:   <the check's output, run with --since the Started time, pasted unchanged; or
+Receipt check:   <the check's output, run with --since the Started time and, when the pull
+                  request is ready, --pr-body its saved body, pasted unchanged; or
                   "unavailable: <why it could not run>">
 
 Evidence:        <PR link / head and base SHAs / diff stat>
@@ -51,6 +52,11 @@ Acceptance:      <one file:line citation per acceptance condition; for a defect,
                   or, where the triage row's "How to verify" names a manual check only,
                   that check's steps and what was observed, and why no automated test
                   is possible>
+Capture:         <captured <the path of the learning this pull request adds> | skipped: <the
+                  reason, as the capture's test gives it: what the final code, tests and docs
+                  already preserve; or, where the capture ran by fallback, the lesson and that
+                  it was not recorded; or that the story ended before its completion
+                  checkpoint>. The pull request's body carries the same line>
 Reviewed by:     <one entry per in-session review, before or after the pull request opened. The
                   reviewer: its performer, and the subagent you started for it or the reviewers
                   the performer started itself, saying which — always named, never blank, never
