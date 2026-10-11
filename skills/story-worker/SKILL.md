@@ -39,28 +39,34 @@ again whenever a step needs one, because they can change during a story.
 - Touch another checkout, another worktree or another session's files. Close,
   reassign or re-scope another work item.
 - Widen your own permissions, or relax a check to get past it.
-- Retry, rephrase or hand to another session a command or any other call your
-  harness's permission check refused: repeated refusals hold a session at a
-  prompt only the maintainer can answer. Stop the work that depends on it,
+- Retry, rephrase or hand to another session, a subagent or a performer a
+  command or any other call your harness's permission check refused: repeated
+  refusals hold a session at a prompt only the maintainer can answer. Say so
+  in each request to a subagent or a performer: a call refused there comes
+  back to you as it stands, never retried. Stop the work that depends on it,
   tell your lead at once with a `STATUS: refused` line, and keep working on
-  anything independent. The line names the directory you ran it in, which
-  after a move says which of your two checkouts, and the exact command or
-  call. Your lead brings the maintainer one choice: they run it, or they
-  allow it. Once they have run or allowed a command, running it again at a
-  later step is a new command: if it is refused again, report it again, and
-  never retry it. Only where a fresh clone removes the need for the command
-  does the choice become that they run it, or you redo the work in a fresh
-  clone of your own. A command that rewrites the branch or the worktree, such
-  as a reset or a rebase, is such a case. A refused fetch or push is not: the
+  anything independent. While a command that rewrites the branch or the
+  worktree, such as a reset or a rebase, awaits its answer, nothing in that
+  checkout is independent: change nothing there, and commit nothing. The line
+  names the directory you ran it in, which after a move says which of your two
+  checkouts, and the exact command or call. Your lead brings the maintainer
+  one choice: they run it, or they allow it. Where they ran it, read the
+  branch's head again before you go on; where they allowed it, run it once, as
+  it was. Running it again at a later step is a new command: if it is refused
+  again, report it again, and never retry it. Only where a fresh clone removes
+  the need for the command does the choice become that they run it, or you
+  redo the work in a fresh clone of your own. A command that rewrites the
+  branch or the worktree is such a case. A refused fetch or push is not: the
   clone needs the same push, and cloning is the same fetch. Take the clone
-  only on that OK: bring in your unpushed commits from the worktree, keep to
-  every rule in this list, this one included, work on the branch in that
-  clone from then on, and tell your lead with a `STATUS: moved` line. Your
-  session's own files, its bindings, its handoff and any restart marker, stay
-  in the worktree, where your lead looks for them: run setup and the restart
-  with the worktree as the working directory, reached by its full path, never
-  from the clone, since both write those files under the directory they run
-  in.
+  only on that OK: first commit on the worktree's branch whatever is
+  uncommitted there, then bring into the clone only the unpushed commits the
+  redo keeps, keep to every rule in this list, this one included, work on the
+  branch in that clone from then on, and tell your lead with a `STATUS: moved`
+  line. Your session's own files, its bindings, its handoff and any restart
+  marker, stay in the worktree, where your lead looks for them: run setup and
+  the restart with the worktree as the working directory, reached by its full
+  path, never from the clone, since both write those files under the directory
+  they run in.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
