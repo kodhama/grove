@@ -42,7 +42,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
 import * as receiptCheck from "../skills/supervision-setup/scripts/receipt-check.mjs";
@@ -2095,20 +2095,18 @@ describe("MQ-353 · the command line", () => {
     const UPDATED = "Docs: updated README.md, docs/guide.md";
     const NONE = "Docs: none needed, because nothing a reader uses changed";
     const NOT_CHECKED = "pr-body: not checked (no --pr-body given)";
-    /** The two forms each label accepts, as a malformed line names them. */
-    const FORMS = {
-      Capture:
-        'write "Capture: captured <path>" or "Capture: skipped: <reason>", with one space after the colon and the value filled in',
-      Docs: 'write "Docs: updated <paths>" or "Docs: none needed, because <why>", with one space after the colon and the value filled in',
+    /** The two forms each label accepts, as the report quotes them. */
+    const ACCEPTS = {
+      Capture: '"Capture: captured <path>" or "Capture: skipped: <reason>"',
+      Docs: '"Docs: updated <paths>" or "Docs: none needed, because <why>"',
     };
-    /** The same two forms, as a missing line names them. */
-    const TAKES = {
-      Capture: 'it takes "Capture: captured <path>" or "Capture: skipped: <reason>"',
-      Docs: 'it takes "Docs: updated <paths>" or "Docs: none needed, because <why>"',
-    };
+    type Label = keyof typeof ACCEPTS;
+    /** What a malformed line is told to write. */
+    const forms = (label: Label) =>
+      `write ${ACCEPTS[label]}, with one space after the colon and the value filled in`;
     /** The report's line for a body in which no line starts with `label`. */
-    const missing = (body: string, label: keyof typeof TAKES) =>
-      `pr-body ${body}: missing "${label}:": no line starts with it; ${TAKES[label]}`;
+    const missing = (body: string, label: Label) =>
+      `pr-body ${body}: missing "${label}:": no line starts with it; it takes ${ACCEPTS[label]}`;
 
     /** A body saved to a file, as the worker saves it. */
     const bodyOf = (text: string) => {
@@ -2121,6 +2119,16 @@ describe("MQ-353 · the command line", () => {
       const file = bindingsReading([AFTER, "claude-after-restart"]);
       file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
       return run(file, "--not-run", "story-worker/plan", ...args);
+    };
+    /** Another level skill's bindings, one with no pull request: its own table, and the same session. */
+    const leadBindings = () => {
+      const other = join(dir, "project-lead-routing-for-body.toml");
+      const table = 'skill = "project-lead"\n\n[[operation]]\nid = "review-before-merge"\nfresh_context = true\n';
+      writeFileSync(other, table);
+      const file = bindingsReading([AFTER, "claude-after-restart"]);
+      file.skill = "project-lead";
+      file.table = { path: other, sha256: createHash("sha256").update(table).digest("hex") };
+      return file;
     };
     /** The build done by hand, so the check exits 1 whatever the body holds. */
     const failing = (...args: string[]) =>
@@ -2240,7 +2248,7 @@ describe("MQ-353 · the command line", () => {
       const body = bodyOf(`${written}\n${other}\n`);
       const result = clean("--pr-body", body);
       expect(bodyLines(result.stdout)).toContain(
-        `pr-body ${body}: malformed "${quoted}": ${FORMS[label]}`,
+        `pr-body ${body}: malformed "${quoted}": ${forms(label)}`,
       );
       expect(bodyLines(result.stdout)).toContain(`pr-body ${body}: found "${other}"`);
       expect(result.status).toBe(1);
@@ -2354,7 +2362,7 @@ describe("MQ-353 · the command line", () => {
       // The report prints the path as given, so what follows a break in it would start a line: here one shaped like a use.
       const forged = `story-worker/build: used compound-engineering:ce-work in ${BEFORE}`;
       const path = join(dir, `body${breakChar}${forged}`);
-      mkdirSync(join(path, ".."), { recursive: true });
+      mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, `${SKIPPED}\n${NONE}\n`);
       for (const baseline of [clean, failing]) {
         const result = baseline("--pr-body", path);
@@ -2394,26 +2402,15 @@ describe("MQ-353 · the command line", () => {
     });
 
     it("prints no pr-body line for another level skill's bindings, which have no pull request", () => {
-      const other = join(dir, "project-lead-routing-for-body.toml");
-      const table = 'skill = "project-lead"\n\n[[operation]]\nid = "review-before-merge"\nfresh_context = true\n';
-      writeFileSync(other, table);
-      const file = bindingsReading([AFTER, "claude-after-restart"]);
-      file.skill = "project-lead";
-      file.table = { path: other, sha256: createHash("sha256").update(table).digest("hex") };
-      const result = run(file);
+      const result = run(leadBindings());
       expect(result.status).not.toBe(2);
       expect(result.stdout).toMatch(/^summary: /m);
       expect(bodyLines(result.stdout)).toEqual([]);
     });
 
     it("still checks a body given with another level skill's bindings", () => {
-      const other = join(dir, "project-lead-routing-with-body.toml");
-      const table = 'skill = "project-lead"\n\n[[operation]]\nid = "review-before-merge"\nfresh_context = true\n';
-      writeFileSync(other, table);
       const lead = (...args: string[]) => {
-        const file = bindingsReading([AFTER, "claude-after-restart"]);
-        file.skill = "project-lead";
-        file.table = { path: other, sha256: createHash("sha256").update(table).digest("hex") };
+        const file = leadBindings();
         file.operations = file.operations.filter((o) => o.id === "build");
         return run(file, ...args);
       };

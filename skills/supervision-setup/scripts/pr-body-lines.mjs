@@ -63,6 +63,12 @@ const REQUIRED_LINES = [
 ];
 
 /**
+ * Every break a reader could show as the start of a new line: a line feed, a
+ * carriage return with or without one, a line or paragraph separator.
+ */
+export const LINE_BREAK = /\r\n?|\n|\u2028|\u2029/;
+
+/**
  * What opens a value nobody filled in: a `<`, after any run of spaces,
  * backticks, quote marks, asterisks or underscores, as a template's
  * placeholder has it, bare or dressed as code, a quote or emphasis.
@@ -92,7 +98,7 @@ export function readBodyLines(text) {
   // Every break a reader could show as a new line ends one, so a quoted line holds no second line.
   const lines = text
     .replace(/^\uFEFF/, "")
-    .split(/\r\n?|\n|\u2028|\u2029/)
+    .split(LINE_BREAK)
     .map((line) => line.trimEnd());
   return REQUIRED_LINES.map((required) => {
     const { label, forms } = required;

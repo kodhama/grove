@@ -149,7 +149,7 @@ import { parseArgs } from "node:util";
 import { scopeCalls, sinceTime } from "./call-scope.mjs";
 import { CARRIED, readHandoff } from "./handoff-receipt.mjs";
 import { creditable, hasPerformer, judge, matches, unqualified } from "./operation-state.mjs";
-import { readBodyLines } from "./pr-body-lines.mjs";
+import { LINE_BREAK, readBodyLines } from "./pr-body-lines.mjs";
 import { readRoutingTable } from "./routing-table.mjs";
 import { readTranscripts } from "./transcript-uses.mjs";
 
@@ -159,8 +159,6 @@ const SETUP_SKILL = "supervision-setup";
 const STORY_SKILL = "story-worker";
 /** The states that fail the check: exit 1. */
 const FAILING = new Set(["bound-but-unused", "attempted-failed", "no evidence"]);
-/** Any break a reader could show as the start of a new line. */
-const LINE_BREAK = /[\n\r\u2028\u2029]/;
 
 /** Skills called that no binding names, leaving out the ones that ran setup. */
 function unboundSkills(bindings, uses) {
