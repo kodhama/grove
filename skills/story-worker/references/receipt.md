@@ -51,6 +51,10 @@ Acceptance:      <one file:line citation per acceptance condition; for a defect,
                   or, where the triage row's "How to verify" names a manual check only,
                   that check's steps and what was observed, and why no automated test
                   is possible>
+Docs:            <updated <each doc's path, as the diff at the head lists it> | none needed,
+                  because <why: the diff adds no module, data shape, contract, dependency or
+                  design change, or the docs already cover what it adds> — the same line the
+                  pull request's body carries>
 Reviewed by:     <one entry per in-session review, before or after the pull request opened. The
                   reviewer: its performer, and the subagent you started for it or the reviewers
                   the performer started itself, saying which — always named, never blank, never
