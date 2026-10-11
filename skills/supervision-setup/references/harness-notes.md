@@ -156,9 +156,11 @@ for an unclosed `${`, or `(eval):3: condition expected: a` for a malformed
 parse errors, as ``(eval): parse error near `()'`` for a `name()` with
 nothing after it (observed on Claude Code 2.1.296, 2026-10-11), or
 ``(eval): parse error near `)'`` then `(eval): unmatched "` where that sits
-inside a quoted `$(...)` (zsh 5.9, 2026-10-11). The check reads each of the
-four wordings with the number or without; the other two were not observed
-without one. Usually nothing in the line ran,
+inside a quoted `$(...)` (zsh 5.9, 2026-10-11), or `(eval): closing brace
+expected` for an unclosed `${` in a function body written without braces
+(observed on Claude Code 2.1.296, 2026-10-11). The check reads each of the
+four wordings with the number or without; only `condition expected` was
+not observed without one. Usually nothing in the line ran,
 but zsh parses a `$(...)` or backtick substitution only when it reaches it,
 so the commands before one that will not parse have run: such a call loses
 its credit, the safe direction. Bash's own `bash: eval: line N: syntax
@@ -280,9 +282,10 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   (the last two wordings and the `$(...)` case were read from `zsh -c` on
   zsh 5.9, 2026-10-11, not from a Codex rollout). zsh prints some parse
   errors with no line number, as ``zsh: parse error near `()'``, or `zsh:
-  unmatched "` after one inside a quoted `$(...)`, and the check reads each
-  wording with the number or without (zsh 5.9, 2026-10-11, not from a Codex
-  rollout). The item can be `completed` instead. Where zsh
+  unmatched "` after one inside a quoted `$(...)`, or `zsh: closing brace
+  expected`, and the check reads each wording with the number or without
+  (zsh 5.9, 2026-10-11, not from a Codex rollout). The item can be
+  `completed` instead. Where zsh
   could not parse part of a line and the line still exited 0, as when that
   part sits in an early stage of a pipeline, an `rg ... | head` came back
   `completed` with `exit_code` 0, an empty `stderr` and a `stdout` starting
@@ -298,12 +301,15 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   that `head`, lose their credit, the safe direction, and so does a line
   that carried on after a nested `zsh -c` printed the error first, or after
   an unquoted here-document in its first command held a backtick span zsh
-  could not parse. A
+  could not parse, or after zsh's `[` or `test` worded a runtime complaint
+  that way (`[ a = ]; echo carried` prints `zsh:1: parse error: condition
+  expected: a`, then `carried`, and exits 0), and one whose first command
+  printed such a line itself. A
   `completed` command that shows the error only on a later line keeps its
   credit, as an unflagged result does on Claude Code: `echo a; cat f
   "$(if)" | wc -l` prints `a`, then the error, exits 0, and `cat` is counted
-  though it never ran (the nested, here-document and later-line cases were
-  read from `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex rollout).
+  though it never ran (the nested, here-document, `[` and later-line cases
+  were read from `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
   records `spawn_agent` in namespace `collaboration` as
   `collaboration.spawn_agent`, and the receipt check reads the call under that

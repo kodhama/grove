@@ -144,7 +144,7 @@ function itemUses(item) {
  * Whether an item's call ran, from its own status and, for a command, its exit
  * code and whether its output shows the shell could not parse the line: on
  * any line of a `failed` command, and as the first line of a `completed` one,
- * where an error on a later line follows the output of commands that ran.
+ * where an error on a later line mostly follows the output of commands that ran.
  */
 function itemOutcome(item) {
   const command = item.type === "CommandExecution";
