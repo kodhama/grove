@@ -587,12 +587,11 @@ describe("GRO-22 · the plan step's text", () => {
   /** Text with every run of whitespace collapsed to one space. */
   const flat = (text: string) => text.replace(/\s+/g, " ");
   const receipt = () => read(join(SKILLS_TREE, "story-worker", "references", "receipt.md"));
-  const planRow = () => operationsOf(readTable("story-worker")).find((op) => op.id === "plan");
   const planStep = () => flat(section(read(WORKER), "3. Plan"));
   const defectSection = () => flat(section(read(WORKER), "A defect: diagnose first"));
   /** The receipt's `Plan:` field: its label's line and the indented lines under it. */
   const planField = () => flat(receipt().match(/^Plan:.*(?:\n[ \t]+.*)*/m)?.[0] ?? "");
-  /** Item 2 of the lead's ready hand-back check, up to where item 3 opens. */
+  /** The "Accept on the evidence" item of the lead's ready hand-back check, up to the next item. */
   const acceptItem = () => {
     const step = section(read(LEAD), "7. A hand-back");
     const start = step.indexOf("**Accept on the evidence.**");
@@ -603,7 +602,7 @@ describe("GRO-22 · the plan step's text", () => {
     said.forEach((words) => expect(text).toContain(words));
 
   it("`plan` keeps its fallback and stays not required: a defect skips the plan, and setup must not stop without a planner", () => {
-    const plan = planRow();
+    const plan = operationsOf(readTable("story-worker")).find((op) => op.id === "plan");
     expect(plan?.required).toBe(false);
     expect(plan?.performers).toEqual(["ce-plan"]);
     const fallback = flat(String(plan?.fallback ?? ""));
@@ -617,8 +616,9 @@ describe("GRO-22 · the plan step's text", () => {
   });
 
   it("the plan step says every story that is not a defect is planned, and no longer that a defect may skip it", () => {
-    expect(planStep()).toContain("Every story that is not a defect is planned before it is built");
-    expect(planStep()).not.toContain("may skip this step");
+    const step = planStep();
+    expect(step).toContain("Every story that is not a defect is planned before it is built");
+    expect(step).not.toContain("may skip this step");
   });
 
   it("the plan step asks for a plan in a file that ships, and sends its path to the receipt", () => {
@@ -680,13 +680,14 @@ describe("GRO-22 · the plan step's text", () => {
   });
 
   it("the lead sends back a ready hand-back whose Plan line names no plan and no diagnosis", () => {
-    expectAll(acceptItem(), [
+    const item = acceptItem();
+    expectAll(item, [
       "`Plan:` line",
       "resolves at the pull request's head or on its base branch",
       "for a defect, link its diagnosis note",
       "goes back to the worker",
     ]);
-    expect(acceptItem()).not.toContain("must hold");
+    expect(item).not.toContain("must hold");
   });
 
   it.each([
