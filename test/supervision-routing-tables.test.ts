@@ -15,10 +15,11 @@
  * so they hold no absolute path, no version and no harness-specific way of
  * invoking anything, and they name no work tracker (KTD16). A performer, in a
  * table or an override, is one word: a logical name, never a command line
- * (KTD3, amended by MQ-350). The tracker operations
- * are the only ones a default table may leave without a performer:
- * the repo's override, or setup's discovery, supplies it. After this repo's
- * overrides are merged, every operation has one.
+ * (KTD3, amended by MQ-350). The operations only the repo can bind, a work
+ * tracker's and `document-change`, whose performer is the repo's own
+ * knowledge-base skill (GRO-20), are the only ones a default table may leave
+ * without a performer: the repo's override, or setup's discovery, supplies it,
+ * and a not-required one that neither supplies runs by its fallback.
  *
  * Only this test parses the tables; setup hands them to the model as text.
  *
@@ -44,13 +45,18 @@ const OPERATION_FIELDS = [
 ];
 const OVERRIDE_FIELDS = ["performers", "fallback"];
 
-/** The operations whose only real performers are a work tracker (KTD16). */
-const TRACKER_OPERATIONS = [
+/**
+ * The operations only the repo can bind, so a default table may suggest no
+ * performer for them: a work tracker's (KTD16), and `document-change`, whose
+ * performer is the repo's own knowledge-base skill (GRO-20).
+ */
+const REPO_BOUND_OPERATIONS = [
   "post-work-note",
   "read-work-notes",
   "file-stories",
   "find-work-items",
   "update-work-item",
+  "document-change",
 ];
 
 /**
@@ -121,7 +127,7 @@ function operationProblems(op: Operation): string[] {
   const performers = op.performers;
   if (!Array.isArray(performers) || !performers.every(isText)) {
     problems.push(`${name}: performers is not a list of names`);
-  } else if (performers.length === 0 && !TRACKER_OPERATIONS.includes(name)) {
+  } else if (performers.length === 0 && !REPO_BOUND_OPERATIONS.includes(name)) {
     problems.push(`${name}: no suggested performer`);
   } else {
     problems.push(...notOneWord(name, performers));
@@ -436,7 +442,7 @@ describe("MQ-348 · the schema rejects what a table must not hold", () => {
     expect(tableProblems("sample", text)).toEqual([]);
   });
 
-  it("lets only a tracker operation go without a performer", () => {
+  it("lets an operation only the repo can bind go without a performer", () => {
     const text = SAMPLE.replace('id = "build"', 'id = "post-work-note"').replace(
       'performers = ["ce-work"]',
       "performers = []",
@@ -454,6 +460,14 @@ describe("MQ-348 · the schema rejects what a table must not hold", () => {
       expect(tableProblems("sample", text)).toEqual([]);
     },
   );
+
+  it("lets document-change go without a performer: only the repo knows its knowledge-base skill (GRO-20)", () => {
+    const text = SAMPLE.replace('id = "build"', 'id = "document-change"').replace(
+      'performers = ["ce-work"]',
+      "performers = []",
+    );
+    expect(tableProblems("sample", text)).toEqual([]);
+  });
 
   it("fails duplicate ids", () => {
     const text = SAMPLE + SAMPLE.slice(SAMPLE.indexOf("[[operation]]"));
@@ -654,6 +668,77 @@ describe("GRO-7 · the intent route's text", () => {
 
   it("the reference moves a session carrying its story into the story's worktree", () => {
     expect(read(REFERENCE).replace(/\s+/g, " ")).toMatch(/move the session into the worktree/i);
+  });
+});
+
+/**
+ * GRO-20 — a change that adds a module, a data shape, a contract, a dependency
+ * or a design change also updates the repo's reference, architecture and
+ * design docs. The story table's `document-change` operation does it at the
+ * completion checkpoint, before the learning capture, and the receipt and the
+ * pull request's body both say what was updated, or why nothing needed to be.
+ */
+describe("GRO-20 · documenting a change at the completion checkpoint", () => {
+  const RECEIPT = join(SKILLS_TREE, "story-worker", "references", "receipt.md");
+  const WHAT_A_CHANGE_ADDS = "a module, a data shape, a contract, a dependency or a design change";
+  const oneLine = (text: string) => text.replace(/\s+/g, " ");
+  const storyOps = () => operationsOf(readTable("story-worker"));
+  const prRound = () => oneLine(section(read(WORKER), "7. The pull-request round"));
+  /** The receipt's `Docs:` field: its line, and the indented lines that continue it. */
+  const docsField = () =>
+    oneLine(read(RECEIPT).match(/^Docs:.*(?:\n[ \t]+\S.*)*/m)?.[0] ?? "");
+
+  it("the story table has a document-change operation with no default performer and a fallback", () => {
+    const op = storyOps().find((o) => o.id === "document-change");
+    expect(op).toBeDefined();
+    expect(op?.performers).toEqual([]);
+    expect(op?.required).toBe(false);
+    expect(isText(op?.fallback)).toBe(true);
+    expect(op?.step).toMatch(/completion checkpoint/);
+  });
+
+  it("document-change comes before capture-learning: the docs are final before the capture's test", () => {
+    const ids = storyOps().map((op) => op.id);
+    expect(ids).toContain("document-change");
+    expect(ids).toContain("capture-learning");
+    expect(ids.indexOf("document-change")).toBeLessThan(ids.indexOf("capture-learning"));
+  });
+
+  it("its intent names the repo's own knowledge-base skill, so discovery binds no other", () => {
+    const op = storyOps().find((o) => o.id === "document-change");
+    expect(oneLine(String(op?.intent ?? ""))).toContain("the repo's own knowledge-base skill");
+  });
+
+  it("the pull-request round names `document-change` before `capture-learning`", () => {
+    const text = prRound();
+    const document = text.indexOf("`document-change`");
+    expect(idsOf("story-worker")).toContain("document-change");
+    expect(document).toBeGreaterThan(-1);
+    expect(text.indexOf("`capture-learning`")).toBeGreaterThan(-1);
+    expect(document).toBeLessThan(text.indexOf("`capture-learning`"));
+  });
+
+  it("the pull-request round says when it runs, and lists it under Not run when it does not", () => {
+    expect(prRound()).toContain(WHAT_A_CHANGE_ADDS);
+    expect(prRound()).toContain("Not run");
+  });
+
+  it("the pull-request round puts the Docs line in the receipt and the pull request's body before ready", () => {
+    const text = prRound();
+    const ready = text.indexOf("mark the pull request ready");
+    const docsLine = text.indexOf("`Docs:` line");
+    const body = text.indexOf("pull request's body");
+    expect(ready).toBeGreaterThan(-1);
+    expect(docsLine).toBeGreaterThan(-1);
+    expect(body).toBeGreaterThan(-1);
+    expect(docsLine).toBeLessThan(ready);
+    expect(body).toBeLessThan(ready);
+  });
+
+  it("the receipt has a Docs field: what was updated, or none needed and why, as the pull request's body says it", () => {
+    expect(docsField()).toMatch(/^Docs:/);
+    expect(docsField()).toContain("none needed, because");
+    expect(docsField()).toContain("pull request's body");
   });
 });
 
