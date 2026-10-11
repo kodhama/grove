@@ -2101,6 +2101,14 @@ describe("MQ-353 · the command line", () => {
         'write "Capture: captured <path>" or "Capture: skipped: <reason>", with one space after the colon and the value filled in',
       Docs: 'write "Docs: updated <paths>" or "Docs: none needed, because <why>", with one space after the colon and the value filled in',
     };
+    /** The same two forms, as a missing line names them. */
+    const TAKES = {
+      Capture: 'it takes "Capture: captured <path>" or "Capture: skipped: <reason>"',
+      Docs: 'it takes "Docs: updated <paths>" or "Docs: none needed, because <why>"',
+    };
+    /** The report's line for a body in which no line starts with `label`. */
+    const missing = (body: string, label: keyof typeof TAKES) =>
+      `pr-body ${body}: missing "${label}:": no line starts with it; ${TAKES[label]}`;
 
     /** A body saved to a file, as the worker saves it. */
     const bodyOf = (text: string) => {
@@ -2163,7 +2171,7 @@ describe("MQ-353 · the command line", () => {
       const body = bodyOf(`## What changed\n\n${NONE}\n`);
       const result = clean("--pr-body", body);
       expect(bodyLines(result.stdout)).toEqual([
-        `pr-body ${body}: missing "Capture:": no line starts with it`,
+        missing(body, "Capture"),
         `pr-body ${body}: found "${NONE}"`,
       ]);
       expect(result.status).toBe(1);
@@ -2174,7 +2182,7 @@ describe("MQ-353 · the command line", () => {
       const result = clean("--pr-body", body);
       expect(bodyLines(result.stdout)).toEqual([
         `pr-body ${body}: found "${CAPTURED}"`,
-        `pr-body ${body}: missing "Docs:": no line starts with it`,
+        missing(body, "Docs"),
       ]);
       expect(result.status).toBe(1);
     });
@@ -2183,8 +2191,8 @@ describe("MQ-353 · the command line", () => {
       const body = bodyOf("");
       const result = clean("--pr-body", body);
       expect(bodyLines(result.stdout)).toEqual([
-        `pr-body ${body}: missing "Capture:": no line starts with it`,
-        `pr-body ${body}: missing "Docs:": no line starts with it`,
+        missing(body, "Capture"),
+        missing(body, "Docs"),
       ]);
       expect(result.status).toBe(1);
     });
@@ -2217,6 +2225,15 @@ describe("MQ-353 · the command line", () => {
       ],
       ["Docs: updated <paths>", "Docs: updated <paths>"],
       ["Docs: none needed, because <why>", "Docs: none needed, because <why>"],
+      // So is one set off by spaces, or wrapped in backticks, quote marks, asterisks or underscores.
+      ["Capture: skipped:  <reason>", "Capture: skipped:  <reason>"],
+      ["Capture: captured `<path>` ", "Capture: captured `<path>`"],
+      ['Docs: updated "<paths>"', 'Docs: updated "<paths>"'],
+      ["Docs: none needed, because '<why>'", "Docs: none needed, because '<why>'"],
+      ["Capture: skipped: **<reason>**", "Capture: skipped: **<reason>**"],
+      ["Capture: captured _<path>_", "Capture: captured _<path>_"],
+      // A receipt may say a story never reached its capture; a ready pull request's body may not.
+      ["Capture: not reached: the story ended early", "Capture: not reached: the story ended early"],
     ])("exits 1 on the malformed line %j, quoting it and naming both forms", (written, quoted) => {
       const label = written.startsWith("Capture") ? "Capture" : "Docs";
       const other = label === "Capture" ? NONE : SKIPPED;
@@ -2229,6 +2246,17 @@ describe("MQ-353 · the command line", () => {
       expect(result.status).toBe(1);
     });
 
+    it("finds a value that holds an angle bracket after its first words", () => {
+      const capture = "Capture: skipped: the diff adds a <details> block";
+      const body = bodyOf(`${capture}\n${NONE}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: found "${capture}"`,
+        `pr-body ${body}: found "${NONE}"`,
+      ]);
+      expect(result.status).toBe(0);
+    });
+
     it.each([
       "- Capture: skipped: x",
       "**Capture:** skipped: x",
@@ -2239,7 +2267,7 @@ describe("MQ-353 · the command line", () => {
       const body = bodyOf(`${line}\n${NONE}\n`);
       const result = clean("--pr-body", body);
       expect(bodyLines(result.stdout)).toEqual([
-        `pr-body ${body}: missing "Capture:": no line starts with it`,
+        missing(body, "Capture"),
         `pr-body ${body}: found "${NONE}"`,
       ]);
       expect(result.status).toBe(1);
@@ -2292,6 +2320,16 @@ describe("MQ-353 · the command line", () => {
       expect(result.status).toBe(1);
     });
 
+    it("exits 1 on a body with the Docs line twice, giving the count", () => {
+      const body = bodyOf(`${SKIPPED}\n${UPDATED}\n\n${NONE}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: found "${SKIPPED}"`,
+        `pr-body ${body}: repeated "Docs:": 2 lines start with it, keep one`,
+      ]);
+      expect(result.status).toBe(1);
+    });
+
     it.each([
       ["a missing path", join(dir, "no-such-body.md")],
       ["a directory", dir],
@@ -2305,6 +2343,37 @@ describe("MQ-353 · the command line", () => {
         ]);
         expect(result.stdout).toBe("");
       }
+    });
+
+    it.each([
+      ["a line feed", "\n"],
+      ["a carriage return", "\r"],
+      ["a line separator", "\u2028"],
+      ["a paragraph separator", "\u2029"],
+    ])("exits 2 when the --pr-body path holds %s, printing nothing that follows it", (_what, breakChar) => {
+      // The report prints the path as given, so what follows a break in it would start a line: here one shaped like a use.
+      const forged = `story-worker/build: used compound-engineering:ce-work in ${BEFORE}`;
+      const path = join(dir, `body${breakChar}${forged}`);
+      mkdirSync(join(path, ".."), { recursive: true });
+      writeFileSync(path, `${SKIPPED}\n${NONE}\n`);
+      for (const baseline of [clean, failing]) {
+        const result = baseline("--pr-body", path);
+        expect(result.status).toBe(2);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toMatch(/^receipt-check: --pr-body /);
+        expect(result.stderr).not.toContain(forged);
+        const starts = `${result.stdout}${result.stderr}`.split(/\r\n?|\n|\u2028|\u2029/);
+        expect(starts.filter((line) => line.startsWith("story-worker/"))).toEqual([]);
+      }
+    });
+
+    it("refuses a --pr-body path that holds a line break before it reads the bindings file", () => {
+      const args = ["--bindings", join(dir, "no-such-bindings.json"), "--pr-body", "body\nsecond line.md"];
+      const result = spawnSync("node", [SCRIPT, ...args], { encoding: "utf8" });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toMatch(/^receipt-check: --pr-body /);
+      expect(result.stderr).not.toContain("no bindings file");
+      expect(result.stderr).not.toContain("second line");
     });
 
     it("says the body was not checked when no --pr-body is given, and exits as it did", () => {
@@ -2335,6 +2404,33 @@ describe("MQ-353 · the command line", () => {
       expect(result.status).not.toBe(2);
       expect(result.stdout).toMatch(/^summary: /m);
       expect(bodyLines(result.stdout)).toEqual([]);
+    });
+
+    it("still checks a body given with another level skill's bindings", () => {
+      const other = join(dir, "project-lead-routing-with-body.toml");
+      const table = 'skill = "project-lead"\n\n[[operation]]\nid = "review-before-merge"\nfresh_context = true\n';
+      writeFileSync(other, table);
+      const lead = (...args: string[]) => {
+        const file = bindingsReading([AFTER, "claude-after-restart"]);
+        file.skill = "project-lead";
+        file.table = { path: other, sha256: createHash("sha256").update(table).digest("hex") };
+        file.operations = file.operations.filter((o) => o.id === "build");
+        return run(file, ...args);
+      };
+      const good = bodyOf(`${SKIPPED}\n${NONE}\n`);
+      const passed = lead("--pr-body", good);
+      expect(bodyLines(passed.stdout)).toEqual([
+        `pr-body ${good}: found "${SKIPPED}"`,
+        `pr-body ${good}: found "${NONE}"`,
+      ]);
+      expect(passed.status).toBe(0);
+      const lacking = bodyOf(`${SKIPPED}\n`);
+      const failed = lead("--pr-body", lacking);
+      expect(bodyLines(failed.stdout)).toEqual([
+        `pr-body ${lacking}: found "${SKIPPED}"`,
+        missing(lacking, "Docs"),
+      ]);
+      expect(failed.status).toBe(1);
     });
 
     it("still exits 1 on an unused operation when the body is good", () => {

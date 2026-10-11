@@ -16,21 +16,24 @@
  * colon, then a value in one of the label's forms; a line that starts with
  * its label and fits no form is `malformed`, and comes back with the forms it
  * could have taken. Each label appears exactly once: no such line is
- * `missing`, and two or more are `repeated`, with their count, since two can
- * disagree and a reader takes one. A value that opens with `<` is a
- * placeholder nobody filled in, so `Capture: captured <path>` is malformed
- * too. A line ends at any break a reader could show as one (a line feed, a
- * carriage return with or without one, a line or paragraph separator), since
- * a host can return a body with CRLF endings and a quoted line must never
- * carry a second line into the report; its trailing spaces are dropped, and
- * so is a byte-order mark before the first line.
+ * `missing`, which comes back with the forms too, and two or more are
+ * `repeated`, with their count, since two can disagree and a reader takes
+ * one. A value that opens with `<`, after any run of spaces, backticks, quote
+ * marks, asterisks or underscores, is a placeholder nobody filled in, so
+ * `Capture: captured <path>` is malformed too, in backticks or not; a real
+ * value may hold a `<` later. A line ends at any break a reader could show as
+ * one (a line feed, a carriage return with or without one, a line or
+ * paragraph separator), since a host can return a body with CRLF endings and
+ * a quoted line must never carry a second line into the report; its trailing
+ * spaces are dropped, and so is a byte-order mark before the first line.
  *
  * Its limits. It reads the text it is given, so it proves the saved file, not
  * the pull request: saving the body unchanged, after its last edit, is the
  * caller's to get right. It reads lines, not Markdown, so a line inside a
- * fenced block or a template's example counts as the line. And it checks a
- * value's form only, never that a captured path exists or that a reason is a
- * good one.
+ * fenced block or a template's example counts as the line, and so does a line
+ * inside an HTML comment, though the rendered pull request never shows it.
+ * And it checks a value's form only, never that a captured path exists or
+ * that a reason is a good one.
  *
  * Plan: docs/plans/2026-10-11-gro-21-required-capture-line-plan.md, KTD2,
  * KTD5, KTD6 and U2.
@@ -60,23 +63,30 @@ const REQUIRED_LINES = [
 ];
 
 /**
+ * What opens a value nobody filled in: a `<`, after any run of spaces,
+ * backticks, quote marks, asterisks or underscores, as a template's
+ * placeholder has it, bare or dressed as code, a quote or emphasis.
+ */
+const PLACEHOLDER = /^[ `'"*_]*</;
+
+/**
  * Whether a line is its label, a colon, one space, a form's words and a value
  * after them. A line never ends in a space, so something always follows the
- * form's words; a value that opens with `<` is a template's placeholder left
- * unfilled, not a value.
+ * form's words; a placeholder left unfilled is not a value.
  */
 function wellFormed(line, { label, forms }) {
   return forms.some(({ starts }) => {
     const opening = `${label}: ${starts}`;
-    return line.startsWith(opening) && !line.slice(opening.length).startsWith("<");
+    return line.startsWith(opening) && !PLACEHOLDER.test(line.slice(opening.length));
   });
 }
 
 /**
  * What a body's text holds for each required line, in the list's order:
- * `{ label, state: "found", line }`, `{ label, state: "missing" }`,
- * `{ label, state: "malformed", line, accepts }` with each form the line could
- * have taken written out, or `{ label, state: "repeated", count }`.
+ * `{ label, state: "found", line }`, `{ label, state: "missing", accepts }`,
+ * `{ label, state: "malformed", line, accepts }` or
+ * `{ label, state: "repeated", count }`. `accepts` is each form the label's
+ * line takes, written out.
  */
 export function readBodyLines(text) {
   // Every break a reader could show as a new line ends one, so a quoted line holds no second line.
@@ -86,12 +96,12 @@ export function readBodyLines(text) {
     .map((line) => line.trimEnd());
   return REQUIRED_LINES.map((required) => {
     const { label, forms } = required;
+    const accepts = forms.map(({ starts, then }) => `${label}: ${starts}${then}`);
     const labelled = lines.filter((line) => line.startsWith(`${label}:`));
-    if (labelled.length === 0) return { label, state: "missing" };
+    if (labelled.length === 0) return { label, state: "missing", accepts };
     if (labelled.length > 1) return { label, state: "repeated", count: labelled.length };
     const [line] = labelled;
     if (wellFormed(line, required)) return { label, state: "found", line };
-    const accepts = forms.map(({ starts, then }) => `${label}: ${starts}${then}`);
     return { label, state: "malformed", line, accepts };
   });
 }

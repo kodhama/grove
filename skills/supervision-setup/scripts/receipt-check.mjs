@@ -101,14 +101,16 @@
  * (`pr-body-lines.mjs` has the lines and the forms each takes). It prints one
  * line for each, after the operations and before the summary:
  *
- *   pr-body <file>: found "Capture: skipped: <reason>"
- *   pr-body <file>: missing "Docs:": no line starts with it
+ *   pr-body <file>: found "Capture: skipped: the tests already show the lesson"
+ *   pr-body <file>: missing "Docs:": no line starts with it; it takes "Docs: updated <paths>" or "Docs: none needed, because <why>"
  *
  * or `malformed`, quoting the line and naming the forms it accepts, or
  * `repeated`, with how many lines start with the label. Anything but `found`
  * fails the check. Every such line starts with the word `pr-body`, so a
  * handoff that carries the report never reads one as a use, whatever text of
- * the body it quotes. Without the flag nothing about the body is checked and
+ * the body it quotes. The line prints the file's path as it was given, so a
+ * path that holds a line break is refused: what follows the break would start
+ * a line of its own. Without the flag nothing about the body is checked and
  * the verdict is what it would be: a story-worker report then says
  * `pr-body: not checked (no --pr-body given)`, and another level skill's,
  * which has no pull request, says nothing. A blocked hand-back and a
@@ -123,7 +125,8 @@
  * read it (the bindings then follow other suggestions), or when the body
  * given as `--pr-body` holds a required line missing, malformed or repeated,
  * 2 on bad arguments (a `--since` that is not a time with its zone, such as
- * `2026-10-08T21:16:31Z`, included) or unusable input (a bindings file setup
+ * `2026-10-08T21:16:31Z`, and a `--pr-body` path that holds a line break,
+ * included) or unusable input (a bindings file setup
  * did not complete, one listing no transcripts, one recording no sha256 for
  * its table or its override, or a malformed entry, a transcript or a handoff
  * that is not a file, a `--pr-body` path, the empty one included, that is not
@@ -156,6 +159,8 @@ const SETUP_SKILL = "supervision-setup";
 const STORY_SKILL = "story-worker";
 /** The states that fail the check: exit 1. */
 const FAILING = new Set(["bound-but-unused", "attempted-failed", "no evidence"]);
+/** Any break a reader could show as the start of a new line. */
+const LINE_BREAK = /[\n\r\u2028\u2029]/;
 
 /** Skills called that no binding names, leaving out the ones that ran setup. */
 function unboundSkills(bindings, uses) {
@@ -356,16 +361,18 @@ function scopeText(scope, skill) {
 function bodyLines(body, skill) {
   if (!body) return skill === STORY_SKILL ? ["pr-body: not checked (no --pr-body given)"] : [];
   const start = `pr-body ${body.path}:`;
+  /** The forms a label's line takes, each quoted. */
+  const forms = (row) => row.accepts.map((form) => `"${form}"`).join(" or ");
   return body.lines.map((row) => {
     switch (row.state) {
       case "found":
         return `${start} found "${row.line}"`;
       case "malformed":
-        return `${start} malformed "${row.line}": write ${row.accepts.map((form) => `"${form}"`).join(" or ")}, with one space after the colon and the value filled in`;
+        return `${start} malformed "${row.line}": write ${forms(row)}, with one space after the colon and the value filled in`;
       case "repeated":
         return `${start} repeated "${row.label}:": ${row.count} lines start with it, keep one`;
       default:
-        return `${start} missing "${row.label}:": no line starts with it`;
+        return `${start} missing "${row.label}:": no line starts with it; it takes ${forms(row)}`;
     }
   });
 }
@@ -425,7 +432,12 @@ function readOptions(argv) {
     return { error: error.message };
   }
   // An empty `--pr-body` is a path that names no file, never an absent flag.
-  return { bindings: values.bindings, handoff: values.handoff ?? null, notRun, since, prBody: values["pr-body"] ?? null };
+  const prBody = values["pr-body"] ?? null;
+  // The report prints this path as given: a break in it would start a line a handoff's reader could take for a use.
+  if (prBody !== null && LINE_BREAK.test(prBody)) {
+    return { error: "--pr-body <path> holds a line break; save the body to a path on one line" };
+  }
+  return { bindings: values.bindings, handoff: values.handoff ?? null, notRun, since, prBody };
 }
 
 /** Load a bindings file setup completed, or return the reason it cannot be used. */
