@@ -263,7 +263,8 @@ report lists every pane it skipped and why.
 **At every event you handle**, read new notes on each in-flight story's work
 item and on the epic's or the run's, through the performer bound to
 `read-work-notes`. Act on any hand-back or `restart-owner: lead` handoff you
-find there.
+find there, and on any line a worker posted there because its send to you
+was refused.
 
 **Reports arrive late, out of order, or not at all.** A missing report looks
 just like a worker that is still working. A report proves only the revision

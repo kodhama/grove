@@ -358,7 +358,10 @@ the only exception being a setup stop, when nothing is bound yet. If it goes
 through a terminal transport, first check that your lead's pane is not
 focused, since the maintainer may be typing there. A message the transport
 refuses or skips is retried at your next event, and the work note is the
-backstop for a hand-back.
+backstop for a hand-back. A send your harness's permission check refuses is a
+refused call like any other (see Never): never send it again. Post its line
+as a note on the story's work item through the performer bound to
+`post-work-note` instead, with the `STATUS: refused` line for the send.
 
 With no lead ("none: the maintainer"), the maintainer is your lead: give each
 of these lines to them directly, a `DECISION` through the question tool where

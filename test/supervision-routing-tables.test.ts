@@ -757,6 +757,19 @@ describe("GRO-17 · the refused-call rule's text", () => {
     );
   });
 
+  it("a send to the lead that the permission check refuses goes as a work note, never sent again", () => {
+    expect(idsOf("story-worker")).toContain("post-work-note");
+    expect(workerTalking()).toContain(
+      "A message the transport refuses or skips is retried at your next event, and the work note is the backstop for a hand-back. A send your harness's permission check refuses is a refused call like any other (see Never): never send it again. Post its line as a note on the story's work item through the performer bound to `post-work-note` instead, with the `STATUS: refused` line for the send.",
+    );
+  });
+
+  it("the lead acts on a line a worker posted as a note because its send was refused", () => {
+    expect(flat(section(read(LEAD), "6. Watching the work"))).toContain(
+      "Act on any hand-back or `restart-owner: lead` handoff you find there, and on any line a worker posted there because its send to you was refused.",
+    );
+  });
+
   it("the lead keeps a moved worker's branch in its clone and its session files in the worktree", () => {
     expect(leadMessages()).toContain(
       "- **A worker's `STATUS: moved`:** its branch lives in the clone the line names from then on, while its session's own files, its restart marker among them, stay in the worktree you made.",
