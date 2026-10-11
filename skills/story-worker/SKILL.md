@@ -47,8 +47,10 @@ again whenever a step needs one, because they can change during a story.
   command, or you redo the work in a fresh clone of your own. Take the clone
   only on that OK: bring in your unpushed commits from the worktree, keep to
   the rules above, work on the branch in that clone from then on, and send
-  the line again with the clone's path. Your session's own files, such as its
-  bindings and any restart marker, stay where the session started.
+  the line again with the clone's path. Your session's own files, its
+  bindings, its handoff and any restart marker, stay in the worktree, where
+  your lead looks for them: run setup and the restart from the worktree, by
+  its full path, never from the clone.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
@@ -387,7 +389,9 @@ worker that restarts from 35% never carries a step past 40%. A reading
 already past 40% at a boundary restarts there all the same.
 
 Restart through the performer bound to `restart-self`, which owns the
-mechanics, the new-session path included. Send your lead `STATUS: restarting`
+mechanics, the new-session path included. After a move to a clone, run it from
+the worktree, by its full path: the bindings and the handoff are there, and
+your lead looks there for the restart marker. Send your lead `STATUS: restarting`
 once per restart: on the in-place path before the restart ends your turn, and
 on the new-session path with the link to the posted handoff. Where the restart
 skill says to write the handoff, invoke the performer bound to `write-handoff`
