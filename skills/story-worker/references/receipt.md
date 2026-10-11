@@ -19,14 +19,15 @@ Story:           <work item id and link>   Source: <plan, spec or unit, with its
                   defect, or a story filed from plain intent, the work item itself>
 Plan:            <the plan this story was built from: the path, on the branch, of its plan
                   file; or, where its source is a plan unit that was enough to build from, that
-                  plan's path and the unit's id, with no copy written; or both, where a file
-                  fills the unit's gaps. A file written with no planning performer bound adds
-                  ", written by fallback"
+                  plan's path, or the link to the note that holds it, and the unit's id, with no
+                  copy written; or both, where a file fills the unit's gaps
                   | for a defect: diagnosis <the link to the note that holds its summary>,
                   then "plan <path>" where the fix needed one, "no plan: contained fix" where
                   it did not, or "no plan: nothing built" where there was no fix to make
                   | not reached: <why>, for a story that ended before it was planned, or,
-                  for a defect, diagnosed>
+                  for a defect, before its diagnosis came back>
+                 <a line that names a plan ends ", by fallback" where no planning performer
+                  was bound: a file you wrote, a unit you judged enough, or a defect's plan>
 Owner:           <session name, read from the live system>   Worktree: <path>   Branch: <name>
 Started:         <UTC time, as YYYY-MM-DDTHH:MM:SSZ, recorded at the story's start>   Base: <full SHA the branch was cut from>
 Operating model: <own team | fully delegated to <runner>>

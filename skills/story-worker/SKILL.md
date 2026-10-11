@@ -124,9 +124,11 @@ with no fix, no commit and no push. Say in the same request that it asks no
 one: where it would ask a question, it stops and returns what it tried and
 what is missing; and that it never uses the shared stash.
 
-The diagnosis stands as the defect's plan. Post its summary as a note on the
-work item, through the performer bound to `post-work-note`, before you act on
-it, so your lead can open it. The receipt's `Plan:` line links that note.
+A defect's diagnosis stands as its plan, together with the plan step's own
+where the fix needs one. Post its summary as a note on the work item, through
+the performer bound to `post-work-note`, before you act on it, so your lead
+can open it, and end the note with the agent footer the repo's instructions
+require. The receipt's `Plan:` line links that note.
 
 The diagnosis decides the route:
 

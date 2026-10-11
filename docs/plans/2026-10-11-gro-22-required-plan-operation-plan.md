@@ -510,3 +510,14 @@ The scenarios keep their shape; the strings they pin follow the amended wording:
 - Scenario 4: step 3 contains `bound by fallback` and `goes to a file all the same`.
 - Scenario 7: the receipt's `Plan:` field also contains `that plan's path and the unit's id, with no copy written` and `or both, where a file fills the unit's gaps`.
 - Scenario 9: the lead's item contains `` `Plan:` line ``, `resolves at the pull request's head or on its base branch`, `for a defect, link its diagnosis note` and `goes back to the worker`, and does not contain `must hold`.
+
+## After the floor review (2026-10-11)
+
+The review of the built branch changed four things this plan, amended, still says otherwise:
+
+- **A plan held in a note counts** (the lead's ruling). A breakdown's confirmed plan is posted as a note on its run item, so a story built from one can only link it. The receipt's plan-unit form and the lead's clause now accept that link, the clause checks a plan path a defect gives beside its diagnosis link, and it names the line's own `not reached`.
+- **One marker, `, by fallback`, ends any line that names a plan** where no planner was bound. `, written by fallback` covered only a file, and three texts disagreed on when it appeared.
+- **The work-note operation's row names the diagnosis note** among its uses, and the note ends with the agent footer.
+- **The README sentence** no longer calls planning the one step never skipped, since review is never skipped either.
+
+The tests now pin whole sentences, since a rule reversed inside a pinned fragment passed.

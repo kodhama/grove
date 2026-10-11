@@ -52,8 +52,8 @@ No planning performer is available, so do the planning yourself. A plan unit
 that is enough to build from is the plan: name it and write no copy. In every
 other case write the plan, or the gaps you fill in a unit, to a file where the
 repo keeps its plans: the files to change, the failing tests to write first,
-and how the result is verified. Keep it within the story's scope, and say on
-the receipt's Plan line that it was written by fallback."""
+and how the result is verified. Keep it within the story's scope, and end the
+receipt's Plan line with ", by fallback", whichever of these you did."""
 
 [[operation]]
 id = "build"
@@ -200,8 +200,8 @@ message to the lead could not be sent."""
 id = "post-work-note"
 intent = """
 Post a note on the story's work item in the repo's work tracker, where any
-harness on any machine can read it: each hand-back, and the handoff for a new
-session."""
-step = "with every hand-back, and when writing a handoff for a new session"
+harness on any machine can read it: a defect's diagnosis, each hand-back, and
+the handoff for a new session."""
+step = "after a defect's diagnosis, with every hand-back, and when writing a handoff for a new session"
 performers = []
 required = true
