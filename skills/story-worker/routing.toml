@@ -22,8 +22,9 @@
 #               context. Setup never binds an agent, or a tool that starts a
 #               subagent, to such an operation. A repo override cannot set it.
 #
-# The table names no work tracker. The tracker operation (post-work-note)
-# leaves performers empty for the repo's override or setup's discovery to fill.
+# The table names no work tracker and no knowledge-base skill. The two
+# operations only the repo can bind (post-work-note, document-change) leave
+# performers empty for the repo's override or setup's discovery to fill.
 
 skill = "story-worker"
 
@@ -134,6 +135,23 @@ required = false
 fallback = """
 Answer each comment: fix it, or reply with the evidence for leaving it. Push
 the fixes and resolve each thread you answered."""
+
+[[operation]]
+id = "document-change"
+intent = """
+Update the repo's reference, architecture and design docs for what the change
+adds: a module, a data shape, a contract, a dependency or a design change. The
+performer is the repo's own knowledge-base skill, the one the repo ships or its
+project instructions name for keeping those docs. A general writing,
+documentation or learning-capture skill is not one."""
+step = "at the completion checkpoint, before any learning is captured, when the diff adds a module, a data shape, a contract, a dependency or a design change"
+performers = []
+required = false
+fallback = """
+Update the docs the change makes stale yourself, where the repo's project
+instructions say they live and in the shape they ask for. Where nothing is
+stale, or the instructions name no such docs, change nothing, and say none
+needed and why."""
 
 [[operation]]
 id = "capture-learning"
