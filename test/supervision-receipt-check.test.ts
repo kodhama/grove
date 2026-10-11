@@ -1181,6 +1181,8 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     ["zsh's unclosed brace", "failed", "Exit code 1\n(eval):2: closing brace expected"],
     ["a malformed `[[` in zsh", "failed", "Exit code 1\n(eval):3: condition expected: a"],
     ["zsh's parse error with no line number", "failed", "Exit code 1\n(eval): parse error near `()'"],
+    ["zsh's unmatched quote with no line number", "failed", 'Exit code 1\n(eval): unmatched "'],
+    ["zsh's parse error with no line number after another line", "failed", "Exit code 1\na\n(eval): parse error near `()'"],
     ["a nested bash's syntax error", "ran", "Exit code 2\nbash: -c: line 1: syntax error near unexpected token `)'"],
     ["the syntax error of a nested bash started by path", "ran", "Exit code 2\n/bin/bash: -c: line 1: syntax error: unexpected end of file"],
     ["a nested bash's unmatched quote", "ran", "Exit code 2\nbash: -c: line 1: unexpected EOF while looking for matching `\"'"],
@@ -1237,6 +1239,7 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     ["starts with zsh's parse error with no line number", "failed", "(eval): parse error near `()'"],
     ["starts with a complaint from zsh's `[`", "failed", "(eval):1: parse error: condition expected: =\nok"],
     ["shows one only on a later line", "ran", "ok\n(eval):1: parse error near `x'"],
+    ["shows one with no line number only on a later line", "ran", "ok\n(eval): parse error near `()'"],
   ])("reads an unflagged Bash result that %s as %s", (_what, outcome, text) => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-parse-bare-"));
     const call = { type: "tool_use", name: "Bash", input: { command: 'herdr agent list "x' } };
@@ -1341,6 +1344,7 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
   it.each([
     ["starts with zsh's unmatched quote", "failed", { stdout: 'zsh:1: unmatched "\nzsh:1: parse error in command substitution\n' }],
     ["starts with zsh's parse error", "failed", { stdout: "zsh:1: parse error near `if'\nzsh:1: parse error in command substitution\npost\n" }],
+    ["starts with zsh's parse error with no line number", "failed", { stdout: "zsh: parse error near `()'\nzsh:1: parse error in command substitution\n\ncarried\n" }],
     ["starts with zsh's parse error in stderr, its stdout empty", "failed", { stdout: "", stderr: "zsh:1: parse error near `if'\n" }],
     ["shows one only on a later line", "ran", { stdout: "ok\nzsh:1: parse error near `x'\n" }],
   ])("reads a completed CommandExecution whose output %s as %s", (_what, outcome, output) => {
@@ -1352,6 +1356,17 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
     rmSync(dir, { recursive: true });
     expect(state).toBe(outcome === "ran" ? "used" : "attempted-failed");
     expect(outcomes).toEqual([outcome]);
+  });
+
+  // Only a command's output is the shell's: a patch that completed ran,
+  // whatever text its item holds.
+  it("reads a completed item that is not a command as ran, whatever its output starts with", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-parse-patch-"));
+    const item = { type: "FileChange", id: "patch-1", status: "completed", stdout: "zsh:1: parse error near `)'\n" };
+    const file = codexBindingsOf(dir, [{ type: "event_msg", payload: { type: "item_completed", item } }]);
+    const outcomes = outcomesOf(file.transcripts, "tool", "apply_patch");
+    rmSync(dir, { recursive: true });
+    expect(outcomes).toEqual(["ran"]);
   });
 
   it("marks apply_patch used by a completed FileChange", () => {
@@ -1500,6 +1515,21 @@ describe("MQ-377 · a review counts only from a fresh-context subagent", () => {
       cat: ["failed"],
       head: ["failed"],
     });
+  });
+
+  // Only the first line is read, as for the command itself: an error on a
+  // later line follows the output of a read that ran.
+  it("credits a Codex skill read whose completed command shows zsh's parse error only on a later line", () => {
+    const read = "cat /codex/skills/ce-code-review/SKILL.md";
+    const stdout = "# The skill's text\nzsh:1: parse error near `x'\n";
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-read-later-"));
+    const child = [commandRecord(read, "completed", 0, "ce-code-review", { stdout })];
+    const file = codexBindingsOf(dir, [], child);
+    const row = reviewRow(file, "story-worker/review-escalation");
+    const skill = outcomesOf(file.transcripts, "skill", "ce-code-review");
+    const cat = outcomesOf(file.transcripts, "cli", "cat");
+    rmSync(dir, { recursive: true });
+    expect({ state: row.state, skill, cat }).toEqual({ state: "used", skill: ["ran"], cat: ["ran"] });
   });
 
   it("notes where a marked performer was called on a no evidence line", () => {
