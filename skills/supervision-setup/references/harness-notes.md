@@ -261,8 +261,8 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   `status: "completed"`: a refused call has `status: "failed"`, and the check
   does not credit it (refused `<tracker>.save_comment` calls, codex-cli 0.160.0,
   2026-10-03).
-- **A command the shell could not parse** is a `CommandExecution` with
-  `status: "failed"` and `exit_code` 1, whose `stdout` holds zsh's own
+- **A command the shell could not parse** is most often a `CommandExecution`
+  with `status: "failed"` and `exit_code` 1, whose `stdout` holds zsh's own
   `zsh:1: parse error near ...` or, for an unclosed quote, `zsh:1: unmatched
   "`; its `stderr` is empty, as it is on every
   command item (observed on codex-cli 0.154.0, 2026-09-17). zsh's `zsh:2:
@@ -274,13 +274,22 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   zsh 5.9, 2026-10-11, not from a Codex rollout). zsh prints some parse
   errors with no line number, as ``zsh: parse error near `()'``, and the
   check reads each wording with the number or without (zsh 5.9, 2026-10-11,
-  not from a Codex rollout). One case is still credited today. Where zsh
-  could not parse part of a line and the line
-  still exited 0, the item is `completed`, and the check counts a
-  `completed` item without reading its output: an `rg ... | head -80` came
-  back `completed` with `exit_code` 0 and a `stdout` starting `zsh:1:
-  unmatched "`, and `rg` is counted though it never ran (observed on
-  codex-cli 0.155.1, 2026-09-27).
+  not from a Codex rollout). The item can be `completed` instead. Where zsh
+  could not parse part of a line and the line still exited 0, as when that
+  part sits in an early stage of a pipeline, an `rg ... | head` came back
+  `completed` with `exit_code` 0, an empty `stderr` and a `stdout` starting
+  `zsh:1: unmatched "` then `zsh:1: parse error in command substitution`,
+  and `rg` never ran (observed on codex-cli 0.155.1, in a rollout of
+  2026-09-27). The check reads a `completed` command whose output starts
+  with zsh's error as not run, and credits nothing in it. It reads only the
+  first line there, which cuts both ways. The stages that did run, such as
+  that `head`, lose their credit, the safe direction, and so does a line
+  that carried on after a nested `zsh -c` printed the error first. A
+  `completed` command that shows the error only on a later line keeps its
+  credit, as an unflagged result does on Claude Code: `echo a; cat f
+  "$(if)" | wc -l` prints `a`, then the error, exits 0, and `cat` is counted
+  though it never ran (the nested and later-line cases were read from
+  `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
   records `spawn_agent` in namespace `collaboration` as
   `collaboration.spawn_agent`, and the receipt check reads the call under that

@@ -18,12 +18,15 @@
  *   and a patch as `apply_patch`.
  *
  * Whether it ran:
- * - a command `ran` when its status is `completed`, or `failed` with an exit
- *   code other than 126 or 127 (it ran and exited non-zero) and no line of
- *   its output starting with zsh's own parse error (`zsh:1: parse error`,
- *   `zsh:1: unmatched "`, `zsh:2: closing brace expected`, `zsh:3: condition
- *   expected`: zsh did not run the line, or not all of it; Codex writes it to
- *   `stdout`, leaving `stderr` empty); else `failed`.
+ * - a command `ran` when its status is `completed` and its output does not
+ *   start with zsh's own parse error, or `failed` with an exit code other
+ *   than 126 or 127 (it ran and exited non-zero) and no line of its output
+ *   starting with that error (`zsh:1: parse error`, `zsh:1: unmatched "`,
+ *   `zsh:2: closing brace expected`, `zsh:3: condition expected`, or any of
+ *   them after a bare `zsh:`: zsh did not run the line, or not all of it;
+ *   Codex writes it to `stdout`, leaving `stderr` empty); else `failed`. A
+ *   `completed` command can start with the error: its line exits 0 when the
+ *   part zsh could not parse sits in an early stage of a pipeline.
  *   A SKILL.md read in it `ran` only when its status is `completed`: the read
  *   shows the skill was loaded, not that a command ran, so it fails closed;
  * - an MCP call or a patch `ran` when its status is `completed`; any other
@@ -44,6 +47,10 @@
  * reads `ran`. And every command a shell line runs shares that line's outcome:
  * in `cd x && herdr …` a failed `cd` still credits herdr, and a line whose
  * last command could not run (exit 127) reads `failed` for every command in it.
+ * Only the first line of a `completed` command's output is read, which cuts
+ * both ways: one that starts with zsh's parse error reads `failed` for the
+ * stages that did run too, and one that shows the error only on a later line
+ * keeps the credit of the commands the error stopped.
  *
  * Child threads: only a `started` activity names one; an `interacted` one
  * can name the parent. Its rollout sits in `sessions/`, in whatever date
@@ -57,6 +64,8 @@ import { globSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { SHELL_COULD_NOT_PARSE, SHELL_COULD_NOT_RUN, shellUses } from "./shell-uses.mjs";
 
+/** zsh's own parse error as the first thing a command's output holds. */
+const PARSE_ERROR_FIRST = new RegExp(SHELL_COULD_NOT_PARSE.codex.source);
 /** The tool that starts a child thread; a `started` activity, not its output, shows it ran. */
 const SPAWN = "collaboration.spawn_agent";
 /** A call record's type, as against its output record (`function_call_output`). */
@@ -115,13 +124,29 @@ function itemUses(item) {
 }
 
 /**
+ * What a command printed, as its item holds it: `stdout`, then `stderr`,
+ * less an empty one, so the text starts with the first thing printed.
+ */
+function commandOutput(item) {
+  return [item.stdout, item.stderr].filter((text) => typeof text === "string" && text !== "").join("\n");
+}
+
+/** Whether a command's output starts with zsh's own parse error. */
+function startsWithParseError(item) {
+  return PARSE_ERROR_FIRST.test(commandOutput(item));
+}
+
+/**
  * Whether an item's call ran, from its own status and, for a command, its exit
- * code and whether its output shows the shell could not parse the line.
+ * code and whether its output shows the shell could not parse the line: on
+ * any line of a `failed` command, and as the first line of a `completed` one,
+ * where an error on a later line follows the output of commands that ran.
  */
 function itemOutcome(item) {
-  if (item.status === "completed") return "ran";
-  const exit = item.type === "CommandExecution" && item.status === "failed" ? item.exit_code : null;
-  const output = [item.stdout, item.stderr].filter((text) => typeof text === "string").join("\n");
+  const command = item.type === "CommandExecution";
+  if (item.status === "completed") return command && startsWithParseError(item) ? "failed" : "ran";
+  const exit = command && item.status === "failed" ? item.exit_code : null;
+  const output = commandOutput(item);
   const ran =
     Number.isInteger(exit) && !SHELL_COULD_NOT_RUN.has(exit) && !SHELL_COULD_NOT_PARSE.codex.test(output);
   return ran ? "ran" : "failed";

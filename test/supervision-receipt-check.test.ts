@@ -1334,6 +1334,26 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
     expect(outcomes).toEqual([outcome]);
   });
 
+  // A line can exit 0 though zsh could not parse part of it, as when the span
+  // sits in an early stage of a pipeline: the item is then `completed`, and
+  // its `stdout` starts with zsh's error. Only the first line is read, and the
+  // last row pins the limit that comes with it.
+  it.each([
+    ["starts with zsh's unmatched quote", "failed", { stdout: 'zsh:1: unmatched "\nzsh:1: parse error in command substitution\n' }],
+    ["starts with zsh's parse error", "failed", { stdout: "zsh:1: parse error near `if'\nzsh:1: parse error in command substitution\npost\n" }],
+    ["starts with zsh's parse error in stderr, its stdout empty", "failed", { stdout: "", stderr: "zsh:1: parse error near `if'\n" }],
+    ["shows one only on a later line", "ran", { stdout: "ok\nzsh:1: parse error near `x'\n" }],
+  ])("reads a completed CommandExecution whose output %s as %s", (_what, outcome, output) => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-parse-completed-"));
+    const record = commandRecord("herdr agent list", "completed", 0, undefined, output);
+    const file = codexBindingsOf(dir, [record]);
+    const state = stateOf(checkReceipts({ bindings: file }), "session-restart/read-pane");
+    const outcomes = outcomesOf(file.transcripts, "cli", "herdr");
+    rmSync(dir, { recursive: true });
+    expect(state).toBe(outcome === "ran" ? "used" : "attempted-failed");
+    expect(outcomes).toEqual([outcome]);
+  });
+
   it("marks apply_patch used by a completed FileChange", () => {
     const file = rebound(reading(MIXED), "story-worker/hand-back", "tool", "apply_patch");
     expect(stateOf(checkReceipts({ bindings: file }), "story-worker/hand-back")).toBe("used");
