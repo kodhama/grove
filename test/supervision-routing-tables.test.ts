@@ -535,6 +535,7 @@ const read = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : 
 
 const LEAD = join(SKILLS_TREE, "project-lead", "SKILL.md");
 const WORKER = join(SKILLS_TREE, "story-worker", "SKILL.md");
+const RECEIPT = join(SKILLS_TREE, "story-worker", "references", "receipt.md");
 
 describe("MQ-373 · the defect route's text", () => {
   const REFERENCE = join(SKILLS_TREE, "project-lead", "references", "defect-run.md");
@@ -597,7 +598,6 @@ describe("MQ-373 · the defect route's text", () => {
  */
 describe("GRO-7 · the intent route's text", () => {
   const REFERENCE = join(SKILLS_TREE, "project-lead", "references", "intent-run.md");
-  const RECEIPT = join(SKILLS_TREE, "story-worker", "references", "receipt.md");
   const description = (text: string) => text.match(/^description: (.*)$/m)?.[1] ?? "";
   const workerGiven = () => section(read(WORKER), "What you are given");
 
@@ -679,17 +679,16 @@ describe("GRO-7 · the intent route's text", () => {
  * pull request's body both say what was updated, or why nothing needed to be.
  */
 describe("GRO-20 · documenting a change at the completion checkpoint", () => {
-  const RECEIPT = join(SKILLS_TREE, "story-worker", "references", "receipt.md");
-  const WHAT_A_CHANGE_ADDS = "a module, a data shape, a contract, a dependency or a design change";
   const oneLine = (text: string) => text.replace(/\s+/g, " ");
-  const storyOps = () => operationsOf(readTable("story-worker"));
+  const documentChange = () =>
+    operationsOf(readTable("story-worker")).find((op) => op.id === "document-change");
   const prRound = () => oneLine(section(read(WORKER), "7. The pull-request round"));
   /** The receipt's `Docs:` field: its line, and the indented lines that continue it. */
   const docsField = () =>
     oneLine(read(RECEIPT).match(/^Docs:.*(?:\n[ \t]+\S.*)*/m)?.[0] ?? "");
 
   it("the story table has a document-change operation with no default performer and a fallback", () => {
-    const op = storyOps().find((o) => o.id === "document-change");
+    const op = documentChange();
     expect(op).toBeDefined();
     expect(op?.performers).toEqual([]);
     expect(op?.required).toBe(false);
@@ -698,29 +697,32 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
   });
 
   it("document-change comes before capture-learning: the docs are final before the capture's test", () => {
-    const ids = storyOps().map((op) => op.id);
+    const ids = idsOf("story-worker");
     expect(ids).toContain("document-change");
     expect(ids).toContain("capture-learning");
     expect(ids.indexOf("document-change")).toBeLessThan(ids.indexOf("capture-learning"));
   });
 
   it("its intent names the repo's own knowledge-base skill, so discovery binds no other", () => {
-    const op = storyOps().find((o) => o.id === "document-change");
-    expect(oneLine(String(op?.intent ?? ""))).toContain("the repo's own knowledge-base skill");
+    expect(oneLine(String(documentChange()?.intent ?? ""))).toContain(
+      "the repo's own knowledge-base skill",
+    );
   });
 
   it("the pull-request round names `document-change` before `capture-learning`", () => {
     const text = prRound();
     const document = text.indexOf("`document-change`");
+    const capture = text.indexOf("`capture-learning`");
     expect(idsOf("story-worker")).toContain("document-change");
     expect(document).toBeGreaterThan(-1);
-    expect(text.indexOf("`capture-learning`")).toBeGreaterThan(-1);
-    expect(document).toBeLessThan(text.indexOf("`capture-learning`"));
+    expect(capture).toBeGreaterThan(-1);
+    expect(document).toBeLessThan(capture);
   });
 
   it("the pull-request round says when it runs, and lists it under Not run when it does not", () => {
-    expect(prRound()).toContain(WHAT_A_CHANGE_ADDS);
-    expect(prRound()).toContain("Not run");
+    const text = prRound();
+    expect(text).toContain("a module, a data shape, a contract, a dependency or a design change");
+    expect(text).toContain("Not run");
   });
 
   it("the pull-request round puts the Docs line in the receipt and the pull request's body before ready", () => {
@@ -736,9 +738,10 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
   });
 
   it("the receipt has a Docs field: what was updated, or none needed and why, as the pull request's body says it", () => {
-    expect(docsField()).toMatch(/^Docs:/);
-    expect(docsField()).toContain("none needed, because");
-    expect(docsField()).toContain("pull request's body");
+    const field = docsField();
+    expect(field).toMatch(/^Docs:/);
+    expect(field).toContain("none needed, because");
+    expect(field).toContain("pull request's body");
   });
 });
 
