@@ -291,7 +291,9 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
    either place goes back to the worker, and so does one whose pasted check
    shows a body line as anything but `found`. Where the pasted check says the
    body was not checked, or the check could not run, your own reading of the
-   body decides.
+   body decides. In the body a line counts only in a form the worker's skill
+   gives it, at the start of a line of its own, and never as `not reached` on
+   a pull request that is ready.
 2. **Accept on the evidence.** Check the story's acceptance, taken from its
    source. The receipt must show a review from a context other than the
    author's, such as a fresh-context subagent the worker started, and say

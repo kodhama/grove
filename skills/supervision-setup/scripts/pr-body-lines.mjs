@@ -18,11 +18,12 @@
  * could have taken. Each label appears exactly once: no such line is
  * `missing`, which comes back with the forms too, and two or more are
  * `repeated`, with their count, since two can disagree and a reader takes
- * one. A value that opens with `<`, after any run of spaces, backticks, quote
- * marks, asterisks or underscores, is a placeholder nobody filled in, so
- * `Capture: captured <path>` is malformed too, in backticks or not; a real
- * value may hold a `<` later. A line ends at any break a reader could show as
- * one (a line feed, a carriage return with or without one, a line or
+ * one. A value that opens with `<`, or with `&lt;` as a host may write it,
+ * after any run of characters that are no letter or digit, is a placeholder
+ * nobody filled in, so `Capture: captured <path>` is malformed too, in
+ * backticks, brackets, a backslash escape or not; a real value may hold a `<`
+ * after its first letter or digit. A line ends at any break a reader could
+ * show as one (a line feed, a carriage return with or without one, a line or
  * paragraph separator), since a host can return a body with CRLF endings and
  * a quoted line must never carry a second line into the report; its trailing
  * spaces are dropped, and so is a byte-order mark before the first line.
@@ -69,11 +70,12 @@ const REQUIRED_LINES = [
 export const LINE_BREAK = /\r\n?|\n|\u2028|\u2029/;
 
 /**
- * What opens a value nobody filled in: a `<`, after any run of spaces,
- * backticks, quote marks, asterisks or underscores, as a template's
- * placeholder has it, bare or dressed as code, a quote or emphasis.
+ * What opens a value nobody filled in: a `<`, or the `&lt;` that stands for
+ * one, after any run of characters that are no letter or digit, as a
+ * template's placeholder has it, bare or dressed as code, a quote, emphasis,
+ * brackets or an escape.
  */
-const PLACEHOLDER = /^[ `'"*_]*</;
+const PLACEHOLDER = /^[^\p{L}\p{N}]*(?:<|&lt;)/u;
 
 /**
  * Whether a line is its label, a colon, one space, a form's words and a value

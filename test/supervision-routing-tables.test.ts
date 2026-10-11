@@ -719,7 +719,8 @@ describe("what an agent or a user reads names no work tracker or plan tag", () =
  * GRO-21 — every story says whether a lesson was captured, and where, or why
  * not: on a `Capture:` line in its receipt and the same line in its pull
  * request's body. The worker saves the body and hands it to the receipt
- * check, which reads only the body; the lead reads the receipt's own lines.
+ * check, which reads only the saved body; the lead reads both lines itself,
+ * in the receipt and in the body as it stands.
  */
 describe("GRO-21 · the Capture line's text", () => {
   const oneLine = (text: string) => text.replace(/\s+/g, " ");
@@ -784,6 +785,10 @@ describe("GRO-21 · the Capture line's text", () => {
     expect(lead).toContain(
       "Where the pasted check says the body was not checked, or the check could not run, your own reading of the body decides.",
     );
+    // Its own reading needs the rule the check applies: the shape, the forms and the one value a ready body never has.
+    expect(lead).toContain(
+      "In the body a line counts only in a form the worker's skill gives it, at the start of a line of its own, and never as `not reached` on a pull request that is ready.",
+    );
   });
 
   it("the receipt's Receipt check field names --pr-body", () => {
@@ -826,7 +831,7 @@ describe("GRO-21 · the Capture line's text", () => {
     expect(step8()).not.toMatch(/\bgh\b|github|curl/i);
   });
 
-  it("the lead's claims check reads the receipt's two lines, and sends back a hand-back missing either", () => {
+  it("the lead's claims check reads the two lines in the receipt and in the body, and sends back a hand-back missing either", () => {
     const handBack = oneLine(section(read(LEAD), "7. A hand-back"));
     const claims = handBack.slice(
       handBack.indexOf("**Check the claims.**"),

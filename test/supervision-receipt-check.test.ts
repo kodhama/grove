@@ -2240,6 +2240,14 @@ describe("MQ-353 · the command line", () => {
       ["Docs: none needed, because '<why>'", "Docs: none needed, because '<why>'"],
       ["Capture: skipped: **<reason>**", "Capture: skipped: **<reason>**"],
       ["Capture: captured _<path>_", "Capture: captured _<path>_"],
+      // So is one behind any other run of marks that are no letter or digit, or written as an entity.
+      ["Capture: skipped: \\<reason\\>", "Capture: skipped: \\<reason\\>"],
+      ["Capture: captured &lt;path&gt;", "Capture: captured &lt;path&gt;"],
+      ["Capture: captured `&lt;path&gt;`", "Capture: captured `&lt;path&gt;`"],
+      ["Docs: updated (<paths>)", "Docs: updated (<paths>)"],
+      ["Docs: updated [<paths>]", "Docs: updated [<paths>]"],
+      ["Capture: skipped: \t<reason>", "Capture: skipped: \t<reason>"],
+      ["Docs: none needed, because \u201C<why>\u201D", "Docs: none needed, because \u201C<why>\u201D"],
       // A receipt may say a story never reached its capture; a ready pull request's body may not.
       ["Capture: not reached: the story ended early", "Capture: not reached: the story ended early"],
     ])("exits 1 on the malformed line %j, quoting it and naming both forms", (written, quoted) => {
@@ -2252,6 +2260,20 @@ describe("MQ-353 · the command line", () => {
       );
       expect(bodyLines(result.stdout)).toContain(`pr-body ${body}: found "${other}"`);
       expect(result.status).toBe(1);
+    });
+
+    it.each([
+      // A value may open with a mark, and may hold a `<` or an `&` after its first letter or digit.
+      "Docs: updated ./README.md",
+      "Docs: updated `README.md`",
+      "Capture: skipped: a < b comparison in the tests already shows it",
+      "Capture: skipped: R&D notes hold it; &lt; is how the docs write the sign",
+    ])("takes %j as a value, not a placeholder", (written) => {
+      const other = written.startsWith("Capture") ? NONE : SKIPPED;
+      const body = bodyOf(`${written}\n${other}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toContain(`pr-body ${body}: found "${written}"`);
+      expect(result.status).toBe(0);
     });
 
     it("finds a value that holds an angle bracket after its first words", () => {
