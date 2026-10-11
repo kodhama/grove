@@ -159,8 +159,10 @@ nothing after it (observed on Claude Code 2.1.296, 2026-10-11), or
 inside a quoted `$(...)` (zsh 5.9, 2026-10-11), or `(eval): closing brace
 expected` for an unclosed `${` in a function body written without braces
 (observed on Claude Code 2.1.296, 2026-10-11). The check reads each of the
-four wordings with the number or without; only `condition expected` was
-not observed without one. Usually nothing in the line ran,
+four wordings with the number or without. `condition expected` was observed
+without one only behind `parse error:`, as `(eval): parse error: condition
+expected: a` for `f() [[ a b ]]` (zsh 5.9, 2026-10-11), which the check
+reads by its `parse error`. Usually nothing in the line ran,
 but zsh parses a `$(...)` or backtick substitution only when it reaches it,
 so the commands before one that will not parse have run: such a call loses
 its credit, the safe direction. Bash's own `bash: eval: line N: syntax
@@ -202,7 +204,13 @@ takes that credit all the same where such a here-document sits in the
 line's first command: the error is then the first line, the commands after
 it ran, and the call reads as not run, the safe direction (a here-document
 in a `$(...)` holding `` `name()` ``, then an `echo` that ran; observed on
-2.1.296, 2026-10-11).
+2.1.296, 2026-10-11). Where the here-document sits inside a `$(...)`, the
+command holding that substitution runs as well, with an empty value in its
+place, so a call read as not run may already have had its effect with a
+blank argument: check what it did before repeating it (a `printf` of such a
+`$(...)`, redirected to a file, wrote `[]` there before the `echo` ran; zsh
+5.9, 2026-10-11). A here-document straight on a command is different: zsh
+skips that command and writes nothing.
 
 A call run in the background keeps its credit as well, whatever the shell
 made of its line: its result is the notice that it started, and a parse
