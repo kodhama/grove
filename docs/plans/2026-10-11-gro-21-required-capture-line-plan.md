@@ -371,6 +371,8 @@ check says the body was not checked, goes back to the worker.
 - **Test scenarios:** none new. #14's own tests on step 7 must stay green with this story's insertions: they find `` `Docs:` line ``, `pull request's body` and `` `capture-learning` `` before `mark the pull request ready`, and the "after #14" wording keeps all three there.
 - **Verification:** `npm run typecheck` and `npm test` pass on the merged tree. Read step 7 item 5 once through as one paragraph.
 
+**After the full review (2026-10-11):** the "after #14" insertion above is no longer enough. The merged paragraph must also give the body line's shape for both lines: "a line of its own with nothing before it: the label, its colon, one space, then the value, all on one line", since the receipt pads its labels to a column and `Docs:` followed by several spaces reads as malformed. A test pins that shape for `Docs:` at the merge, the forms test gains `Docs`, and the `Capture:` field keeps its `not reached` value beside the one `Docs:` has.
+
 ### U7. Version bump
 
 - **Goal:** the change reaches installs.
