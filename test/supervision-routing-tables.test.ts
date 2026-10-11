@@ -696,12 +696,30 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
     expect(op?.step).toMatch(/completion checkpoint/);
     // The capture's step names the checkpoint too: this one also says it comes first.
     expect(op?.step).toContain("before any learning is captured");
+    // The table carries the run condition too, as step 7 does: a worker reads either.
+    expect(op?.step).toContain(
+      "when the diff adds a module, a data shape, a contract, a dependency or a design change",
+    );
   });
 
   it("its fallback has the worker update the stale docs itself, or say none needed and why", () => {
     const fallback = oneLine(String(documentChange()?.fallback ?? ""));
     expect(fallback).toContain("yourself");
     expect(fallback).toContain("none needed and why");
+  });
+
+  it("its fallback has the Docs line list a doc the pull request updated before the checkpoint", () => {
+    // Nothing is stale when the build already updated the doc: the line still says `updated`.
+    expect(oneLine(String(documentChange()?.fallback ?? ""))).toContain(
+      "The Docs line lists every such doc the pull request updates, whenever it did, and says none needed and why only where it updates none.",
+    );
+    expect(docsField()).toContain("the docs already cover what it adds");
+  });
+
+  it("the README tells an adopter to update grove everywhere before naming the operation in an override", () => {
+    expect(oneLine(read("README.md"))).toContain(
+      "Add the line only once every machine and host runs a grove that has the operation",
+    );
   });
 
   it("its fallback looks at the docs the repo keeps when the project instructions name none, and only a repo with none changes nothing", () => {
@@ -795,7 +813,9 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
 
   it("grove's own instructions name the doc a change keeps current, so a worker here need not guess", () => {
     const instructions = oneLine(read("AGENTS.md"));
-    expect(instructions).toContain("`README.md` is the doc a change keeps current");
+    expect(instructions).toContain(
+      "`README.md` is the doc a change keeps current, and `docs/decisions/` where the change supersedes a decision recorded there.",
+    );
   });
 });
 

@@ -81,7 +81,8 @@ starts. This was read from Codex's source at codex-cli 0.160.0, not yet run.
   architecture and design docs. With none named, and none that setup finds,
   the worker updates the stale docs itself: the ones your project instructions
   name, or, where they name none, the reference, architecture and design docs
-  your repo keeps.
+  your repo keeps. Add the line only once every machine and host runs a grove
+  that has the operation: an older table lacks it, and setup stops there.
   The work-tracker operations are the others, and your overrides name your
   tracker's tools:
   - `story-worker`: `post-work-note`;
