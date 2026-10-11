@@ -141,7 +141,7 @@
       "native_id": null,
       "source": null,
       "invoke": "Run the document-change operation's fallback instructions from the table.",
-      "evidence": "the table and the override suggest no performer, and discovery found no knowledge-base skill in the skill listing: the nearest entry, \"- compound-engineering:ce-compound: Document a solved problem as a durable repo learning.\", records a lesson, not the repo's reference docs"
+      "evidence": "no performer is suggested for \"document-change\""
     },
     {
       "table": "story-worker",

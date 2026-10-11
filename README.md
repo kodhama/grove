@@ -76,7 +76,7 @@ starts. This was read from Codex's source at codex-cli 0.160.0, not yet run.
   per level skill you override. An override replaces an operation's
   `performers` and `fallback`, nothing else, and it names only operations
   its table has: setup stops on any other. Some operations have no default
-  performer, because only your repo can bind them. `story-worker`'s
+  performer, because their performer is your repo's own. `story-worker`'s
   `document-change` is one: name the skill that keeps your reference,
   architecture and design docs. With none named, and none that setup finds,
   the worker updates the stale docs itself, as your project instructions say.

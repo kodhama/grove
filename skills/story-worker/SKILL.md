@@ -23,8 +23,9 @@ edit, not yours: mid-story, a binding that stops fitting is rebound as
 The repo's conventions live in its project instructions (`AGENTS.md` or the
 harness's equivalent), not here: branch and commit names, how a pull request
 links its work item, the checks that must pass, the review loop, the secrets
-guard, and how an agent signs a comment. Read them before the first edit and
-again whenever a step needs one, because they can change during a story.
+guard, which docs a change keeps current, and how an agent signs a comment.
+Read them before the first edit and again whenever a step needs one, because
+they can change during a story.
 
 ## Never
 

@@ -37,7 +37,9 @@ Restarts:        <each one: time, in place or new session, handoff path — or "
 Bindings:        <bindings file path>, complete at <its complete.at>; "the routing table changed
                   since the earlier setup" and when, if a setup said so
 Rebound:         <operation: from → to, why, when — or "none">
-By fallback:     <operation: suggested <names> unavailable, step run by fallback — or "none">
+By fallback:     <operation: suggested <names> unavailable, or none suggested, step run by
+                  fallback — or "none". One bound by fallback that did not run goes under
+                  Not run instead, which says it was bound by fallback>
 Not run:         <table/operation: why, e.g. "story-worker/browser-test: no page touched" — or "none">
 Decided myself:  <the calls you made without asking, one line each — or "none">
 Receipt check:   <the check's output, run with --since the Started time, pasted unchanged; or
@@ -51,10 +53,12 @@ Acceptance:      <one file:line citation per acceptance condition; for a defect,
                   or, where the triage row's "How to verify" names a manual check only,
                   that check's steps and what was observed, and why no automated test
                   is possible>
-Docs:            <updated <each doc's path, as the diff at the head lists it> | none needed,
-                  because <why: the diff adds no module, data shape, contract, dependency or
-                  design change, or the docs already cover what it adds> — the same line the
-                  pull request's body carries>
+Docs:            <updated <the path of each reference, architecture or design doc this pull
+                  request updates, never a plan or a captured learning> | none needed, because
+                  <why: the diff adds no module, data shape, contract, dependency or design
+                  change, the docs already cover what it adds, or the repo's instructions name
+                  no such docs> | not reached: <why>, for a story that ended before its
+                  completion checkpoint. The pull request's body carries the same line>
 Reviewed by:     <one entry per in-session review, before or after the pull request opened. The
                   reviewer: its performer, and the subagent you started for it or the reviewers
                   the performer started itself, saying which — always named, never blank, never

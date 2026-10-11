@@ -19,7 +19,7 @@
  * tracker's and `document-change`, whose performer is the repo's own
  * knowledge-base skill (GRO-20), are the only ones a default table may leave
  * without a performer: the repo's override, or setup's discovery, supplies it,
- * and a not-required one that neither supplies runs by its fallback.
+ * and a not-required one that neither supplies is bound as its fallback says.
  *
  * Only this test parses the tables; setup hands them to the model as text.
  *
@@ -696,6 +696,12 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
     expect(op?.step).toMatch(/completion checkpoint/);
   });
 
+  it("its fallback has the worker update the stale docs itself, or say none needed and why", () => {
+    const fallback = oneLine(String(documentChange()?.fallback ?? ""));
+    expect(fallback).toContain("yourself");
+    expect(fallback).toContain("none needed and why");
+  });
+
   it("document-change comes before capture-learning: the docs are final before the capture's test", () => {
     const ids = idsOf("story-worker");
     expect(ids).toContain("document-change");
@@ -735,6 +741,17 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
     expect(body).toBeGreaterThan(-1);
     expect(docsLine).toBeLessThan(ready);
     expect(body).toBeLessThan(ready);
+    // The capture ships in the same pull request, so it too comes before ready.
+    expect(text.indexOf("`capture-learning`")).toBeLessThan(ready);
+  });
+
+  it("the skill's list of what the project instructions hold names the docs a change keeps current", () => {
+    expect(oneLine(read(WORKER))).toContain("which docs a change keeps current");
+  });
+
+  it("setup says what evidence an operation with no suggested performer records", () => {
+    const setup = oneLine(read(join(SKILLS_TREE, "supervision-setup", "SKILL.md")));
+    expect(setup).toContain('`no performer is suggested for "<operation id>"`');
   });
 
   it("the receipt has a Docs field: what was updated, or none needed and why, as the pull request's body says it", () => {
@@ -742,6 +759,13 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
     expect(field).toMatch(/^Docs:/);
     expect(field).toContain("none needed, because");
     expect(field).toContain("pull request's body");
+  });
+
+  it("the Docs field counts only reference, architecture and design docs, and has a value for a story that never reached the checkpoint", () => {
+    const field = docsField();
+    expect(field).toContain("never a plan or a captured learning");
+    expect(field).toContain("not reached:");
+    expect(field).toContain("name no such docs");
   });
 });
 
