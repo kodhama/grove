@@ -770,6 +770,19 @@ describe("GRO-17 · the refused-call rule's text", () => {
     );
   });
 
+  it("with no lead, the worker puts a refusal to the maintainer as one question with both options", () => {
+    expect(workerTalking()).toContain(
+      "A `STATUS: refused` line is a question too: put it to them the same way, as one question with both options of the choice a lead would have brought (see Never).",
+    );
+  });
+
+  it("a lead carrying its own story names any clone it moved to in its hand-back", () => {
+    const reference = read(join(SKILLS_TREE, "project-lead", "references", "intent-run.md"));
+    expect(flat(section(reference, "6. Carrying it yourself"))).toContain(
+      "Your hand-back names the worktree, and any clone you moved to, for the maintainer to remove once the branch has merged.",
+    );
+  });
+
   it("the lead keeps a moved worker's branch in its clone and its session files in the worktree", () => {
     expect(leadMessages()).toContain(
       "- **A worker's `STATUS: moved`:** its branch lives in the clone the line names from then on, while its session's own files, its restart marker among them, stay in the worktree you made.",

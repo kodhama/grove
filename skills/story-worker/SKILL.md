@@ -365,7 +365,10 @@ as a note on the story's work item through the performer bound to
 
 With no lead ("none: the maintainer"), the maintainer is your lead: give each
 of these lines to them directly, a `DECISION` through the question tool where
-your harness has one, and post your hand-back note as usual.
+your harness has one, and post your hand-back note as usual. A
+`STATUS: refused` line is a question too: put it to them the same way, as one
+question with both options of the choice a lead would have brought (see
+Never).
 
 Each message to your lead is one line, in one of two shapes:
 
