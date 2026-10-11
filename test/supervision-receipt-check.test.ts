@@ -1481,6 +1481,27 @@ describe("MQ-377 · a review counts only from a fresh-context subagent", () => {
     ]);
   });
 
+  // A completed command is not always one that ran: with the part zsh could
+  // not parse before a pipe, the line exits 0 and the file was never read.
+  it("does not credit a Codex skill read whose completed command starts with zsh's parse error", () => {
+    const read = 'cat /codex/skills/ce-code-review/SKILL.md "$(if)" | head -5';
+    const stdout = "zsh:1: parse error near `if'\nzsh:1: parse error in command substitution\n";
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-read-parse-"));
+    const child = [commandRecord(read, "completed", 0, "ce-code-review", { stdout })];
+    const file = codexBindingsOf(dir, [], child);
+    const row = reviewRow(file, "story-worker/review-escalation");
+    const skill = outcomesOf(file.transcripts, "skill", "ce-code-review");
+    const cat = outcomesOf(file.transcripts, "cli", "cat");
+    const head = outcomesOf(file.transcripts, "cli", "head");
+    rmSync(dir, { recursive: true });
+    expect({ state: row.state, skill, cat, head }).toEqual({
+      state: "attempted-failed",
+      skill: ["failed"],
+      cat: ["failed"],
+      head: ["failed"],
+    });
+  });
+
   it("notes where a marked performer was called on a no evidence line", () => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-no-evidence-"));
     const read = "cat /codex/skills/ce-code-review/SKILL.md";

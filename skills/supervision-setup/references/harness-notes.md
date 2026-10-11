@@ -281,8 +281,12 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   `zsh:1: unmatched "` then `zsh:1: parse error in command substitution`,
   and `rg` never ran (observed on codex-cli 0.155.1, in a rollout of
   2026-09-27). The check reads a `completed` command whose output starts
-  with zsh's error as not run, and credits nothing in it. It reads only the
-  first line there, which cuts both ways. The stages that did run, such as
+  with zsh's error as not run, and credits nothing in it. A `SKILL.md` read
+  in such a command follows it, so the skill is not read as loaded: `cat
+  <skill>/SKILL.md "$(if)" | head -5` exits 0 with the error first and
+  never reads the file (read from `zsh -c` on zsh 5.9, 2026-10-11; never
+  observed in a Codex rollout). The check reads only the first line of a
+  `completed` command, which cuts both ways. The stages that did run, such as
   that `head`, lose their credit, the safe direction, and so does a line
   that carried on after a nested `zsh -c` printed the error first. A
   `completed` command that shows the error only on a later line keeps its

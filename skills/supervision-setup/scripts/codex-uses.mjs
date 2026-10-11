@@ -27,8 +27,9 @@
  *   Codex writes it to `stdout`, leaving `stderr` empty); else `failed`. A
  *   `completed` command can start with the error: its line exits 0 when the
  *   part zsh could not parse sits in an early stage of a pipeline.
- *   A SKILL.md read in it `ran` only when its status is `completed`: the read
- *   shows the skill was loaded, not that a command ran, so it fails closed;
+ *   A SKILL.md read in it `ran` only when its status is `completed` and its
+ *   output does not start with that error: the read shows the skill was
+ *   loaded, not that a command ran, so it fails closed;
  * - an MCP call or a patch `ran` when its status is `completed`; any other
  *   status, such as a refused post's `failed`, is `failed`;
  * - a `collaboration.spawn_agent` call `ran` when a `started` activity carries
@@ -87,12 +88,27 @@ function codexShellLine(command) {
 }
 
 /**
+ * What a command printed, as its item holds it: `stdout`, then `stderr`,
+ * less an empty one, so the text starts with the first thing printed.
+ */
+function commandOutput(item) {
+  return [item.stdout, item.stderr].filter((text) => typeof text === "string" && text !== "").join("\n");
+}
+
+/** Whether a command's output starts with zsh's own parse error. */
+function startsWithParseError(item) {
+  return PARSE_ERROR_FIRST.test(commandOutput(item));
+}
+
+/**
  * What one Codex command execution shows was used. A SKILL.md read carries
  * its own outcome: it shows the skill was loaded only when the command
- * completed, so any other status reads `failed`.
+ * completed and its output does not start with zsh's own parse error (zsh
+ * did not run the line, or not all of it, though it exited 0), so that
+ * output and any other status read `failed`.
  */
 function commandUses(item) {
-  const outcome = item.status === "completed" ? "ran" : "failed";
+  const outcome = item.status === "completed" && !startsWithParseError(item) ? "ran" : "failed";
   const reads = (Array.isArray(item.parsed_cmd) ? item.parsed_cmd : [])
     .filter((part) => part?.type === "read" && /\/SKILL\.md$/.test(part.path ?? ""))
     .map((part) => ({ kind: "skill", name: basename(dirname(part.path)), outcome }));
@@ -121,19 +137,6 @@ function itemUses(item) {
     default:
       return [];
   }
-}
-
-/**
- * What a command printed, as its item holds it: `stdout`, then `stderr`,
- * less an empty one, so the text starts with the first thing printed.
- */
-function commandOutput(item) {
-  return [item.stdout, item.stderr].filter((text) => typeof text === "string" && text !== "").join("\n");
-}
-
-/** Whether a command's output starts with zsh's own parse error. */
-function startsWithParseError(item) {
-  return PARSE_ERROR_FIRST.test(commandOutput(item));
 }
 
 /**
