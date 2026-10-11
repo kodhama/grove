@@ -151,7 +151,8 @@ command the shell could not parse is not counted, whatever N is: its result
 reads `Exit code 1` then a line starting with zsh's own `(eval):1: parse
 error near ...`, or `(eval):1: unmatched "` for an unclosed quote (observed
 on Claude Code 2.1.296, 2026-10-10), or `(eval):2: closing brace expected`
-for an unclosed `${` (zsh 5.9, 2026-10-11). Usually nothing in the line ran,
+for an unclosed `${`, or `(eval):3: condition expected: a` for a malformed
+`[[` (both zsh 5.9, 2026-10-11). Usually nothing in the line ran,
 but zsh parses a `$(...)` or backtick substitution only when it reaches it,
 so the commands before one that will not parse have run: such a call loses
 its credit, the safe direction. Bash's own `bash: eval: line N: syntax
@@ -167,17 +168,19 @@ line 1: syntax error` or `/bin/bash: -c: ...`, or a tool's own, such as `rg:
 regex parse error`, still counts: the line ran.
 
 Three more calls lose a credit they earned, since the check cannot tell
-their line from the shell's own: one whose nested `eval` or `zsh -c` printed
-the same `(eval):N:` prefix, one whose command printed such a line itself,
-and one where zsh's `[` or `test` worded a runtime complaint that way
-(`(eval):1: parse error: condition expected: =`) and the call carried on
-(zsh 5.9, 2026-10-11).
+their line from the shell's own: one whose nested `eval` printed the same
+`(eval):N:` prefix, one whose command printed such a line itself, and one
+where zsh's `[` or `test` worded a runtime complaint that way (`(eval):1:
+parse error: condition expected: =`, `(eval):1: condition expected: b`) and
+the call carried on (zsh 5.9, 2026-10-11). A nested `zsh -c` names itself
+`zsh:N:`, so on Claude Code its error keeps the credit; on Codex that is the
+top-level prefix, and there it is the nested `zsh -c` that loses it.
 
 Where Claude Code reads the exit as benign, as for a `grep` that exits 1, it
 leaves `is_error` off and the result is the bare error, which the check reads
 the same way when the result starts with it (observed on 2.1.296,
 2026-10-11). It reads only the first line of an unflagged result, which
-leaves one known false credit: `echo a; grep x f $(if)` prints `a`, stops at
+leaves a known false credit: `echo a; grep x f $(if)` prints `a`, stops at
 the substitution and exits 1 with the flag off, and `grep` is counted though
 it never ran (observed on 2.1.296, 2026-10-11). Reading every line was not
 worth it. In the local transcripts read that day, the only real calls that
@@ -185,6 +188,11 @@ showed the error on a later line of an unflagged result, two of them, had
 carried on: an unquoted here-document held a backtick span zsh could not
 parse, so zsh skipped that one command and ran the ones after it. Both
 would have lost the credit their other commands earned.
+
+A call run in the background keeps its credit as well, whatever the shell
+made of its line: its result is the notice that it started, and a parse
+error goes only to the output file the notice names (observed on 2.1.296,
+2026-10-11).
 
 **Starting a cloud session.** `claude --cloud "<prompt>"` needs an interactive
 terminal. From the Bash tool it fails with `Error: --cloud requires an
@@ -252,10 +260,12 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   `zsh:1: parse error near ...` or, for an unclosed quote, `zsh:1: unmatched
   "`; its `stderr` is empty, as it is on every
   command item (observed on codex-cli 0.154.0, 2026-09-17). zsh's `zsh:2:
-  closing brace expected`, for an unclosed `${`, is read the same way. The
-  receipt check does not credit the call. Usually nothing in it ran, but
-  the commands before a `$(...)` that will not parse have, as on Claude Code
-  (both read from `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex rollout).
+  closing brace expected`, for an unclosed `${`, and `zsh:3: condition
+  expected: a`, for a malformed `[[`, are read the same way. The receipt
+  check does not credit the call. Usually nothing in it ran, but the
+  commands before a `$(...)` that will not parse have, as on Claude Code
+  (these three read from `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex
+  rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
   records `spawn_agent` in namespace `collaboration` as
   `collaboration.spawn_agent`, and the receipt check reads the call under that

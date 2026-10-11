@@ -21,9 +21,9 @@
  * - a command `ran` when its status is `completed`, or `failed` with an exit
  *   code other than 126 or 127 (it ran and exited non-zero) and no line of
  *   its output starting with zsh's own parse error (`zsh:1: parse error`,
- *   `zsh:1: unmatched "`, `zsh:2: closing brace expected`: zsh did not run
- *   the line, or not all of it; Codex writes it to `stdout`, leaving `stderr`
- *   empty); else `failed`.
+ *   `zsh:1: unmatched "`, `zsh:2: closing brace expected`, `zsh:3: condition
+ *   expected`: zsh did not run the line, or not all of it; Codex writes it to
+ *   `stdout`, leaving `stderr` empty); else `failed`.
  *   A SKILL.md read in it `ran` only when its status is `completed`: the read
  *   shows the skill was loaded, not that a command ran, so it fails closed;
  * - an MCP call or a patch `ran` when its status is `completed`; any other

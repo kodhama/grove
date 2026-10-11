@@ -31,8 +31,11 @@
  * result that starts `Exit code N` still `ran`, since the command ran and
  * only exited non-zero, unless N is 126 or 127, when the shell could not run
  * it, or a line of the result starts with the shell's own parse error, when
- * it did not run the line, or not all of it (`shell-uses.mjs` names the
- * limits); a nested shell's or a tool's own error keeps the credit. A call with no result yet, such as the last
+ * it did not run the line, or not all of it; a nested shell's or a tool's
+ * own error keeps the credit. A `Bash` result without the flag `failed` too
+ * when it starts with that error. `shell-uses.mjs` names the limits that
+ * lose a credit, and `claudeOutcome` the two that keep one wrongly. A call
+ * with no result yet, such as the last
  * one in a live transcript, is `pending`. Every use of one call shares that
  * call's outcome, which gives two known limits. In `cd x && herdr …` a
  * failed `cd` still credits herdr, since the line is split but the result
@@ -233,7 +236,9 @@ function claudeOutcome(call, result) {
   // has mostly carried on past it, so reading every line would take credit
   // from calls that ran. The cost is a known limit in the unsafe direction:
   // `echo a; grep x f $(if)` stops at the `$(...)`, exits 1 with the flag
-  // off, and grep keeps a credit it did not earn.
+  // off, and grep keeps a credit it did not earn. A call run in the
+  // background keeps one too: its result is the notice that it started,
+  // whatever the shell then made of its line.
   if (result.is_error !== true) return PARSE_ERROR_FIRST.test(text) ? "failed" : "ran";
   const exit = EXIT_CODE.exec(text);
   const ran =
