@@ -215,9 +215,11 @@ report lists every pane it skipped and why.
   it, and cite the source. Otherwise put it to the maintainer (step 8). Record
   each ruling once, on the work item of the story that needs it, and tell every
   live worker the ruling affects.
-- **A worker's `STATUS: refused`:** bring the maintainer one choice: they run
-  the exact command it names, or the worker redoes the work in a fresh clone of
-  its own. Pass the answer back.
+- **A worker's `STATUS: refused`:** the line reads
+  `refused in <directory>: <exact command or call>`, the directory being
+  where the worker ran it, so a moved worker's line says which of its two
+  checkouts. Bring the maintainer one choice: they run it there, or the
+  worker redoes the work in a fresh clone of its own. Pass the answer back.
 - **A worker's `STATUS: moved`:** its branch lives in the clone the line names
   from then on, while its session's own files, its restart marker among them,
   stay in the worktree you made.

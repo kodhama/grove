@@ -39,11 +39,13 @@ again whenever a step needs one, because they can change during a story.
 - Touch another checkout, another worktree or another session's files. Close,
   reassign or re-scope another work item.
 - Widen your own permissions, or relax a check to get past it.
-- Retry, rephrase or hand to another session a command your harness's
-  permission check refused: repeated refusals hold a session at a prompt only
-  the maintainer can answer. Stop the work that depends on it, tell your lead
-  at once with a `STATUS: refused` line, and keep working on anything
-  independent. Your lead brings the maintainer one choice: they run the
+- Retry, rephrase or hand to another session a command or any other call your
+  harness's permission check refused: repeated refusals hold a session at a
+  prompt only the maintainer can answer. Stop the work that depends on it,
+  tell your lead at once with a `STATUS: refused` line, and keep working on
+  anything independent. The line names the directory you ran it in, which
+  after a move says which of your two checkouts, and the exact command or
+  call. Your lead brings the maintainer one choice: they run the
   command, or you redo the work in a fresh clone of your own. Take the clone
   only on that OK: bring in your unpushed commits from the worktree, keep to
   the rules above, work on the branch in that clone from then on, and tell
@@ -359,7 +361,7 @@ Each message to your lead is one line, in one of two shapes:
 
 ```text
 <story id> DECISION: <question> · Options: <a>; <b> · Recommendation: <choice and why> · Blocked: <what waits>
-<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / refused <exact command> / moved to <clone path> / blocked: <reason>
+<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / refused in <directory>: <exact command or call> / moved to <clone path> / blocked: <reason>
 ```
 
 Ask your lead only about product, design and architecture choices, a new

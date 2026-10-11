@@ -657,6 +657,58 @@ describe("GRO-7 · the intent route's text", () => {
   });
 });
 
+/**
+ * GRO-17 — a worker never retries, rephrases or hands off a command or any
+ * other call its harness's permission check refused. It stops the dependent
+ * work and sends its lead `STATUS: refused in <directory>: <exact command or
+ * call>`, and takes a fresh clone only on the maintainer's OK, reporting
+ * `STATUS: moved to <clone path>`.
+ */
+describe("GRO-17 · the refused-call rule's text", () => {
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+  const workerNever = () => section(read(WORKER), "Never");
+  const workerTalking = () =>
+    flat(section(read(WORKER), "Talking to your lead, and to the maintainer"));
+  const leadMessages = () => flat(section(read(LEAD), "5. Messages"));
+
+  it("story-worker's Never names no harness, path, version or tracker", () => {
+    expect(workerNever()).not.toBe("");
+    expect(textProblems(workerNever())).toEqual([]);
+  });
+
+  it("the worker never retries a refused command or any other call, and reports it", () => {
+    const never = flat(workerNever());
+    expect(never).toContain(
+      "- Retry, rephrase or hand to another session a command or any other call your harness's permission check refused: repeated refusals hold a session at a prompt only the maintainer can answer.",
+    );
+    expect(never).toContain(
+      "Stop the work that depends on it, tell your lead at once with a `STATUS: refused` line, and keep working on anything independent.",
+    );
+  });
+
+  it("the worker's refused line names the directory first, then the exact command or call", () => {
+    expect(flat(workerNever())).toContain(
+      "The line names the directory you ran it in, which after a move says which of your two checkouts, and the exact command or call.",
+    );
+    expect(workerTalking()).toContain(
+      "/ restarting / refused in <directory>: <exact command or call> / moved to <clone path> / blocked: <reason>",
+    );
+    expect(read(WORKER)).not.toContain("refused <exact command>");
+  });
+
+  it("the lead reads the directory off a worker's refused line", () => {
+    expect(leadMessages()).toContain(
+      "- **A worker's `STATUS: refused`:** the line reads `refused in <directory>: <exact command or call>`, the directory being where the worker ran it, so a moved worker's line says which of its two checkouts.",
+    );
+  });
+
+  it("the lead keeps a moved worker's branch in its clone and its session files in the worktree", () => {
+    expect(leadMessages()).toContain(
+      "- **A worker's `STATUS: moved`:** its branch lives in the clone the line names from then on, while its session's own files, its restart marker among them, stay in the worktree you made.",
+    );
+  });
+});
+
 /** A math-quest plan tag, such as `R34`, `KTD10`, `AE6` or `U6b`. */
 const PLAN_TAG = /\b(?:R|KTD|AE)\d+\b|\bU\d+[a-z]?\b/;
 
