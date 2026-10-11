@@ -518,26 +518,26 @@ describe("GRO-30 · a performer is given the story's checkout", () => {
   /** Text with every run of whitespace collapsed to one space. */
   const flat = (text: string) => text.replace(/\s+/g, " ");
 
-  it("the bindings paragraph gives every performer that reads a repository the story's checkout", () => {
-    // Everything above the first `## ` heading: the skill's opening paragraphs.
-    const opening = flat(read(WORKER).split("\n## ")[0] ?? "");
-    expect(opening).toContain(
-      "Give every performer that reads a repository the story's checkout, by its full path or by the story's pull request: a performer's shell, and the shell of a subagent you start, can begin in the directory your session started in, which is not always the story's checkout.",
+  it("the bindings paragraph has the worker run its own commands in the story's checkout, and give it to every performer and subagent", () => {
+    // The one paragraph that opens "The work runs through bindings.", up to the blank line after it.
+    const paragraph = flat(read(WORKER).match(/^The work runs through bindings\.[^]*?(?=\n\n)/m)?.[0] ?? "");
+    expect(paragraph).toContain(
+      "Run your own commands in the story's checkout, where its branch is checked out, and give every performer and every subagent you start that checkout by its full path, or the story's pull request once it has one: a shell, yours or a subagent's, can begin in the directory your session started in, which is not always the story's checkout.",
     );
   });
 
-  it("step 5 has the worker check the commit a review read, and discard a review that read another checkout", () => {
+  it("step 5 has the worker check what a review read from the reviewer's own commands, and discard one that read something else", () => {
     const review = flat(section(read(WORKER), "5. Review"));
     expect(review).toContain(
-      "- **Check what it read.** Ask the reviewer for the commit it read. If that is not your head as it stood when you started the review, it read another checkout: discard its findings and run it again.",
+      "- **Check what it read.** In the request that starts a reviewer that reads a repository, ask it to print the top level and the head of what it read, from its own commands, and to quote the output. If they are not the story's checkout and the commit you started the review on, it read something else: discard its findings and run it again, giving it the checkout by its full path. A second miss goes to your lead.",
     );
     // It sits with the other rules for pointing a reviewer, after the one that gives it the checkout.
-    expect(review.indexOf("**Check what it read.**")).toBeGreaterThan(
-      review.indexOf("**Give it the checkout when the diff reaches outside itself.**"),
-    );
-    expect(review.indexOf("**Check what it read.**")).toBeLessThan(
-      review.indexOf("**Ask for findings with evidence, not patches.**"),
-    );
+    const before = review.indexOf("**Give it the checkout when the diff reaches outside itself.**");
+    const check = review.indexOf("**Check what it read.**");
+    const after = review.indexOf("**Ask for findings with evidence, not patches.**");
+    expect(before).toBeGreaterThan(-1);
+    expect(check).toBeGreaterThan(before);
+    expect(after).toBeGreaterThan(check);
   });
 });
 
