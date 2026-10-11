@@ -55,8 +55,9 @@ Acceptance:      <one file:line citation per acceptance condition; for a defect,
 Capture:         <captured <the path of the learning this pull request adds> | skipped: <the
                   reason, as the capture's test gives it: what the final code, tests and docs
                   already preserve; or, where the capture ran by fallback, the lesson and that
-                  it was not recorded; or that the story ended before its completion
-                  checkpoint>. The pull request's body carries the same line>
+                  it was not recorded> | not reached: <why>, for a story that ended before its
+                  completion checkpoint. The pull request's body carries the same line, and a
+                  ready pull request's line is never "not reached">
 Reviewed by:     <one entry per in-session review, before or after the pull request opened. The
                   reviewer: its performer, and the subagent you started for it or the reviewers
                   the performer started itself, saying which — always named, never blank, never

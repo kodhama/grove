@@ -311,12 +311,13 @@ acceptance; never call it complete or merged.
   one, unless neither story recorded a Started: the check drops its uses and
   says how many. When the pull request is ready, save its body to a file
   beside your bindings file, unchanged and after your last edit to it, with
-  the repo host's own tool, and add `--pr-body "<that file>"`. The check reads
-  that file, never the host, and fails a body that lacks a line the receipt
-  requires of it, or holds one malformed or twice. When it does, fix the body,
-  save it again and rerun the check until it passes, before you hand back. A
-  blocked hand-back leaves `--pr-body` out, and the check's output then says
-  the body was not checked.
+  the command the repo's project instructions name, or else the repo host's
+  own tool, and add `--pr-body "<that file>"`. The check reads that file,
+  never the host, and fails a body that lacks a line the receipt requires of
+  it, or holds one malformed or twice. When it does, fix the body, save it
+  again and rerun the check until both of the body's lines read `found`,
+  before you hand back. A blocked hand-back leaves `--pr-body` out, and the
+  check's output then says the body was not checked.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.

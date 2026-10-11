@@ -29,6 +29,8 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "../skills/supervision-setup/scripts/vendor/smol-toml/index.js";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { readBodyLines } from "../skills/supervision-setup/scripts/pr-body-lines.mjs";
 
 const SKILLS_TREE = "skills";
 
@@ -736,13 +738,36 @@ describe("GRO-21 · the Capture line's text", () => {
     expect(field).toContain("pull request's body");
   });
 
+  // `Docs` joins this list when the receipt gains its `Docs:` field.
+  it.each(["Capture"])("the receipt's %s field gives each form the checker accepts for the body's line", (label) => {
+    const rows: { label: string; accepts?: string[] }[] = readBodyLines(`${label}: nonsense\n`);
+    const accepts = rows.find((row) => row.label === label)?.accepts ?? [];
+    expect(accepts.length).toBeGreaterThan(0);
+    const field = receiptField(label);
+    for (const form of accepts) {
+      // The words a value starts with, before the placeholder that names what follows them.
+      const words = form.slice(`${label}: `.length, form.indexOf("<"));
+      expect(words.trim(), form).not.toBe("");
+      expect(field, form).toContain(words);
+    }
+  });
+
+  it("the receipt's Capture field has a `not reached` value, which a ready pull request's line never takes", () => {
+    const field = receiptField("Capture");
+    expect(field).toContain("| not reached: <why>, for a story that ended before its completion checkpoint");
+    expect(field).toContain('a ready pull request\'s line is never "not reached"');
+    expect(field).not.toContain("or that the story ended before its completion checkpoint");
+  });
+
   it("step 7 gives the body's line its shape: one line, the label, one space, the value", () => {
     expect(step7()).toContain("the label, its colon, one space, then the value, all on one line");
     expect(step7()).toContain("with nothing before it");
   });
 
   it("step 8 has the worker fix a failing body and check again before handing back", () => {
-    expect(step8()).toContain("save it again and rerun the check until it passes, before you hand back");
+    expect(step8()).toContain(
+      "save it again and rerun the check until both of the body's lines read `found`, before you hand back",
+    );
     expect(step8()).toContain("unchanged and after your last edit to it");
   });
 
@@ -762,7 +787,7 @@ describe("GRO-21 · the Capture line's text", () => {
     "`captured` with the path",
     "`skipped:` with the reason",
     "a line of its own",
-    "brought up to date in both places",
+    "the `Capture:` line is brought up to date in both places",
   ])("story-worker's step 7 says %j", (phrase) => {
     expect(step7()).toContain(phrase);
   });
@@ -782,6 +807,9 @@ describe("GRO-21 · the Capture line's text", () => {
     const text = step8();
     expect(text).toContain('`--pr-body "<that file>"`');
     expect(text).toContain("to a file");
+    expect(text).toContain(
+      "with the command the repo's project instructions name, or else the repo host's own tool",
+    );
     expect(text).toContain("A blocked hand-back leaves `--pr-body` out");
   });
 
