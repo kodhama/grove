@@ -115,8 +115,8 @@
  * `pr-body: not checked (no --pr-body given)`, and another level skill's,
  * which has no pull request, says nothing. A blocked hand-back and a
  * restart's handoff leave the flag out. The check proves the file it was
- * given, not the pull request, and a line inside a fenced block counts as a
- * line.
+ * given, not the pull request, and a line inside a fenced block or an HTML
+ * comment counts as a line.
  *
  * Usage: receipt-check.mjs --bindings <bindings.json> [--not-run <table/op>,...]
  * [--handoff <handoff.md>] [--since <zoned time>] [--pr-body <body.md>]. Exits

@@ -771,11 +771,19 @@ describe("GRO-21 · the Capture line's text", () => {
     expect(step8()).toContain("unchanged and after your last edit to it");
   });
 
-  it("the lead's claims check passes only a pasted check that shows both of the body's lines found", () => {
+  it("the lead reads the two lines itself, in the receipt and in the live body, and its own reading decides where the check did not run", () => {
     const lead = oneLine(section(read(LEAD), "7. A hand-back"));
-    expect(lead).toContain("does not show both of the body's lines as `found`");
-    expect(lead).toContain("says the body was not checked");
-    expect(lead).toContain("read the receipt's lines yourself");
+    // The check proves the saved file, so only the lead's own read ties the lines to the pull request.
+    expect(lead).toContain(
+      "read both yourself, in the receipt and in the pull request's body as it stands now, since the receipt check reads the file it was given, never the pull request or the receipt.",
+    );
+    expect(lead).toContain(
+      "A hand-back missing either line in either place goes back to the worker, and so does one whose pasted check shows a body line as anything but `found`.",
+    );
+    // No dead end: a check that could not run sends nothing back on its own.
+    expect(lead).toContain(
+      "Where the pasted check says the body was not checked, or the check could not run, your own reading of the body decides.",
+    );
   });
 
   it("the receipt's Receipt check field names --pr-body", () => {
