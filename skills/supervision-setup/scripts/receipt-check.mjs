@@ -355,8 +355,8 @@ function scopeText(scope, skill) {
  */
 function bodyLines(body, skill) {
   if (!body) return skill === STORY_SKILL ? ["pr-body: not checked (no --pr-body given)"] : [];
+  const start = `pr-body ${body.path}:`;
   return body.lines.map((row) => {
-    const start = `pr-body ${body.path}:`;
     switch (row.state) {
       case "found":
         return `${start} found "${row.line}"`;
@@ -371,10 +371,11 @@ function bodyLines(body, skill) {
 }
 
 /**
- * The whole report, one line per transcript, operation and unbound skill, and
- * for `body`, a pull request's body as `readBody` returns it, one per required line.
+ * The whole report, one line per transcript, operation and unbound skill, then
+ * the lines about `body`: the pull request's body as `readBody` returns it, or
+ * null when none was given.
  */
-function formatReport(result, bindings, bindingsPath, body = null) {
+function formatReport(result, bindings, bindingsPath, body) {
   const lines = [`receipt-check: ${bindingsPath} (${bindings.skill}, session ${bindings.session})`];
   lines.push(...tableLines(result.table));
   if (result.since) lines.push(`since ${result.since}: calls before it are not counted`);

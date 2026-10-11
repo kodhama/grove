@@ -37,7 +37,7 @@
  * a name for what follows them, which is never empty. A later required line
  * is one more entry.
  */
-export const REQUIRED_LINES = [
+const REQUIRED_LINES = [
   {
     label: "Capture",
     forms: [

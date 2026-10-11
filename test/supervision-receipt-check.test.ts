@@ -2250,15 +2250,15 @@ describe("MQ-353 · the command line", () => {
     });
 
     it.each([
-      ["a missing path", () => join(dir, "no-such-body.md")],
-      ["a directory", () => dir],
-      ["the empty path", () => ""],
+      ["a missing path", join(dir, "no-such-body.md")],
+      ["a directory", dir],
+      ["the empty path", ""],
     ])("exits 2 with one line when --pr-body names %s, even with an operation unused", (_what, path) => {
       for (const baseline of [clean, failing]) {
-        const result = baseline("--pr-body", path());
+        const result = baseline("--pr-body", path);
         expect(result.status).toBe(2);
         expect(result.stderr.trimEnd().split("\n")).toEqual([
-          `receipt-check: no pull-request body file at ${path()}`.trimEnd(),
+          `receipt-check: no pull-request body file at ${path}`.trimEnd(),
         ]);
         expect(result.stdout).toBe("");
       }
