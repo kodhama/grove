@@ -40,7 +40,12 @@ jobs:
 
       # The pinned gitleaks binary with redacted output, over the commits this
       # run adds (gitleaks-action would need a licence on a private repo).
-      # On a branch's first push `before` is all zeros, so scan everything.
+      # On a branch's first push `before` is all zeros, and a base missing from
+      # the clone (a force-push orphaned it) would scan nothing and pass, so both
+      # scan everything. `--remerge-diff` shows what each merge itself resolved,
+      # so a secret only a conflict resolution adds is scanned, but not a PR's
+      # test merge replaying main (`-m` would). Any `--log-opts` replaces
+      # gitleaks' defaults, so the full scan restates them.
       - name: Secrets
         env:
           GITLEAKS_VERSION: "8.30.1"
@@ -48,8 +53,9 @@ jobs:
         run: |
           curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tgz
           tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
-          if [ -z "${SECRETS_BASE}" ] || [ "${SECRETS_BASE}" = "0000000000000000000000000000000000000000" ]; then
-            /tmp/gitleaks git . --config .gitleaks.toml --redact --no-banner
+          if [ -z "${SECRETS_BASE}" ] || [ "${SECRETS_BASE}" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "${SECRETS_BASE}^{commit}" 2>/dev/null; then
+            /tmp/gitleaks git . --config .gitleaks.toml --redact --no-banner --log-opts="--remerge-diff --full-history --all --diff-filter=tuxdb"
           else
-            /tmp/gitleaks git . --config .gitleaks.toml --redact --no-banner --log-opts "${SECRETS_BASE}..HEAD"
+            /tmp/gitleaks git . --config .gitleaks.toml --redact --no-banner --log-opts="--remerge-diff ${SECRETS_BASE}..HEAD"
           fi
