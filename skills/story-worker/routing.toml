@@ -48,8 +48,12 @@ step = "first, after reading the story, and after diagnosis for a defect"
 performers = ["ce-plan"]
 required = false
 fallback = """
-Write a short plan yourself: the files to change, the failing tests to write
-first, and how the result is verified. Keep it within the story's scope."""
+No planning performer is available, so do the planning yourself. A plan unit
+that is enough to build from is the plan: name it and write no copy. In every
+other case write the plan, or the gaps you fill in a unit, to a file where the
+repo keeps its plans: the files to change, the failing tests to write first,
+and how the result is verified. Keep it within the story's scope, and say on
+the receipt's Plan line that it was written by fallback."""
 
 [[operation]]
 id = "build"
