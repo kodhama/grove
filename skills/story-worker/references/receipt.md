@@ -57,8 +57,8 @@ Docs:            <updated <the path of each reference, architecture or design do
                   request updates, never a plan or a captured learning> | none needed, because
                   <why: the diff adds no module, data shape, contract, dependency or design
                   change, the docs already cover what it adds, or the repo's instructions name
-                  no such docs> | not reached: <why>, for a story that ended before its
-                  completion checkpoint. The pull request's body carries the same line>
+                  no such docs>, and either way the pull request's body carries the same line
+                  | not reached: <why>, for a story that ended before its completion checkpoint>
 Reviewed by:     <one entry per in-session review, before or after the pull request opened. The
                   reviewer: its performer, and the subagent you started for it or the reviewers
                   the performer started itself, saying which — always named, never blank, never

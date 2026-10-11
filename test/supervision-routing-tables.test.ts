@@ -694,6 +694,8 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
     expect(op?.required).toBe(false);
     expect(isText(op?.fallback)).toBe(true);
     expect(op?.step).toMatch(/completion checkpoint/);
+    // The capture's step names the checkpoint too: this one also says it comes first.
+    expect(op?.step).toContain("before any learning is captured");
   });
 
   it("its fallback has the worker update the stale docs itself, or say none needed and why", () => {
@@ -710,8 +712,10 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
   });
 
   it("its intent names the repo's own knowledge-base skill, so discovery binds no other", () => {
-    expect(oneLine(String(documentChange()?.intent ?? ""))).toContain(
-      "the repo's own knowledge-base skill",
+    const intent = oneLine(String(documentChange()?.intent ?? ""));
+    expect(intent).toContain("the repo's own knowledge-base skill");
+    expect(intent).toContain(
+      "A general writing, documentation or learning-capture skill is not one.",
     );
   });
 
@@ -761,8 +765,17 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
     expect(field).toContain("pull request's body");
   });
 
+  it("the receipt lists an operation bound by fallback that did not run under Not run", () => {
+    const byFallback = oneLine(read(RECEIPT).match(/^By fallback:.*(?:\n[ \t]+\S.*)*/m)?.[0] ?? "");
+    expect(byFallback).toContain("or none suggested");
+    expect(byFallback).toContain("One bound by fallback that did not run goes under Not run instead");
+  });
+
   it("the Docs field counts only reference, architecture and design docs, and has a value for a story that never reached the checkpoint", () => {
     const field = docsField();
+    expect(field).toContain(
+      "updated <the path of each reference, architecture or design doc this pull request updates",
+    );
     expect(field).toContain("never a plan or a captured learning");
     expect(field).toContain("not reached:");
     expect(field).toContain("name no such docs");

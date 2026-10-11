@@ -378,3 +378,14 @@ Neither blocks the work.
 - Both manifests carry the version the lead named, or the pull request is still a draft waiting for it.
 - A fresh-context review ran and its findings were triaged. The pull request's body has `Fixes GRO-20`.
 - No abandoned-attempt text is left in the diff.
+
+---
+
+## After the reviews
+
+This plan is the record of what was planned. Two things it says were left alone changed afterwards, in the fix commit that followed the floor review:
+
+- **OQ1 went further than planned.** `skills/story-worker/SKILL.md`'s opening list of what project instructions hold now names which docs a change keeps current, as the README does.
+- **OQ2 was closed.** `skills/supervision-setup/SKILL.md` now gives the evidence wording for an operation with no suggested name, and the fixture row uses it, so the "What restates or points at the change" row for setup and the Risks entry on evidence wording no longer describe the branch.
+
+The receipt's `Docs:` field also gained a third value, `not reached: <why>`, and its `By fallback:` field says where an operation bound by fallback that did not run is listed.
