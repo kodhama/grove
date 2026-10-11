@@ -45,15 +45,22 @@ again whenever a step needs one, because they can change during a story.
   tell your lead at once with a `STATUS: refused` line, and keep working on
   anything independent. The line names the directory you ran it in, which
   after a move says which of your two checkouts, and the exact command or
-  call. Your lead brings the maintainer one choice: they run the
-  command, or you redo the work in a fresh clone of your own. Take the clone
+  call. Your lead brings the maintainer one choice: they run it, or they
+  allow it. Once they have run or allowed a command, running it again at a
+  later step is a new command: if it is refused again, report it again, and
+  never retry it. Only where a fresh clone removes the need for the command
+  does the choice become that they run it, or you redo the work in a fresh
+  clone of your own. A command that rewrites the branch or the worktree, such
+  as a reset or a rebase, is such a case. A refused fetch or push is not: the
+  clone needs the same push, and cloning is the same fetch. Take the clone
   only on that OK: bring in your unpushed commits from the worktree, keep to
-  the rules above, work on the branch in that clone from then on, and tell
-  your lead with a `STATUS: moved` line. Your session's own files, its
-  bindings, its handoff and any restart marker, stay in the worktree, where
-  your lead looks for them: run setup and the restart with the worktree as
-  the working directory, reached by its full path, never from the clone,
-  since both write those files under the directory they run in.
+  every rule in this list, this one included, work on the branch in that
+  clone from then on, and tell your lead with a `STATUS: moved` line. Your
+  session's own files, its bindings, its handoff and any restart marker, stay
+  in the worktree, where your lead looks for them: run setup and the restart
+  with the worktree as the working directory, reached by its full path, never
+  from the clone, since both write those files under the directory they run
+  in.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).

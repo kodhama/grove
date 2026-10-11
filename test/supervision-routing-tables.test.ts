@@ -702,6 +702,48 @@ describe("GRO-17 · the refused-call rule's text", () => {
     );
   });
 
+  const CLONE_CASE =
+    "A command that rewrites the branch or the worktree, such as a reset or a rebase, is such a case.";
+  const NOT_FETCH_OR_PUSH =
+    "A refused fetch or push is not: the clone needs the same push, and cloning is the same fetch.";
+
+  it("the worker is offered a clone only where a fresh clone removes the need for the command", () => {
+    const never = flat(workerNever());
+    expect(never).toContain(
+      "Your lead brings the maintainer one choice: they run it, or they allow it.",
+    );
+    expect(never).toContain(
+      "Only where a fresh clone removes the need for the command does the choice become that they run it, or you redo the work in a fresh clone of your own.",
+    );
+    expect(never).toContain(`${CLONE_CASE} ${NOT_FETCH_OR_PUSH}`);
+  });
+
+  it("a command the maintainer ran or allowed is a new command when the worker runs it again", () => {
+    expect(flat(workerNever())).toContain(
+      "Once they have run or allowed a command, running it again at a later step is a new command: if it is refused again, report it again, and never retry it.",
+    );
+  });
+
+  it("the worker takes the clone only on the maintainer's OK, bound by every Never rule, this one included", () => {
+    expect(flat(workerNever())).toContain(
+      "Take the clone only on that OK: bring in your unpushed commits from the worktree, keep to every rule in this list, this one included, work on the branch in that clone from then on, and tell your lead with a `STATUS: moved` line.",
+    );
+  });
+
+  it("the lead offers the clone only where it removes the need for the command", () => {
+    const messages = leadMessages();
+    expect(messages).toContain(
+      "Bring the maintainer one choice: they run it there, or they allow it.",
+    );
+    expect(messages).toContain(
+      "Only where a fresh clone removes the need for the command does the choice become that they run it, or the worker redoes the work in a fresh clone of its own.",
+    );
+    expect(messages).toContain(`${CLONE_CASE} ${NOT_FETCH_OR_PUSH} Pass the answer back.`);
+    expect(messages).toContain(
+      "A command refused again at a later step, after the maintainer ran or allowed it, is a new line: bring it to them again, and never tell the worker to retry it.",
+    );
+  });
+
   it("the lead keeps a moved worker's branch in its clone and its session files in the worktree", () => {
     expect(leadMessages()).toContain(
       "- **A worker's `STATUS: moved`:** its branch lives in the clone the line names from then on, while its session's own files, its restart marker among them, stay in the worktree you made.",

@@ -218,8 +218,15 @@ report lists every pane it skipped and why.
 - **A worker's `STATUS: refused`:** the line reads
   `refused in <directory>: <exact command or call>`, the directory being
   where the worker ran it, so a moved worker's line says which of its two
-  checkouts. Bring the maintainer one choice: they run it there, or the
-  worker redoes the work in a fresh clone of its own. Pass the answer back.
+  checkouts. Bring the maintainer one choice: they run it there, or they
+  allow it. Only where a fresh clone removes the need for the command does
+  the choice become that they run it, or the worker redoes the work in a
+  fresh clone of its own. A command that rewrites the branch or the worktree,
+  such as a reset or a rebase, is such a case. A refused fetch or push is
+  not: the clone needs the same push, and cloning is the same fetch. Pass the
+  answer back. A command refused again at a later step, after the maintainer
+  ran or allowed it, is a new line: bring it to them again, and never tell
+  the worker to retry it.
 - **A worker's `STATUS: moved`:** its branch lives in the clone the line names
   from then on, while its session's own files, its restart marker among them,
   stay in the worktree you made.
