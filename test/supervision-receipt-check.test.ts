@@ -1182,7 +1182,9 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     ["a malformed `[[` in zsh", "failed", "Exit code 1\n(eval):3: condition expected: a"],
     ["zsh's parse error with no line number", "failed", "Exit code 1\n(eval): parse error near `()'"],
     ["zsh's unmatched quote with no line number", "failed", 'Exit code 1\n(eval): unmatched "'],
+    ["zsh's unclosed brace with no line number", "failed", "Exit code 1\n(eval): closing brace expected"],
     ["zsh's parse error with no line number after another line", "failed", "Exit code 1\na\n(eval): parse error near `()'"],
+    ["a nested zsh's parse error", "ran", "Exit code 1\nzsh:1: parse error near `)'"],
     ["a nested bash's syntax error", "ran", "Exit code 2\nbash: -c: line 1: syntax error near unexpected token `)'"],
     ["the syntax error of a nested bash started by path", "ran", "Exit code 2\n/bin/bash: -c: line 1: syntax error: unexpected end of file"],
     ["a nested bash's unmatched quote", "ran", "Exit code 2\nbash: -c: line 1: unexpected EOF while looking for matching `\"'"],
@@ -1323,8 +1325,10 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
     ["a malformed `[[` in zsh", "failed", 1, { stdout: "zsh:3: condition expected: a\n" }],
     ["zsh's parse error with no line number", "failed", 1, { stdout: "zsh: parse error near `()'\n" }],
     ["zsh's unmatched quote with no line number", "failed", 1, { stdout: 'zsh: unmatched "\n' }],
+    ["zsh's unclosed brace with no line number", "failed", 1, { stdout: "zsh: closing brace expected\n" }],
     ["zsh's parse error after another line", "failed", 1, { stdout: "warning: x\nzsh:1: parse error near `)'\n" }],
     ["zsh's parse error not at a line's start", "ran", 1, { stdout: "log: zsh:1: parse error near `)'\n" }],
+    ["a nested eval's parse error", "ran", 1, { stdout: "(eval):1: parse error near `)'\n" }],
     ["a tool's own parse error", "ran", 2, { stdout: "rg: regex parse error:\n    (?:a\nerror: unclosed group" }],
   ])("reads a failed CommandExecution whose output shows %s as %s", (_what, outcome, exitCode, output) => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-parse-"));
