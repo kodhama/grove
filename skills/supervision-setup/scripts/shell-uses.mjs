@@ -47,7 +47,10 @@ export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
  * the line's number, or none, then one of its four wordings.
  */
 const ZSH_PARSE_ERROR = /(?:\d+:)? (?:parse error|unmatched |closing brace expected|condition expected)/.source;
-/** What bash prints for one in a line it was given to `eval`, named as it was started. */
+/**
+ * What bash prints when it cannot parse a line it was given to `eval`: its
+ * name, as it was started, then the line's number and one of its two wordings.
+ */
 const BASH_PARSE_ERROR = /(?:\S*\/)?bash: eval: line \d+: (?:syntax error|unexpected EOF while looking for matching )/.source;
 /**
  * A line the top-level shell starts its own parse error with, whatever the
@@ -77,8 +80,8 @@ const BASH_PARSE_ERROR = /(?:\S*\/)?bash: eval: line \d+: (?:syntax error|unexpe
  * expected: =`, `(eval):1: condition expected: b`) and carry on.
  */
 export const SHELL_COULD_NOT_PARSE = {
-  claude: new RegExp(`^(?:\\(eval\\):${ZSH_PARSE_ERROR}|${BASH_PARSE_ERROR})`, "m"),
-  codex: new RegExp(`^zsh:${ZSH_PARSE_ERROR}`, "m"),
+  claude: new RegExp(String.raw`^(?:\(eval\):${ZSH_PARSE_ERROR}|${BASH_PARSE_ERROR})`, "m"),
+  codex: new RegExp(String.raw`^zsh:${ZSH_PARSE_ERROR}`, "m"),
 };
 /** Commands that run the script named after them. */
 const INTERPRETERS = new Set(["bash", "sh", "zsh", "node", "python", "python3"]);

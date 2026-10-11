@@ -88,8 +88,9 @@ function codexShellLine(command) {
 }
 
 /**
- * What a command printed, as its item holds it: `stdout`, then `stderr`,
- * less an empty one, so the text starts with the first thing printed.
+ * What a command printed, as its item holds it: `stdout`, then `stderr`. An
+ * empty one is left out, so the newline that joins them never comes first
+ * and an error held in `stderr` alone starts the text.
  */
 function commandOutput(item) {
   return [item.stdout, item.stderr].filter((text) => typeof text === "string" && text !== "").join("\n");
