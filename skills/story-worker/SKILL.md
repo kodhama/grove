@@ -310,10 +310,11 @@ for how each of them reviews and re-reviews.
 
 A hand-back ends the story: the pull request is ready for the maintainer's
 review, or you are blocked on something only someone else can remove, such as
-a failed setup, a push you cannot make or a missing prerequisite. Those are
-the only two endings. An open `DECISION` is not one: it does not end the story
-or get a final receipt (see "Talking to your lead"). Call the work ready for
-acceptance; never call it complete or merged.
+a failed setup or a missing prerequisite. Those are the only two endings. An
+open `DECISION` is not one, and neither is a refused command or call awaiting
+its answer: neither ends the story or gets a final receipt (see "Talking to
+your lead"). Call the work ready for acceptance; never call it complete or
+merged.
 
 - **Run the receipt check** on your bindings file, passing your story's start
   as `--since`, so calls this session made before the story do not count:
@@ -381,11 +382,12 @@ Ask your lead only about product, design and architecture choices, a new
 dependency, anything that weakens or deletes a test, work beyond the story,
 and anything the story seems to need that Never forbids. Decide everything
 else yourself and list those calls
-in the receipt. While a decision is open, keep working on whatever in the
-story does not depend on it, and end your turn only when nothing independent
-is left; the answer arrives as a message. An open decision neither ends the
-story nor gets a final receipt. A missing prerequisite is reported, never
-invented; a blocker is reported, never removed.
+in the receipt. While a decision is open, or a refused command or call awaits
+its answer, keep working on whatever in the story does not depend on it, and
+end your turn only when nothing independent is left; the answer arrives as a
+message. Neither an open decision nor an open refusal ends the story or gets
+a final receipt. A missing prerequisite is reported, never invented; a
+blocker is reported, never removed.
 
 ## Bindings mid-story
 

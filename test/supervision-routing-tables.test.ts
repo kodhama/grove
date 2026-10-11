@@ -783,6 +783,29 @@ describe("GRO-17 · the refused-call rule's text", () => {
     );
   });
 
+  it("a refused command or call awaiting its answer is not an ending", () => {
+    const handBack = flat(section(read(WORKER), "8. Hand back"));
+    expect(handBack).toContain(
+      "you are blocked on something only someone else can remove, such as a failed setup or a missing prerequisite. Those are the only two endings.",
+    );
+    expect(handBack).toContain(
+      "An open `DECISION` is not one, and neither is a refused command or call awaiting its answer: neither ends the story or gets a final receipt (see \"Talking to your lead\").",
+    );
+    expect(handBack).not.toContain("a push you cannot make");
+  });
+
+  it("the worker keeps working on what is independent while a refusal is open, as for a decision", () => {
+    expect(workerTalking()).toContain(
+      "While a decision is open, or a refused command or call awaits its answer, keep working on whatever in the story does not depend on it, and end your turn only when nothing independent is left; the answer arrives as a message. Neither an open decision nor an open refusal ends the story or gets a final receipt.",
+    );
+  });
+
+  it("the worker's pull-request step still sends a refused push to the rule, and stops on any other failed push", () => {
+    expect(flat(section(read(WORKER), "6. The pull request"))).toContain(
+      "A push your harness's permission check refuses is a refused command (see Never). If you cannot push for any other reason, say so to your lead and stop.",
+    );
+  });
+
   it("the lead keeps a moved worker's branch in its clone and its session files in the worktree", () => {
     expect(leadMessages()).toContain(
       "- **A worker's `STATUS: moved`:** its branch lives in the clone the line names from then on, while its session's own files, its restart marker among them, stay in the worktree you made.",
