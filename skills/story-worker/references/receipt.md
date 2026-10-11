@@ -17,6 +17,16 @@ points into.
 
 Story:           <work item id and link>   Source: <plan, spec or unit, with its section; for a
                   defect, or a story filed from plain intent, the work item itself>
+Plan:            <the plan this story was built from: the path, on the branch, of its plan
+                  file; or, where its source is a plan unit that was enough to build from, that
+                  plan's path and the unit's id, with no copy written; or both, where a file
+                  fills the unit's gaps. A file written with no planning performer bound adds
+                  ", written by fallback"
+                  | for a defect: diagnosis <the link to the note that holds its summary>,
+                  then "plan <path>" where the fix needed one, "no plan: contained fix" where
+                  it did not, or "no plan: nothing built" where there was no fix to make
+                  | not reached: <why>, for a story that ended before it was planned, or,
+                  for a defect, diagnosed>
 Owner:           <session name, read from the live system>   Worktree: <path>   Branch: <name>
 Started:         <UTC time, as YYYY-MM-DDTHH:MM:SSZ, recorded at the story's start>   Base: <full SHA the branch was cut from>
 Operating model: <own team | fully delegated to <runner>>

@@ -124,6 +124,10 @@ with no fix, no commit and no push. Say in the same request that it asks no
 one: where it would ask a question, it stops and returns what it tried and
 what is missing; and that it never uses the shared stash.
 
+The diagnosis stands as the defect's plan. Post its summary as a note on the
+work item, through the performer bound to `post-work-note`, before you act on
+it, so your lead can open it. The receipt's `Plan:` line links that note.
+
 The diagnosis decides the route:
 
 - **A contained fix**, whose change follows from the cause with no design
@@ -148,12 +152,26 @@ that answer, and stays uncommitted until it comes.
 
 ## 3. Plan
 
-For a defect, the diagnosis above runs first and may skip this step.
+Every story that is not a defect is planned before it is built, however small
+it looks. A defect comes here only when its diagnosis says the fix needs a
+plan (see "A defect: diagnose first"). Otherwise its diagnosis stands as its
+plan, and `plan` goes under Not run with that reason.
 
 Invoke the performer bound to `plan`, from the story's source. For a story
-whose source is already a plan unit, this confirms it is enough to build from,
-or fills the gaps: the files to change, the failing tests to write first, and
-how the result is verified.
+whose source is already a plan unit, this confirms the unit is enough to build
+from, or fills the gaps: the files to change, the failing tests to write
+first, and how the result is verified. A unit that is enough is the story's
+plan: write no copy of it. In every other case, ask the performer for a plan
+written to a file: the whole plan, or, for a plan unit, only the gaps it
+filled.
+
+Commit a plan file on your branch, so it ships in the pull request. Give the
+receipt's `Plan:` line as `references/receipt.md` gives it: the file's path,
+the plan unit the story was built from, or both where a file fills a unit's
+gaps. Where `plan` is bound by fallback, you do the planning yourself, any
+plan you write goes to a file all the same, and the line says so. A story
+that is not a defect lists `plan` under Not run only when it ended before this
+step.
 
 Build only on settled ground. If the source is still changing, or a decision
 it cites turns out wrong or ambiguous against the code, send your lead a
