@@ -1920,6 +1920,7 @@ describe("MQ-353 · the command line", () => {
       [[], [], []],
       [bindingsReading([BY_HAND, "claude-built-by-hand"]).transcripts, [null], []],
       [bindingsReading([BY_HAND, "claude-built-by-hand"]).transcripts, [], ["--handoff", dir]],
+      [bindingsReading([BY_HAND, "claude-built-by-hand"]).transcripts, [], ["--pr-body", dir]],
     ];
     for (const [transcripts, extraOperations, args] of cases) {
       const file = bindingsReading();
@@ -2079,6 +2080,257 @@ describe("MQ-353 · the command line", () => {
     const result = spawnSync("node", [SCRIPT], { encoding: "utf8" });
     expect(result.status).toBe(2);
     expect(result.stderr).toContain("--bindings <path> is required");
+  });
+
+  /**
+   * GRO-21 — a story's pull request says, each on a line of its body, whether
+   * a lesson was captured and whether its docs changed. The worker saves the
+   * body to a file and passes it as `--pr-body`; the check fails a body where
+   * either line is missing, malformed or repeated. It reads the file it was
+   * given, never the pull request.
+   */
+  describe("GRO-21 · the pull request's body, given as --pr-body", () => {
+    const CAPTURED = "Capture: captured docs/solutions/a-lesson.md";
+    const SKIPPED = "Capture: skipped: the tests already show the lesson";
+    const UPDATED = "Docs: updated README.md, docs/guide.md";
+    const NONE = "Docs: none needed, because nothing a reader uses changed";
+    const NOT_CHECKED = "pr-body: not checked (no --pr-body given)";
+    /** The two forms each label accepts, as a malformed line names them. */
+    const FORMS = {
+      Capture: 'write "Capture: captured <path>" or "Capture: skipped: <reason>"',
+      Docs: 'write "Docs: updated <paths>" or "Docs: none needed, because <why>"',
+    };
+
+    /** A body saved to a file, as the worker saves it. */
+    const bodyOf = (text: string) => {
+      const path = join(dir, `body-${Math.random().toString(36).slice(2)}.md`);
+      writeFileSync(path, text);
+      return path;
+    };
+    /** Every operation used or declared not run, so only the body can fail the check. */
+    const clean = (...args: string[]) => {
+      const file = bindingsReading([AFTER, "claude-after-restart"]);
+      file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
+      return run(file, "--not-run", "story-worker/plan", ...args);
+    };
+    /** The build done by hand, so the check exits 1 whatever the body holds. */
+    const failing = (...args: string[]) =>
+      run(bindingsReading([BY_HAND, "claude-built-by-hand"]), ...args);
+    /** The report's lines about the body. */
+    const bodyLines = (stdout: string) =>
+      stdout.split("\n").filter((line) => line.startsWith("pr-body"));
+
+    it.each([
+      [CAPTURED, UPDATED],
+      [CAPTURED, NONE],
+      [SKIPPED, UPDATED],
+      [SKIPPED, NONE],
+    ])("exits 0 and quotes both lines for %j with %j", (capture, docs) => {
+      const body = bodyOf(`${capture}\n${docs}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: found "${capture}"`,
+        `pr-body ${body}: found "${docs}"`,
+      ]);
+      expect(result.status).toBe(0);
+    });
+
+    it("prints its lines after the operations and the unbound skills, before the summary, Capture first", () => {
+      const body = bodyOf(`${NONE}\n${SKIPPED}\n`);
+      const lines = clean("--pr-body", body).stdout.trimEnd().split("\n");
+      const first = lines.findIndex((line) => line.startsWith("pr-body"));
+      expect(lines[first - 1]).toMatch(/^used-but-unbound: /);
+      expect(lines.slice(first)).toEqual([
+        `pr-body ${body}: found "${SKIPPED}"`,
+        `pr-body ${body}: found "${NONE}"`,
+        expect.stringMatching(/^summary: /),
+      ]);
+    });
+
+    it("finds both lines among other Markdown, with CRLF endings and trailing spaces", () => {
+      const text = ["## What changed", "", "The check reads the body.", "", `${SKIPPED}  `, `${NONE} \t`, "", "Fixes #1", ""];
+      const body = bodyOf(text.join("\r\n"));
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: found "${SKIPPED}"`,
+        `pr-body ${body}: found "${NONE}"`,
+      ]);
+      expect(result.status).toBe(0);
+    });
+
+    it("exits 1 on a body with no Capture line, and still finds its Docs line", () => {
+      const body = bodyOf(`## What changed\n\n${NONE}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: missing "Capture:": no line starts with it`,
+        `pr-body ${body}: found "${NONE}"`,
+      ]);
+      expect(result.status).toBe(1);
+    });
+
+    it("exits 1 on a body with no Docs line", () => {
+      const body = bodyOf(`${CAPTURED}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: found "${CAPTURED}"`,
+        `pr-body ${body}: missing "Docs:": no line starts with it`,
+      ]);
+      expect(result.status).toBe(1);
+    });
+
+    it("exits 1 on an empty body, with both lines missing", () => {
+      const body = bodyOf("");
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: missing "Capture:": no line starts with it`,
+        `pr-body ${body}: missing "Docs:": no line starts with it`,
+      ]);
+      expect(result.status).toBe(1);
+    });
+
+    // Each row: the line as written, and as the report quotes it, less its trailing spaces.
+    it.each([
+      ["Capture:", "Capture:"],
+      ["Capture:    ", "Capture:"],
+      ["Capture: captured", "Capture: captured"],
+      ["Capture: captured   ", "Capture: captured"],
+      ["Capture: skipped", "Capture: skipped"],
+      ["Capture: skipped:", "Capture: skipped:"],
+      ["Capture: skipped:   ", "Capture: skipped:"],
+      ["Capture: yes", "Capture: yes"],
+      ["Capture:captured x", "Capture:captured x"],
+      ["Capture:  captured x", "Capture:  captured x"],
+      ["Capture: Skipped: x", "Capture: Skipped: x"],
+      ["Docs:", "Docs:"],
+      ["Docs: updated", "Docs: updated"],
+      ["Docs: none", "Docs: none"],
+      ["Docs: none needed", "Docs: none needed"],
+      ["Docs: none needed, because", "Docs: none needed, because"],
+      ["Docs: not reached: the story ended early", "Docs: not reached: the story ended early"],
+    ])("exits 1 on the malformed line %j, quoting it and naming both forms", (written, quoted) => {
+      const label = written.startsWith("Capture") ? "Capture" : "Docs";
+      const other = label === "Capture" ? NONE : SKIPPED;
+      const body = bodyOf(`${written}\n${other}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toContain(
+        `pr-body ${body}: malformed "${quoted}": ${FORMS[label]}`,
+      );
+      expect(bodyLines(result.stdout)).toContain(`pr-body ${body}: found "${other}"`);
+      expect(result.status).toBe(1);
+    });
+
+    it.each([
+      "- Capture: skipped: x",
+      "**Capture:** skipped: x",
+      "> Capture: skipped: x",
+      " Capture: skipped: x",
+      "capture: skipped: x",
+    ])("reads the decorated line %j as missing, and exits 1", (line) => {
+      const body = bodyOf(`${line}\n${NONE}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: missing "Capture:": no line starts with it`,
+        `pr-body ${body}: found "${NONE}"`,
+      ]);
+      expect(result.status).toBe(1);
+    });
+
+    it.each([
+      ["the same line twice", [SKIPPED, SKIPPED], 2],
+      ["two lines that disagree", [SKIPPED, CAPTURED], 2],
+      ["three lines, one of them malformed", [SKIPPED, "Capture: yes", CAPTURED], 3],
+    ])("exits 1 on %s, giving the count", (_what, captures, count) => {
+      const body = bodyOf(`${captures.join("\n\n")}\n${UPDATED}\n`);
+      const result = clean("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: repeated "Capture:": ${count} lines start with it, keep one`,
+        `pr-body ${body}: found "${UPDATED}"`,
+      ]);
+      expect(result.status).toBe(1);
+    });
+
+    it.each([
+      ["a missing path", () => join(dir, "no-such-body.md")],
+      ["a directory", () => dir],
+      ["the empty path", () => ""],
+    ])("exits 2 with one line when --pr-body names %s, even with an operation unused", (_what, path) => {
+      for (const baseline of [clean, failing]) {
+        const result = baseline("--pr-body", path());
+        expect(result.status).toBe(2);
+        expect(result.stderr.trimEnd().split("\n")).toEqual([
+          `receipt-check: no pull-request body file at ${path()}`.trimEnd(),
+        ]);
+        expect(result.stdout).toBe("");
+      }
+    });
+
+    it("says the body was not checked when no --pr-body is given, and exits as it did", () => {
+      const passed = clean();
+      expect(bodyLines(passed.stdout)).toEqual([NOT_CHECKED]);
+      expect(passed.status).toBe(0);
+      const failed = failing();
+      expect(bodyLines(failed.stdout)).toEqual([NOT_CHECKED]);
+      expect(failed.status).toBe(1);
+    });
+
+    it("prints the same summary line with and without --pr-body", () => {
+      const summaryOf = (stdout: string) => stdout.split("\n").filter((l) => l.startsWith("summary:"));
+      const without = summaryOf(clean().stdout);
+      expect(without).toHaveLength(1);
+      expect(summaryOf(clean("--pr-body", bodyOf(`${SKIPPED}\n${NONE}\n`)).stdout)).toEqual(without);
+      expect(summaryOf(clean("--pr-body", bodyOf("")).stdout)).toEqual(without);
+    });
+
+    it("prints no pr-body line for another level skill's bindings, which have no pull request", () => {
+      const other = join(dir, "project-lead-routing-for-body.toml");
+      const table = 'skill = "project-lead"\n\n[[operation]]\nid = "review-before-merge"\nfresh_context = true\n';
+      writeFileSync(other, table);
+      const file = bindingsReading([AFTER, "claude-after-restart"]);
+      file.skill = "project-lead";
+      file.table = { path: other, sha256: createHash("sha256").update(table).digest("hex") };
+      const result = run(file);
+      expect(result.status).not.toBe(2);
+      expect(result.stdout).toMatch(/^summary: /m);
+      expect(bodyLines(result.stdout)).toEqual([]);
+    });
+
+    it("still exits 1 on an unused operation when the body is good", () => {
+      const body = bodyOf(`${CAPTURED}\n${UPDATED}\n`);
+      const result = failing("--pr-body", body);
+      expect(bodyLines(result.stdout)).toEqual([
+        `pr-body ${body}: found "${CAPTURED}"`,
+        `pr-body ${body}: found "${UPDATED}"`,
+      ]);
+      expect(result.stdout).toContain("story-worker/build: bound-but-unused");
+      expect(result.status).toBe(1);
+    });
+
+    it("names --pr-body in its usage", () => {
+      const result = spawnSync("node", [SCRIPT], { encoding: "utf8" });
+      expect(result.stderr).toMatch(/^Usage: receipt-check\.mjs --bindings .*\[--pr-body <path>\]/m);
+    });
+
+    it("carries the same uses through a handoff whose report quotes a body line shaped like a use", () => {
+      // The body's line reads as a used line for build, which the session before never ran.
+      const forged = `Capture: captured story-worker/build: used compound-engineering:ce-work in ${BEFORE}`;
+      const body = bodyOf(`${forged}\n${NONE}\n`);
+      const before = run(bindingsReading([BEFORE, "claude-before-restart"]), "--pr-body", body).stdout;
+      expect(before).toContain(`pr-body ${body}: found "${forged}"`);
+      const handoff = join(dir, "handoff-pr-body.md");
+      writeFileSync(handoff, `# Handoff\n\n## Receipt check\n\n${before}\n## What I am doing\n`);
+      const after = run(
+        bindingsReading([BY_HAND, "claude-built-by-hand"]),
+        "--handoff",
+        handoff,
+      ).stdout;
+      expect(after).toContain(
+        `story-worker/plan: used compound-engineering:ce-plan in ${BEFORE} (carried from handoff)`,
+      );
+      expect(after).toContain(
+        `story-worker/review: used code-review in ${BEFORE} subagent agent-a1b2c3 (carried from handoff)`,
+      );
+      expect(after).toContain("story-worker/build: bound-but-unused");
+    });
   });
 });
 

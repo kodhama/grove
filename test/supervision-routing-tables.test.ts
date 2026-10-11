@@ -712,3 +712,85 @@ describe("what an agent or a user reads names no work tracker or plan tag", () =
     expect(kept.match(PLAN_TAG)?.[0]).toBe("KTD10");
   });
 });
+
+/**
+ * GRO-21 — every story says whether a lesson was captured, and where, or why
+ * not: on a `Capture:` line in its receipt and the same line in its pull
+ * request's body. The worker saves the body and hands it to the receipt
+ * check, which reads only the body; the lead reads the receipt's own lines.
+ */
+describe("GRO-21 · the Capture line's text", () => {
+  const oneLine = (text: string) => text.replace(/\s+/g, " ");
+  /** One field of the receipt's template: its line and the indented lines that continue it. */
+  const receiptField = (label: string) => {
+    const receipt = read(join(SKILLS_TREE, "story-worker", "references", "receipt.md"));
+    return oneLine(receipt.match(new RegExp(`^${label}:.*(?:\\n[ \\t]+\\S.*)*`, "m"))?.[0] ?? "");
+  };
+  const step7 = () => oneLine(section(read(WORKER), "7. The pull-request round"));
+  const step8 = () => oneLine(section(read(WORKER), "8. Hand back"));
+
+  it("the receipt has a Capture field giving both forms, and says the body carries the same line", () => {
+    const field = receiptField("Capture");
+    expect(field).toContain("captured <");
+    expect(field).toContain("skipped: <");
+    expect(field).toContain("pull request's body");
+  });
+
+  it("the receipt's Receipt check field names --pr-body", () => {
+    expect(receiptField("Receipt check")).toContain("--pr-body");
+  });
+
+  it.each([
+    "`Capture:` line",
+    "`captured` with the path",
+    "`skipped:` with the reason",
+    "a line of its own",
+    "brought up to date in both places",
+  ])("story-worker's step 7 says %j", (phrase) => {
+    expect(step7()).toContain(phrase);
+  });
+
+  it("step 7 writes the Capture line after the capture and before the pull request is marked ready", () => {
+    const text = step7();
+    const at = (phrase: string) => {
+      expect(text, phrase).toContain(phrase);
+      return text.indexOf(phrase);
+    };
+    expect(at("`capture-learning`")).toBeLessThan(at("`Capture:` line"));
+    expect(at("`Capture:` line")).toBeLessThan(at("mark the pull request ready"));
+    expect(at("pull request's body")).toBeLessThan(at("mark the pull request ready"));
+  });
+
+  it("step 8 saves the body to a file and passes it as --pr-body, and a blocked hand-back leaves it out", () => {
+    const text = step8();
+    expect(text).toContain('`--pr-body "<that file>"`');
+    expect(text).toContain("to a file");
+    expect(text).toContain("A blocked hand-back leaves `--pr-body` out");
+  });
+
+  it("step 8 names no host's tool for saving the body", () => {
+    expect(step8()).not.toBe("");
+    expect(step8()).not.toMatch(/\bgh\b|github|curl/i);
+  });
+
+  it("the lead's claims check reads the receipt's two lines, and sends back a hand-back missing either", () => {
+    const handBack = oneLine(section(read(LEAD), "7. A hand-back"));
+    const claims = handBack.slice(
+      handBack.indexOf("**Check the claims.**"),
+      handBack.indexOf("**Accept on the evidence.**"),
+    );
+    expect(claims).toContain("**Check the claims.**");
+    expect(claims).toContain("`Capture:`");
+    expect(claims).toContain("`Docs:`");
+    expect(claims).toContain("pull request's body");
+    expect(claims).toContain("goes back to the worker");
+  });
+
+  it("the capture-learning fallback writes a skipped Capture line, not a remark in the hand-back", () => {
+    const capture = operationsOf(readTable("story-worker")).find((op) => op.id === "capture-learning");
+    const fallback = oneLine(String(capture?.fallback ?? ""));
+    expect(fallback).toContain("`skipped:`");
+    expect(fallback).toContain("Capture");
+    expect(fallback).not.toContain("say in the hand-back");
+  });
+});
