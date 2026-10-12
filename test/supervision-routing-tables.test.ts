@@ -833,6 +833,249 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
   });
 });
 
+/**
+ * GRO-17 — a worker never retries, rephrases or hands off a command or any
+ * other call its harness's permission check refused. It stops the dependent
+ * work and sends its lead `STATUS: refused in <directory>: <exact command or
+ * call>`, and takes a fresh clone only on the maintainer's OK, reporting
+ * `STATUS: moved to <clone path>`.
+ */
+describe("GRO-17 · the refused-call rule's text", () => {
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+  const workerNever = () => section(read(WORKER), "Never");
+  const workerTalking = () =>
+    flat(section(read(WORKER), "Talking to your lead, and to the maintainer"));
+  const workerBeforeEdit = () => flat(section(read(WORKER), "2. Before the first edit"));
+  const workerRestart = () => flat(section(read(WORKER), "Context and restart"));
+  const leadMessages = () => flat(section(read(LEAD), "5. Messages"));
+  const leadStarting = () => flat(section(read(LEAD), "4. Starting a worker"));
+  const leadRestart = () => flat(section(read(LEAD), "Context and restart"));
+
+  it("story-worker's Never names no harness, path, version or tracker", () => {
+    expect(workerNever()).not.toBe("");
+    expect(textProblems(workerNever())).toEqual([]);
+  });
+
+  it("the worker never retries a refused command or any other call, and reports it", () => {
+    const never = flat(workerNever());
+    expect(never).toContain(
+      "- Retry, rephrase or hand to another session, a subagent or a performer a command or any other call your harness's permission check refused: repeated refusals hold a session at a prompt only the maintainer can answer.",
+    );
+    expect(never).not.toContain("hand to another session a command");
+    expect(never).toContain(
+      "Stop the work that depends on it, tell your lead at once with a `STATUS: refused` line, and keep working on anything independent.",
+    );
+  });
+
+  it("the worker tells each subagent or performer that a call refused there comes back as it stands", () => {
+    expect(flat(workerNever())).toContain(
+      "Say so in each request to a subagent or a performer: a call refused there comes back to you as it stands, never retried.",
+    );
+  });
+
+  it("nothing in a checkout moves while a command that rewrites it awaits its answer", () => {
+    expect(flat(workerNever())).toContain(
+      "While a command that rewrites the branch or the worktree, such as a reset or a rebase, awaits its answer, nothing in that checkout is independent: change nothing there, and commit nothing.",
+    );
+  });
+
+  it("the worker's refused line names the directory first, then the exact command or call", () => {
+    expect(flat(workerNever())).toContain(
+      "The line names the directory you ran it in, which after a move says which of your two checkouts, and the exact command or call.",
+    );
+    expect(workerTalking()).toContain(
+      "/ restarting / refused in <directory>: <exact command or call> / moved to <clone path> / blocked: <reason>",
+    );
+    expect(read(WORKER)).not.toContain("refused <exact command>");
+  });
+
+  it("the lead reads the directory off a worker's refused line", () => {
+    expect(leadMessages()).toContain(
+      "- **A worker's `STATUS: refused`:** the line reads `refused in <directory>: <exact command or call>`, the directory being where the worker ran it, so a moved worker's line says which of its two checkouts.",
+    );
+  });
+
+  const WORKER_CLONE_CASE = "A command that rewrites the branch or the worktree is such a case.";
+  const LEAD_CLONE_CASE =
+    "A command that rewrites the branch or the worktree, such as a reset or a rebase, is such a case.";
+  const NOT_FETCH_OR_PUSH =
+    "A refused fetch or push is not: the clone needs the same push, and cloning is the same fetch.";
+  const PASS_BACK =
+    "Pass the answer back as what they did: they ran it, and the worker reads its branch's head again before it goes on; they allowed it, and the worker runs it once, as it was; they approved the clone, and the worker moves as its skill says; or they declined, and the worker hands back blocked unless you rule another way.";
+
+  it("the worker is offered a clone only where a fresh clone removes the need for the command", () => {
+    const never = flat(workerNever());
+    expect(never).toContain(
+      "Your lead brings the maintainer one choice: they run it, or they allow it.",
+    );
+    expect(never).toContain(
+      "Only where a fresh clone removes the need for the command does the choice become that they run it, or you redo the work in a fresh clone of your own.",
+    );
+    expect(never).toContain(`${WORKER_CLONE_CASE} ${NOT_FETCH_OR_PUSH}`);
+  });
+
+  it("the worker reads the head again after the maintainer ran a command, and runs an allowed one once", () => {
+    expect(flat(workerNever())).toContain(
+      "Where they ran it, read the branch's head again before you go on; where they allowed it, run it once, as it was.",
+    );
+  });
+
+  it("a worker whose command the maintainer declined hands back blocked, unless its lead rules another way", () => {
+    expect(flat(workerNever())).toContain(
+      "where they allowed it, run it once, as it was. Where they declined, hand back blocked, unless your lead rules another way.",
+    );
+  });
+
+  it("a command is a new command when the worker runs it again only once the maintainer ran or allowed it", () => {
+    const never = flat(workerNever());
+    expect(never).toContain(
+      "Once they have run or allowed a command, running it again at a later step is a new command: if it is refused again, report it again, and never retry it.",
+    );
+    expect(never).not.toContain(". Running it again at a later step");
+  });
+
+  it("the worker takes the clone only on the maintainer's OK, bound by every Never rule, this one included", () => {
+    expect(flat(workerNever())).toContain(
+      "Take the clone only on that OK: first commit on the worktree's branch whatever is uncommitted there, then bring into the clone only the unpushed commits the redo keeps, keep to every rule in this list, this one included, work on the branch in that clone from then on, and tell your lead with a `STATUS: moved` line.",
+    );
+  });
+
+  it("a moved worker's session files stay in the worktree, and setup and the restart run from there", () => {
+    expect(flat(workerNever())).toContain(
+      "Your session's own files, its bindings, its handoff and any restart marker, stay in the worktree, where your lead looks for them: run setup and the restart with the worktree as the working directory, reached by its full path, never from the clone, since both write those files under the directory they run in.",
+    );
+  });
+
+  it("the worker leaves its worktree only on a move the maintainer approves after a refused command", () => {
+    expect(workerBeforeEdit()).toContain(
+      "Work only there, unless the maintainer approves a move to a fresh clone after a refused command (see Never).",
+    );
+  });
+
+  it("the worker's first fetch, when refused, is a refused command", () => {
+    expect(workerBeforeEdit()).toContain(
+      "A refused fetch is a refused command (see Never), and it leaves a stale base, which shows up as changes you did not make.",
+    );
+  });
+
+  it("a moved worker restarts with the worktree as the working directory", () => {
+    expect(workerRestart()).toContain(
+      "After a move to a clone, run it with the worktree as the working directory, reached by its full path: the bindings and the handoff are there, and your lead looks there for the restart marker.",
+    );
+  });
+
+  it("a moved worker's handoff carries the clone, the approval and the worktree", () => {
+    expect(workerRestart()).toContain(
+      "After a move to a clone, it also carries the clone's full path, where the branch now lives, that the maintainer approved the move, and the worktree's full path, where the session's own files stay, so the resumed session carries on in the clone.",
+    );
+  });
+
+  it("the lead makes a worktree its worker leaves only on a move the maintainer approves", () => {
+    expect(leadStarting()).toContain(
+      "The worker works only there, unless the maintainer approves its move to a fresh clone after a refused command.",
+    );
+  });
+
+  it("the lead's handoff carries any clone an in-flight worker reported moving to", () => {
+    expect(leadRestart()).toContain(
+      "It also carries the epic, or on a defect run what `references/defect-run.md` lists for its handoff, or on an intent run what `references/intent-run.md` lists, the approved run lines, and each in-flight story: its worker's name and ref, its pull request, its last `STATUS`, any clone it reported moving to, and any message held for it.",
+    );
+  });
+
+  it("the lead offers the clone only where it removes the need for the command", () => {
+    const messages = leadMessages();
+    expect(messages).toContain(
+      "Bring the maintainer one choice: they run it there, or they allow it.",
+    );
+    expect(messages).toContain(
+      "Only where a fresh clone removes the need for the command does the choice become that they run it, or the worker redoes the work in a fresh clone of its own.",
+    );
+    expect(messages).toContain(`${LEAD_CLONE_CASE} ${NOT_FETCH_OR_PUSH} ${PASS_BACK}`);
+    expect(messages).toContain(
+      "A command refused again, after the maintainer ran or allowed it, is a new line: bring it to them again, and never tell the worker to retry it.",
+    );
+    expect(messages).not.toContain("refused again at a later step");
+  });
+
+  it("the lead passes the answer back as what the maintainer did, and the checkout stays still until then", () => {
+    const messages = leadMessages();
+    expect(messages).toContain(PASS_BACK);
+    expect(messages).toContain(
+      "Until the answer comes, a worker whose refused command rewrites the branch or the worktree changes nothing in that checkout.",
+    );
+    expect(messages).not.toContain("Pass the answer back. A command");
+    expect(messages).not.toContain("or they allowed it, and the worker runs it once, as it was.");
+  });
+
+  it("the lead removes a moved worker's clone only once it holds no commit its remote lacks", () => {
+    expect(flat(section(read(LEAD), "7. A hand-back"))).toContain(
+      "Remove its worktree, and any clone it reported moving to, once the branch has merged, after checking that nothing in either is uncommitted, and that the clone holds no commit its remote lacks: removing a worktree keeps its commits in the shared repository, and removing a clone does not.",
+    );
+  });
+
+  it("a defect run removes a cancelled worker's clone under the same check", () => {
+    const reference = read(join(SKILLS_TREE, "project-lead", "references", "defect-run.md"));
+    expect(flat(section(reference, "6. Cancelling"))).toContain(
+      "remove its worktree, and any clone it reported moving to, after checking that nothing in either is uncommitted beyond the diagnosis's own reproducing test, and that the clone holds no commit its remote lacks.",
+    );
+  });
+
+  it("a send to the lead that the permission check refuses goes as a work note, never sent again", () => {
+    expect(idsOf("story-worker")).toContain("post-work-note");
+    expect(workerTalking()).toContain(
+      "A message the transport refuses or skips is retried at your next event, and the work note is the backstop for a hand-back. A send your harness's permission check refuses is a refused call like any other (see Never): never send it again. Post its line as a note on the story's work item through the performer bound to `post-work-note` instead, with the `STATUS: refused` line for the send. Where the maintainer allows the send, that covers your later sends: the line already posted as a note is not sent again.",
+    );
+  });
+
+  it("the lead acts on a line a worker posted as a note because its send was refused", () => {
+    expect(flat(section(read(LEAD), "6. Watching the work"))).toContain(
+      "Act on any hand-back or `restart-owner: lead` handoff you find there, and on any line a worker posted there because its send to you was refused.",
+    );
+  });
+
+  it("with no lead, the worker puts a refusal to the maintainer as one question with both options", () => {
+    expect(workerTalking()).toContain(
+      "A `STATUS: refused` line is a question too: put it to them the same way, as one question with both options of the choice a lead would have brought (see Never).",
+    );
+  });
+
+  it("a lead carrying its own story names any clone it moved to in its hand-back", () => {
+    const reference = read(join(SKILLS_TREE, "project-lead", "references", "intent-run.md"));
+    expect(flat(section(reference, "6. Carrying it yourself"))).toContain(
+      "Your hand-back names the worktree, and any clone you moved to, for the maintainer to remove once the branch has merged.",
+    );
+  });
+
+  it("a refused command or call awaiting its answer is not an ending", () => {
+    const handBack = flat(section(read(WORKER), "8. Hand back"));
+    expect(handBack).toContain(
+      "you are blocked on something only someone else can remove, such as a failed setup or a missing prerequisite. Those are the only two endings.",
+    );
+    expect(handBack).toContain(
+      "An open `DECISION` is not one, and neither is a refused command or call awaiting its answer: neither ends the story or gets a final receipt (see \"Talking to your lead\").",
+    );
+    expect(handBack).not.toContain("a push you cannot make");
+  });
+
+  it("the worker keeps working on what is independent while a refusal is open, as for a decision", () => {
+    expect(workerTalking()).toContain(
+      "While a decision is open, or a refused command or call awaits its answer, keep working on whatever in the story does not depend on it, and end your turn only when nothing independent is left; the answer arrives as a message. Neither an open decision nor an open refusal ends the story or gets a final receipt.",
+    );
+  });
+
+  it("the worker's pull-request step still sends a refused push to the rule, and stops on any other failed push", () => {
+    expect(flat(section(read(WORKER), "6. The pull request"))).toContain(
+      "A push your harness's permission check refuses is a refused command (see Never). If you cannot push for any other reason, say so to your lead and stop.",
+    );
+  });
+
+  it("the lead keeps a moved worker's branch in its clone and its session files in the worktree", () => {
+    expect(leadMessages()).toContain(
+      "- **A worker's `STATUS: moved`:** its branch lives in the clone the line names from then on, while its session's own files, its restart marker among them, stay in the worktree you made.",
+    );
+  });
+});
+
 /** A math-quest plan tag, such as `R34`, `KTD10`, `AE6` or `U6b`. */
 const PLAN_TAG = /\b(?:R|KTD|AE)\d+\b|\bU\d+[a-z]?\b/;
 
