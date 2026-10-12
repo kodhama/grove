@@ -880,6 +880,7 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     ["alone on the line", "gh pr view 12 name() more words", ["more"]],
     ["with a space before the ()", "gh pr view 12 name () more words", ["more"]],
     ["with a braced body", "gh pr view 12 name() { more words }", ["more"]],
+    ["with the body right after the ()", "gh pr view 12 name(){ more words }", ["more"]],
     ["after a ;", "cd /repo; gh pr view 12 name() more words", ["cd", "more"]],
     ["after an &&", "cd /repo && gh pr view 12 name() more words", ["cd", "more"]],
     ["after a |", "echo a | gh pr view 12 name() more words", ["echo", "more"]],
@@ -940,13 +941,47 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf("gh pr view $(cat f) name() body")).toEqual(["body", "cat"]);
   });
 
-  it("does not count a Bash call whose line only defined functions", () => {
+  // zsh rejects each line with a parse error near its `()` and runs nothing,
+  // and the call reads as not run from its result. The parser reads no
+  // definition there, so the rest of the line reads as it did.
+  it.each([
+    ["in a for list", "for f in a () case; do gh; done", ["gh"]],
+    ["inside a glob's group", "echo a(b()c) w1", ["echo"]],
+  ])("reads no definition at a () zsh rejects, %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  // Known limits: what the parser reads where zsh does otherwise. zsh runs no
+  // `touch` in the first two lines and no `gh` in the last, runs `cmd` in the
+  // two anonymous functions, and defines both `a` and `b` in the other two.
+  it.each([
+    ["a name the line defines, then called as the CLI", "touch x() true; touch e2", ["true", "touch"]],
+    ["a blank inside the ( ), which zsh rejects", "touch e1c name( ) more words", ["more"]],
+    ["an anonymous function with a braced body", "() { cmd }", []],
+    ["an anonymous function with a bare body", "() cmd", []],
+    ["a function given two names", "function a b { touch e11; }", ["b"]],
+    ["a function given two names, the second then called", "function a b { touch e11; }; b", ["b", "b"]],
+    ["a body that is the next line's command, never called", "gh pr view 12 name()\ngh pr list", ["gh"]],
+  ])("reads, as a known limit, %s", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("does not count a Bash call whose line only defined functions, and counts the body's command", () => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-functions-"));
     const call = { type: "tool_use", name: "Bash", input: { command: "gh pr view 12 name() more words" } };
     const file = bindingsOfCalls(dir, [call, { content: "", is_error: false }]);
-    const outcomes = outcomesOf(file.transcripts, "cli", "gh");
+    const outcomes = ["gh", "more"].map((cli) => outcomesOf(file.transcripts, "cli", cli));
     rmSync(dir, { recursive: true });
-    expect(outcomes).toEqual([]);
+    expect(outcomes).toEqual([[], ["ran"]]);
+  });
+
+  it("does not count a Codex command whose line only defined functions, and counts the body's command", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-functions-"));
+    const record = commandRecord("gh pr view 12 name() more words", "completed", 0, undefined, { stdout: "" });
+    const file = codexBindingsOf(dir, [record]);
+    const outcomes = ["gh", "more"].map((cli) => outcomesOf(file.transcripts, "cli", cli));
+    rmSync(dir, { recursive: true });
+    expect(outcomes).toEqual([[], ["ran"]]);
   });
 
   it("never credits a pattern after a lone & as a command", () => {
@@ -1261,7 +1296,9 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     ["zsh's unmatched quote with no line number", "failed", 'Exit code 1\n(eval): unmatched "'],
     ["zsh's unclosed brace with no line number", "failed", "Exit code 1\n(eval): closing brace expected"],
     ["zsh's unknown condition, which stops the rest of its list as it runs", "failed", "Exit code 2\n(eval):1: unknown condition: -z"],
+    ["zsh's unknown condition with no line number", "failed", "Exit code 2\n(eval): unknown condition: -z"],
     ["an unknown condition from zsh's `[`, which carries on", "ran", "Exit code 1\n(eval):[:1: unknown condition: -z"],
+    ["an unknown condition zsh names a function in, a known limit", "ran", "Exit code 2\nf: unknown condition: -z"],
     ["zsh's parse error with no line number after another line", "failed", "Exit code 1\na\n(eval): parse error near `()'"],
     ["a nested zsh's parse error", "ran", "Exit code 1\nzsh:1: parse error near `)'"],
     ["a nested bash's syntax error", "ran", "Exit code 2\nbash: -c: line 1: syntax error near unexpected token `)'"],
@@ -1409,6 +1446,7 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
     ["zsh's unmatched quote with no line number", "failed", 1, { stdout: 'zsh: unmatched "\n' }],
     ["zsh's unclosed brace with no line number", "failed", 1, { stdout: "zsh: closing brace expected\n" }],
     ["zsh's unknown condition, which stops the rest of its list as it runs", "failed", 2, { stdout: "zsh:1: unknown condition: -z\n" }],
+    ["zsh's unknown condition with no line number", "failed", 2, { stdout: "zsh: unknown condition: -z\n" }],
     ["an unknown condition from zsh's `[`, which carries on", "ran", 1, { stdout: "zsh:[:1: unknown condition: -z\n" }],
     ["zsh's parse error after another line", "failed", 1, { stdout: "warning: x\nzsh:1: parse error near `)'\n" }],
     ["zsh's parse error not at a line's start", "ran", 1, { stdout: "log: zsh:1: parse error near `)'\n" }],
