@@ -250,9 +250,11 @@ with the body `more words`, exits 0, prints nothing and runs no command (zsh
 it from the line: it credits none of the words before the `()`, and reads
 the body as it reads any function's, called or not. A `$(...)` among those
 words still runs, and is credited. The `name=()` after `declare`, `export`,
-`float`, `integer`, `local`, `readonly` or `typeset` is an array and no
-definition, and is read as before: `local arr=() gh` declares `arr` and a
-variable `gh`, and runs no `gh` (zsh 5.9, 2026-10-12). Bash rejects a line
+`local`, `readonly` or `typeset` is an array and no definition, and is read
+as before: `local arr=() gh` declares `arr` and a variable `gh`, and runs no
+`gh`. `float` and `integer` refuse the array (`arr: inconsistent type for
+assignment`, exit 1) and define nothing either, so theirs is read the same
+way (zsh 5.9, 2026-10-12). Bash rejects a line
 that defines functions so with a `syntax error`, which the check reads as
 not run. Four neighbours the check does not read as zsh does (zsh 5.9,
 2026-10-12):
