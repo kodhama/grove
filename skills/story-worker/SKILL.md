@@ -28,8 +28,9 @@ fitting is rebound as "Bindings mid-story" says.
 The repo's conventions live in its project instructions (`AGENTS.md` or the
 harness's equivalent), not here: branch and commit names, how a pull request
 links its work item, the checks that must pass, the review loop, the secrets
-guard, and how an agent signs a comment. Read them before the first edit and
-again whenever a step needs one, because they can change during a story.
+guard, which docs a change keeps current, and how an agent signs a comment.
+Read them before the first edit and again whenever a step needs one, because
+they can change during a story.
 
 ## Never
 
@@ -44,6 +45,36 @@ again whenever a step needs one, because they can change during a story.
 - Touch another checkout, another worktree or another session's files. Close,
   reassign or re-scope another work item.
 - Widen your own permissions, or relax a check to get past it.
+- Retry, rephrase or hand to another session, a subagent or a performer a
+  command or any other call your harness's permission check refused: repeated
+  refusals hold a session at a prompt only the maintainer can answer. Say so
+  in each request to a subagent or a performer: a call refused there comes
+  back to you as it stands, never retried. Stop the work that depends on it,
+  tell your lead at once with a `STATUS: refused` line, and keep working on
+  anything independent. While a command that rewrites the branch or the
+  worktree, such as a reset or a rebase, awaits its answer, nothing in that
+  checkout is independent: change nothing there, and commit nothing. The line
+  names the directory you ran it in, which after a move says which of your two
+  checkouts, and the exact command or call. Your lead brings the maintainer
+  one choice: they run it, or they allow it. Where they ran it, read the
+  branch's head again before you go on; where they allowed it, run it once, as
+  it was. Where they declined, hand back blocked, unless your lead rules
+  another way. Once they have run or allowed a command, running it again at a
+  later step is a new command: if it is refused again, report it again, and
+  never retry it. Only where a fresh clone removes the need for the command
+  does the choice become that they run it, or you redo the work in a fresh
+  clone of your own. A command that rewrites the
+  branch or the worktree is such a case. A refused fetch or push is not: the
+  clone needs the same push, and cloning is the same fetch. Take the clone
+  only on that OK: first commit on the worktree's branch whatever is
+  uncommitted there, then bring into the clone only the unpushed commits the
+  redo keeps, keep to every rule in this list, this one included, work on the
+  branch in that clone from then on, and tell your lead with a `STATUS: moved`
+  line. Your session's own files, its bindings, its handoff and any restart
+  marker, stay in the worktree, where your lead looks for them: run setup and
+  the restart with the worktree as the working directory, reached by its full
+  path, never from the clone, since both write those files under the directory
+  they run in.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
@@ -97,7 +128,8 @@ You need no answer before you start.
 
 ## 2. Before the first edit
 
-- **The worktree is fixed.** Work only there. One writer per worktree: if you
+- **The worktree is fixed.** Work only there, unless the maintainer approves
+  a move to a fresh clone after a refused command (see Never). One writer per worktree: if you
   find an unexplained branch, worktree or running session on this story, stop
   and ask your lead.
 - **Dependencies.** If the repo's dependencies are missing or its lockfile
@@ -105,8 +137,8 @@ You need no answer before you start.
   check that answers "command not found" is a setup failure, never a check
   result.
 - **The branch.** Fetch, and confirm the base SHA is the commit you branch
-  from. A refused fetch leaves a stale base, which shows up as changes you did
-  not make: stop and say so. Move onto the story's branch before the first
+  from. A refused fetch is a refused command (see Never), and it leaves a
+  stale base, which shows up as changes you did not make. Move onto the story's branch before the first
   edit, and check `git branch --show-current` after the move and again before
   the first commit, because a branch command can appear to succeed without
   moving the worktree. Re-read any file you read before the move.
@@ -128,6 +160,12 @@ diagnosis only: reproduce the defect, find its cause and stop at a summary,
 with no fix, no commit and no push. Say in the same request that it asks no
 one: where it would ask a question, it stops and returns what it tried and
 what is missing; and that it never uses the shared stash.
+
+A defect's diagnosis stands as its plan, together with the plan step's own
+where the fix needs one. Post its summary as a note on the work item, through
+the performer bound to `post-work-note`, before you act on it, so your lead
+can open it, and end the note with the agent footer the repo's instructions
+require. The receipt's `Plan:` line links that note.
 
 The diagnosis decides the route:
 
@@ -153,12 +191,26 @@ that answer, and stays uncommitted until it comes.
 
 ## 3. Plan
 
-For a defect, the diagnosis above runs first and may skip this step.
+Every story that is not a defect is planned before it is built, however small
+it looks. A defect comes here only when its diagnosis says the fix needs a
+plan (see "A defect: diagnose first"). Otherwise its diagnosis stands as its
+plan, and `plan` goes under Not run with that reason.
 
 Invoke the performer bound to `plan`, from the story's source. For a story
-whose source is already a plan unit, this confirms it is enough to build from,
-or fills the gaps: the files to change, the failing tests to write first, and
-how the result is verified.
+whose source is already a plan unit, this confirms the unit is enough to build
+from, or fills the gaps: the files to change, the failing tests to write
+first, and how the result is verified. A unit that is enough is the story's
+plan: write no copy of it. In every other case, ask the performer for a plan
+written to a file: the whole plan, or, for a plan unit, only the gaps it
+filled.
+
+Commit any plan file written for the story on your branch, so it ships in the
+pull request. Give the receipt's `Plan:` line as `references/receipt.md` gives
+it: the file's path, the plan unit the story was built from, or both where a
+file fills a unit's gaps. Where `plan` is bound by fallback, you do the
+planning yourself, any plan you write goes to a file all the same, and the
+line says so. A story that is not a defect lists `plan` under Not run only
+when it ended before this step.
 
 Build only on settled ground. If the source is still changing, or a decision
 it cites turns out wrong or ambiguous against the code, send your lead a
@@ -246,7 +298,8 @@ commit-and-PR skill). You watch the pull request yourself, as below.
 
 Once the draft is open, send your lead `STATUS: PR open <url> (draft)`.
 
-If you cannot push, say so to your lead and stop.
+A push your harness's permission check refuses is a refused command (see
+Never). If you cannot push for any other reason, say so to your lead and stop.
 
 ## 7. The pull-request round
 
@@ -284,19 +337,34 @@ for how each of them reviews and re-reviews.
    and fix as in step 5, push, and answer each thread. A reviewer that skips
    drafts gives its first review only once the pull request is ready, so its
    first round comes after the next item, and gets the same one pass.
-5. **Capture, then ready.** Before you call the branch final, invoke the
-   performer bound to `capture-learning`, only when the story produced a lesson
-   the final code, tests and docs would not preserve. Run it without stopping
-   for questions, by its invocation token where it has one (`mode:non-interactive`
-   for Compound Engineering's capture skill). Run the checks on what it writes,
-   then commit and push it, so the learning ships in this pull request and
-   every reviewer sees it. Then mark the pull request ready. Capture does not
-   rerun after the fix pass that follows a ready-time first review, unless that
-   pass itself produced a lesson that meets the same test; then it runs once
-   more and ships in that pass's push. Check that each automated reviewer the
-   repo names actually reviewed the final head, and ask again only as the
-   repo's review loop says: some reviewers re-review every push, some only
-   when asked, and some only for a fix that changes behaviour.
+5. **Document, then capture, then ready.** Before you call the branch final,
+   bring the repo's docs up to the change. When the diff adds a module, a data
+   shape, a contract, a dependency or a design change, invoke the performer
+   bound to `document-change`, which updates the repo's reference,
+   architecture and design docs. When the diff adds none of them, do not
+   invoke it: list the operation under Not run, with that reason. The docs come
+   first because the capture's test is what the final code, tests and docs
+   would not preserve. Then invoke the performer bound to `capture-learning`,
+   only when the story produced a lesson the final code, tests and docs would
+   not preserve. Run each without stopping for questions, by its invocation
+   token where it has one (`mode:non-interactive` for Compound Engineering's
+   capture skill). Run the checks on what they write, then commit and push it,
+   so the docs and the learning ship in this pull request and every reviewer
+   sees them. Write the receipt's `Docs:` line, as `references/receipt.md`
+   gives it, and put the same line in the pull request's body. Write its
+   `Capture:` line the same way: `captured` with the path of what the capture
+   wrote, or `skipped:` with the reason, which is the answer the capture's test
+   gives for this story. In the body, each of the two is a line of its own with
+   nothing before it: the label, its colon, one space, then the value, all on
+   one line. Then mark the pull request ready. Neither operation reruns after
+   the fix pass that follows a ready-time first review, unless that pass itself
+   adds something the docs must carry, or produced a lesson that meets the
+   capture's test; then that one runs once more and ships in that pass's push,
+   and the `Docs:` and `Capture:` lines are brought up to date in both places.
+   Check that each automated reviewer the repo names actually reviewed the
+   final head, and ask again only as the repo's review loop says: some
+   reviewers re-review every push, some only when asked, and some only for a
+   fix that changes behaviour.
 6. **What a re-review raises goes to your lead**, not into a second fix pass.
    Repeated passes are where rounds churn. Your lead triages it.
 
@@ -304,10 +372,11 @@ for how each of them reviews and re-reviews.
 
 A hand-back ends the story: the pull request is ready for the maintainer's
 review, or you are blocked on something only someone else can remove, such as
-a failed setup, a push you cannot make or a missing prerequisite. Those are
-the only two endings. An open `DECISION` is not one: it does not end the story
-or get a final receipt (see "Talking to your lead"). Call the work ready for
-acceptance; never call it complete or merged.
+a failed setup or a missing prerequisite. Those are the only two endings. An
+open `DECISION` is not one, and neither is a refused command or call awaiting
+its answer: neither ends the story or gets a final receipt (see "Talking to
+your lead"). Call the work ready for acceptance; never call it complete or
+merged.
 
 - **Run the receipt check** on your bindings file, passing your story's start
   as `--since`, so calls this session made before the story do not count:
@@ -321,7 +390,15 @@ acceptance; never call it complete or merged.
   handoff whose receipt-check section holds a result, as the restart skill
   does. A handoff written during an earlier story carries nothing into this
   one, unless neither story recorded a Started: the check drops its uses and
-  says how many.
+  says how many. When the pull request is ready, save its body to a file
+  beside your bindings file, unchanged and after your last edit to it, with
+  the command the repo's project instructions name, or else the repo host's
+  own tool, and add `--pr-body "<that file>"`. The check reads that file,
+  never the host, and fails a body that lacks a line the receipt requires of
+  it, or holds one malformed or twice. When it does, fix the body, save it
+  again and rerun the check until both of the body's lines read `found`,
+  before you hand back. A blocked hand-back leaves `--pr-body` out, and the
+  check's output then says the body was not checked.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.
@@ -350,30 +427,39 @@ you learn it is, send the lead a one-line pointer at most.
 Every message to your lead goes through the performer bound to `hand-back`,
 the only exception being a setup stop, when nothing is bound yet. If it goes
 through a terminal transport, first check that your lead's pane is not
-focused, since the maintainer may be typing there. A message that is refused
-or skipped is retried at your next event, and the work note is the backstop
-for a hand-back.
+focused, since the maintainer may be typing there. A message the transport
+refuses or skips is retried at your next event, and the work note is the
+backstop for a hand-back. A send your harness's permission check refuses is a
+refused call like any other (see Never): never send it again. Post its line
+as a note on the story's work item through the performer bound to
+`post-work-note` instead, with the `STATUS: refused` line for the send.
+Where the maintainer allows the send, that covers your later sends: the line
+already posted as a note is not sent again.
 
 With no lead ("none: the maintainer"), the maintainer is your lead: give each
 of these lines to them directly, a `DECISION` through the question tool where
-your harness has one, and post your hand-back note as usual.
+your harness has one, and post your hand-back note as usual. A
+`STATUS: refused` line is a question too: put it to them the same way, as one
+question with both options of the choice a lead would have brought (see
+Never).
 
 Each message to your lead is one line, in one of two shapes:
 
 ```text
 <story id> DECISION: <question> · Options: <a>; <b> · Recommendation: <choice and why> · Blocked: <what waits>
-<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / blocked: <reason>
+<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / refused in <directory>: <exact command or call> / moved to <clone path> / blocked: <reason>
 ```
 
 Ask your lead only about product, design and architecture choices, a new
 dependency, anything that weakens or deletes a test, work beyond the story,
 and anything the story seems to need that Never forbids. Decide everything
 else yourself and list those calls
-in the receipt. While a decision is open, keep working on whatever in the
-story does not depend on it, and end your turn only when nothing independent
-is left; the answer arrives as a message. An open decision neither ends the
-story nor gets a final receipt. A missing prerequisite is reported, never
-invented; a blocker is reported, never removed.
+in the receipt. While a decision is open, or a refused command or call awaits
+its answer, keep working on whatever in the story does not depend on it, and
+end your turn only when nothing independent is left; the answer arrives as a
+message. Neither an open decision nor an open refusal ends the story or gets
+a final receipt. A missing prerequisite is reported, never invented; a
+blocker is reported, never removed.
 
 ## Bindings mid-story
 
@@ -396,7 +482,9 @@ worker that restarts from 35% never carries a step past 40%. A reading
 already past 40% at a boundary restarts there all the same.
 
 Restart through the performer bound to `restart-self`, which owns the
-mechanics, the new-session path included. Send your lead `STATUS: restarting`
+mechanics, the new-session path included. After a move to a clone, run it with
+the worktree as the working directory, reached by its full path: the bindings
+and the handoff are there, and your lead looks there for the restart marker. Send your lead `STATUS: restarting`
 once per restart: on the in-place path before the restart ends your turn, and
 on the new-session path with the link to the posted handoff. Where the restart
 skill says to write the handoff, invoke the performer bound to `write-handoff`
@@ -412,7 +500,10 @@ once the restart skill's resume steps are done, before any story step: a
 harness can drop a skill across the clear, and a resumed session that never
 loads this skill never runs its seeded setup. The account also carries the
 story, its Started time, the branch, the base SHA, the pull request's link if
-there is one, the step in hand and the receipt so far. Where the restart skill has you paste
+there is one, the step in hand and the receipt so far. After a move to a
+clone, it also carries the clone's full path, where the branch now lives, that
+the maintainer approved the move, and the worktree's full path, where the
+session's own files stay, so the resumed session carries on in the clone. Where the restart skill has you paste
 the receipt check's output into the handoff, pass `--since` your story's
 start there too, so a successor on another machine carries no use from before
 the story. If measuring is bound as unavailable, setup said so once, and you

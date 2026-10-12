@@ -75,8 +75,16 @@ starts. This was read from Codex's source at codex-cli 0.160.0, not yet run.
 - **Routing overrides** go in `.agents/routing-overrides/<skill>.toml`, one
   per level skill you override. An override replaces an operation's
   `performers` and `fallback`, nothing else, and it names only operations
-  its table has: setup stops on any other. The work-tracker operations have
-  no default performer, so your overrides name your tracker's tools:
+  its table has: setup stops on any other. Some operations have no default
+  performer, because their performer is your repo's own. `story-worker`'s
+  `document-change` is one: name the skill that keeps your reference,
+  architecture and design docs. With none named, and none that setup finds,
+  the worker updates the stale docs itself: the ones your project instructions
+  name, or, where they name none, the reference, architecture and design docs
+  your repo keeps. Add the line only once every machine and host runs a grove
+  that has the operation: an older table lacks it, and setup stops there.
+  The work-tracker operations are the others, and your overrides name your
+  tracker's tools:
   - `story-worker`: `post-work-note`;
   - `project-lead`: `post-work-note`, `read-work-notes`, `file-stories`,
     `find-work-items` and `update-work-item`;
@@ -84,10 +92,17 @@ starts. This was read from Codex's source at codex-cli 0.160.0, not yet run.
     its new-session path uses.
 - **Ignore session state:** add `.context/supervision/` to `.gitignore`.
   Bindings and handoffs name transcript paths under a real home directory.
+- **Pull request bodies:** a story's pull request carries a `Capture:` line
+  and a `Docs:` line, each once, at the start of a line of its own. The
+  receipt check fails a hand-back whose saved body lacks one, so keep a bot
+  that rewrites bodies from dropping them. A pull-request template may hold
+  each line once, with a placeholder in angle brackets for its value: the
+  check fails it until it is filled in. Name the command that saves a body to
+  a file in your project instructions.
 - **Project instructions** (`AGENTS.md` or your harness's equivalent) name
   your review loop, the checks that must pass, how a pull request links its
-  work item, and the footer an agent signs its comments with. The skills read
-  them there.
+  work item, which docs a change keeps current, and the footer an agent signs
+  its comments with. The skills read them there.
 
 ## What the routing tables expect
 
@@ -99,7 +114,11 @@ plugin dependency.
   commit and pull request, PR feedback, learning capture and handoffs
   (`ce-plan`, `ce-work`, `ce-code-review` and the rest). Without it, each of
   those operations runs its fallback: the session does the step itself from
-  the table's instructions, and still never reviews its own work.
+  the table's instructions, and still never reviews its own work. A story
+  that is not a defect is always planned: its receipt names the plan it was
+  built from, which is a plan file in its pull request (the planner's, or the
+  worker's own where no planner is bound), the plan unit the story came from,
+  or both.
 - **herdr** (CLI): starting and messaging sessions in panes, and the in-place
   restart. **A project lead needs it:** `start-worker` is required and has no
   fallback, so a lead's setup stops without herdr. A worker without it still
@@ -107,6 +126,11 @@ plugin dependency.
   work note where it has none; its restart takes the new-session path.
 - **Your work tracker**, through your overrides: posting a work note is
   required at both levels, and a lead also needs to read them.
+- **Your knowledge-base skill**, through your override: `document-change`
+  updates your reference, architecture and design docs at the completion
+  checkpoint, when a change adds a module, a data shape, a contract, a
+  dependency or a design change. It is optional. Without it the worker
+  updates those docs itself, and the receipt says the step ran by fallback.
 - **Node 24, or 26 and newer** (`package.json`'s `engines`) runs the receipt
   checker, which uses `node:fs`'s `globSync`. **jq** runs the restart scripts
   and the context gauge.

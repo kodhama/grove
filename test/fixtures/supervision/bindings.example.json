@@ -132,6 +132,19 @@
     },
     {
       "table": "story-worker",
+      "id": "document-change",
+      "required": false,
+      "suggested": [],
+      "suggested_by": "skill",
+      "how_bound": "fallback",
+      "kind": "instructions",
+      "native_id": null,
+      "source": null,
+      "invoke": "Run the document-change operation's fallback instructions from the table.",
+      "evidence": "no performer is suggested for \"document-change\""
+    },
+    {
+      "table": "story-worker",
       "id": "capture-learning",
       "required": false,
       "suggested": ["ce-compound"],

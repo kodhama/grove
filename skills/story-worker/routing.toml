@@ -22,8 +22,9 @@
 #               context. Setup never binds an agent, or a tool that starts a
 #               subagent, to such an operation. A repo override cannot set it.
 #
-# The table names no work tracker. The tracker operation (post-work-note)
-# leaves performers empty for the repo's override or setup's discovery to fill.
+# The table names no work tracker and no knowledge-base skill. The two
+# operations only the repo can bind (post-work-note, document-change) leave
+# performers empty for the repo's override or setup's discovery to fill.
 
 skill = "story-worker"
 
@@ -48,8 +49,12 @@ step = "first, after reading the story, and after diagnosis for a defect"
 performers = ["ce-plan"]
 required = false
 fallback = """
-Write a short plan yourself: the files to change, the failing tests to write
-first, and how the result is verified. Keep it within the story's scope."""
+No planning performer is available, so do the planning yourself. A plan unit
+that is enough to build from is the plan: name it and write no copy. In every
+other case write the plan, or the gaps you fill in a unit, to a file where the
+repo keeps its plans: the files to change, the failing tests to write first,
+and how the result is verified. Keep it within the story's scope, and end the
+receipt's Plan line with ", by fallback", whichever of these you did."""
 
 [[operation]]
 id = "build"
@@ -136,6 +141,24 @@ Answer each comment: fix it, or reply with the evidence for leaving it. Push
 the fixes and resolve each thread you answered."""
 
 [[operation]]
+id = "document-change"
+intent = """
+Update the repo's reference, architecture and design docs for what the change
+adds: a module, a data shape, a contract, a dependency or a design change. The
+performer is the repo's own knowledge-base skill, the one the repo ships or its
+project instructions name for keeping those docs. A general writing,
+documentation or learning-capture skill is not one."""
+step = "at the completion checkpoint, before any learning is captured, when the diff adds a module, a data shape, a contract, a dependency or a design change"
+performers = []
+required = false
+fallback = """
+Update the docs the change makes stale yourself: the ones the repo's project
+instructions name, in the shape they ask for, or, where they name none, the
+reference, architecture and design docs the repo keeps. Where nothing is
+stale, or the repo keeps no such docs, change nothing. Then write the Docs
+line as the receipt's Docs field says."""
+
+[[operation]]
 id = "capture-learning"
 intent = """
 Record a durable lesson from the solved story, only when it would otherwise be
@@ -144,8 +167,9 @@ step = "at the completion checkpoint, before the pull request is final"
 performers = ["ce-compound"]
 required = false
 fallback = """
-Skip the capture, and say in the hand-back what the lesson was and that it was
-not recorded."""
+Skip the capture, and write the Capture line, in the receipt and in the pull
+request's body, as `skipped:` with the reason: what the lesson was, and that
+no performer was available to record it."""
 
 [[operation]]
 id = "measure-context"
@@ -196,8 +220,8 @@ message to the lead could not be sent."""
 id = "post-work-note"
 intent = """
 Post a note on the story's work item in the repo's work tracker, where any
-harness on any machine can read it: each hand-back, and the handoff for a new
-session."""
-step = "with every hand-back, and when writing a handoff for a new session"
+harness on any machine can read it: a defect's diagnosis, each hand-back, and
+the handoff for a new session."""
+step = "after a defect's diagnosis, with every hand-back, and when writing a handoff for a new session"
 performers = []
 required = true

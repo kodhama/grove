@@ -17,6 +17,20 @@ points into.
 
 Story:           <work item id and link>   Source: <plan, spec or unit, with its section; for a
                   defect, or a story filed from plain intent, the work item itself>
+Plan:            <the plan this story was built from, as one of: the path, on the branch, of
+                  its plan file; or, where its source is a plan unit that was enough to build
+                  from, "<that plan's path, or the link to the note that holds it>, unit <the
+                  unit's id, or its section's heading where it has no id>", with no copy
+                  written; or, where a file fills the unit's gaps, "<the file's path>, filling
+                  <that plan's path or link>, unit <its id or heading>"
+                  | for a defect: diagnosis <the link to the note that holds its summary>,
+                  then "plan <path>" where the fix needed one, "no plan: contained fix" where
+                  it did not, or "no plan: nothing built" where there was no fix to make
+                  | not reached: <why>, for a story that ended before it was planned, or,
+                  for a defect, before its diagnosis came back.
+                  Where no planning performer was bound, a line that gives a plan's path or a
+                  plan unit ends ", by fallback": a file you wrote, a unit you judged enough,
+                  or a defect's "plan <path>". No other line takes it>
 Owner:           <session name, read from the live system>   Worktree: <path>   Branch: <name>
 Started:         <UTC time, as YYYY-MM-DDTHH:MM:SSZ, recorded at the story's start>   Base: <full SHA the branch was cut from>
 Operating model: <own team | fully delegated to <runner>>
@@ -37,10 +51,13 @@ Restarts:        <each one: time, in place or new session, handoff path — or "
 Bindings:        <bindings file path>, complete at <its complete.at>; "the routing table changed
                   since the earlier setup" and when, if a setup said so
 Rebound:         <operation: from → to, why, when — or "none">
-By fallback:     <operation: suggested <names> unavailable, step run by fallback — or "none">
+By fallback:     <operation: suggested <names> unavailable, or none suggested, step run by
+                  fallback — or "none". One bound by fallback that did not run goes under
+                  Not run instead, which says it was bound by fallback>
 Not run:         <table/operation: why, e.g. "story-worker/browser-test: no page touched" — or "none">
 Decided myself:  <the calls you made without asking, one line each — or "none">
-Receipt check:   <the check's output, run with --since the Started time, pasted unchanged; or
+Receipt check:   <the check's output, run with --since the Started time and, when the pull
+                  request is ready, --pr-body its saved body, pasted unchanged; or
                   "unavailable: <why it could not run>">
 
 Evidence:        <PR link / head and base SHAs / diff stat>
@@ -51,6 +68,20 @@ Acceptance:      <one file:line citation per acceptance condition; for a defect,
                   or, where the triage row's "How to verify" names a manual check only,
                   that check's steps and what was observed, and why no automated test
                   is possible>
+Docs:            <updated <the path of each reference, architecture or design doc this pull
+                  request updates, as the diff at the head lists it, never a plan or a captured
+                  learning> | none needed, because <why: the diff adds no module, data shape,
+                  contract, dependency or design change, the docs already cover what it adds,
+                  or the repo keeps no such docs>, and either way the pull request's body
+                  carries the same line | not reached: <why>, for a story that ended before its
+                  completion checkpoint. The line lists every such doc the pull request updates,
+                  whenever it did, and says none needed only where it updates none>
+Capture:         <captured <the path of the learning this pull request adds> | skipped: <the
+                  reason, as the capture's test gives it: what the final code, tests and docs
+                  already preserve; or, where the capture ran by fallback, the lesson and that
+                  it was not recorded> | not reached: <why>, for a story that ended before its
+                  completion checkpoint. The pull request's body carries the same line, and a
+                  ready pull request's line is never "not reached">
 Reviewed by:     <one entry per in-session review, before or after the pull request opened. The
                   reviewer: its performer, and the subagent you started for it or the reviewers
                   the performer started itself, saying which — always named, never blank, never
