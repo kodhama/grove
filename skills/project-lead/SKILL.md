@@ -321,7 +321,18 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
    source. The receipt must show a review from a context other than the
    author's, such as a fresh-context subagent the worker started, and say
    whether the shipped revision was reviewed again. "Not reviewed", or the
-   author reviewing in its own context, is not acceptable work.
+   author reviewing in its own context, is not acceptable work. The receipt's
+   `Plan:` line must name the plan the story was built from: by a path that
+   resolves at the pull request's head or on its base branch, or, where the
+   plan is held in a note on a work item, by a link to that note. For a defect
+   it links the diagnosis note. Every path and link the line gives must
+   resolve, and a story that is not a defect never lists `plan` under Not run.
+   A hand-back goes back to the worker when its line is missing, reads
+   `not reached`, gives a path or link that does not resolve, names no plan
+   by a path or a link for a story that is not a defect, or, for a defect,
+   lacks its diagnosis link. So does one that lists `plan` as not run for a
+   story that is not a defect, or whose pasted receipt check shows `plan` as
+   `bound-but-unused` for such a story: a planner was bound and never called.
 3. **Review it again, from fresh context.** Invoke the performer bound to
    `review-before-merge` on the pull request, from a fresh-context subagent
    you start for it: never your own context, and never a fork of it. Ask for

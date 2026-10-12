@@ -114,7 +114,11 @@ plugin dependency.
   commit and pull request, PR feedback, learning capture and handoffs
   (`ce-plan`, `ce-work`, `ce-code-review` and the rest). Without it, each of
   those operations runs its fallback: the session does the step itself from
-  the table's instructions, and still never reviews its own work.
+  the table's instructions, and still never reviews its own work. A story
+  that is not a defect is always planned: its receipt names the plan it was
+  built from, which is a plan file in its pull request (the planner's, or the
+  worker's own where no planner is bound), the plan unit the story came from,
+  or both.
 - **herdr** (CLI): starting and messaging sessions in panes, and the in-place
   restart. **A project lead needs it:** `start-worker` is required and has no
   fallback, so a lead's setup stops without herdr. A worker without it still

@@ -594,6 +594,157 @@ describe("MQ-373 · the defect route's text", () => {
 });
 
 /**
+ * GRO-22 — every story that is not a defect is planned before it is built, and
+ * its receipt's `Plan:` line names the plan it was built from: a plan file, the
+ * plan unit it came from, or, for a defect, the note that holds its diagnosis.
+ * The lead sends back a ready hand-back whose line is missing, names no plan,
+ * gives anything that does not resolve, or shows the plan was skipped. The rule
+ * lives in the skills' text: `plan`'s row in the table stays not required.
+ */
+describe("GRO-22 · the plan step's text", () => {
+  /** Text with every run of whitespace collapsed to one space. */
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+  const receipt = () => read(join(SKILLS_TREE, "story-worker", "references", "receipt.md"));
+  const planStep = () => flat(section(read(WORKER), "3. Plan"));
+  const defectSection = () => flat(section(read(WORKER), "A defect: diagnose first"));
+  /** The receipt's `Plan:` field: its label's line and the indented lines under it. */
+  const planField = () => flat(receipt().match(/^Plan:.*(?:\n[ \t]+.*)*/m)?.[0] ?? "");
+  /** The "Accept on the evidence" item of the lead's ready hand-back check, up to the next item. */
+  const acceptItem = () => {
+    const step = section(read(LEAD), "7. A hand-back");
+    const start = step.indexOf("**Accept on the evidence.**");
+    const end = step.indexOf("**Review it again, from fresh context.**");
+    return start < 0 || end < start ? "" : flat(step.slice(start, end));
+  };
+  const expectAll = (text: string, said: readonly string[]) =>
+    said.forEach((words) => expect(text).toContain(words));
+
+  it("`plan` keeps its fallback and stays not required: a defect skips the plan, and setup must not stop without a planner", () => {
+    const plan = operationsOf(readTable("story-worker")).find((op) => op.id === "plan");
+    expect(plan?.required).toBe(false);
+    const fallback = flat(String(plan?.fallback ?? ""));
+    expectAll(fallback, [
+      "No planning performer is available, so do the planning yourself.",
+      "A plan unit that is enough to build from is the plan: name it and write no copy.",
+      "In every other case write the plan, or the gaps you fill in a unit, to a file where the repo keeps its plans: the files to change, the failing tests to write first, and how the result is verified.",
+      'Keep it within the story\'s scope, and end the receipt\'s Plan line with ", by fallback", whichever of these you did.',
+    ]);
+    expect(fallback).not.toContain("Write a short plan yourself");
+  });
+
+  it("the plan step says every story that is not a defect is planned, and no longer that a defect may skip it", () => {
+    const step = planStep();
+    expectAll(step, [
+      "Every story that is not a defect is planned before it is built, however small it looks.",
+      "Invoke the performer bound to `plan`, from the story's source.",
+    ]);
+    expect(step).not.toContain("may skip this step");
+  });
+
+  it("the plan step asks for a plan in a file that ships, and sends its path to the receipt", () => {
+    expectAll(planStep(), [
+      "In every other case, ask the performer for a plan written to a file: the whole plan, or, for a plan unit, only the gaps it filled.",
+      // A unit that is enough leaves no file to commit, so the step never demands one.
+      "Commit any plan file written for the story on your branch, so it ships in the pull request.",
+      "Give the receipt's `Plan:` line as `references/receipt.md` gives it: the file's path, the plan unit the story was built from, or both where a file fills a unit's gaps.",
+    ]);
+    expect(planStep()).not.toContain("Commit a plan file");
+  });
+
+  it("the plan step takes a plan unit that is enough as the plan, and a file for only the gaps", () => {
+    expectAll(planStep(), [
+      "A unit that is enough is the story's plan: write no copy of it.",
+      "only the gaps it filled.",
+      "or both where a file fills a unit's gaps.",
+    ]);
+  });
+
+  it("the plan step sends a plan written by fallback to a file too", () => {
+    expectAll(planStep(), [
+      "Where `plan` is bound by fallback, you do the planning yourself, any plan you write goes to a file all the same, and the line says so.",
+    ]);
+  });
+
+  it("the plan step lets a defect's diagnosis stand as its plan, and lists `plan` as not run for no other story it reached", () => {
+    expectAll(planStep(), [
+      'A defect comes here only when its diagnosis says the fix needs a plan (see "A defect: diagnose first").',
+      "Otherwise its diagnosis stands as its plan, and `plan` goes under Not run with that reason.",
+      "A story that is not a defect lists `plan` under Not run only when it ended before this step.",
+    ]);
+  });
+
+  it("the defect section posts the diagnosis as a signed work note before the worker acts on it, which the receipt links", () => {
+    expectAll(defectSection(), [
+      "A defect's diagnosis stands as its plan, together with the plan step's own where the fix needs one.",
+      "Post its summary as a note on the work item, through the performer bound to `post-work-note`, before you act on it, so your lead can open it, and end the note with the agent footer the repo's instructions require.",
+      "The receipt's `Plan:` line links that note.",
+    ]);
+  });
+
+  it("the work-note operation names the diagnosis note among its uses", () => {
+    const note = operationsOf(readTable("story-worker")).find((op) => op.id === "post-work-note");
+    expect(flat(String(note?.intent ?? ""))).toContain("a defect's diagnosis, each hand-back");
+    expect(String(note?.step ?? "")).toContain("after a defect's diagnosis");
+  });
+
+  it("the receipt's Plan field gives every form the line takes", () => {
+    expectAll(planField(), [
+      "the plan this story was built from, as one of: the path, on the branch, of its plan file;",
+      // The two plan-unit forms have a fixed shape, and a unit with no id is named by its heading.
+      'or, where its source is a plan unit that was enough to build from, "<that plan\'s path, or the link to the note that holds it>, unit <the unit\'s id, or its section\'s heading where it has no id>", with no copy written;',
+      'or, where a file fills the unit\'s gaps, "<the file\'s path>, filling <that plan\'s path or link>, unit <its id or heading>"',
+      'for a defect: diagnosis <the link to the note that holds its summary>, then "plan <path>" where the fix needed one, "no plan: contained fix" where it did not, or "no plan: nothing built" where there was no fix to make',
+      "not reached: <why>, for a story that ended before it was planned, or, for a defect, before its diagnosis came back.",
+    ]);
+  });
+
+  it("the receipt's Plan line ends the same way whenever no planner was bound, whichever form it takes", () => {
+    const field = planField();
+    // One marker for every form that gives a plan, and for no other line.
+    expect(field).toContain(
+      'Where no planning performer was bound, a line that gives a plan\'s path or a plan unit ends ", by fallback": a file you wrote, a unit you judged enough, or a defect\'s "plan <path>".',
+    );
+    expect(field).not.toContain("written by fallback");
+    // The rule closes the one field: nothing follows it that could read as a second slot to fill.
+    expect(field.endsWith("No other line takes it>")).toBe(true);
+  });
+
+  it("the receipt's Plan field sits under Story and Source, above Owner", () => {
+    const lines = receipt().split("\n");
+    const lineOf = (label: string) => lines.findIndex((line) => line.startsWith(label));
+    expect(lineOf("Story:")).toBeGreaterThan(-1);
+    expect(lineOf("Plan:")).toBeGreaterThan(lineOf("Story:"));
+    expect(lineOf("Owner:")).toBeGreaterThan(lineOf("Plan:"));
+  });
+
+  it("the lead sends back a ready hand-back whose Plan line gives anything that does not resolve, or that skipped the plan", () => {
+    expectAll(acceptItem(), [
+      "The receipt's `Plan:` line must name the plan the story was built from: by a path that resolves at the pull request's head or on its base branch, or, where the plan is held in a note on a work item, by a link to that note.",
+      "For a defect it links the diagnosis note.",
+      "Every path and link the line gives must resolve, and a story that is not a defect never lists `plan` under Not run.",
+      "A hand-back goes back to the worker when its line is missing, reads `not reached`, gives a path or link that does not resolve, names no plan by a path or a link for a story that is not a defect, or, for a defect, lacks its diagnosis link.",
+      "So does one that lists `plan` as not run for a story that is not a defect, or whose pasted receipt check shows `plan` as `bound-but-unused` for such a story: a planner was bound and never called.",
+    ]);
+    expect(acceptItem()).not.toContain("A hand-back whose line is missing");
+    expect(acceptItem()).not.toContain("names nothing that resolves");
+  });
+
+  it("the README tells an adopter that a story that is not a defect is always planned", () => {
+    expect(flat(read("README.md"))).toContain(
+      "A story that is not a defect is always planned: its receipt names the plan it was built from, which is a plan file in its pull request (the planner's, or the worker's own where no planner is bound), the plan unit the story came from, or both.",
+    );
+  });
+
+  it.each([
+    ["story-worker's plan step", planStep],
+    ["the receipt's Plan field", planField],
+  ])("%s names no harness, path, version or tracker", (_name, text) => {
+    expect(text()).not.toBe("");
+    expect(textProblems(text())).toEqual([]);
+  });
+});
+
+/**
  * GRO-7 — a lead can start from plain intent: a prompt with no epic, no work
  * item and no plan. The intent run is a reference beside the defect run's; it
  * adds no routing operation, so a consumer's overrides keep matching.
