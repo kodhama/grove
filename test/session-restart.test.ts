@@ -14,6 +14,7 @@
  * runs `hook-<name>` as that state is served), swaps the queue when a
  * prompt of a given kind arrives, and logs every call along with each state
  * it served, so a test can see what the helper had just read before a send.
+ * `get-sleep` makes `agent get` hang; `get-delay` makes it answer late.
  * `agent read` serves the pane's screen as Claude Code draws it, with the
  * text of `draft-<pane>` sitting unsent in the input line, or else the dim
  * suggested prompt of `suggest-<pane>` (MQ-359).
@@ -50,6 +51,8 @@ d="$STUB_DIR"
 case "$1 $2" in
   "agent get")
     [ -f "$d/get-sleep" ] && exec sleep "$(cat "$d/get-sleep")"
+    # A slow herdr, not a hung one: the answer comes after the delay.
+    [ -f "$d/get-delay" ] && sleep "$(cat "$d/get-delay")"
     line=$(head -n 1 "$d/states")
     if [ "$(wc -l < "$d/states")" -gt 1 ]; then tail -n +2 "$d/states" > "$d/states.tmp" && mv "$d/states.tmp" "$d/states"; fi
     read -r status focused session hook <<< "$line"
@@ -724,6 +727,67 @@ describe("restart-in-place.sh — waiting for a ready, unfocused pane", () => {
     expect(run.prompts).toEqual([]);
     expect(run.reports).toHaveLength(1);
     expect(run.reports[0]).toMatch(/gave up/i);
+  });
+});
+
+describe("restart-in-place.sh — the time a give-up report names", () => {
+  // The helper counts a bound in polls, so a slow herdr makes the real wait
+  // far longer than the bound. Each read of the pane takes this long in the
+  // stub, which makes the difference a matter of the stub's sleeps and not of
+  // this machine's speed.
+  const GET_DELAY_S = 0.5;
+  const getsIn = (calls: string[][]) => calls.filter((c) => c[1] === "get").length;
+  /** The whole seconds a report says the helper waited. */
+  const waitedIn = (report: string) => Number(/ after (\d+)s /.exec(report)?.[1]);
+
+  /** Runs the helper against the slow stub, timing the run from outside. */
+  function slowRun() {
+    stubFile("get-delay", `${GET_DELAY_S}\n`);
+    const started = Date.now();
+    const run = runHelper({ maxWait: "0.2", focusBound: "5" });
+    return { run, wallS: (Date.now() - started) / 1000 };
+  }
+
+  // What the helper reads off bash's clock is whole seconds, so it is within a
+  // second of the wait it measures. That wait is no shorter than the stub's
+  // sleeps inside it and no longer than the run, and both are known here.
+
+  it("says how long it really waited before giving up, and names the bound as a bound", () => {
+    freshTurn(now());
+    states(["idle true s1"]);
+    const { run, wallS } = slowRun();
+    expect(run.status).toBe(1);
+    expect(run.reports).toHaveLength(1);
+    const report = run.reports[0] ?? "";
+    expect(report).toMatch(
+      /gave up after \d+s waiting for the pane to be ready \(bound 0\.2s, counted in polls; last seen: status idle, focused true\)\. Nothing was typed after that/,
+    );
+    const waited = waitedIn(report);
+    expect(waited).toBeGreaterThan(getsIn(run.calls) * GET_DELAY_S - 1);
+    expect(waited).toBeLessThan(wallS + 1);
+    // Five reads of half a second: well past the 0.2s the bound names.
+    expect(waited).toBeGreaterThanOrEqual(2);
+  });
+
+  it("after the clear, says how long it waited for the resume prompt since the clear, not since it started", () => {
+    freshTurn(now());
+    states(["idle false s1"]);
+    states(["idle true s2"], "after-clear");
+    const { run, wallS } = slowRun();
+    expect(run.status).toBe(1);
+    expect(promptTexts(run)).toEqual(["/clear"]);
+    expect(run.reports).toHaveLength(1);
+    const report = run.reports[0] ?? "";
+    expect(report).toMatch(
+      /the session was cleared, but the pane was not ready for the resume prompt after \d+s \(bound 0\.2s, counted in polls; last seen: status idle, focused true\), so it was not resumed\. Resume with /,
+    );
+    // The first read after the clear confirms it; the wait starts after that read.
+    const clearAt = run.calls.findIndex((c) => c[3] === "/clear");
+    const getsWaiting = getsIn(run.calls.slice(clearAt)) - 1;
+    const getsBefore = getsIn(run.calls) - getsWaiting;
+    const waited = waitedIn(report);
+    expect(waited).toBeGreaterThan(getsWaiting * GET_DELAY_S - 1);
+    expect(waited).toBeLessThan(wallS - getsBefore * GET_DELAY_S + 1);
   });
 });
 
