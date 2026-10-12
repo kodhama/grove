@@ -92,6 +92,13 @@ starts. This was read from Codex's source at codex-cli 0.160.0, not yet run.
     its new-session path uses.
 - **Ignore session state:** add `.context/supervision/` to `.gitignore`.
   Bindings and handoffs name transcript paths under a real home directory.
+- **Pull request bodies:** a story's pull request carries a `Capture:` line
+  and a `Docs:` line, each once, at the start of a line of its own. The
+  receipt check fails a hand-back whose saved body lacks one, so keep a bot
+  that rewrites bodies from dropping them. A pull-request template may hold
+  each line once, with a placeholder in angle brackets for its value: the
+  check fails it until it is filled in. Name the command that saves a body to
+  a file in your project instructions.
 - **Project instructions** (`AGENTS.md` or your harness's equivalent) name
   your review loop, the checks that must pass, how a pull request links its
   work item, which docs a change keeps current, and the footer an agent signs
@@ -107,7 +114,11 @@ plugin dependency.
   commit and pull request, PR feedback, learning capture and handoffs
   (`ce-plan`, `ce-work`, `ce-code-review` and the rest). Without it, each of
   those operations runs its fallback: the session does the step itself from
-  the table's instructions, and still never reviews its own work.
+  the table's instructions, and still never reviews its own work. A story
+  that is not a defect is always planned: its receipt names the plan it was
+  built from, which is a plan file in its pull request (the planner's, or the
+  worker's own where no planner is bound), the plan unit the story came from,
+  or both.
 - **herdr** (CLI): starting and messaging sessions in panes, and the in-place
   restart. **A project lead needs it:** `start-worker` is required and has no
   fallback, so a lead's setup stops without herdr. A worker without it still

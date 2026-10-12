@@ -30,6 +30,8 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "../skills/supervision-setup/scripts/vendor/smol-toml/index.js";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { readBodyLines } from "../skills/supervision-setup/scripts/pr-body-lines.mjs";
 
 const SKILLS_TREE = "skills";
 
@@ -522,6 +524,48 @@ describe("MQ-348 · routing overrides (R37)", () => {
   });
 });
 
+/**
+ * GRO-30 — a performer takes its repository from the directory its shell
+ * starts in, and that is the directory the session started in, not always the
+ * story's checkout. The helpers these tests call are declared below, and run
+ * only inside each test.
+ */
+describe("GRO-30 · a performer is given the story's checkout", () => {
+  /** Text with every run of whitespace collapsed to one space. */
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+
+  it("the bindings paragraph has the worker run its own commands in the story's checkout, and give it to every performer and subagent", () => {
+    // The one paragraph that opens "The work runs through bindings.", up to the blank line after it.
+    const paragraph = flat(read(WORKER).match(/^The work runs through bindings\.[^]*?(?=\n\n)/m)?.[0] ?? "");
+    expect(paragraph).toContain(
+      "Run your own commands in the story's checkout, where its branch is checked out, and give every performer and every subagent you start that checkout by its full path, and the story's pull request too once it has one, never the pull request alone: a shell, yours or a subagent's, can start any command, not only the first, in the directory your session started in, which is not always the story's checkout.",
+    );
+    expect(paragraph).not.toContain("or the story's pull request once it has one");
+  });
+
+  it("step 5 has the worker check the diff a review read against its own, and discard one that read something else", () => {
+    const whole = section(read(WORKER), "5. Review");
+    const review = flat(whole);
+    expect(review).toContain(
+      "- **Check what it read.** In the request that starts a reviewer that reads a repository, name the range to read, and ask it to quote, from its own commands and their output, the command that gave it the diff, the commit it was on and the files the diff changes. Commit your work before the review starts, so the range holds all of it. Compare the range in its command, that commit and those files with the range you named, the commit you started the review on and the files your own diff lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path and the range on to each, and to report the same for each; a reviewer it does not report for makes that run a miss. If the second run misses too, send your lead a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
+    );
+    expect(review).not.toContain("print the top level and the head");
+    // A second miss never lets the story run on to a pull request unreviewed.
+    expect(review).not.toContain("the rest of the story goes on");
+    // A report that leaves one of the three out is a miss, not a pass.
+    expect(review).not.toContain("or it reports none of them");
+    // The rule is a bullet of its own, at the start of a line, not nested under another.
+    expect(whole).toContain("\n- **Check what it read.**");
+    // It sits with the other rules for pointing a reviewer, after the one that gives it the checkout.
+    const before = review.indexOf("**Give it the checkout when the diff reaches outside itself.**");
+    const check = review.indexOf("**Check what it read.**");
+    const after = review.indexOf("**Ask for findings with evidence, not patches.**");
+    expect(before).toBeGreaterThan(-1);
+    expect(check).toBeGreaterThan(before);
+    expect(after).toBeGreaterThan(check);
+  });
+});
+
 /** One `## ` section of a Markdown file, from its heading to the next. */
 function section(text: string, heading: string): string {
   const start = text.indexOf(`\n## ${heading}\n`);
@@ -588,6 +632,157 @@ describe("MQ-373 · the defect route's text", () => {
   ])("the reference uses the lead operation %s, which the lead table defines", (id) => {
     expect(idsOf("project-lead")).toContain(id);
     expect(read(REFERENCE)).toContain(`\`${id}\``);
+  });
+});
+
+/**
+ * GRO-22 — every story that is not a defect is planned before it is built, and
+ * its receipt's `Plan:` line names the plan it was built from: a plan file, the
+ * plan unit it came from, or, for a defect, the note that holds its diagnosis.
+ * The lead sends back a ready hand-back whose line is missing, names no plan,
+ * gives anything that does not resolve, or shows the plan was skipped. The rule
+ * lives in the skills' text: `plan`'s row in the table stays not required.
+ */
+describe("GRO-22 · the plan step's text", () => {
+  /** Text with every run of whitespace collapsed to one space. */
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+  const receipt = () => read(join(SKILLS_TREE, "story-worker", "references", "receipt.md"));
+  const planStep = () => flat(section(read(WORKER), "3. Plan"));
+  const defectSection = () => flat(section(read(WORKER), "A defect: diagnose first"));
+  /** The receipt's `Plan:` field: its label's line and the indented lines under it. */
+  const planField = () => flat(receipt().match(/^Plan:.*(?:\n[ \t]+.*)*/m)?.[0] ?? "");
+  /** The "Accept on the evidence" item of the lead's ready hand-back check, up to the next item. */
+  const acceptItem = () => {
+    const step = section(read(LEAD), "7. A hand-back");
+    const start = step.indexOf("**Accept on the evidence.**");
+    const end = step.indexOf("**Review it again, from fresh context.**");
+    return start < 0 || end < start ? "" : flat(step.slice(start, end));
+  };
+  const expectAll = (text: string, said: readonly string[]) =>
+    said.forEach((words) => expect(text).toContain(words));
+
+  it("`plan` keeps its fallback and stays not required: a defect skips the plan, and setup must not stop without a planner", () => {
+    const plan = operationsOf(readTable("story-worker")).find((op) => op.id === "plan");
+    expect(plan?.required).toBe(false);
+    const fallback = flat(String(plan?.fallback ?? ""));
+    expectAll(fallback, [
+      "No planning performer is available, so do the planning yourself.",
+      "A plan unit that is enough to build from is the plan: name it and write no copy.",
+      "In every other case write the plan, or the gaps you fill in a unit, to a file where the repo keeps its plans: the files to change, the failing tests to write first, and how the result is verified.",
+      'Keep it within the story\'s scope, and end the receipt\'s Plan line with ", by fallback", whichever of these you did.',
+    ]);
+    expect(fallback).not.toContain("Write a short plan yourself");
+  });
+
+  it("the plan step says every story that is not a defect is planned, and no longer that a defect may skip it", () => {
+    const step = planStep();
+    expectAll(step, [
+      "Every story that is not a defect is planned before it is built, however small it looks.",
+      "Invoke the performer bound to `plan`, from the story's source.",
+    ]);
+    expect(step).not.toContain("may skip this step");
+  });
+
+  it("the plan step asks for a plan in a file that ships, and sends its path to the receipt", () => {
+    expectAll(planStep(), [
+      "In every other case, ask the performer for a plan written to a file: the whole plan, or, for a plan unit, only the gaps it filled.",
+      // A unit that is enough leaves no file to commit, so the step never demands one.
+      "Commit any plan file written for the story on your branch, so it ships in the pull request.",
+      "Give the receipt's `Plan:` line as `references/receipt.md` gives it: the file's path, the plan unit the story was built from, or both where a file fills a unit's gaps.",
+    ]);
+    expect(planStep()).not.toContain("Commit a plan file");
+  });
+
+  it("the plan step takes a plan unit that is enough as the plan, and a file for only the gaps", () => {
+    expectAll(planStep(), [
+      "A unit that is enough is the story's plan: write no copy of it.",
+      "only the gaps it filled.",
+      "or both where a file fills a unit's gaps.",
+    ]);
+  });
+
+  it("the plan step sends a plan written by fallback to a file too", () => {
+    expectAll(planStep(), [
+      "Where `plan` is bound by fallback, you do the planning yourself, any plan you write goes to a file all the same, and the line says so.",
+    ]);
+  });
+
+  it("the plan step lets a defect's diagnosis stand as its plan, and lists `plan` as not run for no other story it reached", () => {
+    expectAll(planStep(), [
+      'A defect comes here only when its diagnosis says the fix needs a plan (see "A defect: diagnose first").',
+      "Otherwise its diagnosis stands as its plan, and `plan` goes under Not run with that reason.",
+      "A story that is not a defect lists `plan` under Not run only when it ended before this step.",
+    ]);
+  });
+
+  it("the defect section posts the diagnosis as a signed work note before the worker acts on it, which the receipt links", () => {
+    expectAll(defectSection(), [
+      "A defect's diagnosis stands as its plan, together with the plan step's own where the fix needs one.",
+      "Post its summary as a note on the work item, through the performer bound to `post-work-note`, before you act on it, so your lead can open it, and end the note with the agent footer the repo's instructions require.",
+      "The receipt's `Plan:` line links that note.",
+    ]);
+  });
+
+  it("the work-note operation names the diagnosis note among its uses", () => {
+    const note = operationsOf(readTable("story-worker")).find((op) => op.id === "post-work-note");
+    expect(flat(String(note?.intent ?? ""))).toContain("a defect's diagnosis, each hand-back");
+    expect(String(note?.step ?? "")).toContain("after a defect's diagnosis");
+  });
+
+  it("the receipt's Plan field gives every form the line takes", () => {
+    expectAll(planField(), [
+      "the plan this story was built from, as one of: the path, on the branch, of its plan file;",
+      // The two plan-unit forms have a fixed shape, and a unit with no id is named by its heading.
+      'or, where its source is a plan unit that was enough to build from, "<that plan\'s path, or the link to the note that holds it>, unit <the unit\'s id, or its section\'s heading where it has no id>", with no copy written;',
+      'or, where a file fills the unit\'s gaps, "<the file\'s path>, filling <that plan\'s path or link>, unit <its id or heading>"',
+      'for a defect: diagnosis <the link to the note that holds its summary>, then "plan <path>" where the fix needed one, "no plan: contained fix" where it did not, or "no plan: nothing built" where there was no fix to make',
+      "not reached: <why>, for a story that ended before it was planned, or, for a defect, before its diagnosis came back.",
+    ]);
+  });
+
+  it("the receipt's Plan line ends the same way whenever no planner was bound, whichever form it takes", () => {
+    const field = planField();
+    // One marker for every form that gives a plan, and for no other line.
+    expect(field).toContain(
+      'Where no planning performer was bound, a line that gives a plan\'s path or a plan unit ends ", by fallback": a file you wrote, a unit you judged enough, or a defect\'s "plan <path>".',
+    );
+    expect(field).not.toContain("written by fallback");
+    // The rule closes the one field: nothing follows it that could read as a second slot to fill.
+    expect(field.endsWith("No other line takes it>")).toBe(true);
+  });
+
+  it("the receipt's Plan field sits under Story and Source, above Owner", () => {
+    const lines = receipt().split("\n");
+    const lineOf = (label: string) => lines.findIndex((line) => line.startsWith(label));
+    expect(lineOf("Story:")).toBeGreaterThan(-1);
+    expect(lineOf("Plan:")).toBeGreaterThan(lineOf("Story:"));
+    expect(lineOf("Owner:")).toBeGreaterThan(lineOf("Plan:"));
+  });
+
+  it("the lead sends back a ready hand-back whose Plan line gives anything that does not resolve, or that skipped the plan", () => {
+    expectAll(acceptItem(), [
+      "The receipt's `Plan:` line must name the plan the story was built from: by a path that resolves at the pull request's head or on its base branch, or, where the plan is held in a note on a work item, by a link to that note.",
+      "For a defect it links the diagnosis note.",
+      "Every path and link the line gives must resolve, and a story that is not a defect never lists `plan` under Not run.",
+      "A hand-back goes back to the worker when its line is missing, reads `not reached`, gives a path or link that does not resolve, names no plan by a path or a link for a story that is not a defect, or, for a defect, lacks its diagnosis link.",
+      "So does one that lists `plan` as not run for a story that is not a defect, or whose pasted receipt check shows `plan` as `bound-but-unused` for such a story: a planner was bound and never called.",
+    ]);
+    expect(acceptItem()).not.toContain("A hand-back whose line is missing");
+    expect(acceptItem()).not.toContain("names nothing that resolves");
+  });
+
+  it("the README tells an adopter that a story that is not a defect is always planned", () => {
+    expect(flat(read("README.md"))).toContain(
+      "A story that is not a defect is always planned: its receipt names the plan it was built from, which is a plan file in its pull request (the planner's, or the worker's own where no planner is bound), the plan unit the story came from, or both.",
+    );
+  });
+
+  it.each([
+    ["story-worker's plan step", planStep],
+    ["the receipt's Plan field", planField],
+  ])("%s names no harness, path, version or tracker", (_name, text) => {
+    expect(text()).not.toBe("");
+    expect(textProblems(text())).toEqual([]);
   });
 });
 
@@ -726,7 +921,7 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
 
   it("step 7 says when the docs and the capture rerun after a ready-time fix pass", () => {
     expect(prRound()).toContain(
-      "Neither operation reruns after the fix pass that follows a ready-time first review, unless that pass itself adds something the docs must carry, or produced a lesson that meets the capture's test; then that one runs once more and ships in that pass's push, and the `Docs:` line is brought up to date in both places.",
+      "Neither operation reruns after the fix pass that follows a ready-time first review, unless that pass itself adds something the docs must carry, or produced a lesson that meets the capture's test; then that one runs once more and ships in that pass's push, and the `Docs:` and `Capture:` lines are brought up to date in both places.",
     );
   });
 
@@ -1129,5 +1324,145 @@ describe("what an agent or a user reads names no work tracker or plan tag", () =
     const kept = readerLines(file, text);
     expect(kept.match(TRACKER_WORDS)?.[0]).toBe("GRO-");
     expect(kept.match(PLAN_TAG)?.[0]).toBe("KTD10");
+  });
+});
+
+/**
+ * GRO-21 — every story says whether a lesson was captured, and where, or why
+ * not: on a `Capture:` line in its receipt and the same line in its pull
+ * request's body. The worker saves the body and hands it to the receipt
+ * check, which reads only the saved body; the lead reads both lines itself,
+ * in the receipt and in the body as it stands.
+ */
+describe("GRO-21 · the Capture line's text", () => {
+  const oneLine = (text: string) => text.replace(/\s+/g, " ");
+  /** One field of the receipt's template: its line and the indented lines that continue it. */
+  const receiptField = (label: string) => {
+    return oneLine(read(RECEIPT).match(new RegExp(`^${label}:.*(?:\\n[ \\t]+\\S.*)*`, "m"))?.[0] ?? "");
+  };
+  const step7 = () => oneLine(section(read(WORKER), "7. The pull-request round"));
+  const step8 = () => oneLine(section(read(WORKER), "8. Hand back"));
+
+  it("the receipt has a Capture field giving both forms, and says the body carries the same line", () => {
+    const field = receiptField("Capture");
+    expect(field).toContain("captured <");
+    expect(field).toContain("skipped: <");
+    expect(field).toContain("pull request's body");
+  });
+
+  it.each(["Capture", "Docs"])("the receipt's %s field gives each form the checker accepts for the body's line", (label) => {
+    const rows: { label: string; accepts?: string[] }[] = readBodyLines(`${label}: nonsense\n`);
+    const accepts = rows.find((row) => row.label === label)?.accepts ?? [];
+    expect(accepts.length).toBeGreaterThan(0);
+    const field = receiptField(label);
+    for (const form of accepts) {
+      // The words a value starts with, before the placeholder that names what follows them.
+      const words = form.slice(`${label}: `.length, form.indexOf("<"));
+      expect(words.trim(), form).not.toBe("");
+      expect(field, form).toContain(words);
+    }
+  });
+
+  it("the receipt's Capture field has a `not reached` value, which a ready pull request's line never takes", () => {
+    const field = receiptField("Capture");
+    expect(field).toContain("| not reached: <why>, for a story that ended before its completion checkpoint");
+    expect(field).toContain('a ready pull request\'s line is never "not reached"');
+    expect(field).not.toContain("or that the story ended before its completion checkpoint");
+  });
+
+  it("step 7 gives the body's line its shape: one line, the label, one space, the value", () => {
+    expect(step7()).toContain("the label, its colon, one space, then the value, all on one line");
+    expect(step7()).toContain("with nothing before it");
+    // The shape is both lines': the receipt pads its labels to a column, and the body must not.
+    expect(step7()).toContain(
+      "In the body, each of the two is a line of its own with nothing before it: the label, its colon, one space, then the value, all on one line.",
+    );
+  });
+
+  it("step 8 has the worker fix a failing body and check again before handing back", () => {
+    expect(step8()).toContain(
+      "save it again and rerun the check until both of the body's lines read `found`, before you hand back",
+    );
+    expect(step8()).toContain("unchanged and after your last edit to it");
+  });
+
+  it("the lead reads the two lines itself, in the receipt and in the live body, and its own reading decides where the check did not run", () => {
+    const lead = oneLine(section(read(LEAD), "7. A hand-back"));
+    // The check proves the saved file, so only the lead's own read ties the lines to the pull request.
+    expect(lead).toContain(
+      "read both yourself, in the receipt and in the pull request's body as it stands now, since the receipt check reads the file it was given, never the pull request or the receipt.",
+    );
+    expect(lead).toContain(
+      "A hand-back missing either line in either place, or with a line whose value differs between the two, goes back to the worker, and so does one whose pasted check shows a body line as anything but `found`.",
+    );
+    // No dead end: a check that could not run sends nothing back on its own.
+    expect(lead).toContain(
+      "Where the pasted check says the body was not checked, or the check could not run, your own reading of the body decides.",
+    );
+    // Its own reading needs the rule the check applies: the shape, the forms and the one value a ready body never has.
+    expect(lead).toContain(
+      "In the body a line counts only in a form the worker's skill gives it, at the start of a line of its own, and never as `not reached` on a pull request that is ready.",
+    );
+  });
+
+  it("the receipt's Receipt check field names --pr-body", () => {
+    expect(receiptField("Receipt check")).toContain("--pr-body");
+  });
+
+  it.each([
+    "`Capture:` line",
+    "`captured` with the path",
+    "`skipped:` with the reason",
+    "a line of its own",
+    "the `Docs:` and `Capture:` lines are brought up to date in both places",
+  ])("story-worker's step 7 says %j", (phrase) => {
+    expect(step7()).toContain(phrase);
+  });
+
+  it("step 7 writes the Capture line after the capture and before the pull request is marked ready", () => {
+    const text = step7();
+    const at = (phrase: string) => {
+      expect(text, phrase).toContain(phrase);
+      return text.indexOf(phrase);
+    };
+    expect(at("`capture-learning`")).toBeLessThan(at("`Capture:` line"));
+    expect(at("`Capture:` line")).toBeLessThan(at("mark the pull request ready"));
+    expect(at("pull request's body")).toBeLessThan(at("mark the pull request ready"));
+  });
+
+  it("step 8 saves the body to a file and passes it as --pr-body, and a blocked hand-back leaves it out", () => {
+    const text = step8();
+    expect(text).toContain('`--pr-body "<that file>"`');
+    expect(text).toContain("to a file");
+    expect(text).toContain(
+      "with the command the repo's project instructions name, or else the repo host's own tool",
+    );
+    expect(text).toContain("A blocked hand-back leaves `--pr-body` out");
+  });
+
+  it("step 8 names no host's tool for saving the body", () => {
+    expect(step8()).not.toBe("");
+    expect(step8()).not.toMatch(/\bgh\b|github|curl/i);
+  });
+
+  it("the lead's claims check reads the two lines in the receipt and in the body, and sends back a hand-back missing either", () => {
+    const handBack = oneLine(section(read(LEAD), "7. A hand-back"));
+    const claims = handBack.slice(
+      handBack.indexOf("**Check the claims.**"),
+      handBack.indexOf("**Accept on the evidence.**"),
+    );
+    expect(claims).toContain("**Check the claims.**");
+    expect(claims).toContain("`Capture:`");
+    expect(claims).toContain("`Docs:`");
+    expect(claims).toContain("pull request's body");
+    expect(claims).toContain("goes back to the worker");
+  });
+
+  it("the capture-learning fallback writes a skipped Capture line, not a remark in the hand-back", () => {
+    const capture = operationsOf(readTable("story-worker")).find((op) => op.id === "capture-learning");
+    const fallback = oneLine(String(capture?.fallback ?? ""));
+    expect(fallback).toContain("`skipped:`");
+    expect(fallback).toContain("Capture");
+    expect(fallback).not.toContain("say in the hand-back");
   });
 });

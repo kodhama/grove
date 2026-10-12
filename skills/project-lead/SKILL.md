@@ -305,12 +305,34 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
 
 1. **Check the claims.** The pull request's head is the SHA reported. The
    checks have finished, and their state is the one reported. The receipt on
-   the work item names that head.
+   the work item names that head. The receipt carries a `Capture:` line and a
+   `Docs:` line, each with a value, and the pull request's body carries the
+   same two: read both yourself, in the receipt and in the pull request's body
+   as it stands now, since the receipt check reads the file it was given,
+   never the pull request or the receipt. A hand-back missing either line in
+   either place, or with a line whose value differs between the two, goes back
+   to the worker, and so does one whose pasted check shows a body line as
+   anything but `found`. Where the pasted check says the body was not checked,
+   or the check could not run, your own reading of the body decides. In the
+   body a line counts only in a form the worker's skill gives it, at the start
+   of a line of its own, and never as `not reached` on a pull request that is
+   ready.
 2. **Accept on the evidence.** Check the story's acceptance, taken from its
    source. The receipt must show a review from a context other than the
    author's, such as a fresh-context subagent the worker started, and say
    whether the shipped revision was reviewed again. "Not reviewed", or the
-   author reviewing in its own context, is not acceptable work.
+   author reviewing in its own context, is not acceptable work. The receipt's
+   `Plan:` line must name the plan the story was built from: by a path that
+   resolves at the pull request's head or on its base branch, or, where the
+   plan is held in a note on a work item, by a link to that note. For a defect
+   it links the diagnosis note. Every path and link the line gives must
+   resolve, and a story that is not a defect never lists `plan` under Not run.
+   A hand-back goes back to the worker when its line is missing, reads
+   `not reached`, gives a path or link that does not resolve, names no plan
+   by a path or a link for a story that is not a defect, or, for a defect,
+   lacks its diagnosis link. So does one that lists `plan` as not run for a
+   story that is not a defect, or whose pasted receipt check shows `plan` as
+   `bound-but-unused` for such a story: a planner was bound and never called.
 3. **Review it again, from fresh context.** Invoke the performer bound to
    `review-before-merge` on the pull request, from a fresh-context subagent
    you start for it: never your own context, and never a fork of it. Ask for

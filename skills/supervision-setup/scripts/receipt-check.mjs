@@ -95,21 +95,52 @@
  * re-prints an earlier story's carried uses under that story's `since` line,
  * and a handoff holding them still credits them.
  *
+ * The pull request's body (GRO-21): with `--pr-body <file>`, the check also
+ * reads the lines a story's pull request must carry in its body, a `Capture:`
+ * line and a `Docs:` line, from the file the caller saved the body to
+ * (`pr-body-lines.mjs` has the lines and the forms each takes). It prints one
+ * line for each, after the operations and before the summary:
+ *
+ *   pr-body <file>: found "Capture: skipped: the tests already show the lesson"
+ *   pr-body <file>: missing "Docs:": no line starts with it; it takes "Docs: updated <paths>" or "Docs: none needed, because <why>"
+ *
+ * or `malformed`, quoting the line and naming the forms it accepts, or
+ * `repeated`, with how many lines start with the label. Anything but `found`
+ * fails the check. Every such line starts with the word `pr-body`, so a
+ * handoff that carries the report never reads one as a use, whatever text of
+ * the body it quotes. The line prints the file's path as it was given, so a
+ * path that holds a line break is refused: what follows the break would start
+ * a line of its own. Without the flag nothing about the body is checked and
+ * the verdict is what it would be: a story-worker report then says
+ * `pr-body: not checked (no --pr-body given)`, and another level skill's,
+ * which has no pull request, says nothing. A blocked hand-back and a
+ * restart's handoff leave the flag out. The check proves the file it was
+ * given, not the pull request, and a line inside a fenced block or an HTML
+ * comment counts as a line.
+ *
  * Usage: receipt-check.mjs --bindings <bindings.json> [--not-run <table/op>,...]
- * [--handoff <handoff.md>] [--since <zoned time>]. Exits 1 when any operation is
- * bound-but-unused, attempted-failed or has no evidence, or when the routing
- * table or the repo's override changed since setup read it (the bindings then
- * follow other suggestions), 2 on bad arguments (a `--since` that is not a
- * time with its zone, such as `2026-10-08T21:16:31Z`, included) or unusable
- * input (a bindings file setup did not complete, one listing no transcripts,
- * one recording no sha256 for its table or its override, or a malformed
- * entry, a transcript or a handoff that is not a file, a routing table that
- * cannot be read or belongs to another skill), else 0. It reads files only.
+ * [--handoff <handoff.md>] [--since <zoned time>] [--pr-body <body.md>]. Exits
+ * 1 when any operation is bound-but-unused, attempted-failed or has no
+ * evidence, when the routing table or the repo's override changed since setup
+ * read it (the bindings then follow other suggestions), or when the body
+ * given as `--pr-body` holds a required line missing, malformed or repeated,
+ * 2 on bad arguments (a `--since` that is not a time with its zone, such as
+ * `2026-10-08T21:16:31Z`, and a `--pr-body` path that holds a line break,
+ * included) or unusable input (a bindings file setup
+ * did not complete, one listing no transcripts, one recording no sha256 for
+ * its table or its override, or a malformed entry, a transcript or a handoff
+ * that is not a file, a `--pr-body` path, the empty one included, that is not
+ * a file it can read, a routing table that cannot be read or belongs to
+ * another skill), else 0. Unusable input is refused before any transcript is
+ * read, so a body file that is missing exits 2 even where an operation is
+ * unused. It reads files only.
  *
  * Plan: docs/plans/2026-09-25-0105-feat-supervision-operating-model-plan.md,
  * U8 and KTD12; outcomes and fresh-context review, MQ-377:
  * docs/plans/2026-10-04-0734-feat-receipt-check-credits-calls-that-ran-plan.md,
- * KTD4, KTD6, KTD9, KTD10, U3 and U4.
+ * KTD4, KTD6, KTD9, KTD10, U3 and U4; the pull request's body, GRO-21:
+ * docs/plans/2026-10-11-gro-21-required-capture-line-plan.md, KTD3, KTD4,
+ * KTD8 and U2.
  */
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import process from "node:process";
@@ -118,11 +149,14 @@ import { parseArgs } from "node:util";
 import { scopeCalls, sinceTime } from "./call-scope.mjs";
 import { CARRIED, readHandoff } from "./handoff-receipt.mjs";
 import { creditable, hasPerformer, judge, matches, unqualified } from "./operation-state.mjs";
+import { LINE_BREAK, readBodyLines } from "./pr-body-lines.mjs";
 import { readRoutingTable } from "./routing-table.mjs";
 import { readTranscripts } from "./transcript-uses.mjs";
 
 /** Skills that run the supervision itself, never a step of it. */
 const SETUP_SKILL = "supervision-setup";
+/** The level skill whose hand-back has a pull request: only its report says when the body was not checked. */
+const STORY_SKILL = "story-worker";
 /** The states that fail the check: exit 1. */
 const FAILING = new Set(["bound-but-unused", "attempted-failed", "no evidence"]);
 
@@ -316,8 +350,37 @@ function scopeText(scope, skill) {
   }
 }
 
-/** The whole report, one line per transcript, operation and unbound skill. */
-function formatReport(result, bindings, bindingsPath) {
+/**
+ * The report's lines about the pull request's body: one per required line of
+ * a body that was given, as `pr-body-lines.mjs` read it, or for a story with
+ * none given, one saying so. Each starts with the word `pr-body`, which the
+ * handoff reader takes for no line of its own, whatever a quoted line holds.
+ */
+function bodyLines(body, skill) {
+  if (!body) return skill === STORY_SKILL ? ["pr-body: not checked (no --pr-body given)"] : [];
+  const start = `pr-body ${body.path}:`;
+  /** The forms a label's line takes, each quoted. */
+  const forms = (row) => row.accepts.map((form) => `"${form}"`).join(" or ");
+  return body.lines.map((row) => {
+    switch (row.state) {
+      case "found":
+        return `${start} found "${row.line}"`;
+      case "malformed":
+        return `${start} malformed "${row.line}": write ${forms(row)}, with one space after the colon and the value filled in`;
+      case "repeated":
+        return `${start} repeated "${row.label}:": ${row.count} lines start with it, keep one`;
+      default:
+        return `${start} missing "${row.label}:": no line starts with it; it takes ${forms(row)}`;
+    }
+  });
+}
+
+/**
+ * The whole report, one line per transcript, operation and unbound skill, then
+ * the lines about `body`: the pull request's body as `readBody` returns it, or
+ * null when none was given.
+ */
+function formatReport(result, bindings, bindingsPath, body) {
   const lines = [`receipt-check: ${bindingsPath} (${bindings.skill}, session ${bindings.session})`];
   lines.push(...tableLines(result.table));
   if (result.since) lines.push(`since ${result.since}: calls before it are not counted`);
@@ -335,6 +398,7 @@ function formatReport(result, bindings, bindingsPath) {
   }
   lines.push(...result.operations.map(operationLine));
   lines.push(...result.unbound.map((u) => `used-but-unbound: ${u.name} in ${u.where}`));
+  lines.push(...bodyLines(body, result.table.skill));
   const count = (state) => result.operations.filter((row) => row.state === state).length;
   const shared = result.operations.filter((row) => row.shared).length;
   lines.push(
@@ -352,7 +416,7 @@ function readOptions(argv) {
   const text = { type: "string" };
   let values;
   try {
-    const options = { bindings: text, handoff: text, since: text, "not-run": { ...text, multiple: true } };
+    const options = { bindings: text, handoff: text, since: text, "pr-body": text, "not-run": { ...text, multiple: true } };
     ({ values } = parseArgs({ args: argv, options }));
   } catch (error) {
     return { error: error.message };
@@ -365,7 +429,13 @@ function readOptions(argv) {
   } catch (error) {
     return { error: error.message };
   }
-  return { bindings: values.bindings, handoff: values.handoff ?? null, notRun, since };
+  // An empty `--pr-body` is a path that names no file, never an absent flag.
+  const prBody = values["pr-body"] ?? null;
+  // The report prints this path as given: a break in it would start a line a handoff's reader could take for a use.
+  if (prBody !== null && LINE_BREAK.test(prBody)) {
+    return { error: "--pr-body <path> holds a line break; save the body to a path on one line" };
+  }
+  return { bindings: values.bindings, handoff: values.handoff ?? null, notRun, since, prBody };
 }
 
 /** Load a bindings file setup completed, or return the reason it cannot be used. */
@@ -420,18 +490,37 @@ function statOf(path) {
   }
 }
 
+/**
+ * The required lines of the pull request's body saved at `path`, as
+ * `pr-body-lines.mjs` reads them, or the reason no file there can be read.
+ */
+function readBody(path) {
+  const error = `no pull-request body file at ${path}`;
+  if (!statOf(path)?.isFile()) return { error };
+  try {
+    return { path, lines: readBodyLines(readFileSync(path, "utf8")) };
+  } catch {
+    return { error };
+  }
+}
+
 /** Run from the command line: print the report and exit by its result. */
 function main(argv) {
   const options = readOptions(argv);
   const loaded = options.error ? options : loadBindings(options.bindings);
   if (loaded.error) {
     process.stderr.write(
-      `receipt-check: ${loaded.error}\nUsage: receipt-check.mjs --bindings <path> [--not-run <table/op>,...] [--handoff <path>] [--since <zoned time>]\n`,
+      `receipt-check: ${loaded.error}\nUsage: receipt-check.mjs --bindings <path> [--not-run <table/op>,...] [--handoff <path>] [--since <zoned time>] [--pr-body <path>]\n`,
     );
     return 2;
   }
   if (options.handoff && !statOf(options.handoff)?.isFile()) {
     process.stderr.write(`receipt-check: no handoff file at ${options.handoff}\n`);
+    return 2;
+  }
+  const body = options.prBody === null ? null : readBody(options.prBody);
+  if (body?.error) {
+    process.stderr.write(`receipt-check: ${body.error}\n`);
     return 2;
   }
   const table = readRoutingTable(loaded.bindings, options.bindings);
@@ -445,10 +534,13 @@ function main(argv) {
     return 2;
   }
   const result = checkReceipts({ ...options, bindings: loaded.bindings, table });
-  process.stdout.write(`${formatReport(result, loaded.bindings, options.bindings).join("\n")}\n`);
+  process.stdout.write(`${formatReport(result, loaded.bindings, options.bindings, body).join("\n")}\n`);
   // Bindings judged against a table other than the one setup bound prove nothing (GRO-12).
   const changed = table.changed || table.override?.changed;
-  return changed || result.operations.some((row) => FAILING.has(row.state)) ? 1 : 0;
+  const unused = result.operations.some((row) => FAILING.has(row.state));
+  // A body that was given fails the check unless every line it must carry was found.
+  const lacking = body?.lines.some((row) => row.state !== "found");
+  return changed || unused || lacking ? 1 : 0;
 }
 
 // Compare real paths: run through a symlink, argv names the link and the URL the file.
