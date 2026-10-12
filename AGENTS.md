@@ -116,6 +116,10 @@ of @<maintainer-handle>.` Comments only: a PR body is covered by its branch and
 - **Every PR bumps `version` in both `.claude-plugin/plugin.json` and
   `.codex-plugin/plugin.json`, together.** An install keeps its cached copy
   until the version changes, so an unbumped merge reaches no one.
+- **`README.md` is the doc a change keeps current, and `docs/decisions/` where
+  the change supersedes a decision recorded there.** The README is grove's
+  reference: it holds what the routing tables expect of a repo that uses the
+  skills.
 - Code changes are test-first: failing test, then implementation, then green.
 - Keep diffs reviewable from a phone: small, focused, well-described.
 
