@@ -1591,6 +1591,10 @@ describe("GRO-31 · a hand-back that comes back", () => {
       "Its receipt carries over, from the earlier one, what it did not observe itself, and its pasted check shows the earlier worker's operations as carried, or says it could carry none: the earlier receipt's check is then the evidence for them.",
       'A worker that ended after posting a handoff is the one exception: "A `restart-owner: lead` handoff", below, covers it.',
     ]);
+    // Where nothing carried, item 2's rule on a `plan` shown unused reads the earlier check, said right after the evidence is.
+    expect(sendingBack()).toContain(
+      "the earlier receipt's check is then the evidence for them. Item 2 then reads `plan` in that earlier check, never in the new worker's own, which shows it `bound-but-unused` because a new worker plans nothing again. A worker that ended after posting a handoff",
+    );
   });
 
   it("the lead's passage sits after the merge item and before the restart handoff", () => {
