@@ -643,3 +643,30 @@ happens to you, add what came back, word for word, with the version and date.
   ```
 
 - **Open with the lead (OD8), built as ruled until answered:** whether the exception covers the harness's documented retry outside the sandbox, or only a run that declares a need. T2's two declared-need sentences are built as the plan gives them.
+
+### As ruled, last (2026-10-12)
+
+Four rulings after the build, applied by the worker, tests first. Where this section and the text above differ, this section is what ships.
+
+- **OD8 = (b), answered by the maintainer: one gated re-run.** The exception covers the re-run the harness documents for a sandbox denial, not only a run that declares a need. T2's two declared-need sentences become:
+
+  ```text
+  One sandbox denial is not a refusal: where your harness documents a re-run
+  for one, such as a run that declares a host the command must reach, make
+  that re-run once, and only for something the story itself needs. It goes
+  back through the harness's check, so it is not a way round the guard, and a
+  denial of it is a refusal.
+  ```
+
+  The sentence from OD7 follows it with "other than the re-run above" in place of "other than the declared-need run above".
+- **OD9 = (a): a call the harness rejects as malformed is a failure.** The worker's own session showed the gap: a call came back as a tool-use error that said what to do first, no guard had stopped it, and the when-in-doubt clause would have made it a refused line. T2's list of failures becomes "A non-zero exit, a command not found, a call your harness rejects as malformed or a remote's own rejection".
+- **The sandbox sentence names a second sign.** The harness text quoted in the notes says a denied connection is reported apart from the system's error. T2's sentence now ends `as the system's "not permitted" error or a connection it could not make.`
+- **The notes say that their two uses of "refused" differ.** The older section "A call that did not run" uses the receipt check's sense, any call that did not run. One sentence in the new section's opening paragraph says so:
+
+  ```text
+  That "refused" is narrower than the receipt check's, in "A call that did not
+  run" above: there it is any call that did not run, one the harness rejected
+  as malformed included, and here it is a call a guard stopped.
+  ```
+
+U1's scenarios pin each changed sentence whole.

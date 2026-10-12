@@ -395,9 +395,12 @@ not recorded).
 ## A refused call
 
 What a session sees when a guard stops a call, by kind of guard.
-story-worker's "A refused call" says which of these count as refused. Only
-what was observed is described; the rest is **unknown**, so when one of them
-happens to you, add what came back, word for word, with the version and date.
+story-worker's "A refused call" says which of these count as refused. That
+"refused" is narrower than the receipt check's, in "A call that did not run"
+above: there it is any call that did not run, one the harness rejected as
+malformed included, and here it is a call a guard stopped. Only what was
+observed is described; the rest is **unknown**, so when one of them happens to
+you, add what came back, word for word, with the version and date.
 
 - **The harness's check, deciding alone.** Claude Code, in auto mode: the
   call's result has `is_error` set to true (see "A call that did not run"),

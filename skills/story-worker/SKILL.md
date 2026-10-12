@@ -457,17 +457,18 @@ what a session may run, whether it decides alone or puts a prompt to the
 maintainer, who declines it; a hook that blocks the call; a check built into
 the harness, such as one on a removal; or the sandbox. A sandbox denial is the
 one that comes back inside a command's own output, as the system's "not
-permitted" error. "Your harness's permission check" in this skill means any of
-these. A non-zero exit, a command not found or a remote's own rejection is a
+permitted" error or a connection it could not make. "Your harness's permission
+check" in this skill means any of these. A non-zero exit, a command not found,
+a call your harness rejects as malformed or a remote's own rejection is a
 failure, not a refusal; when you cannot tell which you have, treat it as
 refused. One sandbox denial is not a refusal: where your harness documents a
-way to declare what a command needs, such as a host it must reach, run it once
-with that declared. That is a declared need, not a way round the guard, and a
-denial of that run is a refusal. Where the guard's answer itself offers
-another way to the same end, other than the declared-need run above, that is
-not an OK: Never's rule holds, and the offer goes in your line. The wording
-each harness gives is in supervision-setup's harness notes, under
-"A refused call".
+re-run for one, such as a run that declares a host the command must reach,
+make that re-run once, and only for something the story itself needs. It goes
+back through the harness's check, so it is not a way round the guard, and a
+denial of it is a refusal. Where the guard's answer itself offers another way
+to the same end, other than the re-run above, that is not an OK: Never's rule
+holds, and the offer goes in your line. The wording each harness gives is in
+supervision-setup's harness notes, under "A refused call".
 
 **The `STATUS: refused` line.** The line names the directory you ran it in,
 which after a move says which of your two checkouts, and the exact command or
