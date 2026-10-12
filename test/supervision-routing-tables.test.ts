@@ -524,6 +524,48 @@ describe("MQ-348 · routing overrides (R37)", () => {
   });
 });
 
+/**
+ * GRO-30 — a performer takes its repository from the directory its shell
+ * starts in, and that is the directory the session started in, not always the
+ * story's checkout. The helpers these tests call are declared below, and run
+ * only inside each test.
+ */
+describe("GRO-30 · a performer is given the story's checkout", () => {
+  /** Text with every run of whitespace collapsed to one space. */
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+
+  it("the bindings paragraph has the worker run its own commands in the story's checkout, and give it to every performer and subagent", () => {
+    // The one paragraph that opens "The work runs through bindings.", up to the blank line after it.
+    const paragraph = flat(read(WORKER).match(/^The work runs through bindings\.[^]*?(?=\n\n)/m)?.[0] ?? "");
+    expect(paragraph).toContain(
+      "Run your own commands in the story's checkout, where its branch is checked out, and give every performer and every subagent you start that checkout by its full path, and the story's pull request too once it has one, never the pull request alone: a shell, yours or a subagent's, can start any command, not only the first, in the directory your session started in, which is not always the story's checkout.",
+    );
+    expect(paragraph).not.toContain("or the story's pull request once it has one");
+  });
+
+  it("step 5 has the worker check the diff a review read against its own, and discard one that read something else", () => {
+    const whole = section(read(WORKER), "5. Review");
+    const review = flat(whole);
+    expect(review).toContain(
+      "- **Check what it read.** In the request that starts a reviewer that reads a repository, name the range to read, and ask it to quote, from its own commands and their output, the command that gave it the diff, the commit it was on and the files the diff changes. Commit your work before the review starts, so the range holds all of it. Compare the range in its command, that commit and those files with the range you named, the commit you started the review on and the files your own diff lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path and the range on to each, and to report the same for each; a reviewer it does not report for makes that run a miss. If the second run misses too, send your lead a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
+    );
+    expect(review).not.toContain("print the top level and the head");
+    // A second miss never lets the story run on to a pull request unreviewed.
+    expect(review).not.toContain("the rest of the story goes on");
+    // A report that leaves one of the three out is a miss, not a pass.
+    expect(review).not.toContain("or it reports none of them");
+    // The rule is a bullet of its own, at the start of a line, not nested under another.
+    expect(whole).toContain("\n- **Check what it read.**");
+    // It sits with the other rules for pointing a reviewer, after the one that gives it the checkout.
+    const before = review.indexOf("**Give it the checkout when the diff reaches outside itself.**");
+    const check = review.indexOf("**Check what it read.**");
+    const after = review.indexOf("**Ask for findings with evidence, not patches.**");
+    expect(before).toBeGreaterThan(-1);
+    expect(check).toBeGreaterThan(before);
+    expect(after).toBeGreaterThan(check);
+  });
+});
+
 /** One `## ` section of a Markdown file, from its heading to the next. */
 function section(text: string, heading: string): string {
   const start = text.indexOf(`\n## ${heading}\n`);
