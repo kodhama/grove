@@ -872,6 +872,130 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf(line)).toEqual(clis);
   });
 
+  // zsh reads every word before an unquoted `()` as one more function name,
+  // past a command's first word too: `gh pr view 12 name() more words` defines
+  // five functions, exits 0, prints nothing and runs no command, so `gh` earns
+  // no credit. The body is credited as any function's is, called or not.
+  it.each([
+    ["alone on the line", "gh pr view 12 name() more words", ["more"]],
+    ["with a space before the ()", "gh pr view 12 name () more words", ["more"]],
+    ["with a braced body", "gh pr view 12 name() { more words }", ["more"]],
+    ["with the body right after the ()", "gh pr view 12 name(){ more words }", ["more"]],
+    ["after a ;", "cd /repo; gh pr view 12 name() more words", ["cd", "more"]],
+    ["after an &&", "cd /repo && gh pr view 12 name() more words", ["cd", "more"]],
+    ["after a |", "echo a | gh pr view 12 name() more words", ["echo", "more"]],
+    ["after a newline", "cd /repo\ngh pr view 12 name() more words", ["cd", "more"]],
+    ["inside a $( )", 'echo "$(gh pr view 12 name() more words)"', ["echo", "more"]],
+    ["with a redirect among them", "touch e21 > /dev/null x() y", ["y"]],
+    ["after command", "command touch e25 x() y", ["y"]],
+    ["inside an if", "if true; then touch e16 x() y; fi", ["true", "y"]],
+    ["inside braces", "{ touch e17 x() y }", ["y"]],
+    ["inside a subshell", "( touch e18 x() y )", ["y"]],
+    ["after a declaration word, with no = before the ()", "local x() y", ["y"]],
+  ])("credits none of the words before a function's (), %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  // A `name=()` past a command's first word is to zsh the array a
+  // declaration word is given or a function's definition, and in neither
+  // does the command's first word or the word after the `()` run. No line
+  // below runs its `gh` or `b`: the one with a `$( )` and the last four
+  // define functions, and the others declare.
+  it.each([
+    ["on a line continued after an &&", "cd /repo && \\\n  local arr=() gh", ["cd"]],
+    ["on a line continued after its first word", "local\\\n arr=() gh pr view 1", []],
+    ["after a += setting", "X+=1 local arr=() gh pr view 1", []],
+    ["after a subscript's setting", "a[1]=x local arr=() gh pr view 1", []],
+    ["after a setting's own array", "X=() local arr=() gh pr view 1", []],
+    ["after a redirect", "2>/dev/null local arr=() gh pr view 1", []],
+    ["after nocorrect", "nocorrect local arr=() gh pr view 1", []],
+    ["after a setting and a continued line", "FOO=1 \\\nlocal arr=() gh", []],
+    ["after a $( ), which still runs", "$(true) local arr=() gh pr view 1", ["true"]],
+    ["after a declaration word", "local arr=() gh", []],
+    ["after a declaration word and a setting", "X=1 local arr=() gh", []],
+    ["after a declaration word, a setting and more words", "FOO=1 export arr=() gh pr view", []],
+    ["after a declaration word and a setting whose quoted value holds a space", 'X="a b" local arr=() gh', []],
+    ["after a declaration word that is not the first word", "echo local arr=() b", []],
+    ["after a word that only starts with a declaration word", "localx arr=() b", []],
+    ["after any other first word", "touch e13 a=() b", []],
+    ["after a +=", "touch k5 arr+=() b", []],
+  ])("credits no word around a name=() past a command's first word, %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["before a ;", "local arr=(); gh pr view 1", ["gh"]],
+    ["with an option, before a newline", "typeset -a brr=()\ngh pr view 1", ["gh"]],
+    ["twice on a line", "declare -a files=() names=()\ngh pr view 1", ["gh"]],
+    ["in a function's body", "f() { local arr=(); gh pr view 1; }; f", ["gh", "f"]],
+  ])("still credits the command after a name=() past a command's first word, %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["inside single quotes", "gh api graphql -f query='query() { viewer { login } }'", ["gh"]],
+    ["inside double quotes", 'gh api graphql -f query="query() { viewer { login } }"', ["gh"]],
+    ["in a $( ) that defines and calls a function", "echo e5 $(f() { echo inner }; f)", ["echo", "echo", "f"]],
+    ["escaped", String.raw`touch e14 x\(\) y`, ["touch"]],
+    ["as an empty array a setting holds", "a=() touch x", ["touch"]],
+    ["as an empty array a second setting holds, after a plain one", "a=1 b=() touch x", ["touch"]],
+    ["as a glob qualifier", "echo x *(N)", ["echo"]],
+    ["after a function's name, which is then called", "f() { gh pr view 1; }; f", ["gh", "f"]],
+  ])("still credits a command whose line holds a ( ) %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("still credits a $( ) among the words before a function's (), since zsh runs it", () => {
+    expect(clisOf("gh pr view $(cat f) name() body")).toEqual(["body", "cat"]);
+  });
+
+  // zsh rejects each line with a parse error and runs nothing, and the call
+  // reads as not run from its result. The parser reads no definition there,
+  // so the rest of the line reads as it did.
+  it.each([
+    ["in a for list", "for f in a () case; do gh; done", ["gh"]],
+    ["inside a glob's group", "echo a(b()c) w1", ["echo"]],
+  ])("reads no definition at a () zsh rejects, %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  // Known limits: what the parser reads where zsh does otherwise. zsh runs no
+  // `touch` in the first two lines and no `gh` in the seventh, runs `cmd` in
+  // the two anonymous functions and `touch` in the last two, and defines
+  // both `a` and `b` in the other two. The last line sets two arrays and
+  // defines nothing (`rc=0 fns=[]`, the file made).
+  it.each([
+    ["a name the line defines, then called as the CLI", "touch x() true; touch e2", ["true", "touch"]],
+    ["a blank inside the ( ), which zsh rejects", "touch e1c name( ) more words", ["more"]],
+    ["an anonymous function with a braced body", "() { cmd }", []],
+    ["an anonymous function with a bare body", "() cmd", []],
+    ["a function given two names", "function a b { touch e11; }", ["b"]],
+    ["a function given two names, the second then called", "function a b { touch e11; }; b", ["b", "b"]],
+    ["a body that is the next line's command, never called", "gh pr view 12 name()\ngh pr list", ["gh"]],
+    ["a body after a name=() that another of the names then calls", "x a=() { touch p4 }; x", ["x"]],
+    ["a second leading array setting, whose command zsh runs", "a=() b=() touch x", []],
+  ])("reads, as a known limit, %s", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("does not count a Bash call whose line only defined functions, and counts the body's command", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-functions-"));
+    const call = { type: "tool_use", name: "Bash", input: { command: "gh pr view 12 name() more words" } };
+    const file = bindingsOfCalls(dir, [call, { content: "", is_error: false }]);
+    const outcomes = ["gh", "more"].map((cli) => outcomesOf(file.transcripts, "cli", cli));
+    rmSync(dir, { recursive: true });
+    expect(outcomes).toEqual([[], ["ran"]]);
+  });
+
+  it("does not count a Codex command whose line only defined functions, and counts the body's command", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-functions-"));
+    const record = commandRecord("gh pr view 12 name() more words", "completed", 0, undefined, { stdout: "" });
+    const file = codexBindingsOf(dir, [record]);
+    const outcomes = ["gh", "more"].map((cli) => outcomesOf(file.transcripts, "cli", cli));
+    rmSync(dir, { recursive: true });
+    expect(outcomes).toEqual([[], ["ran"]]);
+  });
+
   it("never credits a pattern after a lone & as a command", () => {
     expect(clisOf("sleep 1 & case x in a) echo;; gh) jq;; esac")).toEqual(["sleep", "echo", "jq"]);
   });
@@ -1183,6 +1307,10 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     ["zsh's parse error with no line number", "failed", "Exit code 1\n(eval): parse error near `()'"],
     ["zsh's unmatched quote with no line number", "failed", 'Exit code 1\n(eval): unmatched "'],
     ["zsh's unclosed brace with no line number", "failed", "Exit code 1\n(eval): closing brace expected"],
+    ["zsh's unknown condition, which stops the rest of its list as it runs", "failed", "Exit code 2\n(eval):1: unknown condition: -z"],
+    ["zsh's unknown condition with no line number", "failed", "Exit code 2\n(eval): unknown condition: -z"],
+    ["an unknown condition from zsh's `[`, which carries on", "ran", "Exit code 1\n(eval):[:1: unknown condition: -z"],
+    ["an unknown condition zsh names a function in, a known limit", "ran", "Exit code 2\nf: unknown condition: -z"],
     ["zsh's parse error with no line number after another line", "failed", "Exit code 1\na\n(eval): parse error near `()'"],
     ["a nested zsh's parse error", "ran", "Exit code 1\nzsh:1: parse error near `)'"],
     ["a nested bash's syntax error", "ran", "Exit code 2\nbash: -c: line 1: syntax error near unexpected token `)'"],
@@ -1240,6 +1368,8 @@ describe("MQ-377 · a Claude Code call counts only when it ran", () => {
     ["starts with zsh's unclosed brace", "failed", "(eval):2: closing brace expected"],
     ["starts with zsh's parse error", "failed", "(eval):5: parse error near `\\n'"],
     ["starts with zsh's parse error with no line number", "failed", "(eval): parse error near `()'"],
+    ["starts with zsh's unknown condition", "failed", "(eval):1: unknown condition: -z\ncarried"],
+    ["starts with an unknown condition from zsh's `[`", "ran", "(eval):[:1: unknown condition: -z\ncarried"],
     ["starts with a complaint from zsh's `[`", "failed", "(eval):1: parse error: condition expected: =\nok"],
     ["shows one only on a later line", "ran", "ok\n(eval):1: parse error near `x'"],
     ["shows one with no line number only on a later line", "ran", "ok\n(eval): parse error near `()'"],
@@ -1327,6 +1457,9 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
     ["zsh's parse error with no line number", "failed", 1, { stdout: "zsh: parse error near `()'\n" }],
     ["zsh's unmatched quote with no line number", "failed", 1, { stdout: 'zsh: unmatched "\n' }],
     ["zsh's unclosed brace with no line number", "failed", 1, { stdout: "zsh: closing brace expected\n" }],
+    ["zsh's unknown condition, which stops the rest of its list as it runs", "failed", 2, { stdout: "zsh:1: unknown condition: -z\n" }],
+    ["zsh's unknown condition with no line number", "failed", 2, { stdout: "zsh: unknown condition: -z\n" }],
+    ["an unknown condition from zsh's `[`, which carries on", "ran", 1, { stdout: "zsh:[:1: unknown condition: -z\n" }],
     ["zsh's parse error after another line", "failed", 1, { stdout: "warning: x\nzsh:1: parse error near `)'\n" }],
     ["zsh's parse error not at a line's start", "ran", 1, { stdout: "log: zsh:1: parse error near `)'\n" }],
     ["a nested eval's parse error", "ran", 1, { stdout: "(eval):1: parse error near `)'\n" }],
@@ -1343,7 +1476,8 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
   });
 
   // A line can exit 0 though zsh could not parse part of it, as when the span
-  // sits in an early stage of a pipeline: the item is then `completed`, and
+  // sits in an early stage of a pipeline, or stopped part of it at an
+  // `unknown condition`, as in a subshell: the item is then `completed`, and
   // its `stdout` starts with zsh's error. Only the first line is read, and the
   // last row pins the limit that comes with it.
   it.each([
@@ -1351,6 +1485,8 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
     ["starts with zsh's parse error", "failed", { stdout: "zsh:1: parse error near `if'\nzsh:1: parse error in command substitution\npost\n" }],
     ["starts with zsh's parse error with no line number", "failed", { stdout: "zsh: parse error near `()'\nzsh:1: parse error in command substitution\n\ncarried\n" }],
     ["starts with zsh's parse error in stderr, its stdout empty", "failed", { stdout: "", stderr: "zsh:1: parse error near `if'\n" }],
+    ["starts with zsh's unknown condition", "failed", { stdout: "zsh:1: unknown condition: -z\ncarried\n" }],
+    ["starts with an unknown condition from zsh's `[`", "ran", { stdout: "zsh:[:1: unknown condition: -z\ncarried\n" }],
     ["shows one only on a later line", "ran", { stdout: "ok\nzsh:1: parse error near `x'\n" }],
   ])("reads a completed CommandExecution whose output %s as %s", (_what, outcome, output) => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-parse-completed-"));
