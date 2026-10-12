@@ -301,7 +301,8 @@ A worker ends its story with `STATUS: ready <url> <head sha>` or
 **When the worker is blocked**, remove the blocker if it is yours to remove.
 If it is not, put it to the maintainer. Never invent a missing prerequisite.
 
-**When the pull request is ready:**
+**When the pull request is ready**, take these in order. Where one sends the
+hand-back back to the worker, "Sending it back", below them, says how:
 
 1. **Check the claims.** The pull request's head is the SHA reported. The
    checks have finished, and their state is the one reported. The receipt on
@@ -365,6 +366,27 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
    after checking that nothing in either is uncommitted, and that the clone
    holds no commit its remote lacks: removing a worktree keeps its commits in
    the shared repository, and removing a clone does not.
+
+**Sending it back.** Wherever this step sends a hand-back or a defect back to
+the worker, do it one way. Before you send one back over a line, read items 1
+and 2 through, so that one message names everything the hand-back lacks, and
+send it as step 5 says. While the worker's session is live, the message goes
+to it: its skill's "A hand-back that comes back" has it fix what you named,
+post its receipt again as a new note, and send `STATUS: ready` again. It is
+the same story, with the same Started time and the same receipt. Read what
+comes back from item 1 again, as you would a fix pass's head: the earlier
+note does not cover it.
+
+Where the worker's session has ended, start a new worker on the story as step
+4 says, in the story's own worktree and on its branch. That is a new worker,
+never a restart: a worker that handed back left no handoff to restart from.
+Its assignment adds what you are sending back, the pull request, and the note
+that holds the earlier receipt. Its receipt carries over, from the earlier
+one, what it did not observe itself, and its pasted check shows the earlier
+worker's operations as carried, or says it could carry none: the earlier
+receipt's check is then the evidence for them. A worker that ended after
+posting a handoff is the one exception: "A `restart-owner: lead` handoff",
+below, covers it.
 
 **A `restart-owner: lead` handoff** means the worker cannot launch its own
 successor. Launch it through `start-worker` from the handoff's launch line:
