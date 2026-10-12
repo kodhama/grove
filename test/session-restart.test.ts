@@ -183,7 +183,10 @@ interface HelperOpts {
   focusBound?: string;
   reportBound?: string;
   herdrTimeout?: string;
-  /** Replaces the budget worked out from the bounds; for the harness's own tests. */
+  /**
+   * Replaces the budget worked out from the bounds: for the harness's own
+   * tests, and for a scenario that budget does not cover.
+   */
   budgetMs?: number;
 }
 
@@ -368,7 +371,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
+  // A run killed at its budget leaves the stub call it was in the middle of
+  // running, and that call may write its line to the log while the folder is
+  // being emptied. The retries outlast it: it writes once and exits.
+  rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 });
 
 const now = () => Math.floor(Date.now() / 1000);
@@ -775,8 +781,8 @@ describe("restart-in-place.sh — the time a give-up report names", () => {
   const waitedIn = (report: string) => Number(/ after (\d+)s /.exec(report)?.[1]);
 
   /** Runs the helper against the slow stub, timing the run from outside. */
-  function slowRun() {
-    stubFile("get-delay", `${GET_DELAY_S}\n`);
+  function slowRun(delayS = GET_DELAY_S) {
+    stubFile("get-delay", `${delayS}\n`);
     const started = Date.now();
     const run = runHelper({ maxWait: "0.2", focusBound: "5" });
     return { run, wallS: (Date.now() - started) / 1000 };
@@ -807,7 +813,14 @@ describe("restart-in-place.sh — the time a give-up report names", () => {
     freshTurn(now());
     states(["idle false s1"]);
     states(["idle true s2"], "after-clear");
-    const { run, wallS } = slowRun();
+    // Up to the clear each read takes three times as long, and the clear puts
+    // the stub back. A clock that was not started again at the clear would
+    // then count seconds more than this test allows, however long the helper
+    // takes to start and to exit: the whole-second error of bash's clock is
+    // well inside that margin.
+    const BEFORE_CLEAR_DELAY_S = 3 * GET_DELAY_S;
+    stubFile("hook-clear", `echo ${GET_DELAY_S} > "$STUB_DIR/get-delay"\n`);
+    const { run, wallS } = slowRun(BEFORE_CLEAR_DELAY_S);
     expect(run.status).toBe(1);
     expect(promptTexts(run)).toEqual(["/clear"]);
     expect(run.reports).toHaveLength(1);
@@ -817,11 +830,13 @@ describe("restart-in-place.sh — the time a give-up report names", () => {
     );
     // The first read after the clear confirms it; the wait starts after that read.
     const clearAt = run.calls.findIndex((c) => c[3] === "/clear");
+    const getsBeforeClear = getsIn(run.calls.slice(0, clearAt));
     const getsWaiting = getsIn(run.calls.slice(clearAt)) - 1;
-    const getsBefore = getsIn(run.calls) - getsWaiting;
+    const beforeTheWaitS = getsBeforeClear * BEFORE_CLEAR_DELAY_S + GET_DELAY_S;
     const waited = waitedIn(report);
+    expect(getsBeforeClear).toBeGreaterThanOrEqual(3);
     expect(waited).toBeGreaterThan(getsWaiting * GET_DELAY_S - 1);
-    expect(waited).toBeLessThan(wallS - getsBefore * GET_DELAY_S + 1);
+    expect(waited).toBeLessThan(wallS - beforeTheWaitS + 1);
   });
 });
 
