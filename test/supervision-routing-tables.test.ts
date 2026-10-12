@@ -1038,6 +1038,7 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
 describe("GRO-17 · the refused-call rule's text", () => {
   const flat = (text: string) => text.replace(/\s+/g, " ");
   const workerNever = () => section(read(WORKER), "Never");
+  const workerRefused = () => section(read(WORKER), "A refused call");
   const workerTalking = () =>
     flat(section(read(WORKER), "Talking to your lead, and to the maintainer"));
   const workerBeforeEdit = () => flat(section(read(WORKER), "2. Before the first edit"));
@@ -1069,13 +1070,13 @@ describe("GRO-17 · the refused-call rule's text", () => {
   });
 
   it("nothing in a checkout moves while a command that rewrites it awaits its answer", () => {
-    expect(flat(workerNever())).toContain(
+    expect(flat(workerRefused())).toContain(
       "While a command that rewrites the branch or the worktree, such as a reset or a rebase, awaits its answer, nothing in that checkout is independent: change nothing there, and commit nothing.",
     );
   });
 
   it("the worker's refused line names the directory first, then the exact command or call", () => {
-    expect(flat(workerNever())).toContain(
+    expect(flat(workerRefused())).toContain(
       "The line names the directory you ran it in, which after a move says which of your two checkouts, and the exact command or call.",
     );
     expect(workerTalking()).toContain(
@@ -1099,44 +1100,44 @@ describe("GRO-17 · the refused-call rule's text", () => {
     "Pass the answer back as what they did: they ran it, and the worker reads its branch's head again before it goes on; they allowed it, and the worker runs it once, as it was; they approved the clone, and the worker moves as its skill says; or they declined, and the worker hands back blocked unless you rule another way.";
 
   it("the worker is offered a clone only where a fresh clone removes the need for the command", () => {
-    const never = flat(workerNever());
-    expect(never).toContain(
+    const refused = flat(workerRefused());
+    expect(refused).toContain(
       "Your lead brings the maintainer one choice: they run it, or they allow it.",
     );
-    expect(never).toContain(
+    expect(refused).toContain(
       "Only where a fresh clone removes the need for the command does the choice become that they run it, or you redo the work in a fresh clone of your own.",
     );
-    expect(never).toContain(`${WORKER_CLONE_CASE} ${NOT_FETCH_OR_PUSH}`);
+    expect(refused).toContain(`${WORKER_CLONE_CASE} ${NOT_FETCH_OR_PUSH}`);
   });
 
   it("the worker reads the head again after the maintainer ran a command, and runs an allowed one once", () => {
-    expect(flat(workerNever())).toContain(
+    expect(flat(workerRefused())).toContain(
       "Where they ran it, read the branch's head again before you go on; where they allowed it, run it once, as it was.",
     );
   });
 
   it("a worker whose command the maintainer declined hands back blocked, unless its lead rules another way", () => {
-    expect(flat(workerNever())).toContain(
+    expect(flat(workerRefused())).toContain(
       "where they allowed it, run it once, as it was. Where they declined, hand back blocked, unless your lead rules another way.",
     );
   });
 
   it("a command is a new command when the worker runs it again only once the maintainer ran or allowed it", () => {
-    const never = flat(workerNever());
-    expect(never).toContain(
+    const refused = flat(workerRefused());
+    expect(refused).toContain(
       "Once they have run or allowed a command, running it again at a later step is a new command: if it is refused again, report it again, and never retry it.",
     );
-    expect(never).not.toContain(". Running it again at a later step");
+    expect(refused).not.toContain(". Running it again at a later step");
   });
 
-  it("the worker takes the clone only on the maintainer's OK, bound by every Never rule, this one included", () => {
-    expect(flat(workerNever())).toContain(
-      "Take the clone only on that OK: first commit on the worktree's branch whatever is uncommitted there, then bring into the clone only the unpushed commits the redo keeps, keep to every rule in this list, this one included, work on the branch in that clone from then on, and tell your lead with a `STATUS: moved` line.",
+  it("the worker takes the clone only on the maintainer's OK, bound by every Never rule, the one on refused calls included", () => {
+    expect(flat(workerRefused())).toContain(
+      "Take the clone only on that OK: first commit on the worktree's branch whatever is uncommitted there, then bring into the clone only the unpushed commits the redo keeps, keep to every rule under Never, the one on refused calls included, work on the branch in that clone from then on, and tell your lead with a `STATUS: moved` line.",
     );
   });
 
   it("a moved worker's session files stay in the worktree, and setup and the restart run from there", () => {
-    expect(flat(workerNever())).toContain(
+    expect(flat(workerRefused())).toContain(
       "Your session's own files, its bindings, its handoff and any restart marker, stay in the worktree, where your lead looks for them: run setup and the restart with the worktree as the working directory, reached by its full path, never from the clone, since both write those files under the directory they run in.",
     );
   });
@@ -1267,6 +1268,146 @@ describe("GRO-17 · the refused-call rule's text", () => {
   it("the lead keeps a moved worker's branch in its clone and its session files in the worktree", () => {
     expect(leadMessages()).toContain(
       "- **A worker's `STATUS: moved`:** its branch lives in the clone the line names from then on, while its session's own files, its restart marker among them, stay in the worktree you made.",
+    );
+  });
+});
+
+/**
+ * GRO-33 — a call is refused when a guard stopped it, rather than the call
+ * running and failing by itself. story-worker's "A refused call" says which
+ * guards count, holds the procedure its Never bullet points to, and gives one
+ * ladder of routes for a line whose send was refused; the setup skill's
+ * harness notes hold what each harness was seen to show.
+ */
+describe("GRO-33 · what counts as a refused call, and where its line goes", () => {
+  const NOTES = join(SKILLS_TREE, "supervision-setup", "references", "harness-notes.md");
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+  const workerRefused = () => section(read(WORKER), "A refused call");
+  const workerNever = () => flat(section(read(WORKER), "Never"));
+  const workerSetup = () => flat(section(read(WORKER), "1. Setup"));
+  const workerTalking = () =>
+    flat(section(read(WORKER), "Talking to your lead, and to the maintainer"));
+  const leadMessages = () => flat(section(read(LEAD), "5. Messages"));
+  const notesRefused = () => flat(section(read(NOTES), "A refused call"));
+
+  it("story-worker has a section on a refused call, after talking to its lead and before its bindings", () => {
+    const text = read(WORKER);
+    const talking = text.indexOf("\n## Talking to your lead, and to the maintainer\n");
+    const refused = text.indexOf("\n## A refused call\n");
+    const bindings = text.indexOf("\n## Bindings mid-story\n");
+    expect(talking).toBeGreaterThan(-1);
+    expect(refused).toBeGreaterThan(talking);
+    expect(bindings).toBeGreaterThan(refused);
+  });
+
+  it("story-worker's section on a refused call names no harness, path, version or tracker", () => {
+    expect(workerRefused()).not.toBe("");
+    expect(textProblems(workerRefused())).toEqual([]);
+  });
+
+  it("a refusal is defined by who stopped the call: any of four guards", () => {
+    const refused = flat(workerRefused());
+    expect(refused).toContain(
+      "**What counts as refused.** A call is refused when a guard stopped it, rather than the call running and failing by itself, and what comes back is the guard's answer, not the call's result.",
+    );
+    expect(refused).toContain(
+      "The guard is the harness's check on what a session may run, whether it decides alone or puts a prompt to the maintainer, who declines it; a hook that blocks the call; a check built into the harness, such as one on a removal; or the sandbox.",
+    );
+    expect(refused).toContain(
+      "A sandbox denial is the one that comes back inside a command's own output, as the system's \"not permitted\" error.",
+    );
+    expect(refused).toContain(
+      "\"Your harness's permission check\" in this skill means any of these.",
+    );
+  });
+
+  it("a failure is not a refusal, and a worker that cannot tell which it has treats it as refused", () => {
+    expect(flat(workerRefused())).toContain(
+      "A non-zero exit, a command not found or a remote's own rejection is a failure, not a refusal; when you cannot tell which you have, treat it as refused.",
+    );
+  });
+
+  it("one sandbox denial is not a refusal: a run that declares what the command needs, and no more", () => {
+    expect(flat(workerRefused())).toContain(
+      "One sandbox denial is not a refusal: where your harness documents a way to declare what a command needs, such as a host it must reach, run it once with that declared. That is a declared need, not a way round the guard, and a denial of that run is a refusal.",
+    );
+  });
+
+  it("another way the guard's own answer offers is not an OK, and the offer goes in the line", () => {
+    expect(flat(workerRefused())).toContain(
+      "Where the guard's answer itself offers another way to the same end, other than the declared-need run above, that is not an OK: Never's rule holds, and the offer goes in your line.",
+    );
+  });
+
+  it("a line whose send was refused goes by one ladder of four routes, in order", () => {
+    const refused = flat(workerRefused());
+    const routes = [
+      "1. your lead, through the performer bound to `hand-back`, or, before setup completes, over the channel your launch came from, since nothing is bound yet;",
+      "2. a note on the story's work item, through the performer bound to `post-work-note`, once setup has bound it;",
+      "3. the maintainer directly, as a worker with no lead does: one question, through the question tool where your harness has one;",
+      "4. your own reply: write the lines there, where whoever opens your session reads them, and end your turn, changing nothing more until an answer comes.",
+    ];
+    expect(refused).toContain(
+      "**When the line cannot be sent.** A refused send is a refused call too, and its line still has to arrive. Send each line by the first of these routes that is open, never twice by the same one, and with it a `STATUS: refused` line for each send that was refused:",
+    );
+    expect(refused).toContain(routes.join(" "));
+    expect(refused).toContain(
+      "With no lead, routes 1 and 3 are one. Once a route higher up opens again, tell your lead in one line what went round them and what the maintainer answered.",
+    );
+  });
+
+  it("the section points at the harness notes for each harness's wording, and the notes have that section", () => {
+    expect(flat(workerRefused())).toContain(
+      "The wording each harness gives is in supervision-setup's harness notes, under \"A refused call\".",
+    );
+    expect(notesRefused()).not.toBe("");
+  });
+
+  it("the harness notes name all five kinds of guard, mark what was not seen, and say story-worker's rule is the stricter one", () => {
+    const notes = notesRefused();
+    for (const kind of [
+      "- **The harness's check, deciding alone.**",
+      "- **A prompt the maintainer declined.**",
+      "- **A hook's block.**",
+      "- **A check built into the harness**",
+      "- **A sandbox denial.**",
+    ]) {
+      expect(notes).toContain(kind);
+    }
+    expect(notes).toContain("- **A hook's block.** **Unknown** on both.");
+    expect(notes).toContain(
+      "story-worker's rule is the stricter one: it allows no other route to the same end.",
+    );
+    expect(notes).toContain(
+      "Here too story-worker's rule is the stricter one: a rewrite the check suggests is still another way to the same end.",
+    );
+  });
+
+  it("the Never bullet keeps the rule and points at the section, which holds the procedure", () => {
+    const never = workerNever();
+    expect(never).toContain(
+      "\"A refused call\" says what counts as refused, what the line carries, what each answer means, when a fresh clone is offered and where the line goes when it cannot be sent.",
+    );
+    expect(never).not.toContain("Your lead brings the maintainer one choice");
+    expect(never).not.toContain("Take the clone only on that OK");
+  });
+
+  it("a call refused before setup completes is not a setup stop, and its line goes back over the launch's channel", () => {
+    expect(workerSetup()).toContain(
+      "A call refused before setup completes is not a setup stop. Its line goes back over that same channel, as a `STATUS: refused` line, and you start no story work while it is open (see \"A refused call\").",
+    );
+    const talking = workerTalking();
+    expect(talking).toContain(
+      "Every message to your lead goes through the performer bound to `hand-back`, the only exceptions being a setup stop and a call refused before setup completes, when nothing is bound yet.",
+    );
+    expect(talking).toContain(
+      "Where that post is refused as well, go on as \"A refused call\" says, which is the one other case where you go to the maintainer directly.",
+    );
+  });
+
+  it("the lead asks the maintainer how a story is taken up when its worker ended before the answer", () => {
+    expect(leadMessages()).toContain(
+      "Where the worker's session has ended before the answer comes, no one is left to take it: tell the maintainer so, and ask how the story is taken up.",
     );
   });
 });
