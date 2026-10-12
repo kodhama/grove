@@ -1200,7 +1200,7 @@ describe("GRO-21 · the Capture line's text", () => {
       "read both yourself, in the receipt and in the pull request's body as it stands now, since the receipt check reads the file it was given, never the pull request or the receipt.",
     );
     expect(lead).toContain(
-      "A hand-back missing either line in either place goes back to the worker, and so does one whose pasted check shows a body line as anything but `found`.",
+      "A hand-back missing either line in either place, or with a line whose value differs between the two, goes back to the worker, and so does one whose pasted check shows a body line as anything but `found`.",
     );
     // No dead end: a check that could not run sends nothing back on its own.
     expect(lead).toContain(

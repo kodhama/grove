@@ -324,6 +324,8 @@ check says the body was not checked, goes back to the worker.
 - **Test scenarios:** U1's lead scenario, and the existing "project-lead's SKILL.md names no harness, path, version or tracker".
 - **Verification:** both pass.
 
+**As shipped (2026-10-12):** the clause above is not the one in the skill. After the full reviews the lead reads both lines itself, in the receipt and in the pull request's body as it stands; a hand-back goes back when either line is missing in either place, when a line's value differs between the two, or when the pasted check shows a body line as anything but `found`. A check that says the body was not checked, or that could not run, no longer sends the hand-back back on its own: the lead's own reading of the body decides there. The risk row and the open question below that assume the earlier clause are superseded by this note.
+
 ### U5. README and grove's own instructions
 
 - **Goal:** a consuming repo knows the body's two lines exist, and grove's own contributors know how to save a body here.
