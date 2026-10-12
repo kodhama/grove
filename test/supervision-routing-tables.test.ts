@@ -1556,12 +1556,14 @@ describe("GRO-31 · a hand-back that comes back", () => {
       "The receipt stays the story's one page, so carry over from the earlier receipt each field you did not observe yourself, and say that it comes from that receipt, with its link.",
       "Where the check then carries no use from it, say so under the pasted output: the earlier receipt's check is the evidence for those operations.",
     ]);
-    // Only a `used` line carries, so the earlier Not run list is passed again, said right after the file is.
+    // Only a `used` line at the start of its line carries, so the file's layout and the earlier Not run list are said right after the file is.
     const passTheFile =
-      "And your receipt check cannot read the earlier worker's transcripts, so give it that worker's result: save the check output the earlier receipt holds, unchanged and line for line, to a file beside your bindings file under a `## Receipt check` heading, as a handoff carries it, and pass that file as `--handoff`.";
+      "And your receipt check cannot read the earlier worker's transcripts, so give it that worker's result: save the check output the earlier receipt holds to a file beside your bindings file under a `## Receipt check` heading, as a handoff carries it, and pass that file as `--handoff`.";
+    const fromTheStart =
+      "Save each line as the check printed it, from the start of its line: one the note indented, bulleted or quoted is not read.";
     const passNotRun =
       "Only the operations that output shows used carry, so pass the earlier receipt's Not run list as `--not-run` again.";
-    expect(text).toContain(`${passTheFile} ${passNotRun}`);
+    expect(text).toContain(`${passTheFile} ${fromTheStart} ${passNotRun}`);
   });
 
   it("the section names no harness, path, version or tracker", () => {
@@ -1611,8 +1613,9 @@ describe("GRO-31 · a hand-back that comes back", () => {
   it("the heading the section quotes is the restart skill's, and the one the check reads", () => {
     const heading = "## Receipt check";
     expect(read(join(SKILLS_TREE, "session-restart", "SKILL.md")).split("\n")).toContain(heading);
-    expect(read(join(SKILLS_TREE, "supervision-setup", "scripts", "handoff-receipt.mjs"))).toContain(
-      heading,
-    );
+    // The constant the check matches a heading against, not the comment that mentions it.
+    expect(
+      read(join(SKILLS_TREE, "supervision-setup", "scripts", "handoff-receipt.mjs")).split("\n"),
+    ).toContain(`const HANDOFF_SECTION = "${heading}";`);
   });
 });
