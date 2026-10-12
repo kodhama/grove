@@ -188,9 +188,10 @@ unknown condition: -z` from a `zsh -c`, the form Codex shows (both zsh 5.9,
 2026-10-12).
 Other tests are worded the same: `[[ -n ]]`, `[[ -zz a ]]` and
 `[[ a -foo b ]]` print `unknown condition: -n`, `-zz` and `-foo`. The
-commands before it ran. The ones after it in the same list never do, whether a `;`,
-an `&&`, an `||` or an `if` joins them, and that is why the call reads as not
-run: it loses the credit its earlier commands earned, the safe direction.
+commands before it ran. At the top level the ones after it never do, on its
+line whether a `;`, an `&&`, an `||` or an `if` joins them, or on a later
+line of the call, and that is why the call reads as not run: it loses the
+credit its earlier commands earned, the safe direction.
 Inside a subshell, a `$(...)`, a background job or a pipeline's stage before
 the last, the error stops only that part and the call carries on. Its result
 still holds the line, so it loses its credit too where the result is flagged
@@ -250,17 +251,21 @@ with the body `more words`, exits 0, prints nothing and runs no command (zsh
 5.9, 2026-10-12). Nothing in the result says so, so the receipt check reads
 it from the line: it credits none of the words before the `()`, and reads
 the body as it reads any function's, called or not. A `$(...)` among those
-words still runs, and is credited. The `name=()` after `declare`, `export`,
-`local`, `readonly` or `typeset` is an array and no definition, and is read
-as before: `local arr=() gh` declares `arr` and a variable `gh`, and runs no
-`gh`. `float` and `integer` refuse the array (`arr: inconsistent type for
-assignment`, exit 1) and define nothing either, so theirs is read the same
-way; the refusal stops the rest of their list, whose commands keep a credit
-they did not earn, as `gh` does in `float arr=(); gh pr view 1`, the unsafe
-direction (zsh 5.9, 2026-10-12). Bash rejects a line
-that defines functions so with a `syntax error`, which the check reads as
-not run. Five neighbours the check does not read as zsh does (zsh 5.9,
-2026-10-12):
+words still runs, and is credited. A `name=()` past a command's first word
+is one of two things to zsh. After `declare`, `export`, `local`, `readonly`
+or `typeset` it is an array: `local arr=() gh` declares `arr` and a variable
+`gh`. After anything else it is one more definition: `touch e13 a=() b`
+defines `touch`, `e13` and `a=`. Neither runs the command's first word or
+the word after the `()`, and the check does not always know which word
+comes first, so it reads both the same: it drops the command's words and
+reads nothing more up to the next separator. `float` and `integer` refuse
+the array (`arr: inconsistent type for assignment`, exit 1) and define
+nothing either; the refusal stops the rest of the call, its later lines
+too, whose commands keep a credit they did not earn, as `gh` does in `float
+arr=(); gh pr view 1`, the unsafe direction (zsh 5.9, 2026-10-12). Bash
+rejects a line that defines functions so with a `syntax error`, which the
+check reads as not run. Eight neighbours the check does not read as zsh
+does (zsh 5.9, 2026-10-12):
 
 - **Unsafe: a name the line defines shadows the CLI for the rest of the
   call.** After `touch x() true; touch e2` the second `touch` is the
@@ -278,6 +283,13 @@ not run. Five neighbours the check does not read as zsh does (zsh 5.9,
   function's body whether or not anything calls it.
 - **Safe: an anonymous function.** `() { cmd }` and `() cmd` run `cmd`, and
   the check credits nothing.
+- **Safe: a declaration word is not counted.** `local arr=(); gh pr view 1`
+  reads `gh` alone, though `local` ran.
+- **Safe: a definition by `name=()` has no body read.** `touch e13 a=() b`
+  reads nothing, where the plain `touch e13 a() b` reads `b`.
+- **Safe: a body after a `name=()` is missed when another of the line's
+  names calls it.** `x a=() { touch p4 }; x` defines `a=` and `x`, then runs
+  `touch` through `x`, and the check reads `x` alone.
 - **Both directions: `function a b { … }`.** zsh defines both names and runs
   nothing; the check counts `b` as a command, and misses the body's commands
   when `b` is called.
@@ -405,7 +417,7 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
 - **A line that only defines functions** reads as on Claude Code: zsh takes
   every word before an unquoted `()` as one more function name, so `gh pr
   view 12 name() more words` exits 0, prints nothing and runs no command,
-  and the check credits none of the words before the `()`. The same five
+  and the check credits none of the words before the `()`. The same eight
   neighbours apply (read from `zsh -c` on zsh 5.9, 2026-10-12, not from a
   Codex rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
