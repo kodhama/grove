@@ -531,9 +531,11 @@ describe("GRO-30 · a performer is given the story's checkout", () => {
     const whole = section(read(WORKER), "5. Review");
     const review = flat(whole);
     expect(review).toContain(
-      "- **Check what it read.** In the request that starts a reviewer that reads a repository, ask it to quote the command that gave it the diff, the commit it was on, and the files that diff changes. Compare them with the commit you started the review on and the files your own diff lists when run in the story's checkout. If they differ, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path on to each, and to report the same for each. A second miss goes to your lead as a `DECISION`, and the rest of the story goes on.",
+      "- **Check what it read.** In the request that starts a reviewer that reads a repository, ask it to quote, from its own commands, the command that gave it the diff and that command's output: the commit it was on and the files the diff changes. Compare the range in its command, that commit and those files with your own diff's, run in the story's checkout from the commit you started the review on. If any differs, or it reports none of them, it read something else: discard its findings and run it again, giving it the range to read. Tell a performer that starts reviewers of its own to pass the checkout's full path on to each, and to report the same for each; a reviewer it does not report for is a miss. A second miss goes to your lead as a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
     );
     expect(review).not.toContain("print the top level and the head");
+    // A second miss never lets the story run on to a pull request unreviewed.
+    expect(review).not.toContain("the rest of the story goes on");
     // The rule is a bullet of its own, at the start of a line, not nested under another.
     expect(whole).toContain("\n- **Check what it read.**");
     // It sits with the other rules for pointing a reviewer, after the one that gives it the checkout.
