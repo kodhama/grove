@@ -510,7 +510,8 @@ for each send that was refused:
 3. the maintainer directly, as a worker with no lead does: one question,
    through the question tool where your harness has one;
 4. your own reply: write the lines there, where whoever opens your session
-   reads them, and end your turn, changing nothing more until an answer comes.
+   reads them, and end your turn, even with independent work left, changing
+   nothing more until an answer comes.
 
 With no lead, routes 1 and 3 are one. Once a route higher up opens again, tell
 your lead in one line what went round them and what the maintainer answered.

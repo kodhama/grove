@@ -670,3 +670,29 @@ Four rulings after the build, applied by the worker, tests first. Where this sec
   ```
 
 U1's scenarios pin each changed sentence whole.
+
+---
+
+## After the review (2026-10-12)
+
+One full review read the branch at `9de1ba1` from a fresh context. The worker checked each finding against the source. Where this section and the text above differ, this section is what ships.
+
+Corrections the worker made, tests first:
+
+- **The notes' two senses of "refused" differ; neither holds the other.** "Narrower than the receipt check's" was wrong: a sandbox denial is a command that ran, and the receipt check counts a command that ran as a use. The sentence becomes:
+
+  ```text
+  That "refused" is not the receipt check's, in "A call that did not run" above:
+  there it is any call that did not run, one the harness rejected as malformed
+  included; here it is a call a guard stopped, which can be a command that ran,
+  as a sandbox denial on Claude Code is, and the check then counts it as a use.
+  ```
+
+- **The `allowed_domains` claim says how it is known.** Its source is one recorded call and the error in its result, a test fixture with no date or version of its own, in the repository since 2026-10-07. "(seen in a transcript; the version and date were not recorded)" becomes "(**reported, not re-observed**: one recorded call and the error in its result, recorded no later than 2026-10-07; the version was not recorded)", the label the notes already use.
+- **Route 4 says it is the exception.** It gains "even with independent work left", so it no longer reads against "end your turn only when nothing independent is left". OD3 chose the stop.
+- **Two tests assert what their titles say.** The portability test on story-worker's section now fails on a harness's name and on any code span beyond the section's four. The notes test now pins every **unknown** mark in the section, and the sentence that leaves the re-runs to story-worker. Each new assertion was checked by a mutation that it fails on.
+
+Left as they are, and named in the pull request:
+
+- A sandbox denial and a plain failure can show the same signs, a network error among them. The risk table accepts the cost, one message.
+- Route 4 ends where no lead reads, as "Deferred to Follow-Up Work" says.

@@ -502,11 +502,13 @@ not recorded).
 
 What a session sees when a guard stops a call, by kind of guard.
 story-worker's "A refused call" says which of these count as refused. That
-"refused" is narrower than the receipt check's, in "A call that did not run"
-above: there it is any call that did not run, one the harness rejected as
-malformed included, and here it is a call a guard stopped. Only what was
-observed is described; the rest is **unknown**, so when one of them happens to
-you, add what came back, word for word, with the version and date.
+"refused" is not the receipt check's, in "A call that did not run" above:
+there it is any call that did not run, one the harness rejected as malformed
+included; here it is a call a guard stopped, which can be a command that ran,
+as a sandbox denial on Claude Code is, and the check then counts it as a use.
+Only what was observed is described; the rest is **unknown**, so when one of
+them happens to you, add what came back, word for word, with the version and
+date.
 
 - **The harness's check, deciding alone.** Claude Code, in auto mode: the
   call's result has `is_error` set to true (see "A call that did not run"),
@@ -540,8 +542,9 @@ you, add what came back, word for word, with the version and date.
 - **A sandbox denial.** Claude Code: the command runs, and the system answers
   `Operation not permitted`, as `sandbox-exec` did with exit 71 (observed on
   2.1.288, 2026-10-03). Its Bash tool takes `allowed_domains`, a list of
-  hosts, which applies only to a command that runs in the sandbox (seen in a
-  transcript; the version and date were not recorded). Where the sandbox is
+  hosts, which applies only to a command that runs in the sandbox (**reported,
+  not re-observed**: one recorded call and the error in its result, recorded
+  no later than 2026-10-07; the version was not recorded). Where the sandbox is
   on, the session's own prompt says the rest. It is quoted here by another
   session on this machine, a lead's, with the sandbox on (2.1.296,
   2026-10-12); the session that wrote this note had no sandbox text in its
