@@ -460,3 +460,20 @@ The lead ruled on both open decisions. Where this section and the plan above dif
 - **Version: `0.2.13`, not `0.2.12`.** Another pull request takes `0.2.12` first. U4 runs after `main` is merged in.
 - **Review:** one full review from a fresh context, aimed at the clone by its full path, each reviewer quoting its top level and head. No floor pass, by the lead's economy ruling.
 - **Residuals** go in the pull request's Limits. Nothing new is filed from them yet.
+
+---
+
+## After the review (2026-10-12)
+
+The full review of `4ba6017` returned "Ready with fixes", with nothing at its two highest severities. The worker's fix pass changed one sentence of U2 and added tests. Where this section and the text above differ, this section is what ships.
+
+- **The save instruction no longer says "unchanged and line for line".** The check reads a saved line only from the start of its line, and the receipt's template sets the pasted output after a label, so a faithful copy of an indented, bulleted or quoted paste carried nothing. In U2's paragraph "Where the worker that handed back has ended", the sentence now ends "save the check output the earlier receipt holds to a file beside your bindings file under a `## Receipt check` heading, as a handoff carries it, and pass that file as `--handoff`.", and this one follows it, before the `--not-run` sentence:
+
+  ```text
+  Save each line as the check printed it, from the start of its line: one
+  the note indented, bulleted or quoted is not read.
+  ```
+
+  U1's scenario 7 pins the three sentences in that order.
+- **Tests added for what those sentences rest on.** The receipt check's own tests now run a new worker's check with `--handoff` and `--not-run` together (exit 0 with both, exit 1 without the flag), and with the saved lines indented, bulleted and quoted (nothing carries).
+- **The heading test reads the constant.** It matched the heading anywhere in the reader's file, so a comment satisfied it; it now matches the line that defines the constant.

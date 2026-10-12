@@ -458,12 +458,14 @@ receipt stays the story's one page, so carry over from the earlier receipt
 each field you did not observe yourself, and say that it comes from that
 receipt, with its link. And your receipt check cannot read the earlier
 worker's transcripts, so give it that worker's result: save the check output
-the earlier receipt holds, unchanged and line for line, to a file beside your
-bindings file under a `## Receipt check` heading, as a handoff carries it, and
-pass that file as `--handoff`. Only the operations that output shows used
-carry, so pass the earlier receipt's Not run list as `--not-run` again. Where
-the check then carries no use from it, say so under the pasted output: the
-earlier receipt's check is the evidence for those operations.
+the earlier receipt holds to a file beside your bindings file under a
+`## Receipt check` heading, as a handoff carries it, and pass that file as
+`--handoff`. Save each line as the check printed it, from the start of its
+line: one the note indented, bulleted or quoted is not read. Only the
+operations that output shows used carry, so pass the earlier receipt's Not run
+list as `--not-run` again. Where the check then carries no use from it, say so
+under the pasted output: the earlier receipt's check is the evidence for those
+operations.
 
 ## Talking to your lead, and to the maintainer
 
