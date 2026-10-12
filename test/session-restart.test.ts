@@ -36,7 +36,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const SCRIPTS = join(__dirname, "..", "skills/session-restart/scripts");
 const HELPER = join(SCRIPTS, "restart-in-place.sh");
@@ -175,9 +175,86 @@ interface Run {
   stderr: string;
 }
 
-function runHelper(
-  opts: { maxWait?: string; focusBound?: string; reportBound?: string; herdrTimeout?: string } = {},
-): Run {
+interface HelperOpts {
+  maxWait?: string;
+  focusBound?: string;
+  reportBound?: string;
+  herdrTimeout?: string;
+  /** Replaces the budget worked out from the bounds; for the harness's own tests. */
+  budgetMs?: number;
+}
+
+/** The bounds every run of the helper gets unless a scenario sets its own, in seconds. */
+const POLL = "0.05";
+const MAX_WAIT = "1";
+const CLEAR_TIMEOUT = "0.25";
+const RESUME_TIMEOUT = "1";
+const REPORT_BOUND = "0.25";
+
+/**
+ * What a run may cost a slow machine. A poll is its 0.05s sleep plus a handful
+ * of process starts (about 0.1s to 0.2s in all on an idle machine), so a second
+ * a poll leaves a loaded one several times that.
+ */
+const POLL_ALLOWANCE_MS = 1000;
+const STARTUP_ALLOWANCE_MS = 5000;
+/** The most herdr calls one poll makes: two reads of the pane, two of its input line. */
+const HERDR_CALLS_PER_POLL = 4;
+/** Three refresh prompts and the resume prompt, each of which may wait --resume-timeout. */
+const SENDS = 4;
+
+/**
+ * Vitest cannot interrupt a run of the helper, only fail the test once the
+ * run is over, so its timeout has to hold every run a test makes. This holds
+ * the longest run any scenario asks for, or two ordinary ones;
+ * `runHelper` refuses a run that would not fit.
+ */
+const HELPER_TEST_TIMEOUT_MS = 120_000;
+vi.setConfig({ testTimeout: HELPER_TEST_TIMEOUT_MS });
+
+/** How many polls the helper counts in a bound, as its `polls_in` does. */
+const pollsIn = (bound: string) => Math.max(1, Math.round(Number(bound) / Number(POLL)));
+
+/**
+ * How long `runHelper` lets a run take before killing it, in milliseconds.
+ * It is there to stop a helper that hangs, never to time a healthy one: the
+ * helper counts its bounds in polls, not on the clock, so a slow machine
+ * stretches a run without making it wrong. The budget is therefore every poll
+ * the bounds allow (the wait before the clear, the wait after it, the clear's
+ * own and the report retries) at a generous allowance each, plus the sends
+ * and the startup.
+ */
+function helperBudgetMs(opts: HelperOpts = {}): number {
+  const polls =
+    2 * pollsIn(opts.maxWait ?? MAX_WAIT) +
+    pollsIn(CLEAR_TIMEOUT) +
+    pollsIn(opts.reportBound ?? REPORT_BOUND);
+  // A scenario that sets --herdr-timeout has herdr calls hang until it cuts
+  // them; in every other the stub answers at once.
+  const hungCallsMs = HERDR_CALLS_PER_POLL * Number(opts.herdrTimeout ?? 0) * 1000;
+  return (
+    STARTUP_ALLOWANCE_MS +
+    polls * (POLL_ALLOWANCE_MS + hungCallsMs) +
+    SENDS * Number(RESUME_TIMEOUT) * 1000
+  );
+}
+
+/** What is left of the running test's timeout for runs of the helper. */
+let budgetLeftMs = HELPER_TEST_TIMEOUT_MS;
+
+/**
+ * Runs the helper to its end. A run that is killed at its budget throws: a
+ * killed helper exits 1 through its own trap and skips its last reports, so
+ * returned as a run it would read as a helper that stopped without reporting.
+ */
+function runHelper(opts: HelperOpts = {}): Run {
+  const budgetMs = opts.budgetMs ?? helperBudgetMs(opts);
+  if (budgetMs > budgetLeftMs) {
+    throw new Error(
+      `a run of restart-in-place.sh may take ${budgetMs} ms, past this test's ${HELPER_TEST_TIMEOUT_MS} ms timeout (${budgetLeftMs} ms of it left): shorten a bound or raise HELPER_TEST_TIMEOUT_MS`,
+    );
+  }
+  budgetLeftMs -= budgetMs;
   const bounded = opts.herdrTimeout ? ["--herdr-timeout", opts.herdrTimeout] : [];
   const result = spawnSync(
     "bash",
@@ -192,23 +269,32 @@ function runHelper(
       "--herdr",
       join(dir, "herdr"),
       "--poll",
-      "0.05",
+      POLL,
       "--focus-bound",
       opts.focusBound ?? "0.2",
       "--max-wait",
-      opts.maxWait ?? "1",
+      opts.maxWait ?? MAX_WAIT,
       "--clear-timeout",
-      "0.25",
+      CLEAR_TIMEOUT,
       "--resume-timeout",
-      "1",
+      RESUME_TIMEOUT,
       "--report-bound",
-      opts.reportBound ?? "0.25",
+      opts.reportBound ?? REPORT_BOUND,
       ...bounded,
       "--",
       join(dir, "report"),
     ],
-    { encoding: "utf8", env: { ...process.env, STUB_DIR: dir }, timeout: 4000 },
+    { encoding: "utf8", env: { ...process.env, STUB_DIR: dir }, timeout: budgetMs },
   );
+  const timedOut = (result.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
+  if (timedOut || result.signal) {
+    const how = timedOut ? "timed out" : `signal ${result.signal}`;
+    const stderrTail = (result.stderr ?? "").trimEnd().split("\n").slice(-10).join("\n");
+    throw new Error(
+      `restart-in-place.sh did not finish within its ${budgetMs} ms budget and was killed (${how}, exit status ${result.status}). The end of its stderr:\n${stderrTail}`,
+    );
+  }
+  if (result.error) throw result.error;
   return collect(result.status, result.stderr);
 }
 
@@ -250,6 +336,7 @@ function expectEverySendGated(run: Run) {
 const promptTexts = (run: Run) => run.prompts.map((p) => p[3]);
 
 beforeEach(() => {
+  budgetLeftMs = HELPER_TEST_TIMEOUT_MS;
   dir = mkdtempSync(join(tmpdir(), "mq352-restart-"));
   mkdirSync(join(dir, "session"));
   handoff = join(dir, "session", "handoff.md");
@@ -267,6 +354,47 @@ afterEach(() => {
 });
 
 const now = () => Math.floor(Date.now() / 1000);
+
+describe("runHelper — the budget a run of the helper gets", () => {
+  it("allows a second for every poll the bounds let the helper make, plus its startup and its sends", () => {
+    // 1s before the clear and 1s after it at 0.05s a poll, 0.25s to confirm
+    // the clear and 0.25s of report retries: fifty polls.
+    expect(helperBudgetMs()).toBe(5000 + 50 * 1000 + 4 * 1000);
+    expect(helperBudgetMs({ maxWait: "2" })).toBe(5000 + 90 * 1000 + 4 * 1000);
+    expect(helperBudgetMs({ reportBound: "1" })).toBe(5000 + 65 * 1000 + 4 * 1000);
+  });
+
+  it("counts a bound's polls as the helper does, rounding", () => {
+    // 0.6s at 0.05s is twelve polls, so twenty-four over the two waits.
+    expect(helperBudgetMs({ maxWait: "0.6" })).toBe(5000 + (24 + 5 + 5) * 1000 + 4 * 1000);
+  });
+
+  it("allows for herdr calls that hang, when a scenario bounds them", () => {
+    // Up to four herdr calls a poll, each cut at 0.2s.
+    expect(helperBudgetMs({ maxWait: "0.3", herdrTimeout: "0.2" })).toBe(
+      5000 + (12 + 5 + 5) * (1000 + 4 * 200) + 4 * 1000,
+    );
+  });
+
+  it("fails by name when the helper is killed at its budget, instead of returning a run that reads as a missing report", () => {
+    freshTurn(now());
+    // Focused throughout: the helper sleeps through twenty polls, a second in all.
+    states(["idle true s1"]);
+    expect(() => runHelper({ budgetMs: 300 })).toThrow(
+      /restart-in-place\.sh did not finish within its 300 ms budget and was killed[\s\S]*stderr/,
+    );
+  });
+
+  it("refuses a run whose budget would take the test past its timeout, which cannot stop a run", () => {
+    freshTurn(now());
+    states(["idle false s1"]);
+    // Another helper holds the lock, so each run exits at once.
+    mkdirSync(join(dir, "session", "restart-helper.lock"));
+    expect(runHelper({ maxWait: "2" }).status).toBe(2);
+    expect(2 * helperBudgetMs({ maxWait: "2" })).toBeGreaterThan(HELPER_TEST_TIMEOUT_MS);
+    expect(() => runHelper({ maxWait: "2" })).toThrow(/past this test's .* timeout/);
+  });
+});
 
 describe("restart-in-place.sh — the clear and the resume", () => {
   it("with the pane idle and unfocused, sends a bare /clear without --wait, then the resume prompt with --wait", () => {
@@ -493,9 +621,12 @@ describe("restart-in-place.sh — the clear and the resume", () => {
     transcriptLine(humanPrompt(t - 5, "a maintainer message"));
     // A valid answer that omits the session, as while a hand-typed /clear or /resume replaces it.
     states(["idle false s1", "idle false "]);
-    const run = runHelper();
+    // Every poll here reads the same answer, so six show what twenty would.
+    const run = runHelper({ maxWait: "0.3" });
     expect(run.status).not.toBe(0);
     expect(run.prompts).toEqual([]);
+    expect(run.reports).toHaveLength(1);
+    expect(run.reports[0]).toMatch(/gave up/i);
   });
 
   it("when the pane cannot be read after the resume prompt, reports the resume as unconfirmed instead of counting it a success", () => {
@@ -570,12 +701,18 @@ describe("restart-in-place.sh — waiting for a ready, unfocused pane", () => {
   it("bounds a herdr call that hangs, and still gives up within its bounds", () => {
     freshTurn(now());
     states(["idle false s1"]);
-    stubFile("get-sleep", "10\n");
-    const started = Date.now();
-    const run = runHelper({ maxWait: "0.3", herdrTimeout: "0.2" });
-    expect(Date.now() - started).toBeLessThan(3000);
+    const opts = { maxWait: "0.3", herdrTimeout: "0.2" };
+    // Every read of the pane hangs for longer than the whole run may take. So
+    // a run that ends at all had each read cut short: one left to finish
+    // would take the run past its budget, and runHelper would fail it by
+    // name. The ceiling is the stub's own sleep, not a guess at this
+    // machine's speed.
+    stubFile("get-sleep", `${Math.ceil(helperBudgetMs(opts) / 1000) + 1}\n`);
+    const run = runHelper(opts);
     expect(run.status).toBe(1);
     expect(run.prompts).toEqual([]);
+    // 0.3s is six polls, one hung read each; then it gives up.
+    expect(run.calls.filter((c) => c[1] === "get")).toHaveLength(6);
     expect(run.reports[0]).toMatch(/gave up/i);
   });
 
