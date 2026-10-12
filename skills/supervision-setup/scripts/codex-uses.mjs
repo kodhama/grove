@@ -71,7 +71,7 @@ import { basename, dirname, join } from "node:path";
 import { SHELL_COULD_NOT_RUN, SHELL_OWN_ERROR, shellUses } from "./shell-uses.mjs";
 
 /** zsh's own error as the first thing a command's output holds. */
-const SHELL_ERROR_FIRST = new RegExp(SHELL_OWN_ERROR.codex.source);
+const OWN_ERROR_FIRST = new RegExp(SHELL_OWN_ERROR.codex.source);
 /** The tool that starts a child thread; a `started` activity, not its output, shows it ran. */
 const SPAWN = "collaboration.spawn_agent";
 /** A call record's type, as against its output record (`function_call_output`). */
@@ -102,8 +102,8 @@ function commandOutput(item) {
 }
 
 /** Whether a command's output starts with zsh's own error. */
-function startsWithShellError(item) {
-  return SHELL_ERROR_FIRST.test(commandOutput(item));
+function startsWithOwnError(item) {
+  return OWN_ERROR_FIRST.test(commandOutput(item));
 }
 
 /**
@@ -114,7 +114,7 @@ function startsWithShellError(item) {
  * output and any other status read `failed`.
  */
 function commandUses(item) {
-  const outcome = item.status === "completed" && !startsWithShellError(item) ? "ran" : "failed";
+  const outcome = item.status === "completed" && !startsWithOwnError(item) ? "ran" : "failed";
   const reads = (Array.isArray(item.parsed_cmd) ? item.parsed_cmd : [])
     .filter((part) => part?.type === "read" && /\/SKILL\.md$/.test(part.path ?? ""))
     .map((part) => ({ kind: "skill", name: basename(dirname(part.path)), outcome }));
@@ -153,7 +153,7 @@ function itemUses(item) {
  */
 function itemOutcome(item) {
   const command = item.type === "CommandExecution";
-  if (item.status === "completed") return command && startsWithShellError(item) ? "failed" : "ran";
+  if (item.status === "completed") return command && startsWithOwnError(item) ? "failed" : "ran";
   const exit = command && item.status === "failed" ? item.exit_code : null;
   const output = commandOutput(item);
   const ran =

@@ -88,7 +88,7 @@ import { codexChildren, codexUses, ROLLOUT_NAME, timeOf } from "./codex-uses.mjs
 import { SHELL_COULD_NOT_RUN, SHELL_OWN_ERROR, shellUses } from "./shell-uses.mjs";
 
 /** The shell's own error as the first thing a `Bash` result holds. */
-const SHELL_ERROR_FIRST = new RegExp(SHELL_OWN_ERROR.claude.source);
+const OWN_ERROR_FIRST = new RegExp(SHELL_OWN_ERROR.claude.source);
 /** The type the Agent tool starts when a call names none. */
 const DEFAULT_AGENT = "general-purpose";
 /**
@@ -245,7 +245,7 @@ function claudeOutcome(call, result) {
   // off, and grep keeps a credit it did not earn. A call run in the
   // background keeps one too: its result is the notice that it started,
   // whatever the shell then made of its line.
-  if (result.is_error !== true) return SHELL_ERROR_FIRST.test(text) ? "failed" : "ran";
+  if (result.is_error !== true) return OWN_ERROR_FIRST.test(text) ? "failed" : "ran";
   const exit = EXIT_CODE.exec(text);
   const ran =
     exit && !SHELL_COULD_NOT_RUN.has(Number(exit[1])) && !SHELL_OWN_ERROR.claude.test(text);
