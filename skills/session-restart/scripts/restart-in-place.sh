@@ -223,15 +223,20 @@ handoff_is_fresh() {
 # --- waiting ---------------------------------------------------------------
 
 polls=0 held_seen=0 held_last="" held_reported=""
+# When the wait these polls count began, on bash's own clock (whole seconds).
+# A bound is spent in polls, so a give-up report takes the time really waited
+# from here and names the bound beside it.
+waiting_since=$SECONDS
 
 # One poll of the overall wait; stops the helper once the bound is spent.
 tick() {
   polls=$((polls + 1))
   if [ "$polls" -ge "$max_polls" ]; then
+    local waited=$((SECONDS - waiting_since))
     if [ "$cleared" = 1 ]; then
-      report "the session was cleared, but the pane was not ready for the resume prompt within ${max_wait}s (last seen: status $status, focused $focused), so it was not resumed. Resume with the session-restart skill from the handoff at $handoff."
+      report "the session was cleared, but the pane was not ready for the resume prompt after ${waited}s (bound ${max_wait}s, counted in polls; last seen: status $status, focused $focused), so it was not resumed. Resume with the session-restart skill from the handoff at $handoff."
     else
-      report "gave up after ${max_wait}s waiting for the pane to be ready (last seen: status $status, focused $focused). Nothing was typed after that; the session keeps its restart-pending marker."
+      report "gave up after ${waited}s waiting for the pane to be ready (bound ${max_wait}s, counted in polls; last seen: status $status, focused $focused). Nothing was typed after that; the session keeps its restart-pending marker."
     fi
     stop
   fi
@@ -367,7 +372,7 @@ if predates_clear; then
   stop
 fi
 log "cleared: session $old_session -> $session"
-cleared=1 expected="$session" polls=0 held_seen=0 held_last="" held_reported=""
+cleared=1 expected="$session" polls=0 waiting_since=$SECONDS held_seen=0 held_last="" held_reported=""
 
 while :; do
   wait_ready_unfocused
