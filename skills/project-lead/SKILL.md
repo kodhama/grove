@@ -157,7 +157,8 @@ has merged. For each ready story:
    which lead it belongs to on every list the maintainer reads.
 3. **Make its worktree:** one per story, on the branch name the repo's
    instructions give, from the current base at a full commit SHA. The worker
-   works only there.
+   works only there, unless the maintainer approves its move to a fresh clone
+   after a refused command.
 4. **Post its assignment** on the story's work item through the performer
    bound to `post-work-note`. Include only what is true of this story: the
    worktree, the branch and base SHA, your name and how to reach you, the
@@ -214,6 +215,26 @@ report lists every pane it skipped and why.
   it, and cite the source. Otherwise put it to the maintainer (step 8). Record
   each ruling once, on the work item of the story that needs it, and tell every
   live worker the ruling affects.
+- **A worker's `STATUS: refused`:** the line reads
+  `refused in <directory>: <exact command or call>`, the directory being
+  where the worker ran it, so a moved worker's line says which of its two
+  checkouts. Bring the maintainer one choice: they run it there, or they
+  allow it. Only where a fresh clone removes the need for the command does
+  the choice become that they run it, or the worker redoes the work in a
+  fresh clone of its own. A command that rewrites the branch or the worktree,
+  such as a reset or a rebase, is such a case. A refused fetch or push is
+  not: the clone needs the same push, and cloning is the same fetch. Pass the
+  answer back as what they did: they ran it, and the worker reads its branch's
+  head again before it goes on; they allowed it, and the worker runs it once,
+  as it was; they approved the clone, and the worker moves as its skill says;
+  or they declined, and the worker hands back blocked unless you rule another
+  way. Until the answer comes, a worker whose refused command rewrites the
+  branch or the worktree changes nothing in that checkout. A command refused
+  again, after the maintainer ran or allowed it, is a new line: bring it to
+  them again, and never tell the worker to retry it.
+- **A worker's `STATUS: moved`:** its branch lives in the clone the line names
+  from then on, while its session's own files, its restart marker among them,
+  stay in the worktree you made.
 - **A worker's `STATUS: restarting`:** send that worker nothing while its
   restart is pending. Keep what you had for it as live state, and write it
   into the handoff's live commitments when `write-handoff` runs. An in-place
@@ -247,7 +268,8 @@ report lists every pane it skipped and why.
 **At every event you handle**, read new notes on each in-flight story's work
 item and on the epic's or the run's, through the performer bound to
 `read-work-notes`. Act on any hand-back or `restart-owner: lead` handoff you
-find there.
+find there, and on any line a worker posted there because its send to you
+was refused.
 
 **Reports arrive late, out of order, or not at all.** A missing report looks
 just like a worker that is still working. A report proves only the revision
@@ -327,8 +349,10 @@ If it is not, put it to the maintainer. Never invent a missing prerequisite.
    than that head. Merge as the repo's rules say, pinned to that head so a
    later push cannot slip in. Then close the worker's session, or ask the
    maintainer to do so where your harness refuses the close. Remove its
-   worktree once the branch has merged, after checking that nothing in it is
-   uncommitted.
+   worktree, and any clone it reported moving to, once the branch has merged,
+   after checking that nothing in either is uncommitted, and that the clone
+   holds no commit its remote lacks: removing a worktree keeps its commits in
+   the shared repository, and removing a clone does not.
 
 **A `restart-owner: lead` handoff** means the worker cannot launch its own
 successor. Launch it through `start-worker` from the handoff's launch line:
@@ -404,7 +428,7 @@ skill's resume steps are done. It also carries the epic, or on a defect run
 what `references/defect-run.md` lists for its handoff, or on an intent run
 what `references/intent-run.md` lists, the approved run lines,
 and each in-flight story: its worker's name and ref, its pull request, its
-last `STATUS` and any message held for it. It carries the wake-ups armed,
+last `STATUS`, any clone it reported moving to, and any message held for it. It carries the wake-ups armed,
 the decisions awaiting the maintainer, and the rulings not yet passed on.
 
 Stop your wake-ups before the restart, as the restart skill says, and arm them

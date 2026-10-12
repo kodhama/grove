@@ -373,6 +373,8 @@ check says the body was not checked, goes back to the worker.
 
 **After the full review (2026-10-11):** the "after #14" insertion above is no longer enough. The merged paragraph must also give the body line's shape for both lines: "a line of its own with nothing before it: the label, its colon, one space, then the value, all on one line", since the receipt pads its labels to a column and `Docs:` followed by several spaces reads as malformed. A test pins that shape for `Docs:` at the merge, the forms test gains `Docs`, and the `Capture:` field keeps its `not reached` value beside the one `Docs:` has.
 
+**As merged (2026-10-12, `main` at #14's merge):** both conflicts came as the table says, and nothing else conflicted. The insertion reads "Write its `Capture:` line the same way: `captured` with the path of what the capture wrote, or `skipped:` with the reason, which is the answer the capture's test gives for this story. In the body, each of the two is a line of its own with nothing before it: the label, its colon, one space, then the value, all on one line.", and the changed clause is the one above. #14's test of the whole rerun sentence and this story's phrase test both hold the merged clause, the forms test covers `Docs` too, and a test pins the shape sentence.
+
 ### U7. Version bump
 
 - **Goal:** the change reaches installs.

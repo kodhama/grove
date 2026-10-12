@@ -135,8 +135,8 @@ lead and become its worker:
    the maintainer as `story-worker` says. Your receipt says that this session
    led the run before it carried the story. The receipt check leaves the
    lead's calls out, since it counts only from the story's Started time.
-   Your hand-back names the worktree, for the maintainer to
-   remove once the branch has merged.
+   Your hand-back names the worktree, and any clone you moved to, for the
+   maintainer to remove once the branch has merged.
 
 This is the one case where a project lead's session writes code, and only
 because the session is no longer leading anything.

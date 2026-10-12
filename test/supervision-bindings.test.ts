@@ -440,6 +440,18 @@ describe("MQ-350 · the example bindings file", () => {
     });
   });
 
+  it("binds document-change by fallback: neither the table nor the override suggests a performer (GRO-20)", () => {
+    expect(binding(example(), "document-change")).toMatchObject({
+      required: false,
+      suggested: [],
+      suggested_by: "skill",
+      how_bound: "fallback",
+      kind: "instructions",
+      native_id: null,
+      source: null,
+    });
+  });
+
   it("records the check's prompt file, where the snapshot the evidence quotes lives", () => {
     const file = example();
     file.check_prompt = null;
