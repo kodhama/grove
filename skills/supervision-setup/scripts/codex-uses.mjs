@@ -19,14 +19,17 @@
  *
  * Whether it ran:
  * - a command `ran` when its status is `completed` and its output does not
- *   start with zsh's own parse error, or `failed` with an exit code other
+ *   start with zsh's own error, or `failed` with an exit code other
  *   than 126 or 127 (it ran and exited non-zero) and no line of its output
- *   starting with that error (`zsh:1: parse error`, `zsh:1: unmatched "`,
- *   `zsh:2: closing brace expected`, `zsh:3: condition expected`, or any of
- *   them after a bare `zsh:`: zsh did not run the line, or not all of it;
+ *   starting with that error (a parse error: `zsh:1: parse error`, `zsh:1:
+ *   unmatched "`, `zsh:2: closing brace expected`, `zsh:3: condition
+ *   expected`; or `zsh:1: unknown condition`, a runtime error that stops the
+ *   rest of its list; or any of the five after a bare `zsh:`: zsh did not
+ *   run the line, or not all of it;
  *   Codex writes it to `stdout`, leaving `stderr` empty); else `failed`. A
  *   `completed` command can start with the error: its line exits 0 when the
- *   part zsh could not parse sits in an early stage of a pipeline.
+ *   part zsh could not parse, or an `unknown condition`, sits in an early
+ *   stage of a pipeline.
  *   A SKILL.md read in it `ran` only when its status is `completed` and its
  *   output does not start with that error: the read shows the skill was
  *   loaded, not that a command ran, so it fails closed;
@@ -49,9 +52,11 @@
  * in `cd x && herdr …` a failed `cd` still credits herdr, and a line whose
  * last command could not run (exit 127) reads `failed` for every command in it.
  * Only the first line of a `completed` command's output is read, which cuts
- * both ways: one that starts with zsh's parse error reads `failed` for the
+ * both ways: one that starts with zsh's own error reads `failed` for the
  * stages that did run too, and one that shows the error only on a later line
- * keeps the credit of the commands the error stopped.
+ * keeps the credit of the commands the error stopped. A `failed` command
+ * that shows `unknown condition` reads `failed` for the commands that ran
+ * before it too.
  *
  * Child threads: only a `started` activity names one; an `interacted` one
  * can name the parent. Its rollout sits in `sessions/`, in whatever date
@@ -63,10 +68,10 @@
  */
 import { globSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { SHELL_COULD_NOT_PARSE, SHELL_COULD_NOT_RUN, shellUses } from "./shell-uses.mjs";
+import { SHELL_COULD_NOT_RUN, SHELL_OWN_ERROR, shellUses } from "./shell-uses.mjs";
 
-/** zsh's own parse error as the first thing a command's output holds. */
-const PARSE_ERROR_FIRST = new RegExp(SHELL_COULD_NOT_PARSE.codex.source);
+/** zsh's own error as the first thing a command's output holds. */
+const SHELL_ERROR_FIRST = new RegExp(SHELL_OWN_ERROR.codex.source);
 /** The tool that starts a child thread; a `started` activity, not its output, shows it ran. */
 const SPAWN = "collaboration.spawn_agent";
 /** A call record's type, as against its output record (`function_call_output`). */
@@ -96,20 +101,20 @@ function commandOutput(item) {
   return [item.stdout, item.stderr].filter((text) => typeof text === "string" && text !== "").join("\n");
 }
 
-/** Whether a command's output starts with zsh's own parse error. */
-function startsWithParseError(item) {
-  return PARSE_ERROR_FIRST.test(commandOutput(item));
+/** Whether a command's output starts with zsh's own error. */
+function startsWithShellError(item) {
+  return SHELL_ERROR_FIRST.test(commandOutput(item));
 }
 
 /**
  * What one Codex command execution shows was used. A SKILL.md read carries
  * its own outcome: it shows the skill was loaded only when the command
- * completed and its output does not start with zsh's own parse error (zsh
+ * completed and its output does not start with zsh's own error (zsh
  * did not run the line, or not all of it, though it exited 0), so that
  * output and any other status read `failed`.
  */
 function commandUses(item) {
-  const outcome = item.status === "completed" && !startsWithParseError(item) ? "ran" : "failed";
+  const outcome = item.status === "completed" && !startsWithShellError(item) ? "ran" : "failed";
   const reads = (Array.isArray(item.parsed_cmd) ? item.parsed_cmd : [])
     .filter((part) => part?.type === "read" && /\/SKILL\.md$/.test(part.path ?? ""))
     .map((part) => ({ kind: "skill", name: basename(dirname(part.path)), outcome }));
@@ -142,17 +147,17 @@ function itemUses(item) {
 
 /**
  * Whether an item's call ran, from its own status and, for a command, its exit
- * code and whether its output shows the shell could not parse the line: on
+ * code and whether its output shows zsh's own error: on
  * any line of a `failed` command, and as the first line of a `completed` one,
  * where an error on a later line mostly follows the output of commands that ran.
  */
 function itemOutcome(item) {
   const command = item.type === "CommandExecution";
-  if (item.status === "completed") return command && startsWithParseError(item) ? "failed" : "ran";
+  if (item.status === "completed") return command && startsWithShellError(item) ? "failed" : "ran";
   const exit = command && item.status === "failed" ? item.exit_code : null;
   const output = commandOutput(item);
   const ran =
-    Number.isInteger(exit) && !SHELL_COULD_NOT_RUN.has(exit) && !SHELL_COULD_NOT_PARSE.codex.test(output);
+    Number.isInteger(exit) && !SHELL_COULD_NOT_RUN.has(exit) && !SHELL_OWN_ERROR.codex.test(output);
   return ran ? "ran" : "failed";
 }
 

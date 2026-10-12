@@ -30,7 +30,8 @@
  * `failed` (refused, blocked or broken before it did anything). A `Bash`
  * result that starts `Exit code N` still `ran`, since the command ran and
  * only exited non-zero, unless N is 126 or 127, when the shell could not run
- * it, or a line of the result starts with the shell's own parse error, when
+ * it, or a line of the result starts with the shell's own error, a parse
+ * error or zsh's `unknown condition`, which stops the rest of its list, when
  * it did not run the line, or not all of it; a nested shell's or a tool's
  * own error keeps the credit. A `Bash` result without the flag `failed` too
  * when it starts with that error. `shell-uses.mjs` names the limits that
@@ -83,10 +84,10 @@ import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { codexChildren, codexUses, ROLLOUT_NAME, timeOf } from "./codex-uses.mjs";
-import { SHELL_COULD_NOT_PARSE, SHELL_COULD_NOT_RUN, shellUses } from "./shell-uses.mjs";
+import { SHELL_COULD_NOT_RUN, SHELL_OWN_ERROR, shellUses } from "./shell-uses.mjs";
 
-/** The shell's own parse error as the first thing a `Bash` result holds. */
-const PARSE_ERROR_FIRST = new RegExp(SHELL_COULD_NOT_PARSE.claude.source);
+/** The shell's own error as the first thing a `Bash` result holds. */
+const SHELL_ERROR_FIRST = new RegExp(SHELL_OWN_ERROR.claude.source);
 /** The type the Agent tool starts when a call names none. */
 const DEFAULT_AGENT = "general-purpose";
 /**
@@ -220,7 +221,7 @@ function resultText(content) {
  * result yet, `ran` without `is_error: true`, and `failed` with it, except a
  * `Bash` call whose result starts `Exit code N`: its command ran and exited
  * non-zero, so it `ran`, unless N is 126 or 127 (the shell could not run it)
- * or a line of the result starts with the shell's own parse error (it did
+ * or a line of the result starts with the shell's own error (it did
  * not run the line, or not all of it). A result without `is_error` that
  * starts with that error `failed` too: Claude Code leaves the flag off when
  * it reads the exit as benign.
@@ -229,7 +230,7 @@ function claudeOutcome(call, result) {
   if (!result) return "pending";
   const text = call.name === "Bash" ? resultText(result.content) : "";
   // Claude Code clears `is_error` when it reads an exit as benign, as for a
-  // grep's exit 1, so the shell's parse error can come back bare: then the
+  // grep's exit 1, so the shell's own error can come back bare: then the
   // whole result starts with it. Only that first line is read. Where nothing
   // ran, the error is all there is; on a later line it follows the output of
   // commands that ran, and in a result Claude Code read as a success the call
@@ -239,10 +240,10 @@ function claudeOutcome(call, result) {
   // off, and grep keeps a credit it did not earn. A call run in the
   // background keeps one too: its result is the notice that it started,
   // whatever the shell then made of its line.
-  if (result.is_error !== true) return PARSE_ERROR_FIRST.test(text) ? "failed" : "ran";
+  if (result.is_error !== true) return SHELL_ERROR_FIRST.test(text) ? "failed" : "ran";
   const exit = EXIT_CODE.exec(text);
   const ran =
-    exit && !SHELL_COULD_NOT_RUN.has(Number(exit[1])) && !SHELL_COULD_NOT_PARSE.claude.test(text);
+    exit && !SHELL_COULD_NOT_RUN.has(Number(exit[1])) && !SHELL_OWN_ERROR.claude.test(text);
   return ran ? "ran" : "failed";
 }
 
