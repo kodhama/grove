@@ -338,6 +338,9 @@ function expectEverySendGated(run: Run) {
 /** The text of each prompt sent to the pane, in order. */
 const promptTexts = (run: Run) => run.prompts.map((p) => p[3]);
 
+/** How many times the pane was read with `agent get`. */
+const getsIn = (calls: string[][]) => calls.filter((c) => c[1] === "get").length;
+
 beforeEach(() => {
   budgetLeftMs = HELPER_TEST_TIMEOUT_MS;
   dir = mkdtempSync(join(tmpdir(), "mq352-restart-"));
@@ -715,7 +718,7 @@ describe("restart-in-place.sh — waiting for a ready, unfocused pane", () => {
     expect(run.status).toBe(1);
     expect(run.prompts).toEqual([]);
     // 0.3s is six polls, one hung read each; then it gives up.
-    expect(run.calls.filter((c) => c[1] === "get")).toHaveLength(6);
+    expect(getsIn(run.calls)).toBe(6);
     expect(run.reports[0]).toMatch(/gave up/i);
   });
 
@@ -736,7 +739,6 @@ describe("restart-in-place.sh — the time a give-up report names", () => {
   // stub, which makes the difference a matter of the stub's sleeps and not of
   // this machine's speed.
   const GET_DELAY_S = 0.5;
-  const getsIn = (calls: string[][]) => calls.filter((c) => c[1] === "get").length;
   /** The whole seconds a report says the helper waited. */
   const waitedIn = (report: string) => Number(/ after (\d+)s /.exec(report)?.[1]);
 
