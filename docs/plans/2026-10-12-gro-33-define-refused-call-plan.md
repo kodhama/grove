@@ -530,3 +530,70 @@ Written by the story's worker after reading the plan against the source. The pla
 - **One claim in T2 is thinner than it reads.** "A sandbox denial is the one that comes back inside a command's own output, as the system's "not permitted" error" rests on one observation, a nested sandbox refusing to start (`harness-notes.md:258`), and on the issue's own wording. It is inferred for every other denial.
 - **The worker will look for real refusals before writing T6.** This worker's own earlier sessions on this machine may hold calls a guard stopped. Each one found goes into the harness notes as observed, with the harness version and the date, and every row with none found stays **unknown**. The pull request says which rows were filled this way.
 - **Not run on this plan:** the plan skill's document review and its research subagents, to keep the run small. The lead reads the proposal instead.
+
+---
+
+## As ruled (2026-10-12)
+
+The lead ruled on all six open decisions. Where this section and the plan above differ, this section is what gets built.
+
+- **OD1 = A**, the when-in-doubt clause included. **OD3 = A.** T2 is built as written.
+- **OD4 = A.** Seven tests change only the section they read, and the test at `1132-1136` changes its reader and its one string. The five "(see Never)" strings stay as they are.
+- **OD5 = A.** Both copies of the restart rule stay. The lead confirmed the two copies: Never `:73-77` and "Context and restart" `:486-488`.
+- **OD6 = B.** T5 is built as written. The rule for a worker that takes up a story mid-flight is its own story, filed by the lead; the pull request names it as where the ended-session case is deferred, and the skill text names no tracker id.
+- **OD2 = A, with cells filled only from what a transcript shows.** The worker scanned its own sessions on this machine: 15 transcripts and 349 subagent files, 9,129 tool results. It found eight calls a guard stopped, all Bash calls on Claude Code 2.1.293 between 2026-10-09 and 2026-10-11, each with `is_error` true: three stopped by the auto mode classifier and five by the built-in removal check. It found no hook's block, no declined prompt and no sandbox denial, and no Bash call that declared a host. Those cells stay unknown or as the plan sourced them. **T6 is replaced by the text below**, and U1's scenario 8 pins the five bold lead-ins, "- **A hook's block.** **Unknown** on both.", and the two sentences that say story-worker's rule is the stricter one.
+- **Not confirmed, so not written as observed:** that a harness's own prompt documents a block naming the denied host and a re-run that declares it. The worker's session documents one sandbox control only, a parameter that runs a command outside the sandbox. The sandbox row says what was seen and marks the rest reported.
+- **Open with the lead (OD7), not built yet:** both harness messages offer another way to the same end, which the skill's rule forbids. T6 below records the wording and says the skill's rule is the stricter one. Whether story-worker's definition also gains a sentence on it waits for the ruling.
+- **Version:** the next free number at the merge of `main`, probably `0.2.14`. U6 runs then.
+- **Review:** one full review from a fresh context, by the clone's full path, each reviewer quoting its top level and head. No floor pass.
+
+**T6 as built**, in `skills/supervision-setup/references/harness-notes.md`, between "herdr" and "Choosing a reviewer":
+
+```text
+## A refused call
+
+What a session sees when a guard stops a call, by kind of guard.
+story-worker's "A refused call" says which of these count as refused. Only
+what was observed is described; the rest is **unknown**, so when one of them
+happens to you, add what came back, word for word, with the version and date.
+
+- **The harness's check, deciding alone.** Claude Code, in auto mode: the
+  call's result has `is_error` set to true (see "A call that did not run"),
+  and its text began `Permission for this action was denied by the Claude Code
+  auto mode classifier. Reason:`, then the classifier's reason in square
+  brackets. It went on: `You *may* attempt to accomplish this action using
+  other tools that might naturally be used to accomplish this goal`, and then
+  to `STOP and explain to the user` once the rest of the task is done (three
+  refused Bash calls, 2.1.293, 2026-10-09 to 2026-10-11). story-worker's rule
+  is the stricter one: it allows no other route to the same end. Codex: the
+  call's item has `status: "failed"`, and in the calls read its error began
+  `This action was rejected due to unacceptable risk.`, then a line starting
+  `Reason:` (refused `<tracker>.save_comment` calls, codex-cli 0.160.0,
+  2026-10-03; which guard rejected them was not recorded).
+- **A prompt the maintainer declined.** Claude Code: the result has `is_error`
+  set to true, as for any denied permission (observed 2026-10-04; the version
+  was not recorded); its words are **unknown**. Codex: a command's item came
+  back with `status: "declined"` and no exit code (a rollout of codex-cli
+  0.160.0, 2026-10-03); that this was a declined prompt is inferred from the
+  status's name.
+- **A hook's block.** **Unknown** on both.
+- **A check built into the harness**, such as one on a removal. Claude Code:
+  the result has `is_error` set to true, and its text began `Permission for
+  this command was denied by a built-in Claude Code safety check, not by the
+  user.` It said that the check `stops removals that can delete far more than
+  intended`, that `The command was NOT run`, and `If the text below suggests a
+  safe rewrite, run that instead; it goes through the same check.` (five
+  refused Bash calls, 2.1.293, 2026-10-09 to 2026-10-11). Here too
+  story-worker's rule is the stricter one: a rewrite the check suggests is
+  still another way to the same end. Codex: **unknown**.
+- **A sandbox denial.** Claude Code: the command runs, and the system answers
+  `Operation not permitted`, as `sandbox-exec` did with exit 71 (observed on
+  2.1.288, 2026-10-03). Its Bash tool takes `allowed_domains`, a list of
+  hosts, which applies only to a command that runs in the sandbox (seen in a
+  transcript; the version and date were not recorded). That a denied host
+  shows as a `<sandbox_violations>` block, and that a re-run naming the host
+  in `allowed_domains` clears it, are **reported, not re-observed**. One
+  session's Bash tool documented no `allowed_domains`, only a parameter that
+  runs the command outside the sandbox (2.1.296, 2026-10-12): that is a way
+  round the guard, never a declared need. Codex: **unknown**.
+```
