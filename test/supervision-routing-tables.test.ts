@@ -1552,7 +1552,7 @@ describe("GRO-31 · a hand-back that comes back", () => {
       "**Where the worker that handed back has ended**, your lead starts a new worker on the story, and its assignment says so: what was sent back, the pull request, and the note that holds the earlier receipt.",
       "If that is you, run setup as step 1 says, but record no new Started: keep the one the earlier receipt carries, as a resumed session keeps its handoff's.",
       "The branch and the worktree are the story's own, and your assignment is what explains them.",
-      "Plan and build nothing again: do the three steps above, with two differences.",
+      "Plan and build nothing again but what your lead named: do the three steps above, with two differences.",
       "The receipt stays the story's one page, so carry over from the earlier receipt each field you did not observe yourself, and say that it comes from that receipt, with its link.",
       "Where the check then carries no use from it, say so under the pasted output: the earlier receipt's check is the evidence for those operations.",
     ]);
@@ -1593,7 +1593,7 @@ describe("GRO-31 · a hand-back that comes back", () => {
     ]);
     // Where nothing carried, item 2's rule on a `plan` shown unused reads the earlier check, said right after the evidence is.
     expect(sendingBack()).toContain(
-      "the earlier receipt's check is then the evidence for them. Item 2 then reads `plan` in that earlier check, never in the new worker's own, which shows it `bound-but-unused` because a new worker plans nothing again. A worker that ended after posting a handoff",
+      "the earlier receipt's check is then the evidence for them. Unless the plan is what you sent back, item 2 then reads `plan` in that earlier check, never in the new worker's own, which shows it `bound-but-unused` because a new worker plans nothing again. A worker that ended after posting a handoff",
     );
   });
 
