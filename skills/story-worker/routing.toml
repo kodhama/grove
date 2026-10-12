@@ -163,8 +163,9 @@ step = "at the completion checkpoint, before the pull request is final"
 performers = ["ce-compound"]
 required = false
 fallback = """
-Skip the capture, and say in the hand-back what the lesson was and that it was
-not recorded."""
+Skip the capture, and write the Capture line, in the receipt and in the pull
+request's body, as `skipped:` with the reason: what the lesson was, and that
+no performer was available to record it."""
 
 [[operation]]
 id = "measure-context"

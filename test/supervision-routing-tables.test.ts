@@ -30,6 +30,8 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "../skills/supervision-setup/scripts/vendor/smol-toml/index.js";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { readBodyLines } from "../skills/supervision-setup/scripts/pr-body-lines.mjs";
 
 const SKILLS_TREE = "skills";
 
@@ -726,7 +728,7 @@ describe("GRO-20 · documenting a change at the completion checkpoint", () => {
 
   it("step 7 says when the docs and the capture rerun after a ready-time fix pass", () => {
     expect(prRound()).toContain(
-      "Neither operation reruns after the fix pass that follows a ready-time first review, unless that pass itself adds something the docs must carry, or produced a lesson that meets the capture's test; then that one runs once more and ships in that pass's push, and the `Docs:` line is brought up to date in both places.",
+      "Neither operation reruns after the fix pass that follows a ready-time first review, unless that pass itself adds something the docs must carry, or produced a lesson that meets the capture's test; then that one runs once more and ships in that pass's push, and the `Docs:` and `Capture:` lines are brought up to date in both places.",
     );
   });
 
@@ -1129,5 +1131,145 @@ describe("what an agent or a user reads names no work tracker or plan tag", () =
     const kept = readerLines(file, text);
     expect(kept.match(TRACKER_WORDS)?.[0]).toBe("GRO-");
     expect(kept.match(PLAN_TAG)?.[0]).toBe("KTD10");
+  });
+});
+
+/**
+ * GRO-21 — every story says whether a lesson was captured, and where, or why
+ * not: on a `Capture:` line in its receipt and the same line in its pull
+ * request's body. The worker saves the body and hands it to the receipt
+ * check, which reads only the saved body; the lead reads both lines itself,
+ * in the receipt and in the body as it stands.
+ */
+describe("GRO-21 · the Capture line's text", () => {
+  const oneLine = (text: string) => text.replace(/\s+/g, " ");
+  /** One field of the receipt's template: its line and the indented lines that continue it. */
+  const receiptField = (label: string) => {
+    return oneLine(read(RECEIPT).match(new RegExp(`^${label}:.*(?:\\n[ \\t]+\\S.*)*`, "m"))?.[0] ?? "");
+  };
+  const step7 = () => oneLine(section(read(WORKER), "7. The pull-request round"));
+  const step8 = () => oneLine(section(read(WORKER), "8. Hand back"));
+
+  it("the receipt has a Capture field giving both forms, and says the body carries the same line", () => {
+    const field = receiptField("Capture");
+    expect(field).toContain("captured <");
+    expect(field).toContain("skipped: <");
+    expect(field).toContain("pull request's body");
+  });
+
+  it.each(["Capture", "Docs"])("the receipt's %s field gives each form the checker accepts for the body's line", (label) => {
+    const rows: { label: string; accepts?: string[] }[] = readBodyLines(`${label}: nonsense\n`);
+    const accepts = rows.find((row) => row.label === label)?.accepts ?? [];
+    expect(accepts.length).toBeGreaterThan(0);
+    const field = receiptField(label);
+    for (const form of accepts) {
+      // The words a value starts with, before the placeholder that names what follows them.
+      const words = form.slice(`${label}: `.length, form.indexOf("<"));
+      expect(words.trim(), form).not.toBe("");
+      expect(field, form).toContain(words);
+    }
+  });
+
+  it("the receipt's Capture field has a `not reached` value, which a ready pull request's line never takes", () => {
+    const field = receiptField("Capture");
+    expect(field).toContain("| not reached: <why>, for a story that ended before its completion checkpoint");
+    expect(field).toContain('a ready pull request\'s line is never "not reached"');
+    expect(field).not.toContain("or that the story ended before its completion checkpoint");
+  });
+
+  it("step 7 gives the body's line its shape: one line, the label, one space, the value", () => {
+    expect(step7()).toContain("the label, its colon, one space, then the value, all on one line");
+    expect(step7()).toContain("with nothing before it");
+    // The shape is both lines': the receipt pads its labels to a column, and the body must not.
+    expect(step7()).toContain(
+      "In the body, each of the two is a line of its own with nothing before it: the label, its colon, one space, then the value, all on one line.",
+    );
+  });
+
+  it("step 8 has the worker fix a failing body and check again before handing back", () => {
+    expect(step8()).toContain(
+      "save it again and rerun the check until both of the body's lines read `found`, before you hand back",
+    );
+    expect(step8()).toContain("unchanged and after your last edit to it");
+  });
+
+  it("the lead reads the two lines itself, in the receipt and in the live body, and its own reading decides where the check did not run", () => {
+    const lead = oneLine(section(read(LEAD), "7. A hand-back"));
+    // The check proves the saved file, so only the lead's own read ties the lines to the pull request.
+    expect(lead).toContain(
+      "read both yourself, in the receipt and in the pull request's body as it stands now, since the receipt check reads the file it was given, never the pull request or the receipt.",
+    );
+    expect(lead).toContain(
+      "A hand-back missing either line in either place, or with a line whose value differs between the two, goes back to the worker, and so does one whose pasted check shows a body line as anything but `found`.",
+    );
+    // No dead end: a check that could not run sends nothing back on its own.
+    expect(lead).toContain(
+      "Where the pasted check says the body was not checked, or the check could not run, your own reading of the body decides.",
+    );
+    // Its own reading needs the rule the check applies: the shape, the forms and the one value a ready body never has.
+    expect(lead).toContain(
+      "In the body a line counts only in a form the worker's skill gives it, at the start of a line of its own, and never as `not reached` on a pull request that is ready.",
+    );
+  });
+
+  it("the receipt's Receipt check field names --pr-body", () => {
+    expect(receiptField("Receipt check")).toContain("--pr-body");
+  });
+
+  it.each([
+    "`Capture:` line",
+    "`captured` with the path",
+    "`skipped:` with the reason",
+    "a line of its own",
+    "the `Docs:` and `Capture:` lines are brought up to date in both places",
+  ])("story-worker's step 7 says %j", (phrase) => {
+    expect(step7()).toContain(phrase);
+  });
+
+  it("step 7 writes the Capture line after the capture and before the pull request is marked ready", () => {
+    const text = step7();
+    const at = (phrase: string) => {
+      expect(text, phrase).toContain(phrase);
+      return text.indexOf(phrase);
+    };
+    expect(at("`capture-learning`")).toBeLessThan(at("`Capture:` line"));
+    expect(at("`Capture:` line")).toBeLessThan(at("mark the pull request ready"));
+    expect(at("pull request's body")).toBeLessThan(at("mark the pull request ready"));
+  });
+
+  it("step 8 saves the body to a file and passes it as --pr-body, and a blocked hand-back leaves it out", () => {
+    const text = step8();
+    expect(text).toContain('`--pr-body "<that file>"`');
+    expect(text).toContain("to a file");
+    expect(text).toContain(
+      "with the command the repo's project instructions name, or else the repo host's own tool",
+    );
+    expect(text).toContain("A blocked hand-back leaves `--pr-body` out");
+  });
+
+  it("step 8 names no host's tool for saving the body", () => {
+    expect(step8()).not.toBe("");
+    expect(step8()).not.toMatch(/\bgh\b|github|curl/i);
+  });
+
+  it("the lead's claims check reads the two lines in the receipt and in the body, and sends back a hand-back missing either", () => {
+    const handBack = oneLine(section(read(LEAD), "7. A hand-back"));
+    const claims = handBack.slice(
+      handBack.indexOf("**Check the claims.**"),
+      handBack.indexOf("**Accept on the evidence.**"),
+    );
+    expect(claims).toContain("**Check the claims.**");
+    expect(claims).toContain("`Capture:`");
+    expect(claims).toContain("`Docs:`");
+    expect(claims).toContain("pull request's body");
+    expect(claims).toContain("goes back to the worker");
+  });
+
+  it("the capture-learning fallback writes a skipped Capture line, not a remark in the hand-back", () => {
+    const capture = operationsOf(readTable("story-worker")).find((op) => op.id === "capture-learning");
+    const fallback = oneLine(String(capture?.fallback ?? ""));
+    expect(fallback).toContain("`skipped:`");
+    expect(fallback).toContain("Capture");
+    expect(fallback).not.toContain("say in the hand-back");
   });
 });

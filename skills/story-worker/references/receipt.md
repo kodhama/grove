@@ -42,7 +42,8 @@ By fallback:     <operation: suggested <names> unavailable, or none suggested, s
                   Not run instead, which says it was bound by fallback>
 Not run:         <table/operation: why, e.g. "story-worker/browser-test: no page touched" — or "none">
 Decided myself:  <the calls you made without asking, one line each — or "none">
-Receipt check:   <the check's output, run with --since the Started time, pasted unchanged; or
+Receipt check:   <the check's output, run with --since the Started time and, when the pull
+                  request is ready, --pr-body its saved body, pasted unchanged; or
                   "unavailable: <why it could not run>">
 
 Evidence:        <PR link / head and base SHAs / diff stat>
@@ -61,6 +62,12 @@ Docs:            <updated <the path of each reference, architecture or design do
                   carries the same line | not reached: <why>, for a story that ended before its
                   completion checkpoint. The line lists every such doc the pull request updates,
                   whenever it did, and says none needed only where it updates none>
+Capture:         <captured <the path of the learning this pull request adds> | skipped: <the
+                  reason, as the capture's test gives it: what the final code, tests and docs
+                  already preserve; or, where the capture ran by fallback, the lesson and that
+                  it was not recorded> | not reached: <why>, for a story that ended before its
+                  completion checkpoint. The pull request's body carries the same line, and a
+                  ready pull request's line is never "not reached">
 Reviewed by:     <one entry per in-session review, before or after the pull request opened. The
                   reviewer: its performer, and the subagent you started for it or the reviewers
                   the performer started itself, saying which — always named, never blank, never

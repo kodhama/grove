@@ -313,15 +313,20 @@ for how each of them reviews and re-reviews.
    capture skill). Run the checks on what they write, then commit and push it,
    so the docs and the learning ship in this pull request and every reviewer
    sees them. Write the receipt's `Docs:` line, as `references/receipt.md`
-   gives it, and put the same line in the pull request's body. Then mark the
-   pull request ready. Neither operation reruns after the fix pass that
-   follows a ready-time first review, unless that pass itself adds something
-   the docs must carry, or produced a lesson that meets the capture's test;
-   then that one runs once more and ships in that pass's push, and the `Docs:`
-   line is brought up to date in both places. Check that each automated
-   reviewer the repo names actually reviewed the final head, and ask again
-   only as the repo's review loop says: some reviewers re-review every push,
-   some only when asked, and some only for a fix that changes behaviour.
+   gives it, and put the same line in the pull request's body. Write its
+   `Capture:` line the same way: `captured` with the path of what the capture
+   wrote, or `skipped:` with the reason, which is the answer the capture's test
+   gives for this story. In the body, each of the two is a line of its own with
+   nothing before it: the label, its colon, one space, then the value, all on
+   one line. Then mark the pull request ready. Neither operation reruns after
+   the fix pass that follows a ready-time first review, unless that pass itself
+   adds something the docs must carry, or produced a lesson that meets the
+   capture's test; then that one runs once more and ships in that pass's push,
+   and the `Docs:` and `Capture:` lines are brought up to date in both places.
+   Check that each automated reviewer the repo names actually reviewed the
+   final head, and ask again only as the repo's review loop says: some
+   reviewers re-review every push, some only when asked, and some only for a
+   fix that changes behaviour.
 6. **What a re-review raises goes to your lead**, not into a second fix pass.
    Repeated passes are where rounds churn. Your lead triages it.
 
@@ -347,7 +352,15 @@ merged.
   handoff whose receipt-check section holds a result, as the restart skill
   does. A handoff written during an earlier story carries nothing into this
   one, unless neither story recorded a Started: the check drops its uses and
-  says how many.
+  says how many. When the pull request is ready, save its body to a file
+  beside your bindings file, unchanged and after your last edit to it, with
+  the command the repo's project instructions name, or else the repo host's
+  own tool, and add `--pr-body "<that file>"`. The check reads that file,
+  never the host, and fails a body that lacks a line the receipt requires of
+  it, or holds one malformed or twice. When it does, fix the body, save it
+  again and rerun the check until both of the body's lines read `found`,
+  before you hand back. A blocked hand-back leaves `--pr-body` out, and the
+  check's output then says the body was not checked.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.

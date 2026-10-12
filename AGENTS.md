@@ -106,6 +106,10 @@ of @<maintainer-handle>.` Comments only: a PR body is covered by its branch and
   identifier is what links the PR to Linear.
 - **Put `Fixes GRO-<n>` in the PR body** (or `Part of GRO-<n>` when the PR is
   one of several for the issue).
+- **A story's PR body carries a `Capture:` line and a `Docs:` line**, each at
+  the start of its own line, as `story-worker` gives them. To hand the body
+  to the receipt check, save it with
+  `gh pr view <n> --json body --jq .body > <file>` and pass `--pr-body <file>`.
 - Conventional Commits; linear history (rebase-merge or squash with a
   hand-edited message).
 - **Every change reaches `main` through a PR.** A ruleset on `main` enforces

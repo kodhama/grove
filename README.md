@@ -92,6 +92,13 @@ starts. This was read from Codex's source at codex-cli 0.160.0, not yet run.
     its new-session path uses.
 - **Ignore session state:** add `.context/supervision/` to `.gitignore`.
   Bindings and handoffs name transcript paths under a real home directory.
+- **Pull request bodies:** a story's pull request carries a `Capture:` line
+  and a `Docs:` line, each once, at the start of a line of its own. The
+  receipt check fails a hand-back whose saved body lacks one, so keep a bot
+  that rewrites bodies from dropping them. A pull-request template may hold
+  each line once, with a placeholder in angle brackets for its value: the
+  check fails it until it is filled in. Name the command that saves a body to
+  a file in your project instructions.
 - **Project instructions** (`AGENTS.md` or your harness's equivalent) name
   your review loop, the checks that must pass, how a pull request links its
   work item, which docs a change keeps current, and the footer an agent signs
