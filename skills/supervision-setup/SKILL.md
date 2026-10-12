@@ -172,8 +172,9 @@ starts a subagent: its call always sits in the caller's own transcript, so it
 can never show the operation ran in a fresh context. For an operation with no
 match, write its evidence yourself, from the snapshot and the probe, not in the
 subagent's words: `the snapshot has no entry named "<name>", and
-"command -v <name>" printed nothing`, one clause per suggested name. Then two
-runs on the same catalog give the same evidence. Fill in each binding's
+"command -v <name>" printed nothing`, one clause per suggested name, or, for
+an operation with no suggested name, `no performer is suggested for
+"<operation id>"`. Then two runs on the same catalog give the same evidence. Fill in each binding's
 `source` from what you know: the plugin and its version, the skill's folder,
 the built-in harness, the MCP server, or the `command -v` path.
 

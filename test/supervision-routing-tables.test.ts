@@ -15,10 +15,11 @@
  * so they hold no absolute path, no version and no harness-specific way of
  * invoking anything, and they name no work tracker (KTD16). A performer, in a
  * table or an override, is one word: a logical name, never a command line
- * (KTD3, amended by MQ-350). The tracker operations
- * are the only ones a default table may leave without a performer:
- * the repo's override, or setup's discovery, supplies it. After this repo's
- * overrides are merged, every operation has one.
+ * (KTD3, amended by MQ-350). The operations only the repo can bind, a work
+ * tracker's and `document-change`, whose performer is the repo's own
+ * knowledge-base skill (GRO-20), are the only ones a default table may leave
+ * without a performer: the repo's override, or setup's discovery, supplies it,
+ * and a not-required one that neither supplies is bound as its fallback says.
  *
  * Only this test parses the tables; setup hands them to the model as text.
  *
@@ -29,6 +30,8 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "../skills/supervision-setup/scripts/vendor/smol-toml/index.js";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { readBodyLines } from "../skills/supervision-setup/scripts/pr-body-lines.mjs";
 
 const SKILLS_TREE = "skills";
 
@@ -44,13 +47,18 @@ const OPERATION_FIELDS = [
 ];
 const OVERRIDE_FIELDS = ["performers", "fallback"];
 
-/** The operations whose only real performers are a work tracker (KTD16). */
-const TRACKER_OPERATIONS = [
+/**
+ * The operations only the repo can bind, so a default table may suggest no
+ * performer for them: a work tracker's (KTD16), and `document-change`, whose
+ * performer is the repo's own knowledge-base skill (GRO-20).
+ */
+const REPO_BOUND_OPERATIONS = [
   "post-work-note",
   "read-work-notes",
   "file-stories",
   "find-work-items",
   "update-work-item",
+  "document-change",
 ];
 
 /**
@@ -121,7 +129,7 @@ function operationProblems(op: Operation): string[] {
   const performers = op.performers;
   if (!Array.isArray(performers) || !performers.every(isText)) {
     problems.push(`${name}: performers is not a list of names`);
-  } else if (performers.length === 0 && !TRACKER_OPERATIONS.includes(name)) {
+  } else if (performers.length === 0 && !REPO_BOUND_OPERATIONS.includes(name)) {
     problems.push(`${name}: no suggested performer`);
   } else {
     problems.push(...notOneWord(name, performers));
@@ -436,7 +444,7 @@ describe("MQ-348 · the schema rejects what a table must not hold", () => {
     expect(tableProblems("sample", text)).toEqual([]);
   });
 
-  it("lets only a tracker operation go without a performer", () => {
+  it("lets an operation only the repo can bind go without a performer", () => {
     const text = SAMPLE.replace('id = "build"', 'id = "post-work-note"').replace(
       'performers = ["ce-work"]',
       "performers = []",
@@ -454,6 +462,14 @@ describe("MQ-348 · the schema rejects what a table must not hold", () => {
       expect(tableProblems("sample", text)).toEqual([]);
     },
   );
+
+  it("lets document-change go without a performer: only the repo knows its knowledge-base skill (GRO-20)", () => {
+    const text = SAMPLE.replace('id = "build"', 'id = "document-change"').replace(
+      'performers = ["ce-work"]',
+      "performers = []",
+    );
+    expect(tableProblems("sample", text)).toEqual([]);
+  });
 
   it("fails duplicate ids", () => {
     const text = SAMPLE + SAMPLE.slice(SAMPLE.indexOf("[[operation]]"));
@@ -521,6 +537,7 @@ const read = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : 
 
 const LEAD = join(SKILLS_TREE, "project-lead", "SKILL.md");
 const WORKER = join(SKILLS_TREE, "story-worker", "SKILL.md");
+const RECEIPT = join(SKILLS_TREE, "story-worker", "references", "receipt.md");
 
 describe("MQ-373 · the defect route's text", () => {
   const REFERENCE = join(SKILLS_TREE, "project-lead", "references", "defect-run.md");
@@ -734,7 +751,6 @@ describe("GRO-22 · the plan step's text", () => {
  */
 describe("GRO-7 · the intent route's text", () => {
   const REFERENCE = join(SKILLS_TREE, "project-lead", "references", "intent-run.md");
-  const RECEIPT = join(SKILLS_TREE, "story-worker", "references", "receipt.md");
   const description = (text: string) => text.match(/^description: (.*)$/m)?.[1] ?? "";
   const workerGiven = () => section(read(WORKER), "What you are given");
 
@@ -808,6 +824,411 @@ describe("GRO-7 · the intent route's text", () => {
   });
 });
 
+/**
+ * GRO-20 — a change that adds a module, a data shape, a contract, a dependency
+ * or a design change also updates the repo's reference, architecture and
+ * design docs. The story table's `document-change` operation does it at the
+ * completion checkpoint, before the learning capture, and the receipt and the
+ * pull request's body both say what was updated, or why nothing needed to be.
+ */
+describe("GRO-20 · documenting a change at the completion checkpoint", () => {
+  const oneLine = (text: string) => text.replace(/\s+/g, " ");
+  const documentChange = () =>
+    operationsOf(readTable("story-worker")).find((op) => op.id === "document-change");
+  const prRound = () => oneLine(section(read(WORKER), "7. The pull-request round"));
+  /** The receipt's `Docs:` field: its line, and the indented lines that continue it. */
+  const docsField = () =>
+    oneLine(read(RECEIPT).match(/^Docs:.*(?:\n[ \t]+\S.*)*/m)?.[0] ?? "");
+
+  it("the story table has a document-change operation with no default performer and a fallback", () => {
+    const op = documentChange();
+    expect(op).toBeDefined();
+    expect(op?.performers).toEqual([]);
+    expect(op?.required).toBe(false);
+    expect(isText(op?.fallback)).toBe(true);
+    expect(op?.step).toMatch(/completion checkpoint/);
+    // The capture's step names the checkpoint too: this one also says it comes first.
+    expect(op?.step).toContain("before any learning is captured");
+    // The table carries the run condition too, as step 7 does: a worker reads either.
+    expect(op?.step).toContain(
+      "when the diff adds a module, a data shape, a contract, a dependency or a design change",
+    );
+  });
+
+  it("its fallback has the worker update the stale docs itself, and sends it to the receipt's Docs field for the line", () => {
+    const fallback = oneLine(String(documentChange()?.fallback ?? ""));
+    expect(fallback).toContain("yourself");
+    // The rule that picks the line's value lives in the field, which every worker reads.
+    expect(fallback).toContain("Then write the Docs line as the receipt's Docs field says.");
+    expect(fallback).not.toContain("none needed");
+  });
+
+  it("the Docs field has the line list a doc the pull request updated before the checkpoint", () => {
+    // Nothing is stale when the build already updated the doc: the line still says `updated`.
+    expect(docsField()).toContain(
+      "The line lists every such doc the pull request updates, whenever it did, and says none needed only where it updates none>",
+    );
+    expect(docsField()).toContain("the docs already cover what it adds");
+  });
+
+  it("the Docs field says where its paths are read from", () => {
+    expect(docsField()).toContain(
+      "updated <the path of each reference, architecture or design doc this pull request updates, as the diff at the head lists it,",
+    );
+  });
+
+  it("step 7 says when the docs and the capture rerun after a ready-time fix pass", () => {
+    expect(prRound()).toContain(
+      "Neither operation reruns after the fix pass that follows a ready-time first review, unless that pass itself adds something the docs must carry, or produced a lesson that meets the capture's test; then that one runs once more and ships in that pass's push, and the `Docs:` and `Capture:` lines are brought up to date in both places.",
+    );
+  });
+
+  it("the README tells an adopter to update grove everywhere before naming the operation in an override", () => {
+    expect(oneLine(read("README.md"))).toContain(
+      "Add the line only once every machine and host runs a grove that has the operation",
+    );
+  });
+
+  it("its fallback looks at the docs the repo keeps when the project instructions name none, and only a repo with none changes nothing", () => {
+    const fallback = oneLine(String(documentChange()?.fallback ?? ""));
+    expect(fallback).toContain(
+      "where they name none, the reference, architecture and design docs the repo keeps",
+    );
+    expect(fallback).toContain("or the repo keeps no such docs, change nothing");
+    // Instructions that name no docs are no reason to skip: the repo may still keep some.
+    expect(fallback).not.toContain("instructions name no such docs");
+  });
+
+  it("document-change comes before capture-learning: the docs are final before the capture's test", () => {
+    const ids = idsOf("story-worker");
+    expect(ids).toContain("document-change");
+    expect(ids).toContain("capture-learning");
+    expect(ids.indexOf("document-change")).toBeLessThan(ids.indexOf("capture-learning"));
+  });
+
+  it("its intent names the repo's own knowledge-base skill, so discovery binds no other", () => {
+    const intent = oneLine(String(documentChange()?.intent ?? ""));
+    expect(intent).toContain("the repo's own knowledge-base skill");
+    expect(intent).toContain(
+      "A general writing, documentation or learning-capture skill is not one.",
+    );
+  });
+
+  it("the pull-request round names `document-change` before `capture-learning`", () => {
+    const text = prRound();
+    const document = text.indexOf("`document-change`");
+    const capture = text.indexOf("`capture-learning`");
+    expect(idsOf("story-worker")).toContain("document-change");
+    expect(document).toBeGreaterThan(-1);
+    expect(capture).toBeGreaterThan(-1);
+    expect(document).toBeLessThan(capture);
+  });
+
+  it("the pull-request round says when it runs, and lists it under Not run when it does not", () => {
+    const text = prRound();
+    expect(text).toContain("a module, a data shape, a contract, a dependency or a design change");
+    expect(text).toContain("Not run");
+  });
+
+  it("the pull-request round puts the Docs line in the receipt and the pull request's body before ready", () => {
+    const text = prRound();
+    const ready = text.indexOf("mark the pull request ready");
+    const docsLine = text.indexOf("`Docs:` line");
+    const body = text.indexOf("pull request's body");
+    expect(ready).toBeGreaterThan(-1);
+    expect(docsLine).toBeGreaterThan(-1);
+    expect(body).toBeGreaterThan(-1);
+    expect(docsLine).toBeLessThan(ready);
+    expect(body).toBeLessThan(ready);
+    // The capture ships in the same pull request, so it too comes before ready.
+    expect(text.indexOf("`capture-learning`")).toBeLessThan(ready);
+  });
+
+  it("the skill's list of what the project instructions hold names the docs a change keeps current", () => {
+    expect(oneLine(read(WORKER))).toContain("which docs a change keeps current");
+  });
+
+  it("setup says what evidence an operation with no suggested performer records", () => {
+    const setup = oneLine(read(join(SKILLS_TREE, "supervision-setup", "SKILL.md")));
+    expect(setup).toContain('`no performer is suggested for "<operation id>"`');
+  });
+
+  it("the receipt has a Docs field: what was updated, or none needed and why, as the pull request's body says it", () => {
+    const field = docsField();
+    expect(field).toMatch(/^Docs:/);
+    expect(field).toContain("none needed, because");
+    expect(field).toContain("pull request's body");
+  });
+
+  it("the receipt lists an operation bound by fallback that did not run under Not run", () => {
+    const byFallback = oneLine(read(RECEIPT).match(/^By fallback:.*(?:\n[ \t]+\S.*)*/m)?.[0] ?? "");
+    expect(byFallback).toContain("or none suggested");
+    expect(byFallback).toContain("One bound by fallback that did not run goes under Not run instead");
+  });
+
+  it("the Docs field counts only reference, architecture and design docs, and has a value for a story that never reached the checkpoint", () => {
+    const field = docsField();
+    expect(field).toContain(
+      "updated <the path of each reference, architecture or design doc this pull request updates",
+    );
+    expect(field).toContain("never a plan or a captured learning");
+    expect(field).toContain("not reached:");
+    // The fallback's own reason: a repo that keeps none, never instructions that name none.
+    expect(field).toContain("or the repo keeps no such docs>");
+    expect(field).not.toContain("name no such docs");
+  });
+
+  it("grove's own instructions name the doc a change keeps current, so a worker here need not guess", () => {
+    const instructions = oneLine(read("AGENTS.md"));
+    expect(instructions).toContain(
+      "`README.md` is the doc a change keeps current, and `docs/decisions/` where the change supersedes a decision recorded there.",
+    );
+  });
+});
+
+/**
+ * GRO-17 — a worker never retries, rephrases or hands off a command or any
+ * other call its harness's permission check refused. It stops the dependent
+ * work and sends its lead `STATUS: refused in <directory>: <exact command or
+ * call>`, and takes a fresh clone only on the maintainer's OK, reporting
+ * `STATUS: moved to <clone path>`.
+ */
+describe("GRO-17 · the refused-call rule's text", () => {
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+  const workerNever = () => section(read(WORKER), "Never");
+  const workerTalking = () =>
+    flat(section(read(WORKER), "Talking to your lead, and to the maintainer"));
+  const workerBeforeEdit = () => flat(section(read(WORKER), "2. Before the first edit"));
+  const workerRestart = () => flat(section(read(WORKER), "Context and restart"));
+  const leadMessages = () => flat(section(read(LEAD), "5. Messages"));
+  const leadStarting = () => flat(section(read(LEAD), "4. Starting a worker"));
+  const leadRestart = () => flat(section(read(LEAD), "Context and restart"));
+
+  it("story-worker's Never names no harness, path, version or tracker", () => {
+    expect(workerNever()).not.toBe("");
+    expect(textProblems(workerNever())).toEqual([]);
+  });
+
+  it("the worker never retries a refused command or any other call, and reports it", () => {
+    const never = flat(workerNever());
+    expect(never).toContain(
+      "- Retry, rephrase or hand to another session, a subagent or a performer a command or any other call your harness's permission check refused: repeated refusals hold a session at a prompt only the maintainer can answer.",
+    );
+    expect(never).not.toContain("hand to another session a command");
+    expect(never).toContain(
+      "Stop the work that depends on it, tell your lead at once with a `STATUS: refused` line, and keep working on anything independent.",
+    );
+  });
+
+  it("the worker tells each subagent or performer that a call refused there comes back as it stands", () => {
+    expect(flat(workerNever())).toContain(
+      "Say so in each request to a subagent or a performer: a call refused there comes back to you as it stands, never retried.",
+    );
+  });
+
+  it("nothing in a checkout moves while a command that rewrites it awaits its answer", () => {
+    expect(flat(workerNever())).toContain(
+      "While a command that rewrites the branch or the worktree, such as a reset or a rebase, awaits its answer, nothing in that checkout is independent: change nothing there, and commit nothing.",
+    );
+  });
+
+  it("the worker's refused line names the directory first, then the exact command or call", () => {
+    expect(flat(workerNever())).toContain(
+      "The line names the directory you ran it in, which after a move says which of your two checkouts, and the exact command or call.",
+    );
+    expect(workerTalking()).toContain(
+      "/ restarting / refused in <directory>: <exact command or call> / moved to <clone path> / blocked: <reason>",
+    );
+    expect(read(WORKER)).not.toContain("refused <exact command>");
+  });
+
+  it("the lead reads the directory off a worker's refused line", () => {
+    expect(leadMessages()).toContain(
+      "- **A worker's `STATUS: refused`:** the line reads `refused in <directory>: <exact command or call>`, the directory being where the worker ran it, so a moved worker's line says which of its two checkouts.",
+    );
+  });
+
+  const WORKER_CLONE_CASE = "A command that rewrites the branch or the worktree is such a case.";
+  const LEAD_CLONE_CASE =
+    "A command that rewrites the branch or the worktree, such as a reset or a rebase, is such a case.";
+  const NOT_FETCH_OR_PUSH =
+    "A refused fetch or push is not: the clone needs the same push, and cloning is the same fetch.";
+  const PASS_BACK =
+    "Pass the answer back as what they did: they ran it, and the worker reads its branch's head again before it goes on; they allowed it, and the worker runs it once, as it was; they approved the clone, and the worker moves as its skill says; or they declined, and the worker hands back blocked unless you rule another way.";
+
+  it("the worker is offered a clone only where a fresh clone removes the need for the command", () => {
+    const never = flat(workerNever());
+    expect(never).toContain(
+      "Your lead brings the maintainer one choice: they run it, or they allow it.",
+    );
+    expect(never).toContain(
+      "Only where a fresh clone removes the need for the command does the choice become that they run it, or you redo the work in a fresh clone of your own.",
+    );
+    expect(never).toContain(`${WORKER_CLONE_CASE} ${NOT_FETCH_OR_PUSH}`);
+  });
+
+  it("the worker reads the head again after the maintainer ran a command, and runs an allowed one once", () => {
+    expect(flat(workerNever())).toContain(
+      "Where they ran it, read the branch's head again before you go on; where they allowed it, run it once, as it was.",
+    );
+  });
+
+  it("a worker whose command the maintainer declined hands back blocked, unless its lead rules another way", () => {
+    expect(flat(workerNever())).toContain(
+      "where they allowed it, run it once, as it was. Where they declined, hand back blocked, unless your lead rules another way.",
+    );
+  });
+
+  it("a command is a new command when the worker runs it again only once the maintainer ran or allowed it", () => {
+    const never = flat(workerNever());
+    expect(never).toContain(
+      "Once they have run or allowed a command, running it again at a later step is a new command: if it is refused again, report it again, and never retry it.",
+    );
+    expect(never).not.toContain(". Running it again at a later step");
+  });
+
+  it("the worker takes the clone only on the maintainer's OK, bound by every Never rule, this one included", () => {
+    expect(flat(workerNever())).toContain(
+      "Take the clone only on that OK: first commit on the worktree's branch whatever is uncommitted there, then bring into the clone only the unpushed commits the redo keeps, keep to every rule in this list, this one included, work on the branch in that clone from then on, and tell your lead with a `STATUS: moved` line.",
+    );
+  });
+
+  it("a moved worker's session files stay in the worktree, and setup and the restart run from there", () => {
+    expect(flat(workerNever())).toContain(
+      "Your session's own files, its bindings, its handoff and any restart marker, stay in the worktree, where your lead looks for them: run setup and the restart with the worktree as the working directory, reached by its full path, never from the clone, since both write those files under the directory they run in.",
+    );
+  });
+
+  it("the worker leaves its worktree only on a move the maintainer approves after a refused command", () => {
+    expect(workerBeforeEdit()).toContain(
+      "Work only there, unless the maintainer approves a move to a fresh clone after a refused command (see Never).",
+    );
+  });
+
+  it("the worker's first fetch, when refused, is a refused command", () => {
+    expect(workerBeforeEdit()).toContain(
+      "A refused fetch is a refused command (see Never), and it leaves a stale base, which shows up as changes you did not make.",
+    );
+  });
+
+  it("a moved worker restarts with the worktree as the working directory", () => {
+    expect(workerRestart()).toContain(
+      "After a move to a clone, run it with the worktree as the working directory, reached by its full path: the bindings and the handoff are there, and your lead looks there for the restart marker.",
+    );
+  });
+
+  it("a moved worker's handoff carries the clone, the approval and the worktree", () => {
+    expect(workerRestart()).toContain(
+      "After a move to a clone, it also carries the clone's full path, where the branch now lives, that the maintainer approved the move, and the worktree's full path, where the session's own files stay, so the resumed session carries on in the clone.",
+    );
+  });
+
+  it("the lead makes a worktree its worker leaves only on a move the maintainer approves", () => {
+    expect(leadStarting()).toContain(
+      "The worker works only there, unless the maintainer approves its move to a fresh clone after a refused command.",
+    );
+  });
+
+  it("the lead's handoff carries any clone an in-flight worker reported moving to", () => {
+    expect(leadRestart()).toContain(
+      "It also carries the epic, or on a defect run what `references/defect-run.md` lists for its handoff, or on an intent run what `references/intent-run.md` lists, the approved run lines, and each in-flight story: its worker's name and ref, its pull request, its last `STATUS`, any clone it reported moving to, and any message held for it.",
+    );
+  });
+
+  it("the lead offers the clone only where it removes the need for the command", () => {
+    const messages = leadMessages();
+    expect(messages).toContain(
+      "Bring the maintainer one choice: they run it there, or they allow it.",
+    );
+    expect(messages).toContain(
+      "Only where a fresh clone removes the need for the command does the choice become that they run it, or the worker redoes the work in a fresh clone of its own.",
+    );
+    expect(messages).toContain(`${LEAD_CLONE_CASE} ${NOT_FETCH_OR_PUSH} ${PASS_BACK}`);
+    expect(messages).toContain(
+      "A command refused again, after the maintainer ran or allowed it, is a new line: bring it to them again, and never tell the worker to retry it.",
+    );
+    expect(messages).not.toContain("refused again at a later step");
+  });
+
+  it("the lead passes the answer back as what the maintainer did, and the checkout stays still until then", () => {
+    const messages = leadMessages();
+    expect(messages).toContain(PASS_BACK);
+    expect(messages).toContain(
+      "Until the answer comes, a worker whose refused command rewrites the branch or the worktree changes nothing in that checkout.",
+    );
+    expect(messages).not.toContain("Pass the answer back. A command");
+    expect(messages).not.toContain("or they allowed it, and the worker runs it once, as it was.");
+  });
+
+  it("the lead removes a moved worker's clone only once it holds no commit its remote lacks", () => {
+    expect(flat(section(read(LEAD), "7. A hand-back"))).toContain(
+      "Remove its worktree, and any clone it reported moving to, once the branch has merged, after checking that nothing in either is uncommitted, and that the clone holds no commit its remote lacks: removing a worktree keeps its commits in the shared repository, and removing a clone does not.",
+    );
+  });
+
+  it("a defect run removes a cancelled worker's clone under the same check", () => {
+    const reference = read(join(SKILLS_TREE, "project-lead", "references", "defect-run.md"));
+    expect(flat(section(reference, "6. Cancelling"))).toContain(
+      "remove its worktree, and any clone it reported moving to, after checking that nothing in either is uncommitted beyond the diagnosis's own reproducing test, and that the clone holds no commit its remote lacks.",
+    );
+  });
+
+  it("a send to the lead that the permission check refuses goes as a work note, never sent again", () => {
+    expect(idsOf("story-worker")).toContain("post-work-note");
+    expect(workerTalking()).toContain(
+      "A message the transport refuses or skips is retried at your next event, and the work note is the backstop for a hand-back. A send your harness's permission check refuses is a refused call like any other (see Never): never send it again. Post its line as a note on the story's work item through the performer bound to `post-work-note` instead, with the `STATUS: refused` line for the send. Where the maintainer allows the send, that covers your later sends: the line already posted as a note is not sent again.",
+    );
+  });
+
+  it("the lead acts on a line a worker posted as a note because its send was refused", () => {
+    expect(flat(section(read(LEAD), "6. Watching the work"))).toContain(
+      "Act on any hand-back or `restart-owner: lead` handoff you find there, and on any line a worker posted there because its send to you was refused.",
+    );
+  });
+
+  it("with no lead, the worker puts a refusal to the maintainer as one question with both options", () => {
+    expect(workerTalking()).toContain(
+      "A `STATUS: refused` line is a question too: put it to them the same way, as one question with both options of the choice a lead would have brought (see Never).",
+    );
+  });
+
+  it("a lead carrying its own story names any clone it moved to in its hand-back", () => {
+    const reference = read(join(SKILLS_TREE, "project-lead", "references", "intent-run.md"));
+    expect(flat(section(reference, "6. Carrying it yourself"))).toContain(
+      "Your hand-back names the worktree, and any clone you moved to, for the maintainer to remove once the branch has merged.",
+    );
+  });
+
+  it("a refused command or call awaiting its answer is not an ending", () => {
+    const handBack = flat(section(read(WORKER), "8. Hand back"));
+    expect(handBack).toContain(
+      "you are blocked on something only someone else can remove, such as a failed setup or a missing prerequisite. Those are the only two endings.",
+    );
+    expect(handBack).toContain(
+      "An open `DECISION` is not one, and neither is a refused command or call awaiting its answer: neither ends the story or gets a final receipt (see \"Talking to your lead\").",
+    );
+    expect(handBack).not.toContain("a push you cannot make");
+  });
+
+  it("the worker keeps working on what is independent while a refusal is open, as for a decision", () => {
+    expect(workerTalking()).toContain(
+      "While a decision is open, or a refused command or call awaits its answer, keep working on whatever in the story does not depend on it, and end your turn only when nothing independent is left; the answer arrives as a message. Neither an open decision nor an open refusal ends the story or gets a final receipt.",
+    );
+  });
+
+  it("the worker's pull-request step still sends a refused push to the rule, and stops on any other failed push", () => {
+    expect(flat(section(read(WORKER), "6. The pull request"))).toContain(
+      "A push your harness's permission check refuses is a refused command (see Never). If you cannot push for any other reason, say so to your lead and stop.",
+    );
+  });
+
+  it("the lead keeps a moved worker's branch in its clone and its session files in the worktree", () => {
+    expect(leadMessages()).toContain(
+      "- **A worker's `STATUS: moved`:** its branch lives in the clone the line names from then on, while its session's own files, its restart marker among them, stay in the worktree you made.",
+    );
+  });
+});
+
 /** A math-quest plan tag, such as `R34`, `KTD10`, `AE6` or `U6b`. */
 const PLAN_TAG = /\b(?:R|KTD|AE)\d+\b|\bU\d+[a-z]?\b/;
 
@@ -861,5 +1282,145 @@ describe("what an agent or a user reads names no work tracker or plan tag", () =
     const kept = readerLines(file, text);
     expect(kept.match(TRACKER_WORDS)?.[0]).toBe("GRO-");
     expect(kept.match(PLAN_TAG)?.[0]).toBe("KTD10");
+  });
+});
+
+/**
+ * GRO-21 — every story says whether a lesson was captured, and where, or why
+ * not: on a `Capture:` line in its receipt and the same line in its pull
+ * request's body. The worker saves the body and hands it to the receipt
+ * check, which reads only the saved body; the lead reads both lines itself,
+ * in the receipt and in the body as it stands.
+ */
+describe("GRO-21 · the Capture line's text", () => {
+  const oneLine = (text: string) => text.replace(/\s+/g, " ");
+  /** One field of the receipt's template: its line and the indented lines that continue it. */
+  const receiptField = (label: string) => {
+    return oneLine(read(RECEIPT).match(new RegExp(`^${label}:.*(?:\\n[ \\t]+\\S.*)*`, "m"))?.[0] ?? "");
+  };
+  const step7 = () => oneLine(section(read(WORKER), "7. The pull-request round"));
+  const step8 = () => oneLine(section(read(WORKER), "8. Hand back"));
+
+  it("the receipt has a Capture field giving both forms, and says the body carries the same line", () => {
+    const field = receiptField("Capture");
+    expect(field).toContain("captured <");
+    expect(field).toContain("skipped: <");
+    expect(field).toContain("pull request's body");
+  });
+
+  it.each(["Capture", "Docs"])("the receipt's %s field gives each form the checker accepts for the body's line", (label) => {
+    const rows: { label: string; accepts?: string[] }[] = readBodyLines(`${label}: nonsense\n`);
+    const accepts = rows.find((row) => row.label === label)?.accepts ?? [];
+    expect(accepts.length).toBeGreaterThan(0);
+    const field = receiptField(label);
+    for (const form of accepts) {
+      // The words a value starts with, before the placeholder that names what follows them.
+      const words = form.slice(`${label}: `.length, form.indexOf("<"));
+      expect(words.trim(), form).not.toBe("");
+      expect(field, form).toContain(words);
+    }
+  });
+
+  it("the receipt's Capture field has a `not reached` value, which a ready pull request's line never takes", () => {
+    const field = receiptField("Capture");
+    expect(field).toContain("| not reached: <why>, for a story that ended before its completion checkpoint");
+    expect(field).toContain('a ready pull request\'s line is never "not reached"');
+    expect(field).not.toContain("or that the story ended before its completion checkpoint");
+  });
+
+  it("step 7 gives the body's line its shape: one line, the label, one space, the value", () => {
+    expect(step7()).toContain("the label, its colon, one space, then the value, all on one line");
+    expect(step7()).toContain("with nothing before it");
+    // The shape is both lines': the receipt pads its labels to a column, and the body must not.
+    expect(step7()).toContain(
+      "In the body, each of the two is a line of its own with nothing before it: the label, its colon, one space, then the value, all on one line.",
+    );
+  });
+
+  it("step 8 has the worker fix a failing body and check again before handing back", () => {
+    expect(step8()).toContain(
+      "save it again and rerun the check until both of the body's lines read `found`, before you hand back",
+    );
+    expect(step8()).toContain("unchanged and after your last edit to it");
+  });
+
+  it("the lead reads the two lines itself, in the receipt and in the live body, and its own reading decides where the check did not run", () => {
+    const lead = oneLine(section(read(LEAD), "7. A hand-back"));
+    // The check proves the saved file, so only the lead's own read ties the lines to the pull request.
+    expect(lead).toContain(
+      "read both yourself, in the receipt and in the pull request's body as it stands now, since the receipt check reads the file it was given, never the pull request or the receipt.",
+    );
+    expect(lead).toContain(
+      "A hand-back missing either line in either place, or with a line whose value differs between the two, goes back to the worker, and so does one whose pasted check shows a body line as anything but `found`.",
+    );
+    // No dead end: a check that could not run sends nothing back on its own.
+    expect(lead).toContain(
+      "Where the pasted check says the body was not checked, or the check could not run, your own reading of the body decides.",
+    );
+    // Its own reading needs the rule the check applies: the shape, the forms and the one value a ready body never has.
+    expect(lead).toContain(
+      "In the body a line counts only in a form the worker's skill gives it, at the start of a line of its own, and never as `not reached` on a pull request that is ready.",
+    );
+  });
+
+  it("the receipt's Receipt check field names --pr-body", () => {
+    expect(receiptField("Receipt check")).toContain("--pr-body");
+  });
+
+  it.each([
+    "`Capture:` line",
+    "`captured` with the path",
+    "`skipped:` with the reason",
+    "a line of its own",
+    "the `Docs:` and `Capture:` lines are brought up to date in both places",
+  ])("story-worker's step 7 says %j", (phrase) => {
+    expect(step7()).toContain(phrase);
+  });
+
+  it("step 7 writes the Capture line after the capture and before the pull request is marked ready", () => {
+    const text = step7();
+    const at = (phrase: string) => {
+      expect(text, phrase).toContain(phrase);
+      return text.indexOf(phrase);
+    };
+    expect(at("`capture-learning`")).toBeLessThan(at("`Capture:` line"));
+    expect(at("`Capture:` line")).toBeLessThan(at("mark the pull request ready"));
+    expect(at("pull request's body")).toBeLessThan(at("mark the pull request ready"));
+  });
+
+  it("step 8 saves the body to a file and passes it as --pr-body, and a blocked hand-back leaves it out", () => {
+    const text = step8();
+    expect(text).toContain('`--pr-body "<that file>"`');
+    expect(text).toContain("to a file");
+    expect(text).toContain(
+      "with the command the repo's project instructions name, or else the repo host's own tool",
+    );
+    expect(text).toContain("A blocked hand-back leaves `--pr-body` out");
+  });
+
+  it("step 8 names no host's tool for saving the body", () => {
+    expect(step8()).not.toBe("");
+    expect(step8()).not.toMatch(/\bgh\b|github|curl/i);
+  });
+
+  it("the lead's claims check reads the two lines in the receipt and in the body, and sends back a hand-back missing either", () => {
+    const handBack = oneLine(section(read(LEAD), "7. A hand-back"));
+    const claims = handBack.slice(
+      handBack.indexOf("**Check the claims.**"),
+      handBack.indexOf("**Accept on the evidence.**"),
+    );
+    expect(claims).toContain("**Check the claims.**");
+    expect(claims).toContain("`Capture:`");
+    expect(claims).toContain("`Docs:`");
+    expect(claims).toContain("pull request's body");
+    expect(claims).toContain("goes back to the worker");
+  });
+
+  it("the capture-learning fallback writes a skipped Capture line, not a remark in the hand-back", () => {
+    const capture = operationsOf(readTable("story-worker")).find((op) => op.id === "capture-learning");
+    const fallback = oneLine(String(capture?.fallback ?? ""));
+    expect(fallback).toContain("`skipped:`");
+    expect(fallback).toContain("Capture");
+    expect(fallback).not.toContain("say in the hand-back");
   });
 });

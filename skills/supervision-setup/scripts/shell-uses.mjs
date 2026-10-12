@@ -42,6 +42,47 @@ import { basename } from "node:path";
 
 /** Exit codes from a shell that could not run the command: not executable, not found. */
 export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
+/**
+ * What zsh prints after the name it gives itself when it cannot parse a line:
+ * the line's number, or none, then one of its four wordings.
+ */
+const ZSH_PARSE_ERROR = /(?:\d+:)? (?:parse error|unmatched |closing brace expected|condition expected)/.source;
+/**
+ * What bash prints when it cannot parse a line it was given to `eval`: its
+ * name, as it was started, then the line's number and one of its two wordings.
+ */
+const BASH_PARSE_ERROR = /(?:\S*\/)?bash: eval: line \d+: (?:syntax error|unexpected EOF while looking for matching )/.source;
+/**
+ * A line the top-level shell starts its own parse error with, whatever the
+ * exit code, so the call is read as not run: Claude Code's `Bash` evaluates
+ * the line in zsh (`(eval):5: parse error`, `(eval):1: unmatched "` for an
+ * unclosed quote, `(eval):2: closing brace expected` for an unclosed `${`,
+ * `(eval):3: condition expected` for a malformed `[[`; zsh leaves the number
+ * out of some, as `(eval): parse error near `()'` for a `name()` with
+ * nothing after it)
+ * or, by its form though not yet observed there, bash, which names itself as
+ * it was started (`bash: eval: line 11: syntax error`, `/bin/bash: eval: line
+ * 1: syntax error`, and for an unclosed quote, the only line a newer bash
+ * prints, `/bin/bash: eval: line 1: unexpected EOF while looking for
+ * matching`), and Codex runs it with `zsh -lc` (the same four zsh errors,
+ * after `zsh:1:`, or after a bare `zsh:` where zsh gives no number). A
+ * nested shell's or a script's own error (`bash: -c: line
+ * 1: syntax error`, `/bin/bash: -c:`) names another source, so it does not
+ * match and its call keeps its credit.
+ * Five limits lose credit, the safe direction: bash's `eval` runs the
+ * complete lines before its error; zsh parses a balanced `$(...)` or backtick
+ * substitution only when it reaches it, so the commands before one that will
+ * not parse have run, and in a here-document the ones after it too; a nested
+ * shell that names itself as the top-level one does, an `eval` under Claude
+ * Code or a `zsh -c` under Codex, prints the same prefix; so may a command
+ * that ran and printed such a line itself; and zsh's `[` and `test` word a
+ * runtime complaint the same way (`(eval):1: parse error: condition
+ * expected: =`, `(eval):1: condition expected: b`) and carry on.
+ */
+export const SHELL_COULD_NOT_PARSE = {
+  claude: new RegExp(String.raw`^(?:\(eval\):${ZSH_PARSE_ERROR}|${BASH_PARSE_ERROR})`, "m"),
+  codex: new RegExp(String.raw`^zsh:${ZSH_PARSE_ERROR}`, "m"),
+};
 /** Commands that run the script named after them. */
 const INTERPRETERS = new Set(["bash", "sh", "zsh", "node", "python", "python3"]);
 /**

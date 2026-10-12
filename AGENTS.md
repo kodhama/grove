@@ -106,6 +106,10 @@ of @<maintainer-handle>.` Comments only: a PR body is covered by its branch and
   identifier is what links the PR to Linear.
 - **Put `Fixes GRO-<n>` in the PR body** (or `Part of GRO-<n>` when the PR is
   one of several for the issue).
+- **A story's PR body carries a `Capture:` line and a `Docs:` line**, each at
+  the start of its own line, as `story-worker` gives them. To hand the body
+  to the receipt check, save it with
+  `gh pr view <n> --json body --jq .body > <file>` and pass `--pr-body <file>`.
 - Conventional Commits; linear history (rebase-merge or squash with a
   hand-edited message).
 - **Every change reaches `main` through a PR.** A ruleset on `main` enforces
@@ -116,6 +120,10 @@ of @<maintainer-handle>.` Comments only: a PR body is covered by its branch and
 - **Every PR bumps `version` in both `.claude-plugin/plugin.json` and
   `.codex-plugin/plugin.json`, together.** An install keeps its cached copy
   until the version changes, so an unbumped merge reaches no one.
+- **`README.md` is the doc a change keeps current, and `docs/decisions/` where
+  the change supersedes a decision recorded there.** The README is grove's
+  reference: it holds what the routing tables expect of a repo that uses the
+  skills.
 - Code changes are test-first: failing test, then implementation, then green.
 - Keep diffs reviewable from a phone: small, focused, well-described.
 
