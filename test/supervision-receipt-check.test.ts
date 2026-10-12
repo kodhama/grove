@@ -872,6 +872,54 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf(line)).toEqual(clis);
   });
 
+  // zsh reads every word before an unquoted `()` as one more function name,
+  // past a command's first word too: `gh pr view 12 name() more words` defines
+  // five functions, exits 0, prints nothing and runs no command, so `gh` earns
+  // no credit. The body is credited as any function's is, called or not.
+  it.each([
+    ["alone on the line", "gh pr view 12 name() more words", ["more"]],
+    ["with a space before the ()", "gh pr view 12 name () more words", ["more"]],
+    ["with a braced body", "gh pr view 12 name() { more words }", ["more"]],
+    ["after a ;", "cd /repo; gh pr view 12 name() more words", ["cd", "more"]],
+    ["after an &&", "cd /repo && gh pr view 12 name() more words", ["cd", "more"]],
+    ["after a |", "echo a | gh pr view 12 name() more words", ["echo", "more"]],
+    ["after a newline", "cd /repo\ngh pr view 12 name() more words", ["cd", "more"]],
+    ["inside a $( )", 'echo "$(gh pr view 12 name() more words)"', ["echo", "more"]],
+    ["with a = before the ()", "touch e13 a=() b", ["b"]],
+    ["with a redirect among them", "touch e21 > /dev/null x() y", ["y"]],
+    ["after command", "command touch e25 x() y", ["y"]],
+    ["inside an if", "if true; then touch e16 x() y; fi", ["true", "y"]],
+    ["inside braces", "{ touch e17 x() y }", ["y"]],
+    ["inside a subshell", "( touch e18 x() y )", ["y"]],
+  ])("credits none of the words before a function's (), %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it.each([
+    ["inside single quotes", "gh api graphql -f query='query() { viewer { login } }'", ["gh"]],
+    ["inside double quotes", 'gh api graphql -f query="query() { viewer { login } }"', ["gh"]],
+    ["in a $( ) that defines and calls a function", "echo e5 $(f() { echo inner }; f)", ["echo", "echo", "f"]],
+    ["escaped", String.raw`touch e14 x\(\) y`, ["touch"]],
+    ["as an empty array a setting holds", "a=() touch x", ["touch"]],
+    ["as a glob qualifier", "echo x *(N)", ["echo"]],
+    ["after a function's name, which is then called", "f() { gh pr view 1; }; f", ["gh", "f"]],
+  ])("still credits a command whose line holds a ( ) %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  it("still credits a $( ) among the words before a function's (), since zsh runs it", () => {
+    expect(clisOf("gh pr view $(cat f) name() body")).toEqual(["body", "cat"]);
+  });
+
+  it("does not count a Bash call whose line only defined functions", () => {
+    const dir = mkdtempSync(join(tmpdir(), "receipt-check-functions-"));
+    const call = { type: "tool_use", name: "Bash", input: { command: "gh pr view 12 name() more words" } };
+    const file = bindingsOfCalls(dir, [call, { content: "", is_error: false }]);
+    const outcomes = outcomesOf(file.transcripts, "cli", "gh");
+    rmSync(dir, { recursive: true });
+    expect(outcomes).toEqual([]);
+  });
+
   it("never credits a pattern after a lone & as a command", () => {
     expect(clisOf("sleep 1 & case x in a) echo;; gh) jq;; esac")).toEqual(["sleep", "echo", "jq"]);
   });

@@ -15,9 +15,12 @@
  *   even inside double quotes (`PR="$(gh pr view)"`), unless a backslash
  *   escapes it. Leading `NAME=value` settings are skipped, and so are the
  *   shell's reserved words where a command starts (`if`, `then`, `do`, `!`,
- *   `{`, `time` and the like), a `(` there and a function's `name()`; a
- *   command `env` runs is read too. Text is never a command: comments,
- *   `case` words and patterns, `for` lists, `[[` tests, arrays, arithmetic
+ *   `{`, `time` and the like) and a `(` there. A function's `name()` is
+ *   skipped with every word before it in its command, since zsh reads each
+ *   as one more name: `gh pr view 12 name() more` defines five functions and
+ *   runs nothing, and bash rejects the line. Its body is read as a command,
+ *   called or not. A command `env` runs is read too. Text is never a
+ *   command: comments, `case` words and patterns, `for` lists, `[[` tests, arrays, arithmetic
  *   and quoted heredoc bodies are dropped, an unquoted heredoc's body is
  *   read for the commands it expands, and quoted text stays inside its word,
  *   separators and all. A quoted or escaped space stays inside its word too, so
@@ -111,6 +114,8 @@ const ENV_VALUE_FLAGS = /^-[^-]*[uCPS]$/;
 const TIME = /time(?:[ \t]+-p)?(?=[\s;&|()<>]|$)/y;
 /** A function's definition up to its body: `name()` or `function name`, `()` optional. */
 const FUNCTION = /(?:function[ \t]+[^\s;&|()<>]+(?:[ \t]*\([ \t]*\))?|[^\s;&|()<>'"\\$`=]+[ \t]*\([ \t]*\))/y;
+/** The `()` of a function's definition, blanks allowed between the two. */
+const EMPTY_PARENS = /\([ \t]*\)/y;
 /** What a backslash escapes inside double quotes; before anything else it stays. */
 const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
 /**
@@ -153,7 +158,11 @@ const heredocCommands = (body) => {
  * `time` and the like are dropped and a command still starts after them; a
  * `(` opens a subshell there and a `((` arithmetic, unless its parens close
  * apart, as in `((a) )`. A function's `name()`
- * or `function name` is dropped and its body starts a command. `fi`,
+ * or `function name` is dropped and its body starts a command. Past a
+ * command's first word a `()` does the same and drops the words the command
+ * has so far, each one more name to zsh, though a `$(` among them still
+ * runs; a `(` that is quoted, escaped, an array's after a setting, or holds
+ * anything but blanks, as a glob's `*(N)` does, is text as before. `fi`,
  * `done`, `}`, a subshell's `)` and an arithmetic command's `))` end a
  * compound command, and the redirects after them belong to no command. So
  * does a `for` or `select` up to its `do`, and a `[[` test up to its `]]`. A `case` and its word belong to
@@ -418,6 +427,13 @@ function scan(line, heredoc = false) {
       push("substitution");
     } else if (char === "(" && wordStart && frame.at !== null && after === "(" && (frame.command || frame.arithmetic) && closesAsArithmetic(i)) {
       push("arithmetic-command");
+    } else if (char === "(" && !frame.command && !frame.skip && frame.at !== null && frame.parens.at(-1) !== "word" && matchAt(EMPTY_PARENS, i)) {
+      // Past a command's first word, a `()` makes every word read so far a
+      // function's name: none is a command, and the body starts one.
+      found[frame.at] = "";
+      i = text.indexOf(")", i);
+      frame.command = true;
+      wordStart = true;
     } else if (char === "(") {
       const subshell = wordStart && frame.command && frame.at !== null;
       frame.parens.push(subshell ? "subshell" : text[i - 1] === "=" ? "array" : "word");
