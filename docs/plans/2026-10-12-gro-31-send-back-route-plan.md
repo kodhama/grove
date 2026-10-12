@@ -434,3 +434,29 @@ Written by the story's worker after reading the plan against the source. The pla
 - **OD2: the worker recommends B, against the plan's A.** A new worker that takes up a story mid-flight has no earlier receipt, so nothing carries. Its check then reads `plan` as `bound-but-unused`, and the lead's own item 2 sends that hand-back back (`skills/project-lead/SKILL.md:333-335`). Option A's paragraph would send a new worker down a route the lead's check rejects. That case is the same gap as "a worker that ends mid-story with no handoff" under Deferred, and it belongs with it. A live worker's answer needs no new text (F14).
 - **Not run on this plan:** the planner skipped the plan skill's document review and its research subagents, to keep the run small. The lead reads the proposal instead.
 - **A residual the plan does not list (inferred, not tested):** a new worker gets the ended worker's name, since the name is built from the lead's name and the story's key (`skills/project-lead/SKILL.md:154-157`), so its session folder already holds the ended worker's bindings file, which a first setup overwrites, and any restart files that worker left.
+
+---
+
+## As ruled (2026-10-12)
+
+The lead ruled on both open decisions. Where this section and the plan above differ, this section is what gets built.
+
+- **OD1 = A, with one clause added.** In U2's paragraph "Where the worker that handed back has ended", this sentence goes in after the one that ends "and pass that file as `--handoff`.":
+
+  ```text
+  Only the operations that output shows used carry, so pass the earlier
+  receipt's Not run list as `--not-run` again.
+  ```
+
+  U1's scenario 7 pins it whole. The evidence is the run in the worker's notes above.
+- **OD2 = B.** The ended-session case of a refused line is left out and moves to the story that defines a refused call. Not built:
+  - U2's last paragraph, from ``**The answer to a `STATUS: refused` line**`` to its end;
+  - the last sentence of U3's passage, from ``The answer to a `STATUS: refused` line whose worker has ended``;
+  - U3's sentence appended to step 5's refused bullet, so step 5 is not edited at all;
+  - U1's scenarios 8 and 12.
+
+  The pull request says the issue's third bullet is covered for a live worker by existing text (F14) and deferred for an ended one.
+- **The three assumptions stay in:** the worker measures its context when a send-back arrives, the lead reads items 1 and 2 through before sending one back, and the cannot-fix paragraph.
+- **Version: `0.2.13`, not `0.2.12`.** Another pull request takes `0.2.12` first. U4 runs after `main` is merged in.
+- **Review:** one full review from a fresh context, aimed at the clone by its full path, each reviewer quoting its top level and head. No floor pass, by the lead's economy ruling.
+- **Residuals** go in the pull request's Limits. Nothing new is filed from them yet.
