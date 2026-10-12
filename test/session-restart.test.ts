@@ -233,7 +233,11 @@ function helperBudgetMs(opts: HelperOpts = {}): number {
     pollsIn(CLEAR_TIMEOUT) +
     pollsIn(opts.reportBound ?? REPORT_BOUND);
   // A scenario that sets --herdr-timeout has herdr calls hang until it cuts
-  // them; in every other the stub answers at once.
+  // them. In every other the stub answers at once, or late by `get-delay`,
+  // which only the poll allowance covers. So this bounds a run against these
+  // stubs, not the helper: it leaves out the helper's default 30s cut of a
+  // herdr call and a send that hangs, and a scenario with either, or with a
+  // slower herdr, passes its own `budgetMs`.
   const hungCallsMs = HERDR_CALLS_PER_POLL * Number(opts.herdrTimeout ?? 0) * 1000;
   return (
     STARTUP_ALLOWANCE_MS +
@@ -247,8 +251,8 @@ let budgetLeftMs = HELPER_TEST_TIMEOUT_MS;
 
 /**
  * Runs the helper to its end. A run that is killed at its budget throws: a
- * killed helper exits 1 through its own trap and skips its last reports, so
- * returned as a run it would read as a helper that stopped without reporting.
+ * killed helper never sends its last reports, so returned as a run it would
+ * read as a helper that stopped without reporting.
  */
 function runHelper(opts: HelperOpts = {}): Run {
   const budgetMs = opts.budgetMs ?? helperBudgetMs(opts);
@@ -287,7 +291,15 @@ function runHelper(opts: HelperOpts = {}): Run {
       "--",
       join(dir, "report"),
     ],
-    { encoding: "utf8", env: { ...process.env, STUB_DIR: dir }, timeout: budgetMs },
+    // Killed outright: the helper traps TERM, and bash runs a trap only once
+    // its foreground child returns, so a helper stuck in a call that hangs
+    // would outlast a budget enforced by a signal it can catch.
+    {
+      encoding: "utf8",
+      env: { ...process.env, STUB_DIR: dir },
+      timeout: budgetMs,
+      killSignal: "SIGKILL",
+    },
   );
   const timedOut = (result.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
   if (timedOut || result.signal) {
@@ -389,6 +401,23 @@ describe("runHelper — the budget a run of the helper gets", () => {
     expect(() => runHelper({ budgetMs: 300 })).toThrow(
       /restart-in-place\.sh did not finish within its 300 ms budget and was killed[\s\S]*stderr/,
     );
+  });
+
+  it("stops a helper that is stuck in a call that hangs, which a signal the helper traps would wait out", () => {
+    freshTurn(now());
+    states(["idle false s1"]);
+    // With no --herdr-timeout the helper cuts a hung read only at its default
+    // 30s, far past this budget, so the read is still hanging when the budget
+    // is spent. bash runs a trap only once its foreground child returns: a
+    // signal the helper traps would hold the run for the whole hang.
+    const hangS = 10;
+    stubFile("get-sleep", `${hangS}\n`);
+    const started = Date.now();
+    expect(() => runHelper({ budgetMs: 300 })).toThrow(
+      /did not finish within its 300 ms budget and was killed/,
+    );
+    // The ceiling is the stub's own hang, not a guess at this machine's speed.
+    expect(Date.now() - started).toBeLessThan(hangS * 1000);
   });
 
   it("refuses a run whose budget would take the test past its timeout, which cannot stop a run", () => {
@@ -717,8 +746,11 @@ describe("restart-in-place.sh — waiting for a ready, unfocused pane", () => {
     const run = runHelper(opts);
     expect(run.status).toBe(1);
     expect(run.prompts).toEqual([]);
-    // 0.3s is six polls, one hung read each; then it gives up.
-    expect(getsIn(run.calls)).toBe(6);
+    // 0.3s is six polls, one hung read each; then it gives up. The stub logs
+    // a read as it starts, so one cut before it got that far is not counted.
+    const gets = getsIn(run.calls);
+    expect(gets).toBeGreaterThan(0);
+    expect(gets).toBeLessThanOrEqual(6);
     expect(run.reports[0]).toMatch(/gave up/i);
   });
 
