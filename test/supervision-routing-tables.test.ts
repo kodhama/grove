@@ -1303,6 +1303,14 @@ describe("GRO-33 · what counts as a refused call, and where its line goes", () 
   it("story-worker's section on a refused call names no harness, path, version or tracker", () => {
     expect(workerRefused()).not.toBe("");
     expect(textProblems(workerRefused())).toEqual([]);
+    expect(workerRefused()).not.toMatch(/\b(claude|codex)\b/i);
+    // The section's only code spans: a tool or a parameter named in backticks fails here.
+    expect([...new Set(workerRefused().match(/`[^`]*`/g))].sort()).toEqual([
+      "`STATUS: moved`",
+      "`STATUS: refused`",
+      "`hand-back`",
+      "`post-work-note`",
+    ]);
   });
 
   it("a refusal is defined by who stopped the call: any of four guards", () => {
@@ -1345,7 +1353,7 @@ describe("GRO-33 · what counts as a refused call, and where its line goes", () 
       "1. your lead, through the performer bound to `hand-back`, or, before setup completes, over the channel your launch came from, since nothing is bound yet;",
       "2. a note on the story's work item, through the performer bound to `post-work-note`, once setup has bound it;",
       "3. the maintainer directly, as a worker with no lead does: one question, through the question tool where your harness has one;",
-      "4. your own reply: write the lines there, where whoever opens your session reads them, and end your turn, changing nothing more until an answer comes.",
+      "4. your own reply: write the lines there, where whoever opens your session reads them, and end your turn, even with independent work left, changing nothing more until an answer comes.",
     ];
     expect(refused).toContain(
       "**When the line cannot be sent.** A refused send is a refused call too, and its line still has to arrive. Send each line by the first of these routes that is open, never twice by the same one, and with it a `STATUS: refused` line for each send that was refused:",
@@ -1375,15 +1383,27 @@ describe("GRO-33 · what counts as a refused call, and where its line goes", () 
       expect(notes).toContain(kind);
     }
     expect(notes).toContain("- **A hook's block.** **Unknown** on both.");
-    // The receipt check's "refused" is wider than this rule's, and the notes say so where the two meet.
+    // The receipt check's "refused" is not this rule's, and the notes say so where the two meet.
     expect(notes).toContain(
-      "That \"refused\" is narrower than the receipt check's, in \"A call that did not run\" above: there it is any call that did not run, one the harness rejected as malformed included, and here it is a call a guard stopped.",
+      "That \"refused\" is not the receipt check's, in \"A call that did not run\" above: there it is any call that did not run, one the harness rejected as malformed included; here it is a call a guard stopped, which can be a command that ran, as a sandbox denial on Claude Code is, and the check then counts it as a use.",
+    );
+    // #10: a claim with no date of its own says so in a form the notes' opening rule allows.
+    expect(notes).toContain(
+      "(**reported, not re-observed**: one recorded call and the error in its result, recorded no later than 2026-10-07; the version was not recorded)",
+    );
+    // #19: every mark of what was not seen, and whose rule the re-runs are.
+    expect(notes).toContain(
+      "Only what was observed is described; the rest is **unknown**, so when one of them happens to you, add what came back, word for word, with the version and date.",
+    );
+    expect(notes).toContain("its words are **unknown**.");
+    expect(notes).toContain(
+      "Which of these re-runs a worker may make is story-worker's rule to say, not this note's. Codex: **unknown**.",
     );
     expect(notes).toContain(
       "story-worker's rule is the stricter one: it allows no other route to the same end.",
     );
     expect(notes).toContain(
-      "Here too story-worker's rule is the stricter one: a rewrite the check suggests is still another way to the same end.",
+      "Here too story-worker's rule is the stricter one: a rewrite the check suggests is still another way to the same end. Codex: **unknown**.",
     );
   });
 
