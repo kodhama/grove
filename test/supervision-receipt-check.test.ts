@@ -891,7 +891,26 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     ["inside an if", "if true; then touch e16 x() y; fi", ["true", "y"]],
     ["inside braces", "{ touch e17 x() y }", ["y"]],
     ["inside a subshell", "( touch e18 x() y )", ["y"]],
+    ["after a declaration word, with no = before the ()", "local x() y", ["y"]],
   ])("credits none of the words before a function's (), %s", (_where, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
+
+  // A declaration word's `name=()` is an array, not a definition: `local
+  // arr=() gh` declares `arr` and a variable `gh`, and runs no `gh`.
+  it.each(["declare", "export", "float", "integer", "local", "readonly", "typeset"])(
+    "reads the name=() after %s as an array, and the word after it as no command",
+    (word) => {
+      expect(clisOf(`${word} arr=() gh`)).toEqual([word]);
+    },
+  );
+
+  it.each([
+    ["before a ;", "local arr=(); gh pr view 1", ["local", "gh"]],
+    ["with an option, before a newline", "typeset -a brr=()\ngh pr view 1", ["typeset", "gh"]],
+    ["twice on a line", "declare -a files=() names=()\ngh pr view 1", ["declare", "gh"]],
+    ["in a function's body", "f() { local arr=(); gh pr view 1; }; f", ["local", "gh", "f"]],
+  ])("still credits the command after a declaration word's name=(), %s", (_where, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
   });
 

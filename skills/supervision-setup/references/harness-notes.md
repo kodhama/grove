@@ -249,9 +249,13 @@ with the body `more words`, exits 0, prints nothing and runs no command (zsh
 5.9, 2026-10-12). Nothing in the result says so, so the receipt check reads
 it from the line: it credits none of the words before the `()`, and reads
 the body as it reads any function's, called or not. A `$(...)` among those
-words still runs, and is credited. Bash rejects such a line with a `syntax
-error`, which the check reads as not run. Four neighbours the check does not
-read as zsh does (zsh 5.9, 2026-10-12):
+words still runs, and is credited. The `name=()` after `declare`, `export`,
+`float`, `integer`, `local`, `readonly` or `typeset` is an array and no
+definition, and is read as before: `local arr=() gh` declares `arr` and a
+variable `gh`, and runs no `gh` (zsh 5.9, 2026-10-12). Bash rejects a line
+that defines functions so with a `syntax error`, which the check reads as
+not run. Four neighbours the check does not read as zsh does (zsh 5.9,
+2026-10-12):
 
 - **Unsafe: a name the line defines shadows the CLI for the rest of the
   call.** After `touch x() true; touch e2` the second `touch` is the

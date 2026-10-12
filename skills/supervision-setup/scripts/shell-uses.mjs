@@ -19,8 +19,10 @@
  *   skipped with every word before it in its command, since zsh reads each
  *   as one more name: `gh pr view 12 name() more` defines five functions and
  *   runs nothing, and bash rejects the line. Its body is read as a command,
- *   called or not. A command `env` runs is read too. Text is never a
- *   command: comments, `case` words and patterns, `for` lists, `[[` tests, arrays, arithmetic
+ *   called or not. The `name=()` after a declaration word, as in `local
+ *   arr=()`, is an array and no definition. A command `env` runs is read
+ *   too. Text is never a command: comments, `case` words and patterns,
+ *   `for` lists, `[[` tests, arrays, arithmetic
  *   and quoted heredoc bodies are dropped, an unquoted heredoc's body is
  *   read for the commands it expands, and quoted text stays inside its word,
  *   separators and all. A quoted or escaped space stays inside its word too, so
@@ -133,6 +135,11 @@ const TIME = /time(?:[ \t]+-p)?(?=[\s;&|()<>]|$)/y;
 const FUNCTION = /(?:function[ \t]+[^\s;&|()<>]+(?:[ \t]*\([ \t]*\))?|[^\s;&|()<>'"\\$`=]+[ \t]*\([ \t]*\))/y;
 /** The `()` of a function's definition, blanks allowed between the two. */
 const EMPTY_PARENS = /\([ \t]*\)/y;
+/**
+ * A command whose first word declares variables. A `name=()` after it is an
+ * array, never a function's `()`: `local arr=() gh` runs no `gh`.
+ */
+const DECLARATION = /^\s*(?:declare|export|float|integer|local|readonly|typeset)\s/;
 /** What a backslash escapes inside double quotes; before anything else it stays. */
 const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
 /**
@@ -178,8 +185,10 @@ const heredocCommands = (body) => {
  * or `function name` is dropped and its body starts a command. Past a
  * command's first word a `()` does the same and drops the words the command
  * has so far, each one more name to zsh, though a `$(` among them still
- * runs; a `(` that is quoted, escaped, an array's after a setting, or holds
- * anything but blanks, as a glob's `*(N)` does, is text as before. `fi`,
+ * runs; a `(` that is quoted, escaped, an array's after a setting or after
+ * a `name=` that `local`, `typeset` or another declaration word is given,
+ * or holds anything but blanks, as a glob's `*(N)` does, is text as
+ * before. `fi`,
  * `done`, `}`, a subshell's `)` and an arithmetic command's `))` end a
  * compound command, and the redirects after them belong to no command. So
  * does a `for` or `select` up to its `do`, and a `[[` test up to its `]]`. A `case` and its word belong to
@@ -303,6 +312,9 @@ function scan(line, heredoc = false) {
     pattern.lastIndex = i;
     return pattern.exec(text)?.[0];
   };
+  // Whether the `(` at i opens the array a declaration word's `name=` is
+  // given, in a frame that holds commands.
+  const declaresArray = (i, frame) => text[i - 1] === "=" && DECLARATION.test(found[frame.at]);
   // Arithmetic holds no command, so its frame has no index.
   const push = (kind) => {
     const at = kind === "arithmetic" || kind === "arithmetic-command" ? null : 0;
@@ -455,7 +467,7 @@ function scan(line, heredoc = false) {
       push("substitution");
     } else if (char === "(" && wordStart && frame.at !== null && after === "(" && (frame.command || frame.arithmetic) && closesAsArithmetic(i)) {
       push("arithmetic-command");
-    } else if (char === "(" && !frame.command && !frame.skip && frame.at !== null && frame.parens.at(-1) !== "word" && matchAt(EMPTY_PARENS, i)) {
+    } else if (char === "(" && !frame.command && !frame.skip && frame.at !== null && frame.parens.at(-1) !== "word" && !declaresArray(i, frame) && matchAt(EMPTY_PARENS, i)) {
       // Past a command's first word, a `()` makes every word read so far a
       // function's name: none is a command, and the body starts one.
       found[frame.at] = "";
