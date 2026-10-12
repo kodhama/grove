@@ -1397,7 +1397,8 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
   });
 
   // A line can exit 0 though zsh could not parse part of it, as when the span
-  // sits in an early stage of a pipeline: the item is then `completed`, and
+  // sits in an early stage of a pipeline, or stopped part of it at an
+  // `unknown condition`, as in a subshell: the item is then `completed`, and
   // its `stdout` starts with zsh's error. Only the first line is read, and the
   // last row pins the limit that comes with it.
   it.each([

@@ -49,7 +49,8 @@ export const SHELL_COULD_NOT_RUN = new Set([126, 127]);
  * What zsh prints after the name it gives itself when it did not run a line,
  * or not all of it: the line's number, or none, then one of five wordings.
  * Four are parse errors. `unknown condition` is a runtime error, as for
- * `[[ -z ]]`: it stops the rest of the list it sits in.
+ * `[[ -z ]]`: it stops the rest of the list it sits in. It came with no
+ * number only from a zsh reading its script from standard input.
  */
 const ZSH_OWN_ERROR = /(?:\d+:)? (?:parse error|unmatched |closing brace expected|condition expected|unknown condition)/.source;
 /**
@@ -62,9 +63,12 @@ const BASH_PARSE_ERROR = /(?:\S*\/)?bash: eval: line \d+: (?:syntax error|unexpe
  * code, so the call is read as not run: Claude Code's `Bash` evaluates
  * the line in zsh (`(eval):5: parse error`, `(eval):1: unmatched "` for an
  * unclosed quote, `(eval):2: closing brace expected` for an unclosed `${`,
- * `(eval):3: condition expected` for a malformed `[[`; zsh leaves the number
- * out of some, as `(eval): parse error near `()'` for a `name()` with
- * nothing after it; and `(eval):1: unknown condition: -z` for `[[ -z ]]`,
+ * `(eval):3: condition expected` for the three-word test `[[ x a y ]]` on
+ * its third line, where a two-word `[[ a b ]]` prints `(eval):N: parse
+ * error: condition expected`; zsh leaves the number out of some, as `(eval):
+ * parse error near `()'` for a `name()` with nothing after it, or `(eval):
+ * condition expected` for `f() [[ a b c ]]`; and `(eval):1: unknown
+ * condition: -z` for `[[ -z ]]`,
  * which is no parse error: the commands before it ran, and the ones after
  * it in its list never do, whatever joins them)
  * or, by its form though not yet observed there, bash, which names itself as
@@ -90,6 +94,10 @@ const BASH_PARSE_ERROR = /(?:\S*\/)?bash: eval: line \d+: (?:syntax error|unexpe
  * that ran and printed such a line itself; and zsh's `[` and `test` word a
  * runtime complaint the same way (`(eval):1: parse error: condition
  * expected: =`, `(eval):1: condition expected: b`) and carry on.
+ * One keeps a credit it did not earn, the unsafe direction: inside a
+ * function zsh names the function, not itself (`f: unknown condition: -z`,
+ * `(anon): unknown condition: -z`), so that line is not read, and the
+ * commands the error stopped are counted.
  */
 export const SHELL_OWN_ERROR = {
   claude: new RegExp(String.raw`^(?:\(eval\):${ZSH_OWN_ERROR}|${BASH_PARSE_ERROR})`, "m"),
@@ -185,6 +193,17 @@ const heredocCommands = (body) => {
  * to the newline, and an unclosed quote runs to the end. A command comes
  * before the ones it opens: `echo "a; $(date)"` gives `echo "a; "` and
  * `date`.
+ *
+ * Four function definitions are not read as zsh reads them. Two keep a
+ * credit wrongly, the unsafe direction: a name the line defines shadows the
+ * CLI for the rest of the call, so after `touch x() true; touch e2` no
+ * `touch` ran, as after a plain `gh() {…}; gh …`; and `name( )`, a blank
+ * inside the parens after other words, is an error to zsh (`unknown file
+ * attribute`, exit 1, nothing run) and a definition here. One loses credit,
+ * the safe direction: an anonymous function, `() { cmd }` or `() cmd`, runs
+ * `cmd`, and nothing is read. And `function a b { … }` defines both names:
+ * `b` is read as a command, and the body's commands are missed when `b` is
+ * called.
  */
 function commandTexts(line) {
   return scan(line).found;

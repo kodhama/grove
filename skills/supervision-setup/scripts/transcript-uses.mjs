@@ -35,7 +35,8 @@
  * it did not run the line, or not all of it; a nested shell's or a tool's
  * own error keeps the credit. A `Bash` result without the flag `failed` too
  * when it starts with that error. `shell-uses.mjs` names the limits that
- * lose a credit, and `claudeOutcome` the two that keep one wrongly. A call
+ * lose a credit and the ones that keep one wrongly from how a line or zsh's
+ * wording is read, and `claudeOutcome` two more that keep one. A call
  * with no result yet, such as the last
  * one in a live transcript, is `pending`. Every use of one call shares that
  * call's outcome, which gives two known limits. In `cd x && herdr …` a
@@ -235,7 +236,11 @@ function claudeOutcome(call, result) {
   // ran, the error is all there is; on a later line it follows the output of
   // commands that ran, and in a result Claude Code read as a success the call
   // has mostly carried on past it, so reading every line would take credit
-  // from calls that ran. The cost is a known limit in the unsafe direction:
+  // from calls that ran. An `unknown condition` that starts the result of a
+  // line that exited 0 sat in a subshell, a `$(...)`, a background job or an
+  // early stage of a pipeline, and the call carried on past it: it reads
+  // `failed` all the same, the safe direction. The cost of reading one line
+  // is a known limit in the unsafe direction:
   // `echo a; grep x f $(if)` stops at the `$(...)`, exits 1 with the flag
   // off, and grep keeps a credit it did not earn. A call run in the
   // background keeps one too: its result is the notice that it started,

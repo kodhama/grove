@@ -151,18 +151,22 @@ command the shell could not parse is not counted, whatever N is: its result
 reads `Exit code 1` then a line starting with zsh's own `(eval):1: parse
 error near ...`, or `(eval):1: unmatched "` for an unclosed quote (observed
 on Claude Code 2.1.296, 2026-10-10), or `(eval):2: closing brace expected`
-for an unclosed `${`, or `(eval):3: condition expected: a` for a malformed
-`[[` (both zsh 5.9, 2026-10-11). zsh leaves the line number out of some
+for an unclosed `${`, or `(eval):3: condition expected: a` for the
+three-word test `[[ x a y ]]` on the call's third line (both zsh 5.9,
+2026-10-11). A two-word test, `[[ a b ]]`, prints `(eval):N: parse error:
+condition expected: a` instead (zsh 5.9, 2026-10-12). zsh leaves the line
+number out of some
 parse errors, as ``(eval): parse error near `()'`` for a `name()` with
 nothing after it (observed on Claude Code 2.1.296, 2026-10-11), or
 ``(eval): parse error near `)'`` then `(eval): unmatched "` where that sits
 inside a quoted `$(...)` (zsh 5.9, 2026-10-11), or `(eval): closing brace
 expected` for an unclosed `${` in a function body written without braces
-(observed on Claude Code 2.1.296, 2026-10-11). The check reads each of the
-four wordings with the number or without. `condition expected` was observed
-without one only behind `parse error:`, as `(eval): parse error: condition
-expected: a` for `f() [[ a b ]]` (zsh 5.9, 2026-10-11), which the check
-reads by its `parse error`. Usually nothing in the line ran,
+(observed on Claude Code 2.1.296, 2026-10-11). `condition expected` comes
+without one too: `f() [[ a b c ]]` prints `(eval): condition expected: b`
+(zsh 5.9, 2026-10-12), and `f() [[ a b ]]` prints `(eval): parse error:
+condition expected: a` (zsh 5.9, 2026-10-11). The check reads each of its
+five wordings with the number or without: these four, and `unknown
+condition`, below, which is no parse error. Usually nothing in the line ran,
 but zsh parses a `$(...)` or backtick substitution only when it reaches it,
 so the commands before one that will not parse have run: such a call loses
 its credit, the safe direction. Bash's own `bash: eval: line N: syntax
@@ -176,6 +180,27 @@ not observed. Bash's `eval` runs the complete lines before its error, so a call
 read that way may have run some. A nested shell's error, such as `bash: -c:
 line 1: syntax error` or `/bin/bash: -c: ...`, or a tool's own, such as `rg:
 regex parse error`, still counts: the line ran.
+
+The fifth wording the check reads that way is no parse error. `unknown
+condition` is a runtime error: `[[ -z ]]` parses, and zsh stops when it runs
+it, with `Exit code 2` and `(eval):N: unknown condition: -z`, or `zsh:N:
+unknown condition: -z` from a `zsh -c`, the form Codex shows (both zsh 5.9,
+2026-10-12).
+Other operators are worded the same (`-n`, `-zz`, `-foo`). The commands
+before it ran. The ones after it in the same list never do, whether a `;`,
+an `&&`, an `||` or an `if` joins them, and that is why the call reads as not
+run: it loses the credit its earlier commands earned, the safe direction.
+Inside a subshell, a `$(...)`, a background job or a pipeline's stage before
+the last, the error stops only that part and the call carries on. Its result
+still holds the line, so it loses its credit too where the result is flagged
+as an error or starts with that line. The wording came without a line
+number only from a shell reading its script from standard input (`zsh:
+unknown condition: -z`). Two lines the check does not read. zsh's `[` names itself
+in the same complaint (`(eval):[:1: unknown condition: -z`) and carries on,
+so that call rightly keeps its credit. Inside a function zsh names the
+function instead (`f: unknown condition: -z`, `(anon): unknown condition:
+-z`) and stops the list the same way, so the commands after it keep a credit
+they did not earn, the unsafe direction (all zsh 5.9, 2026-10-12).
 
 Three more calls lose a credit they earned, since the check cannot tell
 their line from the shell's own: one whose nested `eval` printed the same
@@ -216,6 +241,32 @@ A call run in the background keeps its credit as well, whatever the shell
 made of its line: its result is the notice that it started, and a parse
 error goes only to the output file the notice names (observed on 2.1.296,
 2026-10-11).
+
+**A line that only defines functions.** zsh reads every word before an
+unquoted `()` as one more function name, past a command's first word too:
+`gh pr view 12 name() more words` defines `gh`, `pr`, `view`, `12` and `name`
+with the body `more words`, exits 0, prints nothing and runs no command (zsh
+5.9, 2026-10-12). Nothing in the result says so, so the receipt check reads
+it from the line: it credits none of the words before the `()`, and reads
+the body as it reads any function's, called or not. A `$(...)` among those
+words still runs, and is credited. Bash rejects such a line with a `syntax
+error`, which the check reads as not run. Four neighbours the check does not
+read as zsh does (zsh 5.9, 2026-10-12):
+
+- **Unsafe: a name the line defines shadows the CLI for the rest of the
+  call.** After `touch x() true; touch e2` the second `touch` is the
+  function, and no `touch` ran, yet it is counted. A plain `gh() {…}; gh …`
+  is counted the same way.
+- **Unsafe, and rare: `name( )`, with a blank inside the parens after other
+  words.** zsh reads no definition there: it stops with `(eval):1: unknown
+  file attribute:  ` and exit 1, having run nothing. The check does not read
+  that wording, and reads the line as a definition, so the body's command
+  is counted.
+- **Safe: an anonymous function.** `() { cmd }` and `() cmd` run `cmd`, and
+  the check credits nothing.
+- **Both directions: `function a b { … }`.** zsh defines both names and runs
+  nothing; the check counts `b` as a command, and misses the body's commands
+  when `b` is called.
 
 **Starting a cloud session.** `claude --cloud "<prompt>"` needs an interactive
 terminal. From the Bash tool it fails with `Error: --cloud requires an
@@ -284,15 +335,28 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   "`; its `stderr` is empty, as it is on every
   command item (observed on codex-cli 0.154.0, 2026-09-17). zsh's `zsh:2:
   closing brace expected`, for an unclosed `${`, and `zsh:3: condition
-  expected: a`, for a malformed `[[`, are read the same way. The receipt
+  expected: a`, for the three-word test `[[ x a y ]]` on the command's third
+  line, are read the same way; a two-word test, `[[ a b ]]`, prints `zsh:N:
+  parse error: condition expected: a` instead. The receipt
   check does not credit the call. Usually nothing in it ran, but the
   commands before a `$(...)` that will not parse have, as on Claude Code
   (the last two wordings and the `$(...)` case were read from `zsh -c` on
-  zsh 5.9, 2026-10-11, not from a Codex rollout). zsh prints some parse
+  zsh 5.9, 2026-10-11, and the two-word test on 2026-10-12, not from a Codex
+  rollout). zsh prints some parse
   errors with no line number, as ``zsh: parse error near `()'``, or `zsh:
   unmatched "` after one inside a quoted `$(...)`, or `zsh: closing brace
   expected`, and the check reads each wording with the number or without
-  (zsh 5.9, 2026-10-11, not from a Codex rollout). The item can be
+  (zsh 5.9, 2026-10-11, not from a Codex rollout). The fifth wording read
+  the same way is no parse error: `zsh:N: unknown condition: -z` is
+  the runtime error `[[ -z ]]` stops with, with exit code 2. The commands
+  before it ran, and the ones after it in the same list never do, so the
+  call loses the credit its earlier commands earned, the safe direction. It
+  came with no number only from a shell reading its script from standard
+  input, as `zsh: unknown condition: -z`. Inside a function zsh names the
+  function instead (`f: unknown condition: -z`), which the check does not
+  read: the commands after it keep a credit they did not earn, the unsafe
+  direction (read from `zsh -c` and `zsh -lc` on zsh 5.9, 2026-10-12, not
+  from a Codex rollout). The item can be
   `completed` instead. Where zsh
   could not parse part of a line and the line still exited 0, as when that
   part sits in an early stage of a pipeline, an `rg ... | head` came back
@@ -311,13 +375,25 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   an unquoted here-document in its first command held a backtick span zsh
   could not parse, or after zsh's `[` or `test` worded a runtime complaint
   that way (`[ a = ]; echo carried` prints `zsh:1: parse error: condition
-  expected: a`, then `carried`, and exits 0), and one whose first command
-  printed such a line itself. A
+  expected: a`, then `carried`, and exits 0), or after an `unknown
+  condition` inside a subshell, a `$(...)`, a background job or a pipeline's
+  stage before the last (`( [[ -z ]] ); echo carried` prints `zsh:1: unknown
+  condition: -z`, then `carried`, and exits 0), and one whose first command
+  printed such a line itself. zsh's `[` names itself in that complaint
+  (`zsh:[:1: unknown condition: -z`), which the check does not read, so a
+  line that carried on past it keeps its credit. A
   `completed` command that shows the error only on a later line keeps its
   credit, as an unflagged result does on Claude Code: `echo a; cat f
   "$(if)" | wc -l` prints `a`, then the error, exits 0, and `cat` is counted
   though it never ran (the nested, here-document, `[` and later-line cases
-  were read from `zsh -c` on zsh 5.9, 2026-10-11, not from a Codex rollout).
+  were read from `zsh -c` on zsh 5.9, 2026-10-11, and the `unknown
+  condition` ones on 2026-10-12, not from a Codex rollout).
+- **A line that only defines functions** reads as on Claude Code: zsh takes
+  every word before an unquoted `()` as one more function name, so `gh pr
+  view 12 name() more words` exits 0, prints nothing and runs no command,
+  and the check credits none of the words before the `()`. The same four
+  neighbours apply (read from `zsh -c` on zsh 5.9, 2026-10-12, not from a
+  Codex rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
   records `spawn_agent` in namespace `collaboration` as
   `collaboration.spawn_agent`, and the receipt check reads the call under that
