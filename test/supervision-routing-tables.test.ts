@@ -1314,28 +1314,28 @@ describe("GRO-33 · what counts as a refused call, and where its line goes", () 
       "The guard is the harness's check on what a session may run, whether it decides alone or puts a prompt to the maintainer, who declines it; a hook that blocks the call; a check built into the harness, such as one on a removal; or the sandbox.",
     );
     expect(refused).toContain(
-      "A sandbox denial is the one that comes back inside a command's own output, as the system's \"not permitted\" error.",
+      "A sandbox denial is the one that comes back inside a command's own output, as the system's \"not permitted\" error or a connection it could not make.",
     );
     expect(refused).toContain(
       "\"Your harness's permission check\" in this skill means any of these.",
     );
   });
 
-  it("a failure is not a refusal, and a worker that cannot tell which it has treats it as refused", () => {
+  it("a failure is not a refusal, a malformed call included, and a worker that cannot tell which it has treats it as refused", () => {
     expect(flat(workerRefused())).toContain(
-      "A non-zero exit, a command not found or a remote's own rejection is a failure, not a refusal; when you cannot tell which you have, treat it as refused.",
+      "A non-zero exit, a command not found, a call your harness rejects as malformed or a remote's own rejection is a failure, not a refusal; when you cannot tell which you have, treat it as refused.",
     );
   });
 
-  it("one sandbox denial is not a refusal: a run that declares what the command needs, and no more", () => {
+  it("one sandbox denial is not a refusal: the re-run the harness documents, once, and only for what the story needs", () => {
     expect(flat(workerRefused())).toContain(
-      "One sandbox denial is not a refusal: where your harness documents a way to declare what a command needs, such as a host it must reach, run it once with that declared. That is a declared need, not a way round the guard, and a denial of that run is a refusal.",
+      "One sandbox denial is not a refusal: where your harness documents a re-run for one, such as a run that declares a host the command must reach, make that re-run once, and only for something the story itself needs. It goes back through the harness's check, so it is not a way round the guard, and a denial of it is a refusal.",
     );
   });
 
   it("another way the guard's own answer offers is not an OK, and the offer goes in the line", () => {
     expect(flat(workerRefused())).toContain(
-      "Where the guard's answer itself offers another way to the same end, other than the declared-need run above, that is not an OK: Never's rule holds, and the offer goes in your line.",
+      "Where the guard's answer itself offers another way to the same end, other than the re-run above, that is not an OK: Never's rule holds, and the offer goes in your line.",
     );
   });
 
@@ -1375,6 +1375,10 @@ describe("GRO-33 · what counts as a refused call, and where its line goes", () 
       expect(notes).toContain(kind);
     }
     expect(notes).toContain("- **A hook's block.** **Unknown** on both.");
+    // The receipt check's "refused" is wider than this rule's, and the notes say so where the two meet.
+    expect(notes).toContain(
+      "That \"refused\" is narrower than the receipt check's, in \"A call that did not run\" above: there it is any call that did not run, one the harness rejected as malformed included, and here it is a call a guard stopped.",
+    );
     expect(notes).toContain(
       "story-worker's rule is the stricter one: it allows no other route to the same end.",
     );
