@@ -204,16 +204,18 @@ const heredocCommands = (body) => {
  * before the ones it opens: `echo "a; $(date)"` gives `echo "a; "` and
  * `date`.
  *
- * Four function definitions are not read as zsh reads them. Two keep a
+ * Five function definitions are not read as zsh reads them. Three keep a
  * credit wrongly, the unsafe direction: a name the line defines shadows the
  * CLI for the rest of the call, so after `touch x() true; touch e2` no
- * `touch` ran, as after a plain `gh() {…}; gh …`; and `name( )`, a blank
+ * `touch` ran, as after a plain `gh() {…}; gh …`; `name( )`, a blank
  * inside the parens after other words, is an error to zsh (`unknown file
- * attribute`, exit 1, nothing run) and a definition here. One loses credit,
- * the safe direction: an anonymous function, `() { cmd }` or `() cmd`, runs
- * `cmd`, and nothing is read. And `function a b { … }` defines both names:
- * `b` is read as a command, and the body's commands are missed when `b` is
- * called.
+ * attribute`, exit 1, nothing run) and a definition here; and a body is
+ * read though nothing calls it, which can be the next line's command, as
+ * the `gh pr list` on the line after one that ends `name()`. One loses
+ * credit, the safe direction: an anonymous function, `() { cmd }` or `()
+ * cmd`, runs `cmd`, and nothing is read. And `function a b { … }` defines
+ * both names: `b` is read as a command, and the body's commands are missed
+ * when `b` is called.
  */
 function commandTexts(line) {
   return scan(line).found;

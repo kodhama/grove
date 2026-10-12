@@ -186,8 +186,9 @@ condition` is a runtime error: `[[ -z ]]` parses, and zsh stops when it runs
 it, with `Exit code 2` and `(eval):N: unknown condition: -z`, or `zsh:N:
 unknown condition: -z` from a `zsh -c`, the form Codex shows (both zsh 5.9,
 2026-10-12).
-Other operators are worded the same (`-n`, `-zz`, `-foo`). The commands
-before it ran. The ones after it in the same list never do, whether a `;`,
+Other tests are worded the same: `[[ -n ]]`, `[[ -zz a ]]` and
+`[[ a -foo b ]]` print `unknown condition: -n`, `-zz` and `-foo`. The
+commands before it ran. The ones after it in the same list never do, whether a `;`,
 an `&&`, an `||` or an `if` joins them, and that is why the call reads as not
 run: it loses the credit its earlier commands earned, the safe direction.
 Inside a subshell, a `$(...)`, a background job or a pipeline's stage before
@@ -254,9 +255,11 @@ words still runs, and is credited. The `name=()` after `declare`, `export`,
 as before: `local arr=() gh` declares `arr` and a variable `gh`, and runs no
 `gh`. `float` and `integer` refuse the array (`arr: inconsistent type for
 assignment`, exit 1) and define nothing either, so theirs is read the same
-way (zsh 5.9, 2026-10-12). Bash rejects a line
+way; the refusal stops the rest of their list, whose commands keep a credit
+they did not earn, as `gh` does in `float arr=(); gh pr view 1`, the unsafe
+direction (zsh 5.9, 2026-10-12). Bash rejects a line
 that defines functions so with a `syntax error`, which the check reads as
-not run. Four neighbours the check does not read as zsh does (zsh 5.9,
+not run. Five neighbours the check does not read as zsh does (zsh 5.9,
 2026-10-12):
 
 - **Unsafe: a name the line defines shadows the CLI for the rest of the
@@ -268,6 +271,11 @@ not run. Four neighbours the check does not read as zsh does (zsh 5.9,
   file attribute:  ` and exit 1, having run nothing. The check does not read
   that wording, and reads the line as a definition, so the body's command
   is counted.
+- **Unsafe: a body that is never called is counted,** and the body can be
+  the next line's command. `gh pr view 12 name()` with `gh pr list` on the
+  line after it defines five functions whose body is `gh pr list`, exits 0
+  and runs nothing, yet the check counts that second `gh`: it reads a
+  function's body whether or not anything calls it.
 - **Safe: an anonymous function.** `() { cmd }` and `() cmd` run `cmd`, and
   the check credits nothing.
 - **Both directions: `function a b { … }`.** zsh defines both names and runs
@@ -397,7 +405,7 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
 - **A line that only defines functions** reads as on Claude Code: zsh takes
   every word before an unquoted `()` as one more function name, so `gh pr
   view 12 name() more words` exits 0, prints nothing and runs no command,
-  and the check credits none of the words before the `()`. The same four
+  and the check credits none of the words before the `()`. The same five
   neighbours apply (read from `zsh -c` on zsh 5.9, 2026-10-12, not from a
   Codex rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
