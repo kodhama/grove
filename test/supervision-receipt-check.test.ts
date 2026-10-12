@@ -938,6 +938,7 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     ["in a $( ) that defines and calls a function", "echo e5 $(f() { echo inner }; f)", ["echo", "echo", "f"]],
     ["escaped", String.raw`touch e14 x\(\) y`, ["touch"]],
     ["as an empty array a setting holds", "a=() touch x", ["touch"]],
+    ["as an empty array a second setting holds, after a plain one", "a=1 b=() touch x", ["touch"]],
     ["as a glob qualifier", "echo x *(N)", ["echo"]],
     ["after a function's name, which is then called", "f() { gh pr view 1; }; f", ["gh", "f"]],
   ])("still credits a command whose line holds a ( ) %s", (_where, line, clis) => {
@@ -960,8 +961,9 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
 
   // Known limits: what the parser reads where zsh does otherwise. zsh runs no
   // `touch` in the first two lines and no `gh` in the seventh, runs `cmd` in
-  // the two anonymous functions and `touch` in the last, and defines both
-  // `a` and `b` in the other two.
+  // the two anonymous functions and `touch` in the last two, and defines
+  // both `a` and `b` in the other two. The last line sets two arrays and
+  // defines nothing (`rc=0 fns=[]`, the file made).
   it.each([
     ["a name the line defines, then called as the CLI", "touch x() true; touch e2", ["true", "touch"]],
     ["a blank inside the ( ), which zsh rejects", "touch e1c name( ) more words", ["more"]],
@@ -971,6 +973,7 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     ["a function given two names, the second then called", "function a b { touch e11; }; b", ["b", "b"]],
     ["a body that is the next line's command, never called", "gh pr view 12 name()\ngh pr list", ["gh"]],
     ["a body after a name=() that another of the names then calls", "x a=() { touch p4 }; x", ["x"]],
+    ["a second leading array setting, whose command zsh runs", "a=() b=() touch x", []],
   ])("reads, as a known limit, %s", (_what, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
   });

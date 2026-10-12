@@ -264,7 +264,7 @@ nothing either; the refusal stops the rest of the call, its later lines
 too, whose commands keep a credit they did not earn, as `gh` does in `float
 arr=(); gh pr view 1`, the unsafe direction (zsh 5.9, 2026-10-12). Bash
 rejects a line that defines functions so with a `syntax error`, which the
-check reads as not run. Eight neighbours the check does not read as zsh
+check reads as not run. Nine neighbours the check does not read as zsh
 does (zsh 5.9, 2026-10-12):
 
 - **Unsafe: a name the line defines shadows the CLI for the rest of the
@@ -290,6 +290,10 @@ does (zsh 5.9, 2026-10-12):
 - **Safe: a body after a `name=()` is missed when another of the line's
   names calls it.** `x a=() { touch p4 }; x` defines `a=` and `x`, then runs
   `touch` through `x`, and the check reads `x` alone.
+- **Safe: a second leading array setting hides its command.** `a=() b=()
+  touch x` sets two arrays and runs `touch`, and the check reads nothing;
+  after one array, or after a plain setting (`a=1 b=() touch x`), it reads
+  `touch`.
 - **Both directions: `function a b { … }`.** zsh defines both names and runs
   nothing; the check counts `b` as a command, and misses the body's commands
   when `b` is called.
@@ -417,7 +421,7 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
 - **A line that only defines functions** reads as on Claude Code: zsh takes
   every word before an unquoted `()` as one more function name, so `gh pr
   view 12 name() more words` exits 0, prints nothing and runs no command,
-  and the check credits none of the words before the `()`. The same eight
+  and the check credits none of the words before the `()`. The same nine
   neighbours apply (read from `zsh -c` on zsh 5.9, 2026-10-12, not from a
   Codex rollout).
 - **A namespaced tool call** is a `function_call` with a `namespace`: setup
