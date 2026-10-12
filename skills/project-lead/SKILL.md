@@ -225,12 +225,13 @@ report lists every pane it skipped and why.
   such as a reset or a rebase, is such a case. A refused fetch or push is
   not: the clone needs the same push, and cloning is the same fetch. Pass the
   answer back as what they did: they ran it, and the worker reads its branch's
-  head again before it goes on, or they allowed it, and the worker runs it
-  once, as it was. Until the answer comes, a worker whose refused command
-  rewrites the branch or the worktree changes nothing in that checkout. A
-  command refused again at a later step, after the maintainer ran or allowed
-  it, is a new line: bring it to them again, and never tell the worker to
-  retry it.
+  head again before it goes on; they allowed it, and the worker runs it once,
+  as it was; they approved the clone, and the worker moves as its skill says;
+  or they declined, and the worker hands back blocked unless you rule another
+  way. Until the answer comes, a worker whose refused command rewrites the
+  branch or the worktree changes nothing in that checkout. A command refused
+  again, after the maintainer ran or allowed it, is a new line: bring it to
+  them again, and never tell the worker to retry it.
 - **A worker's `STATUS: moved`:** its branch lives in the clone the line names
   from then on, while its session's own files, its restart marker among them,
   stay in the worktree you made.

@@ -52,10 +52,12 @@ again whenever a step needs one, because they can change during a story.
   checkouts, and the exact command or call. Your lead brings the maintainer
   one choice: they run it, or they allow it. Where they ran it, read the
   branch's head again before you go on; where they allowed it, run it once, as
-  it was. Running it again at a later step is a new command: if it is refused
-  again, report it again, and never retry it. Only where a fresh clone removes
-  the need for the command does the choice become that they run it, or you
-  redo the work in a fresh clone of your own. A command that rewrites the
+  it was. Where they declined, hand back blocked, unless your lead rules
+  another way. Once they have run or allowed a command, running it again at a
+  later step is a new command: if it is refused again, report it again, and
+  never retry it. Only where a fresh clone removes the need for the command
+  does the choice become that they run it, or you redo the work in a fresh
+  clone of your own. A command that rewrites the
   branch or the worktree is such a case. A refused fetch or push is not: the
   clone needs the same push, and cloning is the same fetch. Take the clone
   only on that OK: first commit on the worktree's branch whatever is
@@ -369,6 +371,8 @@ backstop for a hand-back. A send your harness's permission check refuses is a
 refused call like any other (see Never): never send it again. Post its line
 as a note on the story's work item through the performer bound to
 `post-work-note` instead, with the `STATUS: refused` line for the send.
+Where the maintainer allows the send, that covers your later sends: the line
+already posted as a note is not sent again.
 
 With no lead ("none: the maintainer"), the maintainer is your lead: give each
 of these lines to them directly, a `DECISION` through the question tool where

@@ -725,7 +725,7 @@ describe("GRO-17 · the refused-call rule's text", () => {
   const NOT_FETCH_OR_PUSH =
     "A refused fetch or push is not: the clone needs the same push, and cloning is the same fetch.";
   const PASS_BACK =
-    "Pass the answer back as what they did: they ran it, and the worker reads its branch's head again before it goes on, or they allowed it, and the worker runs it once, as it was.";
+    "Pass the answer back as what they did: they ran it, and the worker reads its branch's head again before it goes on; they allowed it, and the worker runs it once, as it was; they approved the clone, and the worker moves as its skill says; or they declined, and the worker hands back blocked unless you rule another way.";
 
   it("the worker is offered a clone only where a fresh clone removes the need for the command", () => {
     const never = flat(workerNever());
@@ -744,12 +744,18 @@ describe("GRO-17 · the refused-call rule's text", () => {
     );
   });
 
-  it("a command the maintainer ran or allowed is a new command when the worker runs it again", () => {
+  it("a worker whose command the maintainer declined hands back blocked, unless its lead rules another way", () => {
+    expect(flat(workerNever())).toContain(
+      "where they allowed it, run it once, as it was. Where they declined, hand back blocked, unless your lead rules another way.",
+    );
+  });
+
+  it("a command is a new command when the worker runs it again only once the maintainer ran or allowed it", () => {
     const never = flat(workerNever());
     expect(never).toContain(
-      "Running it again at a later step is a new command: if it is refused again, report it again, and never retry it.",
+      "Once they have run or allowed a command, running it again at a later step is a new command: if it is refused again, report it again, and never retry it.",
     );
-    expect(never).not.toContain("Once they have run or allowed a command");
+    expect(never).not.toContain(". Running it again at a later step");
   });
 
   it("the worker takes the clone only on the maintainer's OK, bound by every Never rule, this one included", () => {
@@ -810,8 +816,9 @@ describe("GRO-17 · the refused-call rule's text", () => {
     );
     expect(messages).toContain(`${LEAD_CLONE_CASE} ${NOT_FETCH_OR_PUSH} ${PASS_BACK}`);
     expect(messages).toContain(
-      "A command refused again at a later step, after the maintainer ran or allowed it, is a new line: bring it to them again, and never tell the worker to retry it.",
+      "A command refused again, after the maintainer ran or allowed it, is a new line: bring it to them again, and never tell the worker to retry it.",
     );
+    expect(messages).not.toContain("refused again at a later step");
   });
 
   it("the lead passes the answer back as what the maintainer did, and the checkout stays still until then", () => {
@@ -821,6 +828,7 @@ describe("GRO-17 · the refused-call rule's text", () => {
       "Until the answer comes, a worker whose refused command rewrites the branch or the worktree changes nothing in that checkout.",
     );
     expect(messages).not.toContain("Pass the answer back. A command");
+    expect(messages).not.toContain("or they allowed it, and the worker runs it once, as it was.");
   });
 
   it("the lead removes a moved worker's clone only once it holds no commit its remote lacks", () => {
@@ -839,7 +847,7 @@ describe("GRO-17 · the refused-call rule's text", () => {
   it("a send to the lead that the permission check refuses goes as a work note, never sent again", () => {
     expect(idsOf("story-worker")).toContain("post-work-note");
     expect(workerTalking()).toContain(
-      "A message the transport refuses or skips is retried at your next event, and the work note is the backstop for a hand-back. A send your harness's permission check refuses is a refused call like any other (see Never): never send it again. Post its line as a note on the story's work item through the performer bound to `post-work-note` instead, with the `STATUS: refused` line for the send.",
+      "A message the transport refuses or skips is retried at your next event, and the work note is the backstop for a hand-back. A send your harness's permission check refuses is a refused call like any other (see Never): never send it again. Post its line as a note on the story's work item through the performer bound to `post-work-note` instead, with the `STATUS: refused` line for the send. Where the maintainer allows the send, that covers your later sends: the line already posted as a note is not sent again.",
     );
   });
 
