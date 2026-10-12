@@ -1480,6 +1480,7 @@ describe("GRO-31 · a hand-back that comes back", () => {
   /** Text with every run of whitespace collapsed to one space. */
   const flat = (text: string) => text.replace(/\s+/g, " ");
   const SECTION = "A hand-back that comes back";
+  const PASSAGE = "**Sending it back.**";
   const RESTART_HANDOFF = "**A `restart-owner: lead` handoff**";
   const comesBack = () => flat(section(read(WORKER), SECTION));
   const step8 = () => flat(section(read(WORKER), "8. Hand back"));
@@ -1487,7 +1488,7 @@ describe("GRO-31 · a hand-back that comes back", () => {
   /** The lead's passage "Sending it back", up to the restart-handoff paragraph that follows it. */
   const sendingBack = () => {
     const step = leadStep7();
-    const start = step.indexOf("**Sending it back.**");
+    const start = step.indexOf(PASSAGE);
     const end = step.indexOf(RESTART_HANDOFF);
     return start < 0 || end < start ? "" : step.slice(start, end);
   };
@@ -1497,7 +1498,6 @@ describe("GRO-31 · a hand-back that comes back", () => {
   it("story-worker has the section, after its hand-back step and before talking to its lead", () => {
     const text = read(WORKER);
     const at = (heading: string) => text.indexOf(`\n## ${heading}\n`);
-    expect(section(text, SECTION)).not.toBe("");
     expect(at("8. Hand back")).toBeGreaterThan(-1);
     expect(at(SECTION)).toBeGreaterThan(at("8. Hand back"));
     expect(at("Talking to your lead, and to the maintainer")).toBeGreaterThan(at(SECTION));
@@ -1505,8 +1505,9 @@ describe("GRO-31 · a hand-back that comes back", () => {
 
   it("step 8 ends by pointing at the section", () => {
     const pointer = `If your lead sends the hand-back back to you, the story is open again: see "${SECTION}".`;
-    expect(step8()).toContain(pointer);
-    expect(step8().trimEnd().endsWith(pointer)).toBe(true);
+    const step = step8();
+    expect(step).toContain(pointer);
+    expect(step.trimEnd().endsWith(pointer)).toBe(true);
   });
 
   it("a hand-back sent back opens the same story again, never a new one", () => {
@@ -1560,8 +1561,6 @@ describe("GRO-31 · a hand-back that comes back", () => {
       "And your receipt check cannot read the earlier worker's transcripts, so give it that worker's result: save the check output the earlier receipt holds, unchanged and line for line, to a file beside your bindings file under a `## Receipt check` heading, as a handoff carries it, and pass that file as `--handoff`.";
     const passNotRun =
       "Only the operations that output shows used carry, so pass the earlier receipt's Not run list as `--not-run` again.";
-    expect(text).toContain(passTheFile);
-    expect(text).toContain(passNotRun);
     expect(text).toContain(`${passTheFile} ${passNotRun}`);
   });
 
@@ -1595,17 +1594,18 @@ describe("GRO-31 · a hand-back that comes back", () => {
   it("the lead's passage sits after the merge item and before the restart handoff", () => {
     const step = leadStep7();
     const merge = step.indexOf("**Merge only on their approval**");
-    const passage = step.indexOf("**Sending it back.**");
+    const passage = step.indexOf(PASSAGE);
     expect(merge).toBeGreaterThan(-1);
     expect(passage).toBeGreaterThan(merge);
     expect(step.indexOf(RESTART_HANDOFF)).toBeGreaterThan(passage);
   });
 
   it("the lead's list opens by pointing at the passage", () => {
-    expect(leadStep7()).toContain(
+    const step = leadStep7();
+    expect(step).toContain(
       '**When the pull request is ready**, take these in order. Where one sends the hand-back back to the worker, "Sending it back", below them, says how:',
     );
-    expect(leadStep7()).not.toContain("**When the pull request is ready:**");
+    expect(step).not.toContain("**When the pull request is ready:**");
   });
 
   it("the heading the section quotes is the restart skill's, and the one the check reads", () => {
