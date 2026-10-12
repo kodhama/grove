@@ -892,6 +892,8 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     ["inside braces", "{ touch e17 x() y }", ["y"]],
     ["inside a subshell", "( touch e18 x() y )", ["y"]],
     ["after a declaration word, with no = before the ()", "local x() y", ["y"]],
+    ["after a declaration word that is not the first word", "echo local arr=() b", ["b"]],
+    ["after a word that only starts with a declaration word", "localx arr=() b", ["b"]],
   ])("credits none of the words before a function's (), %s", (_where, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
   });
@@ -904,6 +906,14 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
       expect(clisOf(`${word} arr=() gh`)).toEqual([word]);
     },
   );
+
+  it.each([
+    ["a setting", "X=1 local arr=() gh", ["local"]],
+    ["a setting, with words after the array", "FOO=1 export arr=() gh pr view", ["export"]],
+    ["a setting whose quoted value holds a space", 'X="a b" local arr=() gh', ["local"]],
+  ])("reads the name=() after a declaration word as an array past %s", (_what, line, clis) => {
+    expect(clisOf(line)).toEqual(clis);
+  });
 
   it.each([
     ["before a ;", "local arr=(); gh pr view 1", ["local", "gh"]],

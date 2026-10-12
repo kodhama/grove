@@ -136,10 +136,11 @@ const FUNCTION = /(?:function[ \t]+[^\s;&|()<>]+(?:[ \t]*\([ \t]*\))?|[^\s;&|()<
 /** The `()` of a function's definition, blanks allowed between the two. */
 const EMPTY_PARENS = /\([ \t]*\)/y;
 /**
- * A command whose first word declares variables. A `name=()` after it is an
- * array, never a function's `()`: `local arr=() gh` runs no `gh`.
+ * The words that declare variables. After one as a command's first word a
+ * `name=()` is an array, never a function's `()`: `local arr=() gh` runs no
+ * `gh`.
  */
-const DECLARATION = /^\s*(?:declare|export|float|integer|local|readonly|typeset)\s/;
+const DECLARATION_WORDS = ["declare", "export", "float", "integer", "local", "readonly", "typeset"];
 /** What a backslash escapes inside double quotes; before anything else it stays. */
 const DOUBLE_QUOTED_ESCAPES = new Set(["$", "`", '"', "\\", "\n"]);
 /**
@@ -272,9 +273,11 @@ function scan(line, heredoc = false) {
   // next word; and its extglob depth. `command` says a command starts at
   // the next word, `skip` that the text up to the next separator belongs to
   // no command, `arithmetic` that a `((` there opens arithmetic, as after a
-  // `for`.
+  // `for`, `declares` that the command's first word, past any settings, is
+  // a declaration word, whose `name=(` opens an array.
   const frameOf = (kind, at, quoted) => ({
     kind, at, quoted, parens: [], braces: 0, cases: [], command: true, skip: false, arithmetic: false, test: false,
+    declares: false,
   });
   const frames = [frameOf(heredoc ? "heredoc" : "line", 0, false)];
   let quote = heredoc ? '"' : "";
@@ -291,7 +294,7 @@ function scan(line, heredoc = false) {
   const next = () => {
     const frame = frames.at(-1);
     if (frame.at !== null) frame.at = found.push("") - 1;
-    Object.assign(frame, { command: true, skip: false, arithmetic: false, test: false });
+    Object.assign(frame, { command: true, skip: false, arithmetic: false, test: false, declares: false });
     wordStart = true;
   };
   // A compound command ends: what follows up to a separator is no command.
@@ -312,9 +315,6 @@ function scan(line, heredoc = false) {
     pattern.lastIndex = i;
     return pattern.exec(text)?.[0];
   };
-  // Whether the `(` at i opens the array a declaration word's `name=` is
-  // given, in a frame that holds commands.
-  const declaresArray = (i, frame) => text[i - 1] === "=" && DECLARATION.test(found[frame.at]);
   // Arithmetic holds no command, so its frame has no index.
   const push = (kind) => {
     const at = kind === "arithmetic" || kind === "arithmetic-command" ? null : 0;
@@ -384,6 +384,7 @@ function scan(line, heredoc = false) {
     const definition = matchAt(FUNCTION, i);
     if (definition) return definition.length;
     frame.command = matchAt(SETTING_AT, i) !== undefined;
+    frame.declares = !frame.command && DECLARATION_WORDS.some((word) => wordAt(i, word));
     return 0;
   };
   for (let i = 0; i < text.length; i++) {
@@ -467,7 +468,7 @@ function scan(line, heredoc = false) {
       push("substitution");
     } else if (char === "(" && wordStart && frame.at !== null && after === "(" && (frame.command || frame.arithmetic) && closesAsArithmetic(i)) {
       push("arithmetic-command");
-    } else if (char === "(" && !frame.command && !frame.skip && frame.at !== null && frame.parens.at(-1) !== "word" && !declaresArray(i, frame) && matchAt(EMPTY_PARENS, i)) {
+    } else if (char === "(" && !frame.command && !frame.skip && frame.at !== null && frame.parens.at(-1) !== "word" && !(frame.declares && text[i - 1] === "=") && matchAt(EMPTY_PARENS, i)) {
       // Past a command's first word, a `()` makes every word read so far a
       // function's name: none is a command, and the body starts one.
       found[frame.at] = "";
