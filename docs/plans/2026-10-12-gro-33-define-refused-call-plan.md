@@ -597,3 +597,49 @@ happens to you, add what came back, word for word, with the version and date.
   runs the command outside the sandbox (2.1.296, 2026-10-12): that is a way
   round the guard, never a declared need. Codex: **unknown**.
 ```
+
+### As ruled, continued (2026-10-12)
+
+- **OD7 = (b), with the lead's carve-out.** Both harness messages offer another way to the same end. One sentence goes into T2's first paragraph, right after "…and a denial of that run is a refusal." and before "The wording each harness gives…":
+
+  ```text
+  Where the guard's answer itself offers another way to the same end, other
+  than the declared-need run above, that is not an OK: Never's rule holds, and
+  the offer goes in your line.
+  ```
+
+  U1 gains a scenario that pins it whole.
+- **The sandbox row's source.** The lead's session carries the harness's own sandbox text, and the worker's does not. The row quotes it as another session's quote, never as the writer's own observation. **T6's last bullet is replaced by this one:**
+
+  ```text
+  - **A sandbox denial.** Claude Code: the command runs, and the system answers
+    `Operation not permitted`, as `sandbox-exec` did with exit 71 (observed on
+    2.1.288, 2026-10-03). Its Bash tool takes `allowed_domains`, a list of
+    hosts, which applies only to a command that runs in the sandbox (seen in a
+    transcript; the version and date were not recorded). Where the sandbox is
+    on, the session's own prompt says the rest. It is quoted here by another
+    session on this machine, a lead's, with the sandbox on (2.1.296,
+    2026-10-12); the session that wrote this note had no sandbox text in its
+    prompt, and that the text appears only where the sandbox is on is inferred:
+    - "denied connections are reported in a `<sandbox_violations>` block
+      explaining the reason. In auto mode, list the hosts a command needs
+      beyond that in its `allowed_domains` — a denied host named in the block
+      goes there on the re-run."
+    - "If the `<sandbox_violations>` block names a denied host, re-run the
+      command with that host in its `allowed_domains` (auto mode); otherwise
+      retry with `dangerouslyDisableSandbox: true` directly rather than asking
+      in prose first — the retry itself goes through the permission gate (a
+      user prompt, or the auto-mode classifier when auto mode is active)"
+    - "Evidence of sandbox-caused failures includes: "Operation not permitted"
+      errors for file/network operations; Access denied to specific paths
+      outside allowed directories; Network connection failures to
+      non-whitelisted hosts; Unix socket connection errors"
+    - "A sandbox denial on a credential, a file or a host that the task does
+      not involve is the boundary above at work: tell the user rather than
+      retrying with `dangerouslyDisableSandbox: true`."
+
+    Which of these re-runs a worker may make is story-worker's rule to say,
+    not this note's. Codex: **unknown**.
+  ```
+
+- **Open with the lead (OD8), built as ruled until answered:** whether the exception covers the harness's documented retry outside the sandbox, or only a run that declares a need. T2's two declared-need sentences are built as the plan gives them.
