@@ -39,6 +39,36 @@ again whenever a step needs one, because they can change during a story.
 - Touch another checkout, another worktree or another session's files. Close,
   reassign or re-scope another work item.
 - Widen your own permissions, or relax a check to get past it.
+- Retry, rephrase or hand to another session, a subagent or a performer a
+  command or any other call your harness's permission check refused: repeated
+  refusals hold a session at a prompt only the maintainer can answer. Say so
+  in each request to a subagent or a performer: a call refused there comes
+  back to you as it stands, never retried. Stop the work that depends on it,
+  tell your lead at once with a `STATUS: refused` line, and keep working on
+  anything independent. While a command that rewrites the branch or the
+  worktree, such as a reset or a rebase, awaits its answer, nothing in that
+  checkout is independent: change nothing there, and commit nothing. The line
+  names the directory you ran it in, which after a move says which of your two
+  checkouts, and the exact command or call. Your lead brings the maintainer
+  one choice: they run it, or they allow it. Where they ran it, read the
+  branch's head again before you go on; where they allowed it, run it once, as
+  it was. Where they declined, hand back blocked, unless your lead rules
+  another way. Once they have run or allowed a command, running it again at a
+  later step is a new command: if it is refused again, report it again, and
+  never retry it. Only where a fresh clone removes the need for the command
+  does the choice become that they run it, or you redo the work in a fresh
+  clone of your own. A command that rewrites the
+  branch or the worktree is such a case. A refused fetch or push is not: the
+  clone needs the same push, and cloning is the same fetch. Take the clone
+  only on that OK: first commit on the worktree's branch whatever is
+  uncommitted there, then bring into the clone only the unpushed commits the
+  redo keeps, keep to every rule in this list, this one included, work on the
+  branch in that clone from then on, and tell your lead with a `STATUS: moved`
+  line. Your session's own files, its bindings, its handoff and any restart
+  marker, stay in the worktree, where your lead looks for them: run setup and
+  the restart with the worktree as the working directory, reached by its full
+  path, never from the clone, since both write those files under the directory
+  they run in.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
@@ -92,7 +122,8 @@ You need no answer before you start.
 
 ## 2. Before the first edit
 
-- **The worktree is fixed.** Work only there. One writer per worktree: if you
+- **The worktree is fixed.** Work only there, unless the maintainer approves
+  a move to a fresh clone after a refused command (see Never). One writer per worktree: if you
   find an unexplained branch, worktree or running session on this story, stop
   and ask your lead.
 - **Dependencies.** If the repo's dependencies are missing or its lockfile
@@ -100,8 +131,8 @@ You need no answer before you start.
   check that answers "command not found" is a setup failure, never a check
   result.
 - **The branch.** Fetch, and confirm the base SHA is the commit you branch
-  from. A refused fetch leaves a stale base, which shows up as changes you did
-  not make: stop and say so. Move onto the story's branch before the first
+  from. A refused fetch is a refused command (see Never), and it leaves a
+  stale base, which shows up as changes you did not make. Move onto the story's branch before the first
   edit, and check `git branch --show-current` after the move and again before
   the first commit, because a branch command can appear to succeed without
   moving the worktree. Re-read any file you read before the move.
@@ -228,7 +259,8 @@ commit-and-PR skill). You watch the pull request yourself, as below.
 
 Once the draft is open, send your lead `STATUS: PR open <url> (draft)`.
 
-If you cannot push, say so to your lead and stop.
+A push your harness's permission check refuses is a refused command (see
+Never). If you cannot push for any other reason, say so to your lead and stop.
 
 ## 7. The pull-request round
 
@@ -286,10 +318,11 @@ for how each of them reviews and re-reviews.
 
 A hand-back ends the story: the pull request is ready for the maintainer's
 review, or you are blocked on something only someone else can remove, such as
-a failed setup, a push you cannot make or a missing prerequisite. Those are
-the only two endings. An open `DECISION` is not one: it does not end the story
-or get a final receipt (see "Talking to your lead"). Call the work ready for
-acceptance; never call it complete or merged.
+a failed setup or a missing prerequisite. Those are the only two endings. An
+open `DECISION` is not one, and neither is a refused command or call awaiting
+its answer: neither ends the story or gets a final receipt (see "Talking to
+your lead"). Call the work ready for acceptance; never call it complete or
+merged.
 
 - **Run the receipt check** on your bindings file, passing your story's start
   as `--since`, so calls this session made before the story do not count:
@@ -332,30 +365,39 @@ you learn it is, send the lead a one-line pointer at most.
 Every message to your lead goes through the performer bound to `hand-back`,
 the only exception being a setup stop, when nothing is bound yet. If it goes
 through a terminal transport, first check that your lead's pane is not
-focused, since the maintainer may be typing there. A message that is refused
-or skipped is retried at your next event, and the work note is the backstop
-for a hand-back.
+focused, since the maintainer may be typing there. A message the transport
+refuses or skips is retried at your next event, and the work note is the
+backstop for a hand-back. A send your harness's permission check refuses is a
+refused call like any other (see Never): never send it again. Post its line
+as a note on the story's work item through the performer bound to
+`post-work-note` instead, with the `STATUS: refused` line for the send.
+Where the maintainer allows the send, that covers your later sends: the line
+already posted as a note is not sent again.
 
 With no lead ("none: the maintainer"), the maintainer is your lead: give each
 of these lines to them directly, a `DECISION` through the question tool where
-your harness has one, and post your hand-back note as usual.
+your harness has one, and post your hand-back note as usual. A
+`STATUS: refused` line is a question too: put it to them the same way, as one
+question with both options of the choice a lead would have brought (see
+Never).
 
 Each message to your lead is one line, in one of two shapes:
 
 ```text
 <story id> DECISION: <question> · Options: <a>; <b> · Recommendation: <choice and why> · Blocked: <what waits>
-<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / blocked: <reason>
+<story id> STATUS: started <setup line> / PR open <url> (draft) / ready <url> <head sha> / restarting / refused in <directory>: <exact command or call> / moved to <clone path> / blocked: <reason>
 ```
 
 Ask your lead only about product, design and architecture choices, a new
 dependency, anything that weakens or deletes a test, work beyond the story,
 and anything the story seems to need that Never forbids. Decide everything
 else yourself and list those calls
-in the receipt. While a decision is open, keep working on whatever in the
-story does not depend on it, and end your turn only when nothing independent
-is left; the answer arrives as a message. An open decision neither ends the
-story nor gets a final receipt. A missing prerequisite is reported, never
-invented; a blocker is reported, never removed.
+in the receipt. While a decision is open, or a refused command or call awaits
+its answer, keep working on whatever in the story does not depend on it, and
+end your turn only when nothing independent is left; the answer arrives as a
+message. Neither an open decision nor an open refusal ends the story or gets
+a final receipt. A missing prerequisite is reported, never invented; a
+blocker is reported, never removed.
 
 ## Bindings mid-story
 
@@ -378,7 +420,9 @@ worker that restarts from 35% never carries a step past 40%. A reading
 already past 40% at a boundary restarts there all the same.
 
 Restart through the performer bound to `restart-self`, which owns the
-mechanics, the new-session path included. Send your lead `STATUS: restarting`
+mechanics, the new-session path included. After a move to a clone, run it with
+the worktree as the working directory, reached by its full path: the bindings
+and the handoff are there, and your lead looks there for the restart marker. Send your lead `STATUS: restarting`
 once per restart: on the in-place path before the restart ends your turn, and
 on the new-session path with the link to the posted handoff. Where the restart
 skill says to write the handoff, invoke the performer bound to `write-handoff`
@@ -394,7 +438,10 @@ once the restart skill's resume steps are done, before any story step: a
 harness can drop a skill across the clear, and a resumed session that never
 loads this skill never runs its seeded setup. The account also carries the
 story, its Started time, the branch, the base SHA, the pull request's link if
-there is one, the step in hand and the receipt so far. Where the restart skill has you paste
+there is one, the step in hand and the receipt so far. After a move to a
+clone, it also carries the clone's full path, where the branch now lives, that
+the maintainer approved the move, and the worktree's full path, where the
+session's own files stay, so the resumed session carries on in the clone. Where the restart skill has you paste
 the receipt check's output into the handoff, pass `--since` your story's
 start there too, so a successor on another machine carries no use from before
 the story. If measuring is bound as unavailable, setup said so once, and you
