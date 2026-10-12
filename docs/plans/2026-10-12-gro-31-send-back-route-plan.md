@@ -485,4 +485,5 @@ The full review of `4ba6017` returned "Ready with fixes", with nothing at its tw
   ```
 
   U1's lead scenario pins it whole, with the sentences on either side of it.
+- **Two sentences changed after the automated review's first round, on the lead's ruling.** A hand-back sent back for a missing plan, to a worker that has ended, had no way through: the new worker was told to plan nothing again, and the lead to read `plan` in the earlier check alone. U2's sentence now reads "Plan and build nothing again but what your lead named: do the three steps above, with two differences.", and the sentence above opens "Unless the plan is what you sent back, item 2 then reads…".
 - **The heading test reads the constant.** It matched the heading anywhere in the reader's file, so a comment satisfied it; it now matches the line that defines the constant.
