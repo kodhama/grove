@@ -580,7 +580,8 @@ describe("MQ-373 · the defect route's text", () => {
  * GRO-22 — every story that is not a defect is planned before it is built, and
  * its receipt's `Plan:` line names the plan it was built from: a plan file, the
  * plan unit it came from, or, for a defect, the note that holds its diagnosis.
- * The lead sends back a ready hand-back whose line names none of them. The rule
+ * The lead sends back a ready hand-back whose line is missing, names no plan,
+ * gives anything that does not resolve, or shows the plan was skipped. The rule
  * lives in the skills' text: `plan`'s row in the table stays not required.
  */
 describe("GRO-22 · the plan step's text", () => {
@@ -649,7 +650,7 @@ describe("GRO-22 · the plan step's text", () => {
 
   it("the plan step lets a defect's diagnosis stand as its plan, and lists `plan` as not run for no other story it reached", () => {
     expectAll(planStep(), [
-      "A defect comes here only when its diagnosis says the fix needs a plan",
+      'A defect comes here only when its diagnosis says the fix needs a plan (see "A defect: diagnose first").',
       "Otherwise its diagnosis stands as its plan, and `plan` goes under Not run with that reason.",
       "A story that is not a defect lists `plan` under Not run only when it ended before this step.",
     ]);
@@ -675,10 +676,7 @@ describe("GRO-22 · the plan step's text", () => {
       // The two plan-unit forms have a fixed shape, and a unit with no id is named by its heading.
       'or, where its source is a plan unit that was enough to build from, "<that plan\'s path, or the link to the note that holds it>, unit <the unit\'s id, or its section\'s heading where it has no id>", with no copy written;',
       'or, where a file fills the unit\'s gaps, "<the file\'s path>, filling <that plan\'s path or link>, unit <its id or heading>"',
-      "for a defect: diagnosis <the link to the note that holds its summary>",
-      '"plan <path>" where the fix needed one',
-      '"no plan: contained fix" where it did not',
-      '"no plan: nothing built" where there was no fix to make',
+      'for a defect: diagnosis <the link to the note that holds its summary>, then "plan <path>" where the fix needed one, "no plan: contained fix" where it did not, or "no plan: nothing built" where there was no fix to make',
       "not reached: <why>, for a story that ended before it was planned, or, for a defect, before its diagnosis came back.",
     ]);
   });
@@ -704,18 +702,19 @@ describe("GRO-22 · the plan step's text", () => {
 
   it("the lead sends back a ready hand-back whose Plan line gives anything that does not resolve, or that skipped the plan", () => {
     expectAll(acceptItem(), [
-      "The receipt's `Plan:` line must name the plan the story was built from: by a path that resolves at the pull request's head or on its base branch,",
-      "or, where the plan is held in a note on a work item, by a link to that note.",
+      "The receipt's `Plan:` line must name the plan the story was built from: by a path that resolves at the pull request's head or on its base branch, or, where the plan is held in a note on a work item, by a link to that note.",
       "For a defect it links the diagnosis note.",
       "Every path and link the line gives must resolve, and a story that is not a defect never lists `plan` under Not run.",
-      "A hand-back whose line is missing, gives a path or link that does not resolve, or reads `not reached`, or that lists `plan` as not run for a story that is not a defect, goes back to the worker.",
+      "A hand-back goes back to the worker when its line is missing, reads `not reached`, gives a path or link that does not resolve, names no plan by a path or a link for a story that is not a defect, or, for a defect, lacks its diagnosis link.",
+      "So does one that lists `plan` as not run for a story that is not a defect, or whose pasted receipt check shows `plan` as `bound-but-unused` for such a story: a planner was bound and never called.",
     ]);
+    expect(acceptItem()).not.toContain("A hand-back whose line is missing");
     expect(acceptItem()).not.toContain("names nothing that resolves");
   });
 
   it("the README tells an adopter that a story that is not a defect is always planned", () => {
     expect(flat(read("README.md"))).toContain(
-      "A story that is not a defect is always planned: its receipt names the plan it was built from",
+      "A story that is not a defect is always planned: its receipt names the plan it was built from, which is a plan file in its pull request (the planner's, or the worker's own where no planner is bound), the plan unit the story came from, or both.",
     );
   });
 
