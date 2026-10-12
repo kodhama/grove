@@ -33,7 +33,9 @@
  * run it) or is `pending` (no result yet). An allowed call is one in any
  * transcript, or for a marked operation, one in a fresh-context subagent.
  * The first state that applies decides an operation:
- * - `by fallback` / `unavailable`: no performer to find;
+ * - `by fallback` / `unavailable`: no performer to find; declared with
+ *   `--not-run`, it reads `not reached` instead, and its line says how it
+ *   was bound;
  * - `used`: an allowed call of its performer ran, in a transcript or one of
  *   its subagent transcripts;
  * - `used` carried: a handoff's receipt-check section, from before a restart
@@ -201,11 +203,12 @@ function sharedWith(binding, credited, bindings, marked) {
  * `routing-table.mjs` reads it, read here when not given; `since` a zoned time
  * before which calls are not counted (`call-scope.mjs`). Returns the
  * transcripts read, each read one with its `scope`, the table, one row per
- * operation `{ table, id, performer, state, where, note, shared }`, and the
- * unbound skills, and for a handoff how many uses it carried and how many it
- * dropped for a `--since` other than this run's. `shared` names the other
+ * operation `{ table, id, performer, state, where, note, shared, bound }`, and
+ * the unbound skills, and for a handoff how many uses it carried and how many
+ * it dropped for a `--since` other than this run's. `shared` names the other
  * operations the call a used row was credited for could have credited too;
- * it is absent when there are none.
+ * it is absent when there are none. `bound` says how a `not reached`
+ * operation with no performer was bound; no other row has it.
  */
 export function checkReceipts({ bindings, notRun = [], handoff = null, table = null, since = null }) {
   const routing = table ?? tableOf(bindings);
@@ -298,7 +301,9 @@ function operationLine(row) {
     case "unavailable":
       return `${name}: ${row.state} (no performer to find)`;
     case "not reached":
-      return `${name}: not reached (declared by caller) ${row.performer}${note}`;
+      return row.bound
+        ? `${name}: not reached (declared by caller), bound ${row.bound}`
+        : `${name}: not reached (declared by caller) ${row.performer}${note}`;
     case "no evidence":
       return `${name}: no evidence ${row.performer} (a transcript is missing${row.note ? `; ${row.note}` : ""})`;
     default:

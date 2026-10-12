@@ -1,6 +1,8 @@
 /**
  * MQ-377 — decide one operation's state from the calls of its bound
  * performer: whether it was used, failed, not reached, or has no evidence.
+ * One with no performer has no calls to read: it reads as it was bound, or
+ * not reached when the caller declared it not run.
  *
  * In plain words: `receipt-check.mjs` reads every call in a session's
  * transcripts. For each operation in the bindings file, this file picks out
@@ -116,12 +118,17 @@ function carriedUse(binding, carried, marked) {
  * the handoff's carried uses, the operations declared not run, and whether a
  * listed transcript is missing. A `used` row also carries `credited`, the
  * use it was credited for: the call, or for a carried use the performer the
- * handoff names, `fresh` when its place names a subagent.
+ * handoff names, `fresh` when its place names a subagent. An operation with
+ * no performer that was declared not run is `not reached` too, and its row
+ * carries `bound`, how it was bound: `by fallback` or `as unavailable`.
  */
 export function judge(binding, context) {
   const key = `${binding.table}/${binding.id}`;
-  if (binding.how_bound === "fallback") return { state: "by fallback" };
-  if (!hasPerformer(binding)) return { state: "unavailable" };
+  if (!hasPerformer(binding)) {
+    const fallback = binding.how_bound === "fallback";
+    if (!context.notRun.has(key)) return { state: fallback ? "by fallback" : "unavailable" };
+    return { state: "not reached", bound: fallback ? "by fallback" : "as unavailable" };
+  }
   const marked = context.marked.has(key);
   const calls = context.calls.filter((call) => matches(binding, call));
   const allowed = calls.filter((call) => creditable(call, marked));

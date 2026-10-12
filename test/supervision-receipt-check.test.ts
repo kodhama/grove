@@ -1762,6 +1762,29 @@ describe("MQ-353 · what the check cannot see", () => {
     expect(stateOf(result, "story-worker/build")).toBe("bound-but-unused");
   });
 
+  it("reports an operation with no performer the caller declares not run as not reached", () => {
+    // The example bindings bind `document-change` by fallback.
+    const file = bindingsReading([BY_HAND, "claude-built-by-hand"]);
+    const [plan, build] = file.operations;
+    Object.assign(plan ?? {}, { how_bound: "unavailable", kind: "none", native_id: null });
+    // Bound some other way, yet naming no performer: unavailable all the same.
+    Object.assign(build ?? {}, { native_id: null });
+    const noPerformer = ["story-worker/document-change", "story-worker/plan", "story-worker/build"];
+    const declared = checkReceipts({ bindings: file, notRun: noPerformer });
+    expect(noPerformer.map((id) => stateOf(declared, id))).toEqual([
+      "not reached",
+      "not reached",
+      "not reached",
+    ]);
+    // Only the declaration changes them.
+    const undeclared = checkReceipts({ bindings: file });
+    expect(noPerformer.map((id) => stateOf(undeclared, id))).toEqual([
+      "by fallback",
+      "unavailable",
+      "unavailable",
+    ]);
+  });
+
   it("keeps a use the caller declared not run as used", () => {
     const result = checkReceipts({
       bindings: bindingsReading([AFTER, "claude-after-restart"]),
@@ -1895,6 +1918,31 @@ describe("MQ-353 · the command line", () => {
     );
     expect(result.stdout).toContain("story-worker/plan: not reached (declared by caller)");
     expect(result.status).toBe(0);
+  });
+
+  it("prints a declared not run operation with no performer as not reached, saying how it was bound", () => {
+    const file = bindingsReading([AFTER, "claude-after-restart"]);
+    const kept = ["build", "plan", "document-change"];
+    file.operations = file.operations.filter((o) => kept.includes(o.id as string));
+    const plan = file.operations.find((o) => o.id === "plan");
+    Object.assign(plan ?? {}, { how_bound: "unavailable", kind: "none", native_id: null });
+    const summary = (notReached: number) =>
+      `summary: 1 used, 0 used (shared), 0 bound-but-unused, 0 attempted-failed, ${notReached} not reached, 0 no evidence, `;
+
+    const declared = run(file, "--not-run", "story-worker/plan,story-worker/document-change");
+    const lines = declared.stdout.split("\n");
+    expect(lines).toContain("story-worker/document-change: not reached (declared by caller), bound by fallback");
+    expect(lines).toContain("story-worker/plan: not reached (declared by caller), bound as unavailable");
+    expect(declared.stdout).toContain(`\n${summary(2)}`);
+    expect(declared.stdout).not.toContain("null");
+    expect(declared.status).toBe(0);
+
+    const undeclared = run(file);
+    const unchanged = undeclared.stdout.split("\n");
+    expect(unchanged).toContain("story-worker/document-change: by fallback (no performer to find)");
+    expect(unchanged).toContain("story-worker/plan: unavailable (no performer to find)");
+    expect(undeclared.stdout).toContain(`\n${summary(0)}`);
+    expect(undeclared.status).toBe(0);
   });
 
   it("GRO-12 · exits 1 when the table changed since setup, naming the remedy, with every operation clean", () => {
