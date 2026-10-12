@@ -1934,7 +1934,9 @@ describe("MQ-353 · the command line", () => {
     expect(lines).toContain("story-worker/document-change: not reached (declared by caller), bound by fallback");
     expect(lines).toContain("story-worker/plan: not reached (declared by caller), bound as unavailable");
     expect(declared.stdout).toContain(`\n${summary(2)}`);
-    expect(declared.stdout).not.toContain("null");
+    // Only the operations' lines: the header prints the bindings file's random name.
+    const operations = lines.filter((line) => line.startsWith("story-worker/"));
+    expect(operations.join("\n")).not.toContain("null");
     expect(declared.status).toBe(0);
 
     const undeclared = run(file);
