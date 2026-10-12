@@ -941,9 +941,9 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     expect(clisOf("gh pr view $(cat f) name() body")).toEqual(["body", "cat"]);
   });
 
-  // zsh rejects each line with a parse error near its `()` and runs nothing,
-  // and the call reads as not run from its result. The parser reads no
-  // definition there, so the rest of the line reads as it did.
+  // zsh rejects each line with a parse error and runs nothing, and the call
+  // reads as not run from its result. The parser reads no definition there,
+  // so the rest of the line reads as it did.
   it.each([
     ["in a for list", "for f in a () case; do gh; done", ["gh"]],
     ["inside a glob's group", "echo a(b()c) w1", ["echo"]],
