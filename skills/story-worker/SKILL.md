@@ -23,8 +23,9 @@ edit, not yours: mid-story, a binding that stops fitting is rebound as
 The repo's conventions live in its project instructions (`AGENTS.md` or the
 harness's equivalent), not here: branch and commit names, how a pull request
 links its work item, the checks that must pass, the review loop, the secrets
-guard, and how an agent signs a comment. Read them before the first edit and
-again whenever a step needs one, because they can change during a story.
+guard, which docs a change keeps current, and how an agent signs a comment.
+Read them before the first edit and again whenever a step needs one, because
+they can change during a story.
 
 ## Never
 
@@ -298,19 +299,29 @@ for how each of them reviews and re-reviews.
    and fix as in step 5, push, and answer each thread. A reviewer that skips
    drafts gives its first review only once the pull request is ready, so its
    first round comes after the next item, and gets the same one pass.
-5. **Capture, then ready.** Before you call the branch final, invoke the
-   performer bound to `capture-learning`, only when the story produced a lesson
-   the final code, tests and docs would not preserve. Run it without stopping
-   for questions, by its invocation token where it has one (`mode:non-interactive`
-   for Compound Engineering's capture skill). Run the checks on what it writes,
-   then commit and push it, so the learning ships in this pull request and
-   every reviewer sees it. Then mark the pull request ready. Capture does not
-   rerun after the fix pass that follows a ready-time first review, unless that
-   pass itself produced a lesson that meets the same test; then it runs once
-   more and ships in that pass's push. Check that each automated reviewer the
-   repo names actually reviewed the final head, and ask again only as the
-   repo's review loop says: some reviewers re-review every push, some only
-   when asked, and some only for a fix that changes behaviour.
+5. **Document, then capture, then ready.** Before you call the branch final,
+   bring the repo's docs up to the change. When the diff adds a module, a data
+   shape, a contract, a dependency or a design change, invoke the performer
+   bound to `document-change`, which updates the repo's reference,
+   architecture and design docs. When the diff adds none of them, do not
+   invoke it: list the operation under Not run, with that reason. The docs come
+   first because the capture's test is what the final code, tests and docs
+   would not preserve. Then invoke the performer bound to `capture-learning`,
+   only when the story produced a lesson the final code, tests and docs would
+   not preserve. Run each without stopping for questions, by its invocation
+   token where it has one (`mode:non-interactive` for Compound Engineering's
+   capture skill). Run the checks on what they write, then commit and push it,
+   so the docs and the learning ship in this pull request and every reviewer
+   sees them. Write the receipt's `Docs:` line, as `references/receipt.md`
+   gives it, and put the same line in the pull request's body. Then mark the
+   pull request ready. Neither operation reruns after the fix pass that
+   follows a ready-time first review, unless that pass itself adds something
+   the docs must carry, or produced a lesson that meets the capture's test;
+   then that one runs once more and ships in that pass's push, and the `Docs:`
+   line is brought up to date in both places. Check that each automated
+   reviewer the repo names actually reviewed the final head, and ask again
+   only as the repo's review loop says: some reviewers re-review every push,
+   some only when asked, and some only for a fix that changes behaviour.
 6. **What a re-review raises goes to your lead**, not into a second fix pass.
    Repeated passes are where rounds churn. Your lead triages it.
 
