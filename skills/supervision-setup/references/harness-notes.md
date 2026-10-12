@@ -392,6 +392,71 @@ session-only integrations "can miss permission approval results, escape
 interrupts, or other transitions" (verified 2026-09-20; the herdr version was
 not recorded).
 
+## A refused call
+
+What a session sees when a guard stops a call, by kind of guard.
+story-worker's "A refused call" says which of these count as refused. Only
+what was observed is described; the rest is **unknown**, so when one of them
+happens to you, add what came back, word for word, with the version and date.
+
+- **The harness's check, deciding alone.** Claude Code, in auto mode: the
+  call's result has `is_error` set to true (see "A call that did not run"),
+  and its text began `Permission for this action was denied by the Claude Code
+  auto mode classifier. Reason:`, then the classifier's reason in square
+  brackets. It went on: `You *may* attempt to accomplish this action using
+  other tools that might naturally be used to accomplish this goal`, and then
+  to `STOP and explain to the user` once the rest of the task is done (three
+  refused Bash calls, 2.1.293, 2026-10-09 to 2026-10-11). story-worker's rule
+  is the stricter one: it allows no other route to the same end. Codex: the
+  call's item has `status: "failed"`, and in the calls read its error began
+  `This action was rejected due to unacceptable risk.`, then a line starting
+  `Reason:` (refused `<tracker>.save_comment` calls, codex-cli 0.160.0,
+  2026-10-03; which guard rejected them was not recorded).
+- **A prompt the maintainer declined.** Claude Code: the result has `is_error`
+  set to true, as for any denied permission (observed 2026-10-04; the version
+  was not recorded); its words are **unknown**. Codex: a command's item came
+  back with `status: "declined"` and no exit code (a rollout of codex-cli
+  0.160.0, 2026-10-03); that this was a declined prompt is inferred from the
+  status's name.
+- **A hook's block.** **Unknown** on both.
+- **A check built into the harness**, such as one on a removal. Claude Code:
+  the result has `is_error` set to true, and its text began `Permission for
+  this command was denied by a built-in Claude Code safety check, not by the
+  user.` It said that the check `stops removals that can delete far more than
+  intended`, that `The command was NOT run`, and `If the text below suggests a
+  safe rewrite, run that instead; it goes through the same check.` (five
+  refused Bash calls, 2.1.293, 2026-10-09 to 2026-10-11). Here too
+  story-worker's rule is the stricter one: a rewrite the check suggests is
+  still another way to the same end. Codex: **unknown**.
+- **A sandbox denial.** Claude Code: the command runs, and the system answers
+  `Operation not permitted`, as `sandbox-exec` did with exit 71 (observed on
+  2.1.288, 2026-10-03). Its Bash tool takes `allowed_domains`, a list of
+  hosts, which applies only to a command that runs in the sandbox (seen in a
+  transcript; the version and date were not recorded). Where the sandbox is
+  on, the session's own prompt says the rest. It is quoted here by another
+  session on this machine, a lead's, with the sandbox on (2.1.296,
+  2026-10-12); the session that wrote this note had no sandbox text in its
+  prompt, and that the text appears only where the sandbox is on is inferred:
+  - "denied connections are reported in a `<sandbox_violations>` block
+    explaining the reason. In auto mode, list the hosts a command needs
+    beyond that in its `allowed_domains` — a denied host named in the block
+    goes there on the re-run."
+  - "If the `<sandbox_violations>` block names a denied host, re-run the
+    command with that host in its `allowed_domains` (auto mode); otherwise
+    retry with `dangerouslyDisableSandbox: true` directly rather than asking
+    in prose first — the retry itself goes through the permission gate (a
+    user prompt, or the auto-mode classifier when auto mode is active)"
+  - "Evidence of sandbox-caused failures includes: "Operation not permitted"
+    errors for file/network operations; Access denied to specific paths
+    outside allowed directories; Network connection failures to
+    non-whitelisted hosts; Unix socket connection errors"
+  - "A sandbox denial on a credential, a file or a host that the task does
+    not involve is the boundary above at work: tell the user rather than
+    retrying with `dangerouslyDisableSandbox: true`."
+
+  Which of these re-runs a worker may make is story-worker's rule to say,
+  not this note's. Codex: **unknown**.
+
 ## Choosing a reviewer
 
 **Choosing a reviewer trades independence against identity; it is not one

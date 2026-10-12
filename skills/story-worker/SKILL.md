@@ -51,30 +51,9 @@ they can change during a story.
   in each request to a subagent or a performer: a call refused there comes
   back to you as it stands, never retried. Stop the work that depends on it,
   tell your lead at once with a `STATUS: refused` line, and keep working on
-  anything independent. While a command that rewrites the branch or the
-  worktree, such as a reset or a rebase, awaits its answer, nothing in that
-  checkout is independent: change nothing there, and commit nothing. The line
-  names the directory you ran it in, which after a move says which of your two
-  checkouts, and the exact command or call. Your lead brings the maintainer
-  one choice: they run it, or they allow it. Where they ran it, read the
-  branch's head again before you go on; where they allowed it, run it once, as
-  it was. Where they declined, hand back blocked, unless your lead rules
-  another way. Once they have run or allowed a command, running it again at a
-  later step is a new command: if it is refused again, report it again, and
-  never retry it. Only where a fresh clone removes the need for the command
-  does the choice become that they run it, or you redo the work in a fresh
-  clone of your own. A command that rewrites the
-  branch or the worktree is such a case. A refused fetch or push is not: the
-  clone needs the same push, and cloning is the same fetch. Take the clone
-  only on that OK: first commit on the worktree's branch whatever is
-  uncommitted there, then bring into the clone only the unpushed commits the
-  redo keeps, keep to every rule in this list, this one included, work on the
-  branch in that clone from then on, and tell your lead with a `STATUS: moved`
-  line. Your session's own files, its bindings, its handoff and any restart
-  marker, stay in the worktree, where your lead looks for them: run setup and
-  the restart with the worktree as the working directory, reached by its full
-  path, never from the clone, since both write those files under the directory
-  they run in.
+  anything independent. "A refused call" says what counts as refused, what the
+  line carries, what each answer means, when a fresh clone is offered and
+  where the line goes when it cannot be sent.
 - Record a fallback under a suggested performer's name. A step run by fallback
   is reported as run by fallback, and the suggested performer as unavailable.
 - Ask your lead to fix a binding. You rebind it yourself (see Bindings mid-story).
@@ -108,6 +87,10 @@ the maintainer: do that through your lead, as one `STATUS: blocked` line
 carrying setup's report line, sent back over the channel your launch came
 from, since no binding is loaded yet. With no lead, tell the maintainer
 directly. Then do nothing else.
+
+A call refused before setup completes is not a setup stop. Its line goes back
+over that same channel, as a `STATUS: refused` line, and you start no story
+work while it is open (see "A refused call").
 
 When you resume from a handoff after a restart, the restart skill's resume
 steps run setup seeded with the handoff's filled table. A Codex worker, whose
@@ -426,7 +409,8 @@ through. **Never ask the maintainer something your lead is already asking**; if
 you learn it is, send the lead a one-line pointer at most.
 
 Every message to your lead goes through the performer bound to `hand-back`,
-the only exception being a setup stop, when nothing is bound yet. If it goes
+the only exceptions being a setup stop and a call refused before setup
+completes, when nothing is bound yet. If it goes
 through a terminal transport, first check that your lead's pane is not
 focused, since the maintainer may be typing there. A message the transport
 refuses or skips is retried at your next event, and the work note is the
@@ -435,7 +419,9 @@ refused call like any other (see Never): never send it again. Post its line
 as a note on the story's work item through the performer bound to
 `post-work-note` instead, with the `STATUS: refused` line for the send.
 Where the maintainer allows the send, that covers your later sends: the line
-already posted as a note is not sent again.
+already posted as a note is not sent again. Where that post is refused as
+well, go on as "A refused call" says, which is the one other case where you go
+to the maintainer directly.
 
 With no lead ("none: the maintainer"), the maintainer is your lead: give each
 of these lines to them directly, a `DECISION` through the question tool where
@@ -461,6 +447,72 @@ end your turn only when nothing independent is left; the answer arrives as a
 message. Neither an open decision nor an open refusal ends the story or gets
 a final receipt. A missing prerequisite is reported, never invented; a
 blocker is reported, never removed.
+
+## A refused call
+
+**What counts as refused.** A call is refused when a guard stopped it,
+rather than the call running and failing by itself, and what comes back is
+the guard's answer, not the call's result. The guard is the harness's check on
+what a session may run, whether it decides alone or puts a prompt to the
+maintainer, who declines it; a hook that blocks the call; a check built into
+the harness, such as one on a removal; or the sandbox. A sandbox denial is the
+one that comes back inside a command's own output, as the system's "not
+permitted" error. "Your harness's permission check" in this skill means any of
+these. A non-zero exit, a command not found or a remote's own rejection is a
+failure, not a refusal; when you cannot tell which you have, treat it as
+refused. One sandbox denial is not a refusal: where your harness documents a
+way to declare what a command needs, such as a host it must reach, run it once
+with that declared. That is a declared need, not a way round the guard, and a
+denial of that run is a refusal. Where the guard's answer itself offers
+another way to the same end, other than the declared-need run above, that is
+not an OK: Never's rule holds, and the offer goes in your line. The wording
+each harness gives is in supervision-setup's harness notes, under
+"A refused call".
+
+**The `STATUS: refused` line.** The line names the directory you ran it in,
+which after a move says which of your two checkouts, and the exact command or
+call. While a command that rewrites the branch or the worktree, such as a
+reset or a rebase, awaits its answer, nothing in that checkout is independent:
+change nothing there, and commit nothing.
+
+**The answer.** Your lead brings the maintainer one choice: they run it, or
+they allow it. Where they ran it, read the branch's head again before you go
+on; where they allowed it, run it once, as it was. Where they declined, hand
+back blocked, unless your lead rules another way. Once they have run or
+allowed a command, running it again at a later step is a new command: if it is
+refused again, report it again, and never retry it.
+
+**A fresh clone.** Only where a fresh clone removes the need for the command
+does the choice become that they run it, or you redo the work in a fresh clone
+of your own. A command that rewrites the branch or the worktree is such a
+case. A refused fetch or push is not: the clone needs the same push, and
+cloning is the same fetch. Take the clone only on that OK: first commit on the
+worktree's branch whatever is uncommitted there, then bring into the clone
+only the unpushed commits the redo keeps, keep to every rule under Never, the
+one on refused calls included, work on the branch in that clone from then on,
+and tell your lead with a `STATUS: moved` line. Your session's own files, its
+bindings, its handoff and any restart marker, stay in the worktree, where your
+lead looks for them: run setup and the restart with the worktree as the
+working directory, reached by its full path, never from the clone, since both
+write those files under the directory they run in.
+
+**When the line cannot be sent.** A refused send is a refused call too, and
+its line still has to arrive. Send each line by the first of these routes that
+is open, never twice by the same one, and with it a `STATUS: refused` line
+for each send that was refused:
+
+1. your lead, through the performer bound to `hand-back`, or, before setup
+   completes, over the channel your launch came from, since nothing is bound
+   yet;
+2. a note on the story's work item, through the performer bound to
+   `post-work-note`, once setup has bound it;
+3. the maintainer directly, as a worker with no lead does: one question,
+   through the question tool where your harness has one;
+4. your own reply: write the lines there, where whoever opens your session
+   reads them, and end your turn, changing nothing more until an answer comes.
+
+With no lead, routes 1 and 3 are one. Once a route higher up opens again, tell
+your lead in one line what went round them and what the maintainer answered.
 
 ## Bindings mid-story
 

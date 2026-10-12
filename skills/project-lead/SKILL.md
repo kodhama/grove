@@ -231,7 +231,9 @@ report lists every pane it skipped and why.
   way. Until the answer comes, a worker whose refused command rewrites the
   branch or the worktree changes nothing in that checkout. A command refused
   again, after the maintainer ran or allowed it, is a new line: bring it to
-  them again, and never tell the worker to retry it.
+  them again, and never tell the worker to retry it. Where the worker's
+  session has ended before the answer comes, no one is left to take it: tell
+  the maintainer so, and ask how the story is taken up.
 - **A worker's `STATUS: moved`:** its branch lives in the clone the line names
   from then on, while its session's own files, its restart marker among them,
   stay in the worktree you made.
