@@ -886,42 +886,49 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     ["after a |", "echo a | gh pr view 12 name() more words", ["echo", "more"]],
     ["after a newline", "cd /repo\ngh pr view 12 name() more words", ["cd", "more"]],
     ["inside a $( )", 'echo "$(gh pr view 12 name() more words)"', ["echo", "more"]],
-    ["with a = before the ()", "touch e13 a=() b", ["b"]],
     ["with a redirect among them", "touch e21 > /dev/null x() y", ["y"]],
     ["after command", "command touch e25 x() y", ["y"]],
     ["inside an if", "if true; then touch e16 x() y; fi", ["true", "y"]],
     ["inside braces", "{ touch e17 x() y }", ["y"]],
     ["inside a subshell", "( touch e18 x() y )", ["y"]],
     ["after a declaration word, with no = before the ()", "local x() y", ["y"]],
-    ["after a declaration word that is not the first word", "echo local arr=() b", ["b"]],
-    ["after a word that only starts with a declaration word", "localx arr=() b", ["b"]],
   ])("credits none of the words before a function's (), %s", (_where, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
   });
 
-  // A declaration word's `name=()` is an array, not a definition: `local
-  // arr=() gh` declares `arr` and a variable `gh`, and runs no `gh`.
-  it.each(["declare", "export", "float", "integer", "local", "readonly", "typeset"])(
-    "reads the name=() after %s as an array, and the word after it as no command",
-    (word) => {
-      expect(clisOf(`${word} arr=() gh`)).toEqual([word]);
-    },
-  );
-
+  // A `name=()` past a command's first word is to zsh the array a
+  // declaration word is given or a function's definition, and in neither
+  // does the command's first word or the word after the `()` run. No line
+  // below runs its `gh` or `b`: the one with a `$( )` and the last four
+  // define functions, and the others declare.
   it.each([
-    ["a setting", "X=1 local arr=() gh", ["local"]],
-    ["a setting, with words after the array", "FOO=1 export arr=() gh pr view", ["export"]],
-    ["a setting whose quoted value holds a space", 'X="a b" local arr=() gh', ["local"]],
-  ])("reads the name=() after a declaration word as an array past %s", (_what, line, clis) => {
+    ["on a line continued after an &&", "cd /repo && \\\n  local arr=() gh", ["cd"]],
+    ["on a line continued after its first word", "local\\\n arr=() gh pr view 1", []],
+    ["after a += setting", "X+=1 local arr=() gh pr view 1", []],
+    ["after a subscript's setting", "a[1]=x local arr=() gh pr view 1", []],
+    ["after a setting's own array", "X=() local arr=() gh pr view 1", []],
+    ["after a redirect", "2>/dev/null local arr=() gh pr view 1", []],
+    ["after nocorrect", "nocorrect local arr=() gh pr view 1", []],
+    ["after a setting and a continued line", "FOO=1 \\\nlocal arr=() gh", []],
+    ["after a $( ), which still runs", "$(true) local arr=() gh pr view 1", ["true"]],
+    ["after a declaration word", "local arr=() gh", []],
+    ["after a declaration word and a setting", "X=1 local arr=() gh", []],
+    ["after a declaration word, a setting and more words", "FOO=1 export arr=() gh pr view", []],
+    ["after a declaration word and a setting whose quoted value holds a space", 'X="a b" local arr=() gh', []],
+    ["after a declaration word that is not the first word", "echo local arr=() b", []],
+    ["after a word that only starts with a declaration word", "localx arr=() b", []],
+    ["after any other first word", "touch e13 a=() b", []],
+    ["after a +=", "touch k5 arr+=() b", []],
+  ])("credits no word around a name=() past a command's first word, %s", (_where, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
   });
 
   it.each([
-    ["before a ;", "local arr=(); gh pr view 1", ["local", "gh"]],
-    ["with an option, before a newline", "typeset -a brr=()\ngh pr view 1", ["typeset", "gh"]],
-    ["twice on a line", "declare -a files=() names=()\ngh pr view 1", ["declare", "gh"]],
-    ["in a function's body", "f() { local arr=(); gh pr view 1; }; f", ["local", "gh", "f"]],
-  ])("still credits the command after a declaration word's name=(), %s", (_where, line, clis) => {
+    ["before a ;", "local arr=(); gh pr view 1", ["gh"]],
+    ["with an option, before a newline", "typeset -a brr=()\ngh pr view 1", ["gh"]],
+    ["twice on a line", "declare -a files=() names=()\ngh pr view 1", ["gh"]],
+    ["in a function's body", "f() { local arr=(); gh pr view 1; }; f", ["gh", "f"]],
+  ])("still credits the command after a name=() past a command's first word, %s", (_where, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
   });
 
@@ -952,8 +959,9 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
   });
 
   // Known limits: what the parser reads where zsh does otherwise. zsh runs no
-  // `touch` in the first two lines and no `gh` in the last, runs `cmd` in the
-  // two anonymous functions, and defines both `a` and `b` in the other two.
+  // `touch` in the first two lines and no `gh` in the seventh, runs `cmd` in
+  // the two anonymous functions and `touch` in the last, and defines both
+  // `a` and `b` in the other two.
   it.each([
     ["a name the line defines, then called as the CLI", "touch x() true; touch e2", ["true", "touch"]],
     ["a blank inside the ( ), which zsh rejects", "touch e1c name( ) more words", ["more"]],
@@ -962,6 +970,7 @@ describe("a shell line's commands, read past quoted text, $( and comments", () =
     ["a function given two names", "function a b { touch e11; }", ["b"]],
     ["a function given two names, the second then called", "function a b { touch e11; }; b", ["b", "b"]],
     ["a body that is the next line's command, never called", "gh pr view 12 name()\ngh pr list", ["gh"]],
+    ["a body after a name=() that another of the names then calls", "x a=() { touch p4 }; x", ["x"]],
   ])("reads, as a known limit, %s", (_what, line, clis) => {
     expect(clisOf(line)).toEqual(clis);
   });
