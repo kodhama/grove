@@ -476,4 +476,13 @@ The full review of `4ba6017` returned "Ready with fixes", with nothing at its tw
 
   U1's scenario 7 pins the three sentences in that order.
 - **Tests added for what those sentences rest on.** The receipt check's own tests now run a new worker's check with `--handoff` and `--not-run` together (exit 0 with both, exit 1 without the flag), and with the saved lines indented, bulleted and quoted (nothing carries).
+- **One sentence added to U3's passage, on the lead's ruling.** Where a new worker's check carried nothing, the lead had two rules: item 2 sends back a hand-back whose check shows `plan` as `bound-but-unused`, and the passage calls the earlier receipt's check the evidence. This sentence goes in after "…the earlier receipt's check is then the evidence for them.":
+
+  ```text
+  Item 2 then reads `plan` in that earlier check, never in the new worker's
+  own, which shows it `bound-but-unused` because a new worker plans nothing
+  again.
+  ```
+
+  U1's lead scenario pins it whole, with the sentences on either side of it.
 - **The heading test reads the constant.** It matched the heading anywhere in the reader's file, so a comment satisfied it; it now matches the line that defines the constant.
