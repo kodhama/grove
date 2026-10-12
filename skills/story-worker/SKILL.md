@@ -259,7 +259,8 @@ performer bound to `review-escalation`.
 - **Check what it read.** In the request that starts a reviewer that reads a
   repository, name the range to read, and ask it to quote, from its own
   commands and their output, the command that gave it the diff, the commit it
-  was on and the files the diff changes. Compare the range in its command, that
+  was on and the files the diff changes. Commit your work before the review
+  starts, so the range holds all of it. Compare the range in its command, that
   commit and those files with the range you named, the commit you started the
   review on and the files your own diff lists over that range in the story's
   checkout. If any differs or is missing, it read something else: discard its
