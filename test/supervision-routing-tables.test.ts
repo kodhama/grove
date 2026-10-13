@@ -1593,7 +1593,7 @@ describe("GRO-31 · a hand-back that comes back", () => {
     ]);
     // Where nothing carried, item 2's rule on a `plan` shown unused reads the earlier check, said right after the evidence is.
     expect(sendingBack()).toContain(
-      "the earlier receipt's check is then the evidence for them. Unless the plan is what you sent back, item 2 then reads `plan` in that earlier check, never in the new worker's own, which shows it `bound-but-unused` because a new worker plans nothing again. A worker that ended after posting a handoff",
+      "the earlier receipt's check is then the evidence for them. Unless what you sent back is that the story was never planned, item 2 then reads `plan` in that earlier check, never in the new worker's own, which shows it `bound-but-unused` because a new worker plans nothing again. A worker that ended after posting a handoff",
     );
   });
 
