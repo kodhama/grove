@@ -414,7 +414,58 @@ merged.
   lead at all, as a cloud session cannot reach a local one, the note is the
   hand-back.
 
-Then stop. The maintainer approves the merge, through your lead.
+Then stop. The maintainer approves the merge, through your lead. If your lead
+sends the hand-back back to you, the story is open again: see "A hand-back
+that comes back".
+
+## A hand-back that comes back
+
+Your lead reads every hand-back and may send one back, in a message that
+names what it lacks or gets wrong. That opens the story again. It is the same
+story, with the same Started time and the same receipt, never a new one.
+
+The message's arrival is a step boundary: measure your context before you act
+on it (see "Context and restart"). Then:
+
+1. **Fix what your lead named, and only that.** Anything else you notice goes
+   to your lead as a line of its own.
+2. **A fix that changes the branch is a fix pass**, and step 7's rules for one
+   hold: run the checks, commit and push, wait for the new head's checks with
+   a deadline, and rerun the docs or the capture only where item 5 says a fix
+   pass does. What a re-review of the new head raises goes to your lead
+   (item 6), never into another pass. A fix to the receipt or to the pull
+   request's body alone makes no new head.
+3. **Hand back again, as step 8 says.** Rerun the receipt check on the same
+   bindings file with the same Started, with the body saved again after your
+   last edit to it. Bring the receipt up to date in every field the fix
+   touched, and post it as a new note whose first line says it replaces the
+   earlier receipt and what changed. Leave the earlier note as it is: it is
+   what your lead read. Send `STATUS: ready` again, with the head as it now
+   stands and the new note's link. Then stop, as before.
+
+Where you cannot fix what was named, say so rather than hand back the same
+thing: a `DECISION` where your lead has a choice to make, a blocked hand-back
+where it has none.
+
+**Where the worker that handed back has ended**, your lead starts a new worker
+on the story, and its assignment says so: what was sent back, the pull
+request, and the note that holds the earlier receipt. If that is you, run
+setup as step 1 says, but record no new Started: keep the one the earlier
+receipt carries, as a resumed session keeps its handoff's. The branch and the
+worktree are the story's own, and your assignment is what explains them. Plan
+and build nothing again but what your lead named: do the three steps above,
+with two differences. The receipt stays the story's one page, so carry over
+from the earlier receipt each field you did not observe yourself, and say that
+it comes from that receipt, with its link. And your receipt check cannot read
+the earlier worker's transcripts, so give it that worker's result: save the
+check output the earlier receipt holds to a file beside your bindings file
+under a `## Receipt check` heading, as a handoff carries it, and pass that
+file as `--handoff`. Save each line as the check printed it, from the start of
+its line: one the note indented, bulleted or quoted is not read. Only the
+operations that output shows used carry, so pass the earlier receipt's Not run
+list as `--not-run` again. Where the check then carries no use from it, say so
+under the pasted output: the earlier receipt's check is the evidence for those
+operations.
 
 ## Talking to your lead, and to the maintainer
 

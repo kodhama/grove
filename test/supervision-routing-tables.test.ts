@@ -1466,3 +1466,160 @@ describe("GRO-21 · the Capture line's text", () => {
     expect(fallback).not.toContain("say in the hand-back");
   });
 });
+
+/**
+ * GRO-31 — a hand-back its lead sends back opens the same story again. The
+ * worker fixes what was named, reruns the receipt check, posts the receipt
+ * again as a new note and resends `STATUS: ready`. Where that worker has
+ * ended, the lead starts a new one, which keeps the story's Started and hands
+ * the check the earlier worker's result. One section in story-worker and one
+ * passage in project-lead's step 7 hold the rule, and the clauses that send
+ * work back point at them.
+ */
+describe("GRO-31 · a hand-back that comes back", () => {
+  /** Text with every run of whitespace collapsed to one space. */
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+  const SECTION = "A hand-back that comes back";
+  const PASSAGE = "**Sending it back.**";
+  const RESTART_HANDOFF = "**A `restart-owner: lead` handoff**";
+  const comesBack = () => flat(section(read(WORKER), SECTION));
+  const step8 = () => flat(section(read(WORKER), "8. Hand back"));
+  const leadStep7 = () => flat(section(read(LEAD), "7. A hand-back"));
+  /** The lead's passage "Sending it back", up to the restart-handoff paragraph that follows it. */
+  const sendingBack = () => {
+    const step = leadStep7();
+    const start = step.indexOf(PASSAGE);
+    const end = step.indexOf(RESTART_HANDOFF);
+    return start < 0 || end < start ? "" : step.slice(start, end);
+  };
+  const expectAll = (text: string, said: readonly string[]) =>
+    said.forEach((words) => expect(text).toContain(words));
+
+  it("story-worker has the section, after its hand-back step and before talking to its lead", () => {
+    const text = read(WORKER);
+    const at = (heading: string) => text.indexOf(`\n## ${heading}\n`);
+    expect(at("8. Hand back")).toBeGreaterThan(-1);
+    expect(at(SECTION)).toBeGreaterThan(at("8. Hand back"));
+    expect(at("Talking to your lead, and to the maintainer")).toBeGreaterThan(at(SECTION));
+  });
+
+  it("step 8 ends by pointing at the section", () => {
+    const pointer = `If your lead sends the hand-back back to you, the story is open again: see "${SECTION}".`;
+    const step = step8();
+    expect(step).toContain(pointer);
+    expect(step.trimEnd().endsWith(pointer)).toBe(true);
+  });
+
+  it("a hand-back sent back opens the same story again, never a new one", () => {
+    expectAll(comesBack(), [
+      "Your lead reads every hand-back and may send one back, in a message that names what it lacks or gets wrong.",
+      "That opens the story again.",
+      "It is the same story, with the same Started time and the same receipt, never a new one.",
+    ]);
+  });
+
+  it("the worker measures its context before it acts on the message", () => {
+    expect(comesBack()).toContain(
+      'The message\'s arrival is a step boundary: measure your context before you act on it (see "Context and restart").',
+    );
+  });
+
+  it("the worker fixes only what was named, as a fix pass where the branch changes, and hands back again", () => {
+    expectAll(comesBack(), [
+      "1. **Fix what your lead named, and only that.**",
+      "Anything else you notice goes to your lead as a line of its own.",
+      "2. **A fix that changes the branch is a fix pass**, and step 7's rules for one hold: run the checks, commit and push, wait for the new head's checks with a deadline, and rerun the docs or the capture only where item 5 says a fix pass does.",
+      "What a re-review of the new head raises goes to your lead (item 6), never into another pass.",
+      "A fix to the receipt or to the pull request's body alone makes no new head.",
+      "3. **Hand back again, as step 8 says.**",
+      "Rerun the receipt check on the same bindings file with the same Started, with the body saved again after your last edit to it.",
+      "Bring the receipt up to date in every field the fix touched, and post it as a new note whose first line says it replaces the earlier receipt and what changed.",
+      "Leave the earlier note as it is: it is what your lead read.",
+      "Send `STATUS: ready` again, with the head as it now stands and the new note's link.",
+      "Then stop, as before.",
+    ]);
+  });
+
+  it("a worker that cannot fix what was named says so, as a decision or a blocked hand-back", () => {
+    expect(comesBack()).toContain(
+      "Where you cannot fix what was named, say so rather than hand back the same thing: a `DECISION` where your lead has a choice to make, a blocked hand-back where it has none.",
+    );
+  });
+
+  it("a new worker keeps the story's Started, builds nothing again, and carries the earlier receipt and check", () => {
+    const text = comesBack();
+    expectAll(text, [
+      "**Where the worker that handed back has ended**, your lead starts a new worker on the story, and its assignment says so: what was sent back, the pull request, and the note that holds the earlier receipt.",
+      "If that is you, run setup as step 1 says, but record no new Started: keep the one the earlier receipt carries, as a resumed session keeps its handoff's.",
+      "The branch and the worktree are the story's own, and your assignment is what explains them.",
+      "Plan and build nothing again but what your lead named: do the three steps above, with two differences.",
+      "The receipt stays the story's one page, so carry over from the earlier receipt each field you did not observe yourself, and say that it comes from that receipt, with its link.",
+      "Where the check then carries no use from it, say so under the pasted output: the earlier receipt's check is the evidence for those operations.",
+    ]);
+    // Only a `used` line at the start of its line carries, so the file's layout and the earlier Not run list are said right after the file is.
+    const passTheFile =
+      "And your receipt check cannot read the earlier worker's transcripts, so give it that worker's result: save the check output the earlier receipt holds to a file beside your bindings file under a `## Receipt check` heading, as a handoff carries it, and pass that file as `--handoff`.";
+    const fromTheStart =
+      "Save each line as the check printed it, from the start of its line: one the note indented, bulleted or quoted is not read.";
+    const passNotRun =
+      "Only the operations that output shows used carry, so pass the earlier receipt's Not run list as `--not-run` again.";
+    expect(text).toContain(`${passTheFile} ${fromTheStart} ${passNotRun}`);
+  });
+
+  it("the section names no harness, path, version or tracker", () => {
+    const text = section(read(WORKER), SECTION);
+    expect(text).not.toBe("");
+    expect(textProblems(text)).toEqual([]);
+  });
+
+  it("the lead sends a hand-back back one way, and reads what returns from item 1 again", () => {
+    expectAll(sendingBack(), [
+      "**Sending it back.** Wherever this step sends a hand-back or a defect back to the worker, do it one way.",
+      "Before you send one back over a line, read items 1 and 2 through, so that one message names everything the hand-back lacks, and send it as step 5 says.",
+      `While the worker's session is live, the message goes to it: its skill's "${SECTION}" has it fix what you named, post its receipt again as a new note, and send \`STATUS: ready\` again.`,
+      "It is the same story, with the same Started time and the same receipt.",
+      "Read what comes back from item 1 again, as you would a fix pass's head: the earlier note does not cover it.",
+    ]);
+  });
+
+  it("the lead starts a new worker where the worker's session has ended, never a restart", () => {
+    expect(idsOf("project-lead")).toContain("start-worker");
+    expectAll(sendingBack(), [
+      "Where the worker's session has ended, start a new worker on the story as step 4 says, in the story's own worktree and on its branch.",
+      "That is a new worker, never a restart: a worker that handed back left no handoff to restart from.",
+      "Its assignment adds what you are sending back, the pull request, and the note that holds the earlier receipt.",
+      "Its receipt carries over, from the earlier one, what it did not observe itself, and its pasted check shows the earlier worker's operations as carried, or says it could carry none: the earlier receipt's check is then the evidence for them.",
+      'A worker that ended after posting a handoff is the one exception: "A `restart-owner: lead` handoff", below, covers it.',
+    ]);
+    // Where nothing carried, item 2's rule on a `plan` shown unused reads the earlier check, said right after the evidence is.
+    expect(sendingBack()).toContain(
+      "the earlier receipt's check is then the evidence for them. Unless what you sent back is that the story was never planned, item 2 then reads `plan` in that earlier check, never in the new worker's own, which shows it `bound-but-unused` because a new worker plans nothing again. A worker that ended after posting a handoff",
+    );
+  });
+
+  it("the lead's passage sits after the merge item and before the restart handoff", () => {
+    const step = leadStep7();
+    const merge = step.indexOf("**Merge only on their approval**");
+    const passage = step.indexOf(PASSAGE);
+    expect(merge).toBeGreaterThan(-1);
+    expect(passage).toBeGreaterThan(merge);
+    expect(step.indexOf(RESTART_HANDOFF)).toBeGreaterThan(passage);
+  });
+
+  it("the lead's list opens by pointing at the passage", () => {
+    const step = leadStep7();
+    expect(step).toContain(
+      '**When the pull request is ready**, take these in order. Where one sends the hand-back back to the worker, "Sending it back", below them, says how:',
+    );
+    expect(step).not.toContain("**When the pull request is ready:**");
+  });
+
+  it("the heading the section quotes is the restart skill's, and the one the check reads", () => {
+    const heading = "## Receipt check";
+    expect(read(join(SKILLS_TREE, "session-restart", "SKILL.md")).split("\n")).toContain(heading);
+    // The constant the check matches a heading against, not the comment that mentions it.
+    expect(
+      read(join(SKILLS_TREE, "supervision-setup", "scripts", "handoff-receipt.mjs")).split("\n"),
+    ).toContain(`const HANDOFF_SECTION = "${heading}";`);
+  });
+});

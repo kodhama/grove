@@ -2134,6 +2134,46 @@ describe("MQ-353 · the command line", () => {
     expect(after).toContain("story-worker/build: bound-but-unused");
   });
 
+  describe("GRO-31 · a new worker hands the check an earlier worker's result", () => {
+    // The earlier worker's report, saved under the heading with each line as `line` leaves it.
+    const savedAs = (name: string, line = (printed: string) => printed) => {
+      const before = run(bindingsReading([BEFORE, "claude-before-restart"])).stdout;
+      const handoff = join(dir, name);
+      const lines = before.split("\n").map(line).join("\n");
+      writeFileSync(handoff, `## Receipt check\n\n${lines}\n`);
+      return handoff;
+    };
+    const newWorker = (handoff: string, ...args: string[]) => {
+      const file = bindingsReading([BY_HAND, "claude-built-by-hand"]);
+      file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
+      return run(file, "--handoff", handoff, ...args);
+    };
+
+    it("carries the uses and takes --not-run for the rest, and exits 0 only with both", () => {
+      const handoff = savedAs("handoff-new-worker.md");
+      const result = newWorker(handoff, "--not-run", "story-worker/build");
+      expect(result.stdout).toContain(
+        `story-worker/plan: used compound-engineering:ce-plan in ${BEFORE} (carried from handoff)`,
+      );
+      expect(result.stdout).toContain("story-worker/build: not reached (declared by caller)");
+      expect(result.status).toBe(0);
+      // A carried report's own lines for the rest do not carry: without the flag the check fails.
+      const alone = newWorker(handoff);
+      expect(alone.stdout).toContain("story-worker/build: bound-but-unused");
+      expect(alone.status).toBe(1);
+    });
+
+    it.each([
+      ["indented", (printed: string) => `  ${printed}`],
+      ["bulleted", (printed: string) => `- ${printed}`],
+      ["quoted", (printed: string) => `> ${printed}`],
+    ])("carries nothing from lines the note %s", (what, line) => {
+      const result = newWorker(savedAs(`handoff-${what}.md`, line));
+      expect(result.stdout).toContain("(0 earlier uses carried)");
+      expect(result.stdout).toMatch(/^story-worker\/plan: bound-but-unused /m);
+    });
+  });
+
   describe("GRO-15 · a handoff written for another story's --since carries nothing", () => {
     const A_SINCE = "2026-10-01T09:00:00Z";
     const B_SINCE = "2026-10-08T11:00:00Z";
