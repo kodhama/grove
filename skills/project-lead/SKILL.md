@@ -384,11 +384,12 @@ Its assignment adds what you are sending back, the pull request, and the note
 that holds the earlier receipt. Its receipt carries over, from the earlier
 one, what it did not observe itself, and its pasted check shows the earlier
 worker's operations as carried, or says it could carry none: the earlier
-receipt's check is then the evidence for them. Unless the plan is what you
-sent back, item 2 then reads `plan` in that earlier check, never in the new
-worker's own, which shows it `bound-but-unused` because a new worker plans
-nothing again. A worker that ended after posting a handoff is the one
-exception: "A `restart-owner: lead` handoff", below, covers it.
+receipt's check is then the evidence for them. Unless what you sent back is
+that the story was never planned, item 2 then reads `plan` in that earlier
+check, never in the new worker's own, which shows it `bound-but-unused`
+because a new worker plans nothing again. A worker that ended after posting a
+handoff is the one exception: "A `restart-owner: lead` handoff", below, covers
+it.
 
 **A `restart-owner: lead` handoff** means the worker cannot launch its own
 successor. Launch it through `start-worker` from the handoff's launch line:
