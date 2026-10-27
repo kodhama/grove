@@ -1623,3 +1623,62 @@ describe("GRO-31 · a hand-back that comes back", () => {
     ).toContain(`const HANDOFF_SECTION = "${heading}";`);
   });
 });
+
+/**
+ * KOD-15 (plan unit U5) — until the plugin packaging goes, a machine can list
+ * a skill both as the plugin's `grove:<s>` and as the bare `<s>` the kodhama
+ * CLI installs. Setup's exact check reads two entries of one name as a clash
+ * and sends the operation to discovery. One case is not a clash: the bare
+ * copy carries the installer's marker naming that plugin. Then the two are
+ * one skill, and setup binds the bare copy by check. The marker is read from
+ * probe lines written into the check prompt, as the CLI probes are, and the
+ * harness notes say where the marker is on each harness.
+ */
+describe("KOD-15 · setup's rule for a plugin skill and its marked bare copy", () => {
+  const setup = () => read(join(SKILLS_TREE, "supervision-setup", "SKILL.md")).replace(/\s+/g, " ");
+  const notes = () =>
+    read(join(SKILLS_TREE, "supervision-setup", "references", "harness-notes.md")).replace(/\s+/g, " ");
+
+  it("states the rule among the check's rules, before Order, so the check prompt carries it", () => {
+    const text = setup();
+    const rule = text.indexOf("**Marked copies.**");
+    expect(rule).toBeGreaterThan(text.indexOf("**Clashes.**"));
+    expect(rule).toBeLessThan(text.indexOf("**Order.**"));
+    expect(text).toContain(
+      "exactly two entries share the name, one plugin-qualified `<plugin>:<name>` and one bare `<name>`",
+    );
+    expect(text).toContain("the operation binds the bare entry by check");
+    expect(text).toContain("A third entry, an unmarked folder or a marker naming another tool leaves the clash");
+  });
+
+  it("has the marker probes written into the check prompt by redirection, and matched only through them", () => {
+    const text = setup();
+    expect(text).toContain("under `Marker probes` by redirection");
+    expect(text).toContain("Marker probes: marker <folder>: <the marker file's content on one line, or nothing>");
+    expect(text).toContain("A marked copy matches only through its lines under Marker probes.");
+  });
+
+  it("confirms a row bound through marked copies from its marker lines, and sends no settled clash to discovery", () => {
+    const text = setup();
+    expect(text).toContain("quotes the bare entry's snapshot line and each of its marker lines");
+    expect(text).toContain("an operation with clashes the marked-copies rule does not settle");
+  });
+
+  it("rechecks a seeded plugin binding whose name now settles as marked copies through the check", () => {
+    expect(setup()).toContain("goes through the check again, which binds the bare copy");
+  });
+
+  it("has the harness notes name the marker file and each harness's folders", () => {
+    const text = notes();
+    expect(text).toContain("**Marked copies.**");
+    expect(text).toContain("`.kodhama-skill.json`");
+    expect(text).toContain("`${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/<name>/`");
+    expect(text).toContain("`$HOME/.agents/skills/<name>/`");
+  });
+
+  it("has the README keep only an unmarked bare copy as a clash", () => {
+    const readme = read("README.md").replace(/\s+/g, " ");
+    expect(readme).not.toContain("Remove any bare copy first");
+    expect(readme).toContain("A bare copy the kodhama CLI installed is not a clash");
+  });
+});

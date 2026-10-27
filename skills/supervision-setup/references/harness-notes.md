@@ -50,6 +50,18 @@ Related, and **reported, not re-observed**: a `/clear` did not reload plugin
 skills, so a session that was running when a plugin was installed still lacked
 its skills after an in-place restart (a lead session, 2026-10-07).
 
+**Marked copies.** The kodhama CLI installs a tool's skills as bare folders
+and writes `.kodhama-skill.json` into each: a JSON object whose `tool` names
+the tool, beside `skill`, `tag` and `commit` (read in the CLI's source at
+kodhama/stewards 8c3c4d1, 2026-10-27; not yet observed on an installed
+machine). On Claude Code a bare skill can be listed from the user folder
+`${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/<name>/` or from the repo's
+`.claude/skills/<name>/`; which one wins when both exist is **unknown**, so
+setup probes every one of them that exists. One probe line per folder:
+`printf 'marker %s: %s\n' "$d" "$(tr -d '\n' < "$d/.kodhama-skill.json" 2>/dev/null)" >> <file>`,
+with `$d` the folder. A folder with no marker prints nothing after the colon,
+and the clash stands.
+
 **A plugin's folder carries its version, and an update leaves the old one for
 14 days.** A plugin installs to `cache/<marketplace>/<plugin>/<version>/`, and
 no path stays the same across versions. On an update, Claude Code writes
@@ -473,6 +485,13 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   a clash, so every one of them goes to discovery on every setup. The session
   read its own name from `herdr agent get $HERDR_PANE_ID`. That setup's
   evidence paraphrased the catalog rather than quoting it.
+- **Marked copies** are probed as on Claude Code, from the user folder
+  `$HOME/.agents/skills/<name>/` and the repo's `.agents/skills/<name>/`,
+  where the kodhama CLI installs for Codex (read in its source at
+  kodhama/stewards 8c3c4d1, 2026-10-27). Whether Codex lists skills from any
+  other folder is **unknown**, and so is whether its skills list names a
+  plugin's skill `<plugin>:<name>`: where both entries read bare, the rule
+  does not apply and the clash stands.
 - **An update deletes the old version's folder at once.** A plugin installs
   to `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`, and the
   update path removes every other version folder with no grace period
