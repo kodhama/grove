@@ -120,11 +120,11 @@ The check is exact, and it makes no judgment:
   the unqualified name, whether of one kind or of two, the operation goes to
   discovery.
 - **Marked copies.** One clash is settled: exactly two entries share the name,
-  one plugin-qualified `<plugin>:<name>` and one bare `<name>`, and every line
-  under `Marker probes` for that name shows the installer's marker naming
-  `<plugin>` as its tool. The two are one skill, and the operation binds the
-  bare entry by check. A third entry, an unmarked folder or a marker naming
-  another tool leaves the clash.
+  one plugin-qualified `<plugin>:<name>` and one bare `<name>`, there is at
+  least one line under `Marker probes` for that name, and every one of them
+  shows the installer's marker naming `<plugin>` as its tool. The two are one
+  skill, and the operation binds the bare entry by check. A third entry, an
+  unmarked folder or a marker naming another tool leaves the clash.
 - **Order.** Try an operation's suggested performers in order. The first name
   that matches any entry decides the operation: one entry, or a pair of marked
   copies, binds it, with `how_bound: check`; any other two or more send it to
@@ -146,12 +146,13 @@ line each as `command -v <name>: <output, or nothing>`, for example
 `printf 'command -v %s: %s\n' herdr "$(command -v herdr)" >> <file>`, so every
 row the subagent returns can be confirmed from the file. Then, for each name
 the snapshot lists both plugin-qualified and bare, write the marker probes the
-harness notes give for your harness, one line per folder the bare copy could
-be listed from, under `Marker probes` by redirection as well:
+harness notes give for your harness, one line per folder the harness notes
+list for the bare copy that exists, under `Marker probes` by redirection as
+well:
 
 ```text
 Match names exactly; judge nothing. The rules:
-<the rules above, from "A logical name is one word" to "binds">
+<the rules above, from "A logical name is one word" through the end of the Order rule>
 
 Catalog snapshot (skills, tools, agent types):
 <the snapshot>
@@ -178,9 +179,9 @@ yourself.
 Then confirm every row before you use it. Its evidence must be quoted from
 the check prompt's snapshot or from the probe output, and appear there word
 for word; a row bound through marked copies quotes the bare entry's snapshot
-line and each of its marker lines. Take the native id from that confirmed
-line, not from `match`: a cheap model can put the logical name there instead.
-A row you cannot confirm goes to discovery, and so does an operation with
+line and each of its marker lines, at least one. Take the native id from that
+confirmed line, not from `match`: a cheap model can put the logical name
+there instead. A row you cannot confirm goes to discovery, and so does an operation with
 clashes the marked-copies rule does not settle. So does an operation the
 table marks `fresh_context = true` whose match is an agent, or a tool that
 starts a subagent: its call always sits in the caller's own transcript, so it
@@ -196,10 +197,10 @@ the built-in harness, the MCP server, or the `command -v` path.
 **On a seeded run**, a seeded binding is rechecked, not trusted. If the
 harness and its version equal the earlier file's, or the handoff's where that
 file does not resolve on this machine, and the seeded native id is
-still in the snapshot with no clash, or for a CLI its probe prints the same
-path, the binding is `seed-rechecked`. A seeded binding to a
-plugin-qualified skill whose name now settles as marked copies goes through
-the check again, which binds the bare copy. Every
+still in the snapshot with no clash, or with only a clash the marked-copies
+rule settles, or for a CLI its probe prints the same path, the binding is
+`seed-rechecked`: a session bound under the plugin keeps that binding, and
+one bound to the bare copy keeps the bare copy. Every
 other seeded operation goes to discovery. So does a seeded binding of an
 operation the table marks `fresh_context = true` to an agent, or to a tool
 that starts a subagent, even when it passes that recheck. The handoff's rows

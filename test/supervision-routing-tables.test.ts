@@ -1664,8 +1664,22 @@ describe("KOD-15 · setup's rule for a plugin skill and its marked bare copy", (
     expect(text).toContain("an operation with clashes the marked-copies rule does not settle");
   });
 
-  it("rechecks a seeded plugin binding whose name now settles as marked copies through the check", () => {
-    expect(setup()).toContain("goes through the check again, which binds the bare copy");
+  it("keeps a seeded binding to either of a pair of marked copies, rather than sending it to discovery", () => {
+    expect(setup()).toContain(
+      "still in the snapshot with no clash, or with only a clash the marked-copies rule settles, or for a CLI",
+    );
+  });
+
+  it("copies every rule through Order into the check prompt, not up to the first word that matches", () => {
+    expect(setup()).toContain('<the rules above, from "A logical name is one word" through the end of the Order rule>');
+  });
+
+  it("settles a clash only on at least one marker line, from folders that exist", () => {
+    const text = setup();
+    expect(text).toContain("at least one line under `Marker probes` for that name, and every one of them shows");
+    expect(text).toContain("one line per folder the harness notes list for the bare copy that exists");
+    expect(text).toContain("each of its marker lines, at least one");
+    expect(notes()).toContain("at the repo's root, as `git rev-parse --show-toplevel` prints it");
   });
 
   it("has the harness notes name the marker file and each harness's folders", () => {

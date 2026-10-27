@@ -62,7 +62,9 @@ An install reaches new sessions only: start a fresh one after installing.
 
 **A bare copy the kodhama CLI installed is not a clash.** A skill listed both
 as `grove:story-worker` and as a bare `story-worker` whose folder carries the
-CLI's marker is one skill to setup, which binds the bare copy. Any other bare
+CLI's marker is one skill to setup, which binds the bare copy on a first setup
+and keeps a restarted session's earlier binding. Whether Codex lists a plugin's
+skills qualified, which the rule needs, is not yet observed. Any other bare
 copy, one you placed by hand, still clashes, and setup binds that operation by
 discovery: remove it first.
 
@@ -72,13 +74,19 @@ A merged version bump reaches an install only when the install updates, and,
 like an install, an update reaches new sessions only: start a fresh one after
 updating.
 
-**Claude Code:**
+**A kodhama install** moves to the newest tag:
+
+```sh
+npx -y github:kodhama/stewards update grove
+```
+
+**A plugin install, Claude Code:**
 
 ```sh
 claude plugin update grove@grove
 ```
 
-**Codex:**
+**A plugin install, Codex:**
 
 ```sh
 codex plugin marketplace upgrade grove
