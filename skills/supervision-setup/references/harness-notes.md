@@ -58,7 +58,7 @@ machine). On Claude Code a bare skill can be listed from the user folder
 `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/<name>/` or from the repo's
 `.claude/skills/<name>/`; which one wins when both exist is **unknown**, so
 setup probes every one of them that exists. One probe line per folder:
-`printf 'marker %s: %s\n' "$d" "$(tr -d '\n' < "$d/.kodhama-skill.json" 2>/dev/null)" >> <file>`,
+`printf 'marker %s: %s\n' "$d" "$(cat "$d/.kodhama-skill.json" 2>/dev/null | tr -d '\n')" >> <file>`,
 with `$d` the folder. A folder with no marker prints nothing after the colon,
 and the clash stands.
 
