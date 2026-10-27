@@ -1,10 +1,11 @@
 # grove
 
 **Agent supervision skills for Claude Code and Codex, shipped as one plugin
-and installable with the kodhama CLI.** A project lead runs an epic, a defect run or a task given as plain
-intent, and starts one story worker per story, or carries a small one-story
-task itself as its worker; each worker carries its story to a pull request
-ready for review. Neither merges: the maintainer approves every merge.
+and installable with the kodhama CLI.** A project lead runs an epic, a defect
+run or a task given as plain intent, and starts one story worker per story, or
+carries a small one-story task itself as its worker; each worker carries its
+story to a pull request ready for review. Neither merges: the maintainer
+approves every merge.
 
 ## The skills
 

@@ -1635,9 +1635,9 @@ describe("GRO-31 · a hand-back that comes back", () => {
  * harness notes say where the marker is on each harness.
  */
 describe("KOD-15 · setup's rule for a plugin skill and its marked bare copy", () => {
-  const setup = () => read(join(SKILLS_TREE, "supervision-setup", "SKILL.md")).replace(/\s+/g, " ");
-  const notes = () =>
-    read(join(SKILLS_TREE, "supervision-setup", "references", "harness-notes.md")).replace(/\s+/g, " ");
+  const flat = (text: string) => text.replace(/\s+/g, " ");
+  const setup = () => flat(read(join(SKILLS_TREE, "supervision-setup", "SKILL.md")));
+  const notes = () => flat(read(join(SKILLS_TREE, "supervision-setup", "references", "harness-notes.md")));
 
   it("states the rule among the check's rules, before Order, so the check prompt carries it", () => {
     const text = setup();
@@ -1677,7 +1677,7 @@ describe("KOD-15 · setup's rule for a plugin skill and its marked bare copy", (
   });
 
   it("has the README keep only an unmarked bare copy as a clash", () => {
-    const readme = read("README.md").replace(/\s+/g, " ");
+    const readme = flat(read("README.md"));
     expect(readme).not.toContain("Remove any bare copy first");
     expect(readme).toContain("A bare copy the kodhama CLI installed is not a clash");
   });
