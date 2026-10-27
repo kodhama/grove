@@ -1670,6 +1670,12 @@ describe("KOD-15 · setup's rule for a plugin skill and its marked bare copy", (
     );
   });
 
+  it("has a seeded run write the marker probes even when the seed carries every operation", () => {
+    expect(setup()).toContain(
+      "A seeded run writes the marker probes into the check prompt as a first run does, even when the seed carries every operation",
+    );
+  });
+
   it("copies every rule through Order into the check prompt, not up to the first word that matches", () => {
     expect(setup()).toContain('<the rules above, from "A logical name is one word" through the end of the Order rule>');
   });

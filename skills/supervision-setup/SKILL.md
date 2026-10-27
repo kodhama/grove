@@ -200,7 +200,9 @@ file does not resolve on this machine, and the seeded native id is
 still in the snapshot with no clash, or with only a clash the marked-copies
 rule settles, or for a CLI its probe prints the same path, the binding is
 `seed-rechecked`: a session bound under the plugin keeps that binding, and
-one bound to the bare copy keeps the bare copy. Every
+one bound to the bare copy keeps the bare copy. A seeded run writes the
+marker probes into the check prompt as a first run does, even when the seed
+carries every operation, since only their lines settle a clash. Every
 other seeded operation goes to discovery. So does a seeded binding of an
 operation the table marks `fresh_context = true` to an agent, or to a tool
 that starts a subagent, even when it passes that recheck. The handoff's rows
