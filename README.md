@@ -1,10 +1,11 @@
 # grove
 
-**Agent supervision skills, shipped as one plugin for Claude Code and
-Codex.** A project lead runs an epic, a defect run or a task given as plain
-intent, and starts one story worker per story, or carries a small one-story
-task itself as its worker; each worker carries its story to a pull request
-ready for review. Neither merges: the maintainer approves every merge.
+**Agent supervision skills for Claude Code and Codex, shipped as one plugin
+and installable with the kodhama CLI.** A project lead runs an epic, a defect
+run or a task given as plain intent, and starts one story worker per story, or
+carries a small one-story task itself as its worker; each worker carries its
+story to a pull request ready for review. Neither merges: the maintainer
+approves every merge.
 
 ## The skills
 
@@ -16,12 +17,27 @@ ready for review. Neither merges: the maintainer approves every merge.
 | `session-restart` | Restarts a session at a quiet point from a handoff, in place in its herdr pane when it can. |
 | `context-gauge` | Reads the session's context as a share of its model's window. |
 
-A host lists each as `grove:<skill>`. Setup matches the part after the last
-`:`, so a routing table that suggests `story-worker` binds it unchanged.
+A host lists each as `grove:<skill>` from the plugin, or as the bare
+`<skill>` from a kodhama install. Setup matches the part after the last `:`,
+so a routing table that suggests `story-worker` binds it unchanged.
 
 ## Install
 
 Install once per machine, at user scope, on each host you use.
+
+**With the kodhama CLI**, which reads `kodhama.json` at this repo's root and
+installs the newest `vX.Y.Z` tag into both hosts' skills folders
+(`~/.claude/skills/` and `~/.agents/skills/`):
+
+```sh
+npx -y github:kodhama/stewards install grove
+npx -y github:kodhama/stewards check grove
+```
+
+The CLI refuses while grove is enabled as a plugin; `install grove --migrate`
+takes the plugin enables out first and keeps a receipt for rollback.
+
+**As a plugin**, until the plugin packaging is retired:
 
 **Claude Code:**
 
@@ -44,9 +60,13 @@ enabled = true
 
 An install reaches new sessions only: start a fresh one after installing.
 
-**Remove any bare copy first.** A skill installed both as `grove:story-worker`
-and as a bare `story-worker` in a skills folder is a clash under setup's
-matching rule, and setup then binds that operation by discovery.
+**A bare copy the kodhama CLI installed is not a clash.** A skill listed both
+as `grove:story-worker` and as a bare `story-worker` whose folder carries the
+CLI's marker is one skill to setup, which binds the bare copy on a first setup
+and keeps a restarted session's earlier binding. Whether Codex lists a plugin's
+skills qualified, which the rule needs, is not yet observed. Any other bare
+copy, one you placed by hand, still clashes, and setup binds that operation by
+discovery: remove it first.
 
 ## Updating
 
@@ -54,13 +74,19 @@ A merged version bump reaches an install only when the install updates, and,
 like an install, an update reaches new sessions only: start a fresh one after
 updating.
 
-**Claude Code:**
+**A kodhama install** moves to the newest tag:
+
+```sh
+npx -y github:kodhama/stewards update grove
+```
+
+**A plugin install, Claude Code:**
 
 ```sh
 claude plugin update grove@grove
 ```
 
-**Codex:**
+**A plugin install, Codex:**
 
 ```sh
 codex plugin marketplace upgrade grove

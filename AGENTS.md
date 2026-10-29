@@ -6,8 +6,10 @@ it directly.
 
 Grove holds kodhama's agent supervision skills (`project-lead`,
 `story-worker`, `supervision-setup`, `session-restart`, `context-gauge`) and
-the receipt checker, shipped as one plugin for Claude Code and Codex. Other
-repos consume them; their routing overrides and bindings stay in those repos.
+the receipt checker, shipped as one plugin for Claude Code and Codex, and
+installable with the kodhama CLI, which reads `kodhama.json` at the root.
+Other repos consume them; their routing overrides and bindings stay in those
+repos.
 
 ## Workflow
 
@@ -120,6 +122,9 @@ of @<maintainer-handle>.` Comments only: a PR body is covered by its branch and
 - **Every PR bumps `version` in both `.claude-plugin/plugin.json` and
   `.codex-plugin/plugin.json`, together.** An install keeps its cached copy
   until the version changes, so an unbumped merge reaches no one.
+  `kodhama.json` carries no version (the CLI accepts only `name` and
+  `skills`): the CLI installs a `vX.Y.Z` tag, which the maintainer cuts at
+  the bumped version after merge.
 - **`README.md` is the doc a change keeps current, and `docs/decisions/` where
   the change supersedes a decision recorded there.** The README is grove's
   reference: it holds what the routing tables expect of a repo that uses the

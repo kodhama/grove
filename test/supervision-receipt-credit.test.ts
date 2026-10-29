@@ -408,3 +408,53 @@ describe("a Codex rollout's calls count from the level skill's SKILL.md read", (
     expect(rowOf(result, "story-worker/build").state).toBe("bound-but-unused");
   });
 });
+
+/**
+ * KOD-15 (plan unit U5): until the plugin packaging goes, a machine can hold
+ * a skill both as the plugin's `grove:<s>` and as the bare `<s>` the kodhama
+ * CLI copies into a skills folder. A session bound under one keeps its credit
+ * when it runs the other, so a session that started under the plugin keeps
+ * working after the cut-over.
+ */
+describe("a plugin skill and its bare copy credit each other (KOD-15)", () => {
+  const RESTART = "story-worker/restart-self";
+  const LOAD: Timed = ["2026-10-08T10:00:00.000Z", skill("story-worker")];
+
+  /** The example bindings with restart-self bound to this native id, reading these calls. */
+  const boundTo = (nativeId: string, ...calls: Timed[]) => {
+    const file = bindingsOf(LOAD, ...calls);
+    file.operations.find((o: Row) => `${o.table}/${o.id}` === RESTART).native_id = nativeId;
+    return file;
+  };
+
+  it.each([".claude/skills", ".agents/skills"])(
+    "credits grove:<s> for a script run from the bare copy in ~/%s",
+    (folder) => {
+      const line = `/Users/maintainer/${folder}/session-restart/scripts/start-restart.sh --dry-run`;
+      const bindings = boundTo("grove:session-restart", ["2026-10-08T10:01:00.000Z", bash(line)]);
+      expect(rowOf(checkReceipts({ bindings }), RESTART).state).toBe("used");
+    },
+  );
+
+  it("credits grove:<s> for a Skill call of the bare name", () => {
+    const bindings = boundTo("grove:session-restart", ["2026-10-08T10:01:00.000Z", skill("session-restart")]);
+    expect(rowOf(checkReceipts({ bindings }), RESTART).state).toBe("used");
+  });
+
+  it("credits the bare <s> setup binds for a script the plugin's copy still runs", () => {
+    const line = "node /Users/maintainer/.claude/plugins/cache/grove/grove/0.2.13/skills/session-restart/scripts/start-restart.sh";
+    const bindings = boundTo("session-restart", ["2026-10-08T10:01:00.000Z", bash(line)]);
+    expect(rowOf(checkReceipts({ bindings }), RESTART).state).toBe("used");
+  });
+
+  it("counts a Skill call of the bare level skill as its load", () => {
+    const bindings = bindingsOf(
+      ["2026-10-08T09:59:00.000Z", skill("compound-engineering:ce-work")],
+      LOAD,
+      ["2026-10-08T10:01:00.000Z", tool("mcp__claude_ai_Linear__save_comment")],
+    );
+    const result = checkReceipts({ bindings });
+    expect(rowOf(result, "story-worker/build").state).toBe("bound-but-unused");
+    expect(rowOf(result, "story-worker/post-work-note").state).toBe("used");
+  });
+});
