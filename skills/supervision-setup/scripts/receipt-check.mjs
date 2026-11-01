@@ -67,9 +67,10 @@
  * calls. A call or a load with no recorded time is never cut.
  *
  * Shared performers: where the call that credits an operation also matches
- * another operation's binding, as one herdr call matches session-restart's
- * four herdr operations, or one fresh review run matches both `review` and
- * `review-escalation` where they bind one skill, as on Codex, the line reads
+ * another operation's binding, as one pane-tool call matches the four
+ * session-restart operations bound to that tool, or one fresh review run
+ * matches both `review` and `review-escalation` where they bind one skill,
+ * as on Codex, the line reads
  * `used (shared)` and names the others, since the check cannot tell which
  * operation the call was for. It passes, and the summary counts it apart.
  *

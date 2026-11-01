@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # open-tool-call.sh — say whether a Claude Code session is held at a dialog.
 #
-# herdr shows a pane held at a Claude Code question or permission dialog as
-# `done`, not `blocked`, so a pane read alone cannot tell. The session's
+# A pane tool can show a pane held at a Claude Code question or permission
+# dialog as `done`, not `blocked`, so a pane read alone cannot tell. The session's
 # transcript can: a tool call in the latest assistant message (its entries
 # share one message id) with no tool_result yet means a dialog is open. Lines
 # that are not JSON are skipped; a file that cannot be read is not clear.
