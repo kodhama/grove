@@ -22,6 +22,25 @@ caller takes its fallback path: a restart refuses the in-place path with
 A caller in another skill reaches this folder as
 `<that skill's folder>/../supervision-setup/scripts/adapter/`.
 
+A caller outside grove applies the same rule: it runs `<name>.sh` from this
+folder, `<name>` being the file name of the pane-tool binary it means to
+drive, and treats a missing file as "no adapter".
+
+## Backend prerequisites
+
+The adapter reads what the pane tool knows; it cannot make the tool know
+more. For herdr, two things come from outside it:
+
+- **The harness session id** reaches herdr through a session-start hook the
+  harness runs, which reports the session id to herdr. Without the hook,
+  `session` reads `null`, and every caller that checks it is the same session
+  takes its fallback path.
+- **Running herdr from an agent's own shell** needs the harness to allow it:
+  under a permission mode that asks before commands, an allow rule for the
+  adapter and for herdr, and under a sandbox, an entry for herdr's socket.
+  Without them the harness refuses the call, or herdr cannot reach its
+  socket and the adapter exits 4.
+
 ## Calling it
 
 ```sh
@@ -31,8 +50,10 @@ A caller in another skill reaches this folder as
 - `--bin`: the binary the binding names. The default is the tool's name on
   `PATH`.
 - `--timeout`: bounds each call to the tool, in seconds (fractions allowed;
-  default 30). An operation that waits, as `prompt --wait` does, adds its
-  own wait to this bound. A call cut at the bound exits 4.
+  default 30). An operation that waits adds its own wait to this bound:
+  `prompt --wait` and `wait` add theirs, and `launch` and `resume` add the
+  harness's start-up wait (30 s for herdr). A call cut at the bound exits 4,
+  except that `launch` and `resume` report it as the outcome `timeout`.
 
 It needs bash, jq and perl.
 
@@ -74,6 +95,18 @@ to stderr. A one-line reason goes to stderr whenever the exit is not 0.
 
 A caller treats 4 as it treats a pane it cannot read: nothing is clear to
 send.
+
+### herdr's error codes
+
+herdr answers a failed call with an error code. `herdr.sh` maps them so:
+
+| herdr code | result |
+| --- | --- |
+| `agent_not_found` | exit 3 |
+| `agent_blocked` | exit 6, nothing sent |
+| `agent_name_taken` | exit 6, nothing changed |
+| `timeout` | outcome `timeout`, exit 0, where the operation waits |
+| anything else, or none | exit 4, with the code in `code` where herdr gave one |
 
 ## Operations
 
@@ -144,16 +177,27 @@ The caller checks focus, status and the input line first, right before the
 send. The tool submits any unsent text in the input line along with this
 text.
 
+`settled` means the first idle, done or blocked state seen after the send. A
+wait that starts from a stale idle, seen before the text arrived, is not
+settled. An agent already working when the text arrives may settle on that
+earlier turn.
+
 - herdr: `agent prompt <pane> <text> [--wait --timeout <ms>]`. herdr rejects
-  a blocked agent before it sends any input, which is why the wait rides on
-  the same call.
-- Orca: `terminal send`, then `terminal wait --for tui-idle` for `--wait`.
+  a blocked agent with `agent_blocked` before it sends any input, with or
+  without `--wait`. With `--wait`, herdr matches only states observed after
+  the submission, and it answers `agent_prompt_stalled` (exit 4) when an agent
+  that was not working shows no working or blocked state within 5 s.
+- Orca: `terminal send`, then for `--wait` a wait that first sees the agent
+  working and only then idle. A backend with no combined send-and-wait call
+  must do it in those two steps, so a pre-send idle is never read as settled.
 
 ### `wait`
 
-`wait <pane> --timeout <ms>`: waits until the agent settles, meaning idle,
-done or blocked. Prints `{"outcome": "settled"}` or `{"outcome": "timeout"}`,
-exit 0. A pane that is gone exits 3, and a failure exits 4.
+`wait <pane> --wait <ms>`: waits up to `<ms>` until the agent settles,
+meaning idle, done or blocked. Unlike `prompt --wait`, it matches the state
+the agent is in now, so an idle agent settles at once. Prints
+`{"outcome": "settled"}` or `{"outcome": "timeout"}`, exit 0. A pane that is
+gone exits 3, and a failure exits 4.
 
 - herdr: `agent wait <pane> --timeout <ms>`.
 - Orca: `terminal wait --for tui-idle`.
@@ -163,27 +207,39 @@ exit 0. A pane that is gone exits 3, and a failure exits 4.
 `launch <name> --kind <harness> --cwd <folder> [-- <harness args>...]`:
 starts a harness session in a new pane at `<folder>`, under `<name>`, without
 taking focus. The harness arguments carry everything else, the permission
-mode included (`-n <name> --permission-mode auto`, for example). Prints
-`{"pane", "name"}`. A name already taken, or an agent that came up blocked,
-exits 6 with `{"outcome": "refused", "code", "pane"}`. `pane` is the new
-pane, left at its shell prompt.
+mode included (`-n <name> --permission-mode auto`, for example).
 
-- herdr: `pane split --current --cwd <folder>`, whose answer names the new
-  pane (`.result.pane.pane_id`), then
-  `agent start <name> --kind <harness> --pane <new pane> -- <harness args>`.
-  herdr names are unique among live agents and match `[a-z][a-z0-9_-]{0,31}`.
-  The split needs a caller in a herdr pane.
+- **A name already taken** is refused before any pane is made: exit 6 with
+  `{"outcome": "refused", "code": "agent_name_taken"}`.
+- Once the pane exists, **every result names it**:
+  - `{"outcome": "started", "pane", "name"}`, exit 0: the agent is up and
+    ready for input.
+  - `{"outcome": "timeout", "pane", "name"}`, exit 0: the start did not
+    answer in time. The agent may still come up; read the pane with `get`.
+  - `{"outcome": "failed", "code", "pane"}`, exit 4: the start failed, and
+    the pane is left at its shell prompt.
+
+- herdr: checks the name against `agent list` first. Then
+  `pane split --current --cwd <folder>`, whose answer names the new pane
+  (`.result.pane.pane_id`), then
+  `agent start <name> --kind <harness> --pane <new pane> -- <harness args>`,
+  which waits up to 30 s for the agent to be ready. herdr names are unique
+  among live agents and match `[a-z][a-z0-9_-]{0,31}`. The split needs a
+  caller in a herdr pane.
 - Orca: `terminal create --command "<harness> <args>"`. A hand-typed command
   may lose Orca's status indicators.
 
 ### `resume`
 
 `resume <name> --kind <harness> --cwd <folder> --session <id> [-- <harness args>...]`:
-as `launch`, but it resumes the harness session `<id>`. It needs no restored
-pane. A harness with no known resume arguments exits 5.
+as `launch`, with the same results, but it resumes the harness session
+`<id>`. It needs no restored pane. A harness with no recorded resume
+arguments exits 5 with `{"outcome": "unsupported"}`, before anything is
+made.
 
-- herdr: `launch`, with `--resume <id>` for Claude Code, or `resume <id>` for
-  Codex, put before the harness arguments.
+- herdr: `launch`, with `--resume <id>` put before the harness arguments.
+  Only Claude Code's resume arguments are recorded; every other harness,
+  Codex included, exits 5.
 - Orca: `terminal create --command "claude --resume <id>"`, the path Orca's
   own session history takes.
 
