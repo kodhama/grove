@@ -118,7 +118,7 @@ id="${CLAUDE_CODE_SESSION_ID:-}"
   fix "the bindings' latest transcript ($transcript) is not this session's ($id); rerun supervision-setup, which appends it"
 
 [ -f "$handoff" ] || fix "no handoff at $handoff; write it first"
-# GRO-61: the resume prompt names the handoff, and the resumed session may
+# The resume prompt names the handoff, and the resumed session may
 # start in another folder, so pass it on by its absolute path.
 handoff="$(cd "$(dirname "$handoff")" && pwd)/$(basename "$handoff")"
 table=$(awk '/^## /{on = ($0 ~ /^## Routing table/)} on' "$handoff")

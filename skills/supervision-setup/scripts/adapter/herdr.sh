@@ -59,12 +59,19 @@ say() { echo "herdr.sh: $op: $*" >&2; }
 error_code() { printf '%s' "$1" | jq -rs '[.[] | objects | .error.code? // empty][0] // empty' 2>/dev/null; }
 
 # Runs herdr, killing it after the given seconds. macOS has no timeout(1);
-# perl is on both macOS and Linux. Sets out (stdout and stderr) and rc.
+# perl is on both macOS and Linux.
+within() {
+  local secs="$1"
+  shift
+  perl -MTime::HiRes=alarm -e 'alarm shift; exec @ARGV or exit 127' "$secs" "$bin" "$@"
+}
+
+# As within, setting out (stdout and stderr) and rc.
 out="" rc=0
 call_within() {
   local secs="$1"
   shift
-  out=$(perl -MTime::HiRes=alarm -e 'alarm shift; exec @ARGV or exit 127' "$secs" "$bin" "$@" 2>&1)
+  out=$(within "$secs" "$@" 2>&1)
   rc=$?
 }
 call() { call_within "$timeout" "$@"; }
@@ -95,10 +102,11 @@ gone_or_failed() {
   result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
 }
 
-# The agent records in herdr's agent list, as a JSON array.
+# The agent records in herdr's agent list, as a JSON array. It runs in a
+# subshell, so on failure it reports and returns, and the caller exits.
 agents() {
   call agent list
-  [ "$rc" -eq 0 ] || gone_or_failed
+  [ "$rc" -eq 0 ] || { code=$(error_code "$out"); say "herdr failed (exit $rc${code:+, $code})"; return 1; }
   printf '%s' "$out" | jq -c "$RECORD"' [.result.agents[]? | record]' 2>/dev/null
 }
 
@@ -147,8 +155,7 @@ case "$op" in
         *) usage ;;
       esac
     done
-    screen=$(perl -MTime::HiRes=alarm -e 'alarm shift; exec @ARGV or exit 127' "$timeout" \
-      "$bin" agent read "$pane" --source "$source" --format "$format" ${lines[@]+"${lines[@]}"} 2>/dev/null)
+    screen=$(within "$timeout" agent read "$pane" --source "$source" --format "$format" ${lines[@]+"${lines[@]}"} 2>/dev/null)
     rc=$?
     [ "$rc" -eq 0 ] || { out=""; gone_or_failed; }
     printf '%s\n' "$screen"
@@ -171,10 +178,8 @@ case "$op" in
     case "$code" in
       timeout) result 0 '{outcome: "timeout", code: "timeout"}' ;;
       agent_blocked) say "the agent is blocked; nothing was sent"; result 6 --arg c "$code" '{outcome: "blocked", code: $c}' ;;
-      agent_not_found) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
     esac
-    say "herdr failed (exit $rc${code:+, $code})"
-    result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
+    gone_or_failed
     ;;
 
   wait)
@@ -190,15 +195,13 @@ case "$op" in
     name="$1" kind="" cwd="" session=""
     shift
     while [ $# -gt 0 ]; do
-      case "$1" in
-        --) shift; break ;;
-        --kind | --cwd | --session) [ $# -ge 2 ] || usage ;;
-        *) usage ;;
-      esac
+      [ "$1" != -- ] || { shift; break; }
+      [ $# -ge 2 ] || usage
       case "$1" in
         --kind) kind="$2" ;;
         --cwd) cwd="$2" ;;
         --session) session="$2" ;;
+        *) usage ;;
       esac
       shift 2
     done

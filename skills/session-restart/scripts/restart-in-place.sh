@@ -94,7 +94,7 @@ done
 report_cmd=("$@")
 scripts="$(cd "$(dirname "$0")" && pwd)"
 adapter="$(cd "$scripts/../../supervision-setup/scripts/adapter" 2>/dev/null && pwd)/$(basename "$backend").sh"
-# GRO-61: the prompts name the handoff, so name it by its absolute path. A
+# The prompts name the handoff, so name it by its absolute path. A
 # folder that is missing is left as given, for the lock check below to report.
 if dir="$(cd "$(dirname "$handoff")" 2>/dev/null && pwd)"; then handoff="$dir/$(basename "$handoff")"; fi
 
