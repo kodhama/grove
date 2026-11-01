@@ -381,6 +381,20 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
     expect(json(run.stdout)).toMatchObject({ outcome: "not-found" });
   });
 
+  it("read-screen exits 3 for a pane that is gone, from herdr's error on stdout", () => {
+    answer("agent-read", herdrError("agent_not_found"), 1);
+    const run = adapter(["read-screen", "w1:p2"]);
+    expect(run.status).toBe(3);
+    expect(json(run.stdout)).toMatchObject({ outcome: "not-found", code: "agent_not_found" });
+  });
+
+  it("exits 4 with a failure object when it cannot make its temporary file", () => {
+    answer("agent-get", JSON.stringify({ result: { agent: herdrAgent() } }));
+    const run = adapter(["get", "w1:p2"], { TMPDIR: "/dev/null" });
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toEqual({ outcome: "failed", code: null });
+  });
+
   it("prompt without --wait reads a timeout as a failure, since nothing waited", () => {
     answer("agent-prompt", "", 1, herdrError("timeout"));
     const run = adapter(["prompt", "w1:p2", "hi"]);

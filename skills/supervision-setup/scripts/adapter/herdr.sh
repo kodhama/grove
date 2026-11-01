@@ -77,7 +77,8 @@ within() {
 
 # As within, setting out (stdout), err (stderr) and rc. herdr's answer is
 # read from stdout only, so a warning on stderr cannot spoil it.
-errfile=$(mktemp "${TMPDIR:-/tmp}/herdr-sh.XXXXXX") || exit 4
+errfile=$(mktemp "${TMPDIR:-/tmp}/herdr-sh.XXXXXX") ||
+  { say "cannot make a temporary file"; result 4 '{outcome: "failed", code: null}'; }
 trap 'rm -f "$errfile"' EXIT
 out="" err="" rc=0
 call_within() {
@@ -170,7 +171,7 @@ case "$op" in
       esac
     done
     call agent read "$pane" --source "$source" --format "$format" ${lines[@]+"${lines[@]}"}
-    [ "$rc" -eq 0 ] || { out=""; gone_or_failed; }
+    [ "$rc" -eq 0 ] || gone_or_failed
     printf '%s\n' "$out"
     exit 0
     ;;
