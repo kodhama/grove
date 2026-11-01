@@ -55,8 +55,17 @@ result() {
 
 say() { echo "herdr.sh: $op: $*" >&2; }
 
-# herdr's error code from its answer (JSON on stderr with exit 1), or empty.
-error_code() { printf '%s' "$1" | jq -rs '[.[] | objects | .error.code? // empty][0] // empty' 2>/dev/null; }
+# herdr's error code from its last answer, or empty. herdr prints its error
+# as JSON with exit 1, on stderr; it is read from stdout too, and line by line
+# where a stream holds other text.
+error_code() {
+  local stream code
+  for stream in "$err" "$out"; do
+    code=$(printf '%s' "$stream" | jq -rs '[.[] | objects | .error.code? // empty][0] // empty' 2>/dev/null) ||
+      code=$(printf '%s\n' "$stream" | jq -rR 'fromjson? | objects | .error.code? // empty' 2>/dev/null | head -n 1)
+    [ -z "$code" ] || { printf '%s' "$code"; return; }
+  done
+}
 
 # Runs herdr, killing it after the given seconds. macOS has no timeout(1);
 # perl is on both macOS and Linux.
@@ -66,13 +75,17 @@ within() {
   perl -MTime::HiRes=alarm -e 'alarm shift; exec @ARGV or exit 127' "$secs" "$bin" "$@"
 }
 
-# As within, setting out (stdout and stderr) and rc.
-out="" rc=0
+# As within, setting out (stdout), err (stderr) and rc. herdr's answer is
+# read from stdout only, so a warning on stderr cannot spoil it.
+errfile=$(mktemp "${TMPDIR:-/tmp}/herdr-sh.XXXXXX") || exit 4
+trap 'rm -f "$errfile"' EXIT
+out="" err="" rc=0
 call_within() {
   local secs="$1"
   shift
-  out=$(within "$secs" "$@" 2>&1)
+  out=$(within "$secs" "$@" 2>"$errfile")
   rc=$?
+  err=$(cat "$errfile")
 }
 call() { call_within "$timeout" "$@"; }
 
@@ -94,7 +107,7 @@ RECORD='def record: {
 # Exits 3 for an answer that says the pane or agent is gone, else 4.
 gone_or_failed() {
   local code
-  code=$(error_code "$out")
+  code=$(error_code)
   case "$code" in
     agent_not_found) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
   esac
@@ -103,11 +116,12 @@ gone_or_failed() {
 }
 
 # The agent records in herdr's agent list, as a JSON array. It runs in a
-# subshell, so on failure it reports and returns, and the caller exits.
+# subshell, so on failure it reports and returns, and the caller exits. An
+# answer with no list in it is a failure, never an empty list.
 agents() {
   call agent list
-  [ "$rc" -eq 0 ] || { code=$(error_code "$out"); say "herdr failed (exit $rc${code:+, $code})"; return 1; }
-  printf '%s' "$out" | jq -c "$RECORD"' [.result.agents[]? | record]' 2>/dev/null
+  [ "$rc" -eq 0 ] || { code=$(error_code); say "herdr failed (exit $rc${code:+, $code})"; return 1; }
+  printf '%s' "$out" | jq -ce "$RECORD"' .result.agents | arrays | [.[] | record]' 2>/dev/null
 }
 
 # --- operations ---------------------------------------------------------------
@@ -155,10 +169,9 @@ case "$op" in
         *) usage ;;
       esac
     done
-    screen=$(within "$timeout" agent read "$pane" --source "$source" --format "$format" ${lines[@]+"${lines[@]}"} 2>/dev/null)
-    rc=$?
+    call agent read "$pane" --source "$source" --format "$format" ${lines[@]+"${lines[@]}"}
     [ "$rc" -eq 0 ] || { out=""; gone_or_failed; }
-    printf '%s\n' "$screen"
+    printf '%s\n' "$out"
     exit 0
     ;;
 
@@ -174,9 +187,11 @@ case "$op" in
       done=sent
     fi
     [ "$rc" -ne 0 ] || result 0 --arg o "$done" '{outcome: $o, code: null}'
-    code=$(error_code "$out")
+    code=$(error_code)
     case "$code" in
-      timeout) result 0 '{outcome: "timeout", code: "timeout"}' ;;
+      # Only a prompt that waited can run out of time; without --wait a
+      # timeout is a failure like any other.
+      timeout) [ "$done" = sent ] || result 0 '{outcome: "timeout", code: "timeout"}' ;;
       agent_blocked) say "the agent is blocked; nothing was sent"; result 6 --arg c "$code" '{outcome: "blocked", code: $c}' ;;
     esac
     gone_or_failed
@@ -186,7 +201,7 @@ case "$op" in
     [ $# -eq 3 ] && [ "$2" = --wait ] && whole "$3" || usage
     call_within "$(bound_with "$3")" agent wait "$1" --timeout "$3"
     [ "$rc" -ne 0 ] || result 0 '{outcome: "settled"}'
-    [ "$(error_code "$out")" != timeout ] || result 0 '{outcome: "timeout"}'
+    [ "$(error_code)" != timeout ] || result 0 '{outcome: "timeout"}'
     gone_or_failed
     ;;
 
@@ -225,7 +240,7 @@ case "$op" in
       { say "the name $name is taken; nothing was started"; result 6 '{outcome: "refused", code: "agent_name_taken"}'; }
     # agent start needs a pane at a shell prompt: split the caller's own,
     # which leaves focus where it is.
-    call pane split --current --cwd "$cwd"
+    call pane split --current --no-focus --cwd "$cwd"
     [ "$rc" -eq 0 ] || gone_or_failed
     pane=$(printf '%s' "$out" | jq -r '.result.pane.pane_id // empty' 2>/dev/null)
     [ -n "$pane" ] || { say "the split gave no pane"; result 4 '{outcome: "failed", code: null}'; }
@@ -233,7 +248,7 @@ case "$op" in
     # to 30 s for the agent to be ready, and a timeout does not mean it failed.
     call_within "$(bound_with 30000)" agent start "$name" --kind "$kind" --pane "$pane" -- ${args[@]+"${args[@]}"}
     [ "$rc" -ne 0 ] || result 0 --arg p "$pane" --arg n "$name" '{outcome: "started", pane: $p, name: $n}'
-    code=$(error_code "$out")
+    code=$(error_code)
     if [ "$code" = timeout ] || [ "$rc" -ge 128 ]; then
       say "the start did not answer in time; the agent may still come up in pane $pane"
       result 0 --arg p "$pane" --arg n "$name" '{outcome: "timeout", pane: $p, name: $n}'
@@ -246,7 +261,7 @@ case "$op" in
     [ $# -eq 2 ] || usage
     call agent rename "$1" "$2"
     [ "$rc" -ne 0 ] || result 0 --arg p "$1" --arg n "$2" '{pane: $p, name: $n}'
-    code=$(error_code "$out")
+    code=$(error_code)
     case "$code" in
       agent_name_taken) say "refused ($code)"; result 6 --arg c "$code" '{outcome: "refused", code: $c}' ;;
     esac
@@ -255,11 +270,12 @@ case "$op" in
 
   close)
     [ $# -eq 1 ] || usage
-    # The session ends on /exit, so herdr's answer is not the verdict: the
-    # caller reads the pane afterwards. Only a refusal before any input counts.
+    # The session ends on /exit, so a send herdr accepted is not proof that it
+    # closed: the caller reads the pane afterwards.
     call agent prompt "$1" /exit
-    [ "$(error_code "$out")" != agent_blocked ] || { say "the agent is blocked; nothing was sent"; result 6 '{outcome: "blocked", code: "agent_blocked"}'; }
-    result 0 '{outcome: "sent"}'
+    [ "$rc" -ne 0 ] || result 0 '{outcome: "sent"}'
+    [ "$(error_code)" != agent_blocked ] || { say "the agent is blocked; nothing was sent"; result 6 '{outcome: "blocked", code: "agent_blocked"}'; }
+    gone_or_failed
     ;;
 
   remote-check | remote-on | schedule-list | schedule-create | worktree-create)

@@ -71,7 +71,7 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
     // agent_name_taken while the outgoing session held it, and
     // `herdr agent rename` gave it to the successor once that session exited.
     const outgoing = section("New session: the outgoing session");
-    expect(outgoing).not.toMatch(/herdr agent start <name> /);
+    expect(outgoing).toMatch(/launch <temporary name> /);
     // KTD9: herdr names are [a-z][a-z0-9_-]{0,31}, so a suffix must fit in 32.
     expect(outgoing).toMatch(/temporary pane\s+name/);
     expect(outgoing).toMatch(/first 30\s+characters/);

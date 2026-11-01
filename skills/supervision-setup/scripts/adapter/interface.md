@@ -62,7 +62,8 @@ It needs bash, jq and perl.
 Every operation except `read-screen` prints one JSON object on one line to
 stdout, whatever its exit status, except a usage error, which prints only
 to stderr. A one-line reason goes to stderr whenever the exit is not 0.
-`read-screen` prints the screen text itself.
+`read-screen` prints the screen text itself when it exits 0, and the same
+failure object as the other operations when it does not.
 
 ### The agent record
 
@@ -76,6 +77,9 @@ to stderr. A one-line reason goes to stderr whenever the exit is not 0.
 
 - `status` is normalized. A state the tool reports outside those four reads
   `unknown`.
+- `kind` is the harness, named by the words `launch --kind` takes: `claude`
+  for Claude Code, `codex` for Codex. These are herdr's agent kinds, and
+  another implementation maps its own names onto them.
 - **A field the tool cannot tell is `null`, and a caller reads `null` as
   unsafe.** Read `focused: null` as focused, and `status: unknown` as not
   ready. A `null` session matches no session. When focus, status, the input
@@ -91,7 +95,7 @@ to stderr. A one-line reason goes to stderr whenever the exit is not 0.
 | 3 | not found: no such pane or agent, or the caller is not in a pane |
 | 4 | the tool failed, timed out, or gave an answer that cannot be read |
 | 5 | unsupported by this implementation; nothing was done |
-| 6 | refused by the tool, and nothing was done: blocked, a name taken, not ready |
+| 6 | refused by the tool, and nothing was done: blocked, or a name taken |
 
 A caller treats 4 as it treats a pane it cannot read: nothing is clear to
 send.
@@ -220,7 +224,7 @@ mode included (`-n <name> --permission-mode auto`, for example).
     the pane is left at its shell prompt.
 
 - herdr: checks the name against `agent list` first. Then
-  `pane split --current --cwd <folder>`, whose answer names the new pane
+  `pane split --current --no-focus --cwd <folder>`, whose answer names the new pane
   (`.result.pane.pane_id`), then
   `agent start <name> --kind <harness> --pane <new pane> -- <harness args>`,
   which waits up to 30 s for the agent to be ready. herdr names are unique
@@ -254,10 +258,11 @@ made.
 ### `close`
 
 `close <pane>`: ends the agent session in the pane. Prints
-`{"outcome": "sent"}`. The session ends on it, so the tool's answer is not
-the verdict, and the caller reads the pane afterwards. A blocked agent exits
-6, with nothing sent. The caller checks focus, status and the input line
-first, as for `prompt`.
+`{"outcome": "sent"}`, exit 0, when the tool accepted it. The session ends on
+it, so an accepted close is not proof that it closed, and the caller reads
+the pane afterwards. A blocked agent exits 6, with nothing sent. A pane that
+is gone exits 3, and a failure exits 4. The caller checks focus, status and
+the input line first, as for `prompt`.
 
 - herdr: `agent prompt <pane> /exit`.
 - Orca: `terminal close`.

@@ -18,6 +18,8 @@ import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   cpSync,
+  existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -303,7 +305,7 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
     expect(json(run.stdout)).toEqual({ outcome: "started", pane: "w1:p9", name: "worker-2" });
     expect(run.calls).toEqual([
       ["agent", "list"],
-      ["pane", "split", "--current", "--cwd", "/Users/maintainer/repo"],
+      ["pane", "split", "--current", "--no-focus", "--cwd", "/Users/maintainer/repo"],
       ["agent", "start", "worker-2", "--kind", "claude", "--pane", "w1:p9", "--", "-n", "worker-2", "--permission-mode", "auto"],
     ]);
   });
@@ -356,6 +358,45 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
     expect(adapter(["rename", "w1:p2", "lead"]).status).toBe(6);
   });
 
+  it("get reads herdr's answer from stdout only, so a warning on stderr does not spoil it", () => {
+    answer("agent-get", JSON.stringify({ result: { agent: herdrAgent() } }), 0, "warning: a newer herdr is available\n");
+    const run = adapter(["get", "w1:p2"]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(json(run.stdout)).toMatchObject({ pane: "w1:p2", status: "idle" });
+  });
+
+  it("list, find and launch exit 4 when herdr's answer holds no agent list, and launch then makes nothing", () => {
+    answer("agent-list", "{}");
+    expect(adapter(["list"]).status).toBe(4);
+    expect(adapter(["find", "lead"]).status).toBe(4);
+    const launch = adapter(["launch", "lead", "--kind", "claude", "--cwd", "/tmp"]);
+    expect(launch.status).toBe(4);
+    expect(launch.calls.filter((c) => c[0] === "pane")).toEqual([]);
+  });
+
+  it("read-screen exits 3 for a pane that is gone, from herdr's error on stderr", () => {
+    answer("agent-read", "", 1, herdrError("agent_not_found"));
+    const run = adapter(["read-screen", "w1:p2"]);
+    expect(run.status).toBe(3);
+    expect(json(run.stdout)).toMatchObject({ outcome: "not-found" });
+  });
+
+  it("prompt without --wait reads a timeout as a failure, since nothing waited", () => {
+    answer("agent-prompt", "", 1, herdrError("timeout"));
+    const run = adapter(["prompt", "w1:p2", "hi"]);
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toMatchObject({ outcome: "failed", code: "timeout" });
+  });
+
+  it("close exits 3 when the pane is gone and 4 when herdr fails, never claiming a send", () => {
+    answer("agent-prompt", "", 1, herdrError("agent_not_found"));
+    expect(adapter(["close", "w1:p2"]).status).toBe(3);
+    answer("agent-prompt", "", 1, herdrError("server_unavailable"));
+    const failed = adapter(["close", "w1:p2"]);
+    expect(failed.status).toBe(4);
+    expect(json(failed.stdout)).toMatchObject({ outcome: "failed" });
+  });
+
   it("close types /exit, and a blocked session is refused", () => {
     answer("agent-prompt", JSON.stringify({ result: {} }));
     const run = adapter(["close", "w1:p2"]);
@@ -369,6 +410,7 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
 
 describe("callers read what the pane tool cannot tell as unsafe (ruling 9)", () => {
   const CLOSE = join(SKILLS, "session-restart/scripts/close-outgoing.sh");
+  const RELAY = join(SKILLS, "session-restart/scripts/report-to-session.sh");
   /** Claude Code's screen with an empty input box, as read-input-line.sh parses it. */
   const EMPTY_BOX = "\u23fa done\n\u2500\u2500\u2500\u2500\u2500\u2500 probe \u2500\n\u276f\u00a0\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  Model\n";
 
@@ -391,6 +433,59 @@ describe("callers read what the pane tool cannot tell as unsafe (ruling 9)", () 
     const run = close({});
     expect(run.stdout).toMatch(/^sent \/exit/);
     expect(run.prompted).toBe(true);
+  });
+
+  it("close-outgoing.sh reports not sent when the pane tool refuses the close", () => {
+    answer("agent-prompt", "", 1, herdrError("agent_blocked"));
+    const run = close({});
+    expect(run.status).toBe(1);
+    expect(run.stdout).toMatch(/^not sent: .*blocked/);
+  });
+
+  it("close-outgoing.sh types nothing through a binary with no adapter", () => {
+    const orca = join(stubDir, "orca");
+    writeFileSync(orca, STUB);
+    chmodSync(orca, 0o755);
+    const transcript = join(outside, "s1.jsonl");
+    writeFileSync(transcript, "");
+    const run = spawnSync("bash", [CLOSE, orca, "w1:p2", transcript], {
+      cwd: outside,
+      encoding: "utf8",
+      env: { PATH: process.env.PATH, STUB_DIR: stubDir },
+      timeout: 10_000,
+    });
+    expect(run.status).toBe(1);
+    expect(run.stdout).toMatch(/^not sent: no adapter for /);
+    expect(existsSync(join(stubDir, "calls.log"))).toBe(false);
+  });
+
+  function relay(agent: Record<string, unknown>) {
+    answer("agent-list", JSON.stringify({ result: { agents: [herdrAgent({ name: "lead", ...agent })] } }));
+    answer("agent-read", EMPTY_BOX);
+    const projects = join(outside, "projects");
+    mkdirSync(join(projects, "p"), { recursive: true });
+    writeFileSync(join(projects, "p", "s1.jsonl"), "");
+    const run = spawnSync("bash", [RELAY, join(stubDir, "herdr"), "lead", "the helper stopped"], {
+      cwd: outside,
+      encoding: "utf8",
+      env: { PATH: process.env.PATH, STUB_DIR: stubDir, SESSION_RESTART_PROJECTS_DIR: projects },
+      timeout: 10_000,
+    });
+    const calls = readFileSync(join(stubDir, "calls.log"), "utf8");
+    return { ...run, prompted: /^agent\tprompt/m.test(calls) };
+  }
+
+  it("report-to-session.sh relays to an idle, unfocused reporter", () => {
+    const run = relay({});
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.prompted).toBe(true);
+  });
+
+  it("report-to-session.sh holds the line for a reporter whose status it cannot tell", () => {
+    const run = relay({ agent_status: "starting" });
+    expect(run.status).toBe(3);
+    expect(run.stderr).toMatch(/unknown/);
+    expect(run.prompted).toBe(false);
   });
 
   it.each([

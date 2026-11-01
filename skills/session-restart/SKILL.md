@@ -259,8 +259,8 @@ not known yet. A Codex session that lands here tells the maintainer.
    ```
 
    Launch it through the adapter's `launch`, with the binary bound to
-   `launch-session`, the launch line's arguments after its harness, and the
-   prompt last:
+   `launch-session`, the harness's kind as the adapter's contract names it,
+   the launch line's arguments after its harness, and the prompt last:
 
    ```sh
    "<adapter>" --bin "<binary>" launch <temporary name> --kind <harness> \

@@ -52,7 +52,8 @@ case "$status" in
   *) refuse "pane $pane is $status" ;;
 esac
 
-# The session ends on the close, so the pane tool's answer is not the verdict:
-# the successor reads the pane afterwards for that.
+# The session ends on the close, so a close the pane tool accepted is not the
+# verdict: the successor reads the pane afterwards for that. A refusal is.
 pane_tool close "$pane" >/dev/null 2>&1
+[ $? -ne 6 ] || refuse "pane $pane is blocked: the pane tool refused the close, and nothing was sent"
 echo "sent /exit"

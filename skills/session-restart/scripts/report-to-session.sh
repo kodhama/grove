@@ -61,6 +61,7 @@ read_reporter() {
   read -r pane focused status session <<< "$rows"
   [ "$focused" = false ] || hold "is focused"
   [ "$status" != blocked ] || hold "is blocked"
+  [ "$status" != unknown ] || hold "has a status the pane tool cannot tell (unknown)"
 }
 read_reporter
 
