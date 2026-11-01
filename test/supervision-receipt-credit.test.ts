@@ -115,6 +115,18 @@ describe("a call several operations' bindings match", () => {
     }
   });
 
+  it("credits a call of the pane-tool adapter named after the bound binary, and no other adapter", () => {
+    const adapter = "/Users/maintainer/grove/skills/supervision-setup/scripts/adapter";
+    const used = checkReceipts({
+      bindings: bindingsOf([null, bash(`"${adapter}/herdr.sh" --bin /opt/homebrew/bin/herdr get w1:p2`)]),
+    });
+    for (const op of HERDR_OPS) expect(rowOf(used, `session-restart/${op}`).state).toBe("used");
+    for (const other of [`"${adapter}/orca.sh" get w1:p2`, `/Users/maintainer/bin/herdr.sh get w1:p2`]) {
+      const result = checkReceipts({ bindings: bindingsOf([null, bash(other)]) });
+      for (const op of HERDR_OPS) expect(rowOf(result, `session-restart/${op}`).state, other).not.toBe("used");
+    }
+  });
+
   it("leaves a call only one operation binds unshared", () => {
     const result = checkReceipts({ bindings: bindingsOf([null, tool("SendMessage")]) });
     const row = rowOf(result, "story-worker/hand-back");
