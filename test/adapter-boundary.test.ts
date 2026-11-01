@@ -283,15 +283,16 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
 
   it("wait waits on agent wait, and reports a timeout as an outcome", () => {
     answer("agent-wait", JSON.stringify({ result: {} }));
-    const run = adapter(["wait", "w1:p2", "--timeout", "500"]);
+    const run = adapter(["wait", "w1:p2", "--wait", "500"]);
     expect(run.status).toBe(0);
     expect(json(run.stdout)).toEqual({ outcome: "settled" });
     expect(run.calls).toEqual([["agent", "wait", "w1:p2", "--timeout", "500"]]);
     answer("agent-wait", "", 1, herdrError("timeout"));
-    expect(json(adapter(["wait", "w1:p2", "--timeout", "500"]).stdout)).toEqual({ outcome: "timeout" });
+    expect(json(adapter(["wait", "w1:p2", "--wait", "500"]).stdout)).toEqual({ outcome: "timeout" });
   });
 
   it("launch splits the caller's pane at the cwd, then starts the agent on the new pane with the harness arguments", () => {
+    answer("agent-list", JSON.stringify({ result: { agents: [herdrAgent()] } }));
     answer("pane-split", JSON.stringify({ result: { pane: { pane_id: "w1:p9" } } }));
     answer("agent-start", JSON.stringify({ result: {} }));
     const run = adapter([
@@ -299,24 +300,39 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
       "--", "-n", "worker-2", "--permission-mode", "auto",
     ]);
     expect(run.status, run.stderr).toBe(0);
-    expect(json(run.stdout)).toEqual({ pane: "w1:p9", name: "worker-2" });
+    expect(json(run.stdout)).toEqual({ outcome: "started", pane: "w1:p9", name: "worker-2" });
     expect(run.calls).toEqual([
+      ["agent", "list"],
       ["pane", "split", "--current", "--cwd", "/Users/maintainer/repo"],
       ["agent", "start", "worker-2", "--kind", "claude", "--pane", "w1:p9", "--", "-n", "worker-2", "--permission-mode", "auto"],
     ]);
   });
 
-  it("launch exits 6 on a taken name and says which pane it split, and 4 when the split gives no pane", () => {
-    answer("pane-split", JSON.stringify({ result: { pane: { pane_id: "w1:p9" } } }));
-    answer("agent-start", "", 1, herdrError("agent_name_taken"));
+  it("launch refuses a taken name before it splits anything: exit 6, nothing made", () => {
+    answer("agent-list", JSON.stringify({ result: { agents: [herdrAgent({ name: "lead" })] } }));
     const taken = adapter(["launch", "lead", "--kind", "claude", "--cwd", "/tmp"]);
     expect(taken.status).toBe(6);
-    expect(json(taken.stdout)).toMatchObject({ outcome: "refused", code: "agent_name_taken", pane: "w1:p9" });
+    expect(json(taken.stdout)).toMatchObject({ outcome: "refused", code: "agent_name_taken" });
+    expect(taken.calls).toEqual([["agent", "list"]]);
+  });
+
+  it("launch names the pane it split in every result after the split: a failed start exits 4, a slow one is an outcome", () => {
+    answer("agent-list", JSON.stringify({ result: { agents: [] } }));
+    answer("pane-split", JSON.stringify({ result: { pane: { pane_id: "w1:p9" } } }));
+    answer("agent-start", "", 1, herdrError("agent_not_ready"));
+    const failed = adapter(["launch", "lead", "--kind", "claude", "--cwd", "/tmp"]);
+    expect(failed.status).toBe(4);
+    expect(json(failed.stdout)).toMatchObject({ outcome: "failed", code: "agent_not_ready", pane: "w1:p9" });
+    answer("agent-start", "", 1, herdrError("timeout"));
+    const slow = adapter(["launch", "lead", "--kind", "claude", "--cwd", "/tmp"]);
+    expect(slow.status).toBe(0);
+    expect(json(slow.stdout)).toMatchObject({ outcome: "timeout", pane: "w1:p9" });
     answer("pane-split", "{}");
     expect(adapter(["launch", "lead", "--kind", "claude", "--cwd", "/tmp"]).status).toBe(4);
   });
 
   it("resume builds the harness's own resume arguments from the session id, and is unsupported for a harness it does not know", () => {
+    answer("agent-list", JSON.stringify({ result: { agents: [] } }));
     answer("pane-split", JSON.stringify({ result: { pane: { pane_id: "w1:p9" } } }));
     answer("agent-start", JSON.stringify({ result: {} }));
     const run = adapter([
@@ -326,7 +342,8 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
     expect(run.calls.at(-1)).toEqual([
       "agent", "start", "lead", "--kind", "claude", "--pane", "w1:p9", "--", "--resume", "s1", "--permission-mode", "auto",
     ]);
-    expect(adapter(["resume", "lead", "--kind", "gemini", "--cwd", "/tmp", "--session", "s1"]).status).toBe(5);
+    for (const kind of ["codex", "gemini"])
+      expect(adapter(["resume", "lead", "--kind", kind, "--cwd", "/tmp", "--session", "s1"]).status).toBe(5);
   });
 
   it("rename renames the agent, and exits 6 when the name is taken", () => {
@@ -347,6 +364,45 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
     expect(run.calls).toEqual([["agent", "prompt", "w1:p2", "/exit"]]);
     answer("agent-prompt", "", 1, herdrError("agent_blocked"));
     expect(adapter(["close", "w1:p2"]).status).toBe(6);
+  });
+});
+
+describe("callers read what the pane tool cannot tell as unsafe (ruling 9)", () => {
+  const CLOSE = join(SKILLS, "session-restart/scripts/close-outgoing.sh");
+  /** Claude Code's screen with an empty input box, as read-input-line.sh parses it. */
+  const EMPTY_BOX = "\u23fa done\n\u2500\u2500\u2500\u2500\u2500\u2500 probe \u2500\n\u276f\u00a0\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  Model\n";
+
+  function close(agent: Record<string, unknown>) {
+    answer("agent-get", JSON.stringify({ result: { agent: herdrAgent(agent) } }));
+    answer("agent-read", EMPTY_BOX);
+    const transcript = join(outside, "s1.jsonl");
+    writeFileSync(transcript, "");
+    const run = spawnSync("bash", [CLOSE, join(stubDir, "herdr"), "w1:p2", transcript], {
+      cwd: outside,
+      encoding: "utf8",
+      env: { PATH: process.env.PATH, STUB_DIR: stubDir },
+      timeout: 10_000,
+    });
+    const calls = readFileSync(join(stubDir, "calls.log"), "utf8");
+    return { ...run, prompted: /^agent\tprompt/m.test(calls) };
+  }
+
+  it("close-outgoing.sh types /exit into an idle, unfocused pane holding the outgoing session", () => {
+    const run = close({});
+    expect(run.stdout).toMatch(/^sent \/exit/);
+    expect(run.prompted).toBe(true);
+  });
+
+  it.each([
+    ["focus it cannot tell", { focused: undefined }, /focused/],
+    ["a session id it cannot tell", { agent_session: undefined }, /holds session none/],
+    ["a status it cannot tell", { agent_status: "starting" }, /unknown/],
+  ])("close-outgoing.sh types nothing given %s", (_label, agent, reason) => {
+    const run = close(agent);
+    expect(run.status).toBe(1);
+    expect(run.stdout).toMatch(/^not sent: /);
+    expect(run.stdout).toMatch(reason);
+    expect(run.prompted).toBe(false);
   });
 });
 

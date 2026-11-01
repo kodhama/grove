@@ -89,7 +89,7 @@ gone_or_failed() {
   local code
   code=$(error_code "$out")
   case "$code" in
-    *not_found*) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
+    agent_not_found) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
   esac
   say "herdr failed (exit $rc${code:+, $code})"
   result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
@@ -171,14 +171,14 @@ case "$op" in
     case "$code" in
       timeout) result 0 '{outcome: "timeout", code: "timeout"}' ;;
       agent_blocked) say "the agent is blocked; nothing was sent"; result 6 --arg c "$code" '{outcome: "blocked", code: $c}' ;;
-      *not_found*) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
+      agent_not_found) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
     esac
     say "herdr failed (exit $rc${code:+, $code})"
     result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
     ;;
 
   wait)
-    [ $# -eq 3 ] && [ "$2" = --timeout ] && whole "$3" || usage
+    [ $# -eq 3 ] && [ "$2" = --wait ] && whole "$3" || usage
     call_within "$(bound_with "$3")" agent wait "$1" --timeout "$3"
     [ "$rc" -ne 0 ] || result 0 '{outcome: "settled"}'
     [ "$(error_code "$out")" != timeout ] || result 0 '{outcome: "timeout"}'
@@ -207,30 +207,35 @@ case "$op" in
     if [ "$op" = resume ]; then
       [ -n "$session" ] || usage
       # Each harness's own resume arguments; a harness not listed has none here.
+      # Only Claude Code's are recorded so far.
       case "$kind" in
         claude) args=(--resume "$session" ${args[@]+"${args[@]}"}) ;;
-        codex) args=(resume "$session" ${args[@]+"${args[@]}"}) ;;
-        *) say "no resume arguments are known for $kind"; result 5 '{outcome: "unsupported"}' ;;
+        *) say "no resume arguments are recorded for $kind"; result 5 --arg o "$op" '{outcome: "unsupported", operation: $o}' ;;
       esac
     else
       [ -z "$session" ] || usage
     fi
+    # A taken name is refused before anything is made. herdr names are
+    # unique among live agents.
+    all=$(agents) && [ -n "$all" ] || { say "agent list could not be read"; result 4 '{outcome: "failed", code: null}'; }
+    [ "$(printf '%s' "$all" | jq --arg n "$name" '[.[] | select(.name == $n)] | length')" = 0 ] ||
+      { say "the name $name is taken; nothing was started"; result 6 '{outcome: "refused", code: "agent_name_taken"}'; }
     # agent start needs a pane at a shell prompt: split the caller's own,
     # which leaves focus where it is.
     call pane split --current --cwd "$cwd"
     [ "$rc" -eq 0 ] || gone_or_failed
     pane=$(printf '%s' "$out" | jq -r '.result.pane.pane_id // empty' 2>/dev/null)
     [ -n "$pane" ] || { say "the split gave no pane"; result 4 '{outcome: "failed", code: null}'; }
-    # agent start waits up to 30 s for the agent to be ready.
+    # From here a pane exists, so every result names it. agent start waits up
+    # to 30 s for the agent to be ready, and a timeout does not mean it failed.
     call_within "$(bound_with 30000)" agent start "$name" --kind "$kind" --pane "$pane" -- ${args[@]+"${args[@]}"}
-    [ "$rc" -ne 0 ] || result 0 --arg p "$pane" --arg n "$name" '{pane: $p, name: $n}'
+    [ "$rc" -ne 0 ] || result 0 --arg p "$pane" --arg n "$name" '{outcome: "started", pane: $p, name: $n}'
     code=$(error_code "$out")
-    case "$code" in
-      agent_name_taken | agent_not_ready)
-        say "refused ($code); the split pane $pane is left at its shell"
-        result 6 --arg c "$code" --arg p "$pane" '{outcome: "refused", code: $c, pane: $p}' ;;
-    esac
-    say "herdr failed (exit $rc${code:+, $code}); the split pane $pane is left at its shell"
+    if [ "$code" = timeout ] || [ "$rc" -ge 128 ]; then
+      say "the start did not answer in time; the agent may still come up in pane $pane"
+      result 0 --arg p "$pane" --arg n "$name" '{outcome: "timeout", pane: $p, name: $n}'
+    fi
+    say "herdr failed (exit $rc${code:+, $code}); pane $pane is left at its shell"
     result 4 --arg c "$code" --arg p "$pane" '{outcome: "failed", code: (if $c == "" then null else $c end), pane: $p}'
     ;;
 
@@ -240,7 +245,7 @@ case "$op" in
     [ "$rc" -ne 0 ] || result 0 --arg p "$1" --arg n "$2" '{pane: $p, name: $n}'
     code=$(error_code "$out")
     case "$code" in
-      *name_taken* | *invalid*) say "refused ($code)"; result 6 --arg c "$code" '{outcome: "refused", code: $c}' ;;
+      agent_name_taken) say "refused ($code)"; result 6 --arg c "$code" '{outcome: "refused", code: $c}' ;;
     esac
     gone_or_failed
     ;;
