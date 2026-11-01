@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # read-input-line.sh — say whether a pane's input line holds unsent text.
 #
-# herdr submits whatever sits unsent in a pane's input line together with the
-# next prompt it types, so a /clear typed over a draft arrives as plain text
-# and clears nothing (MQ-359's probe, 2026-09-29). Both the restart helper and
-# the report relay read the input line before they type.
+# The pane tool submits whatever sits unsent in a pane's input line together
+# with the next prompt it types, so a /clear typed over a draft arrives as
+# plain text and clears nothing (MQ-359's probe, 2026-09-29). Both the restart
+# helper and the report relay read the input line before they type.
+#
+# The screen comes from the pane-tool adapter for the backend binary
+# (supervision-setup's scripts/adapter/<binary name>.sh, read-screen), so this
+# parse of Claude Code's screen is the same whichever tool serves it.
 #
 # The input line is the text between the last two rules (─) of the screen
 # Claude Code draws, less its ❯ prompt and any dim text: in an empty box,
@@ -16,7 +20,7 @@
 # after the first that is blank or holds plain text: a draft with newlines.
 # A box that does not open on its prompt, as when a draft holds a pasted rule
 # line or a dialog is open, is ambiguous. A screen with no such box, an
-# ambiguous one, or a pane herdr cannot read, is unreadable, and unreadable is
+# ambiguous one, or a pane the adapter cannot read, is unreadable, and unreadable is
 # never clear to type into: a layout change fails closed, as a report, never
 # as a typed /clear.
 #
@@ -28,10 +32,11 @@ if [ $# -ne 3 ]; then
   echo "Usage: read-input-line.sh <backend-binary> <pane-id> <timeout-seconds>" >&2
   exit 2
 fi
-herdr="$1" pane="$2" secs="$3"
+backend="$1" pane="$2" secs="$3"
+adapter="$(cd "$(dirname "$0")/../../supervision-setup/scripts/adapter" 2>/dev/null && pwd)/$(basename "$backend").sh"
 
-screen=$(perl -MTime::HiRes=alarm -e 'alarm shift; exec @ARGV or exit 127' "$secs" \
-  "$herdr" agent read "$pane" --source visible --format ansi 2>/dev/null) || { echo unreadable; exit 1; }
+[ -x "$adapter" ] || { echo unreadable; exit 1; }
+screen=$("$adapter" --bin "$backend" --timeout "$secs" read-screen "$pane" 2>/dev/null) || { echo unreadable; exit 1; }
 
 state=$(printf '%s\n' "$screen" | perl -CSD -ne '
   chomp; s/\r//g;

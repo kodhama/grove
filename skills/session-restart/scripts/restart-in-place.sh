@@ -9,21 +9,27 @@
 # goes wrong is sent to the maintainer through the report command, never
 # retried by typing.
 #
-# Every wait is bounded, and so is every herdr call (--backend-timeout): an
-# unbounded detached loop is refused by the auto-mode classifier, and a helper
-# that never ends is not wanted anyway. A bound is counted in polls, so the
-# real wait runs somewhat longer than its seconds by the time each poll's
-# herdr call takes.
+# Every pane-tool call goes through the adapter for --backend
+# (supervision-setup's scripts/adapter/<binary name>.sh), and reads its
+# neutral output (adapter/interface.md). A backend with no adapter gets
+# nothing typed.
 #
-# herdr submits unsent text in the pane's input line together with the next
-# prompt, so a /clear typed over a draft is plain text. Before every send the
-# helper reads the input line through read-input-line.sh beside it, and holds
-# while it is not empty, or cannot be read, as it holds for a focused pane.
+# Every wait is bounded, and so is every pane-tool call (--backend-timeout):
+# an unbounded detached loop is refused by the auto-mode classifier, and a
+# helper that never ends is not wanted anyway. A bound is counted in polls, so
+# the real wait runs somewhat longer than its seconds by the time each poll's
+# pane-tool calls take.
 #
-# herdr reports a pane held at a Claude Code question or permission dialog as
-# `done`, not `blocked`, so the helper also reads the session's transcript: a
-# tool call in the latest assistant message with no result yet means a dialog
-# is open, and nothing is typed.
+# The pane tool submits unsent text in the pane's input line together with the
+# next prompt, so a /clear typed over a draft is plain text. Before every send
+# the helper reads the input line through read-input-line.sh beside it, and
+# holds while it is not empty, or cannot be read, as it holds for a focused
+# pane.
+#
+# A pane tool can report a pane held at a Claude Code question or permission
+# dialog as `done`, not `blocked`, so the helper also reads the session's
+# transcript: a tool call in the latest assistant message with no result yet
+# means a dialog is open, and nothing is typed.
 #
 # --transcript must be the launching session's own transcript,
 # <session-id>.jsonl: its name is the session id the helper binds to, and it
@@ -43,8 +49,8 @@
 set -u
 
 poll=5 focus_bound=600 max_wait=7200 clear_timeout=60 resume_timeout=600 report_bound=1800
-herdr_timeout=30
-pane="" handoff="" transcript="" herdr=""
+backend_timeout=30
+pane="" handoff="" transcript="" backend=""
 
 usage() {
   cat >&2 <<'EOF'
@@ -70,23 +76,27 @@ while [ $# -gt 0 ]; do
     --pane) pane="$2" ;;
     --handoff) handoff="$2" ;;
     --transcript) transcript="$2" ;;
-    --backend) herdr="$2" ;;
+    --backend) backend="$2" ;;
     --poll) poll="$2" ;;
     --focus-bound) focus_bound="$2" ;;
     --max-wait) max_wait="$2" ;;
     --clear-timeout) clear_timeout="$2" ;;
     --resume-timeout) resume_timeout="$2" ;;
     --report-bound) report_bound="$2" ;;
-    --backend-timeout) herdr_timeout="$2" ;;
+    --backend-timeout) backend_timeout="$2" ;;
   esac
   shift 2
 done
-[ -n "$pane" ] && [ -n "$handoff" ] && [ -n "$transcript" ] && [ -n "$herdr" ] && [ $# -gt 0 ] || usage
-for n in "$poll" "$focus_bound" "$max_wait" "$clear_timeout" "$resume_timeout" "$report_bound" "$herdr_timeout"; do
+[ -n "$pane" ] && [ -n "$handoff" ] && [ -n "$transcript" ] && [ -n "$backend" ] && [ $# -gt 0 ] || usage
+for n in "$poll" "$focus_bound" "$max_wait" "$clear_timeout" "$resume_timeout" "$report_bound" "$backend_timeout"; do
   positive "$n" || usage
 done
 report_cmd=("$@")
 scripts="$(cd "$(dirname "$0")" && pwd)"
+adapter="$(cd "$scripts/../../supervision-setup/scripts/adapter" 2>/dev/null && pwd)/$(basename "$backend").sh"
+# GRO-61: the prompts name the handoff, so name it by its absolute path. A
+# folder that is missing is left as given, for the lock check below to report.
+if dir="$(cd "$(dirname "$handoff")" 2>/dev/null && pwd)"; then handoff="$dir/$(basename "$handoff")"; fi
 
 log() { printf '%s restart-in-place: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >&2; }
 
@@ -112,16 +122,10 @@ focus_polls=$(polls_in "$focus_bound")
 clear_polls=$(polls_in "$clear_timeout")
 report_polls=$(polls_in "$report_bound")
 resume_ms=$(awk -v s="$resume_timeout" 'BEGIN { print int(s * 1000) }')
-# A send that waits for the agent gets its own wait plus the ordinary bound.
-send_timeout=$(awk -v a="$resume_timeout" -v b="$herdr_timeout" 'BEGIN { print a + b }')
 
-# Runs a command, killing it after the given seconds (fractions allowed).
-# macOS has no timeout(1); perl is on both macOS and Linux.
-run_bounded() {
-  local secs="$1"
-  shift
-  perl -MTime::HiRes=alarm -e 'alarm shift; exec @ARGV or exit 127' "$secs" "$@"
-}
+# One pane-tool call, bounded by --backend-timeout; a send that waits for the
+# agent adds its own wait to that bound (the adapter's --timeout).
+pane_tool() { "$adapter" --bin "$backend" --timeout "$backend_timeout" "$@"; }
 
 # --- reporting -------------------------------------------------------------
 
@@ -159,10 +163,10 @@ stop() {
 status="" focused="" session=""
 read_pane() {
   local out
-  out=$(run_bounded "$herdr_timeout" "$herdr" agent get "$pane" 2>/dev/null) ||
+  out=$(pane_tool get "$pane" 2>/dev/null) ||
     { status=unknown; focused=true; session=""; return 1; }
   read -r status focused session < <(printf '%s' "$out" |
-    jq -r '.result.agent | "\(.agent_status // "unknown") \(.focused == false | not) \(.agent_session.value // "")"' 2>/dev/null) ||
+    jq -r '"\(.status // "unknown") \(.focused == false | not) \(.session // "")"' 2>/dev/null) ||
     { status=unknown; focused=true; session=""; return 1; }
 }
 
@@ -172,7 +176,7 @@ idle_or_done() { [ "$status" = idle ] || [ "$status" = done ]; }
 # is clear to send.
 input=""
 read_input() {
-  input=$("$scripts/read-input-line.sh" "$herdr" "$pane" "$herdr_timeout" 2>/dev/null)
+  input=$("$scripts/read-input-line.sh" "$backend" "$pane" "$backend_timeout" 2>/dev/null)
   [ "$input" = empty ]
 }
 
@@ -307,6 +311,7 @@ still_clear_to_send() {
 
 # --- the restart -----------------------------------------------------------
 
+[ -x "$adapter" ] || { report "there is no adapter for $backend, so nothing was typed."; stop; }
 [ -f "$transcript" ] || { report "the transcript $transcript does not exist, so the handoff's freshness cannot be checked. Nothing was typed."; stop; }
 [ -f "$handoff" ] || { report "the handoff does not exist. Nothing was typed."; stop; }
 
@@ -326,7 +331,7 @@ while :; do
     still_clear_to_send || { tick; continue; }
     rounds=$((rounds + 1))
     log "handoff is stale; refresh prompt $rounds"
-    run_bounded "$send_timeout" "$herdr" agent prompt "$pane" "session-restart: a restart is pending; refresh the live commitments in the handoff at $handoff, then end your turn." --wait --timeout "$resume_ms" >&2 ||
+    pane_tool prompt "$pane" "session-restart: a restart is pending; refresh the live commitments in the handoff at $handoff, then end your turn." --wait "$resume_ms" >&2 ||
       log "the refresh prompt returned non-zero"
     continue
   fi
@@ -353,7 +358,7 @@ predates_clear() {
 
 log "sending /clear"
 clear_at=$(date -u +%s)
-run_bounded "$herdr_timeout" "$herdr" agent prompt "$pane" "/clear" >&2 ||
+pane_tool prompt "$pane" "/clear" >&2 ||
   log "the /clear send returned non-zero; checking whether it took"
 
 i=0
@@ -381,20 +386,23 @@ while :; do
 done
 
 log "sending the resume prompt"
-out=$(run_bounded "$send_timeout" "$herdr" agent prompt "$pane" "Resume with the session-restart skill from the handoff at $handoff." --wait --timeout "$resume_ms" 2>&1)
+out=$(pane_tool prompt "$pane" "Resume with the session-restart skill from the handoff at $handoff." --wait "$resume_ms")
 rc=$?
-code=$(printf '%s' "$out" | jq -r '.error.code // empty' 2>/dev/null)
+code=$(printf '%s' "$out" | jq -r '.code // empty' 2>/dev/null)
 log "resume prompt returned (exit $rc): $out"
-case "$code" in
-  timeout) ;;
-  agent_blocked) report "the cleared session was blocked at a dialog before the resume prompt could be sent."; stop ;;
-  "")
-    if [ "$rc" -ne 0 ]; then
+# The adapter's exits (adapter/interface.md): 0 sent, settled or timed out;
+# 6 blocked with nothing sent; anything else failed.
+case "$rc" in
+  0) ;;
+  6) report "the cleared session was blocked at a dialog before the resume prompt could be sent."; stop ;;
+  *)
+    if [ -z "$code" ]; then
       report "the resume prompt failed (exit $rc), so the session is cleared but may not be resumed. Resume with the session-restart skill from the handoff at $handoff."
-      stop
+    else
+      report "the resume prompt did not start a turn ($code), so the session is cleared but not resumed."
     fi
+    stop
     ;;
-  *) report "the resume prompt did not start a turn ($code), so the session is cleared but not resumed."; stop ;;
 esac
 
 read_pane

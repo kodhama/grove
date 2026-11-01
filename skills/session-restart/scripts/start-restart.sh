@@ -4,15 +4,18 @@
 #
 # The session-restart skill runs this in place of starting the helper by hand.
 # It reads the session's bindings file (supervision-setup's), so the helper's
-# herdr binary and report command come from bound operations, never from the
-# session's say-so (KTD15). It starts the helper, detached, and writes the
+# pane-tool binary and report command come from bound operations, never from
+# the session's say-so (KTD15). It starts the helper, detached, and writes the
 # restart-pending marker only when every in-place condition holds:
 #
 # - the bindings are complete and bind session-restart's own table;
 # - the harness is Claude Code (Codex does not restart in place yet);
-# - read-pane, type-into-pane and relay-report bind herdr as a CLI, since the
-#   helper speaks herdr's commands and a detached script can call nothing else;
-# - this session sits in a herdr pane that answers, and the reporter is live;
+# - read-pane, type-into-pane and relay-report bind one executable as a CLI,
+#   and the pane-tool adapter has an implementation for it
+#   (supervision-setup's scripts/adapter/<binary name>.sh): the helper speaks
+#   only through the adapter, and a detached script can call nothing else;
+# - this session sits in a pane the adapter can see and that answers, and the
+#   reporter is live;
 # - the bindings' latest transcript is this session's own;
 # - the handoff's inline routing table has a row for every binding (KTD10).
 #
@@ -72,32 +75,36 @@ harness=$(jq -r '.harness.name // ""' "$bindings")
 [ "$harness" = claude-code ] ||
   new_session "the harness is ${harness:-unknown}; the in-place path runs on Claude Code only, and Codex does not restart in place yet"
 
-herdr=""
+backend=""
 for op in read-pane type-into-pane relay-report; do
   read -r kind native <<< "$(bound "$op")"
   if [ "$kind" != cli ] || [ -z "$native" ]; then
     new_session "$op is bound as ${kind}, not as a command a shell can call"
   fi
-  [ "$(basename "$native")" = herdr ] && [ -x "$native" ] ||
-    new_session "$op binds $native, and the helper can drive only herdr"
-  [ -z "$herdr" ] || [ "$herdr" = "$native" ] ||
-    new_session "$op binds $native, a different herdr from $herdr"
-  herdr="$native"
+  [ -z "$backend" ] || [ "$backend" = "$native" ] ||
+    new_session "$op binds $native, a different pane tool from $backend"
+  backend="$native"
 done
+
+# The binding picks the implementation: the adapter named after the binary.
+adapter="$(cd "$scripts/../../supervision-setup/scripts/adapter" 2>/dev/null && pwd)/$(basename "$backend").sh"
+[ -x "$adapter" ] ||
+  new_session "no adapter for $backend: the pane-tool adapter has no $(basename "$backend").sh, so the helper cannot drive it"
+[ -x "$backend" ] || new_session "the pane operations bind $backend, which is not an executable here"
+pane_tool() { "$adapter" --bin "$backend" --timeout 30 "$@"; }
 
 # --- the pane and the reporter ----------------------------------------------
 
-pane="${HERDR_PANE_ID:-}"
-[ -n "$pane" ] || new_session "this session is not in a herdr pane (HERDR_PANE_ID is unset)"
-run_bounded() { perl -MTime::HiRes=alarm -e 'alarm shift; exec @ARGV or exit 127' 30 "$@"; }
-session=$(run_bounded "$herdr" agent get "$pane" 2>/dev/null | jq -r '.result.agent.agent_session.value // empty' 2>/dev/null)
-[ -n "$session" ] || new_session "herdr does not answer for pane $pane with a session"
+pane=$(pane_tool self 2>/dev/null | jq -r '.pane // empty' 2>/dev/null)
+[ -n "$pane" ] || new_session "this session is not in a pane the pane tool can see"
+session=$(pane_tool get "$pane" 2>/dev/null | jq -r '.session // empty' 2>/dev/null)
+[ -n "$session" ] || new_session "the pane tool does not answer for pane $pane with a session"
 [ "$session" = "${CLAUDE_CODE_SESSION_ID:-}" ] ||
   new_session "pane $pane holds session $session, not this session (${CLAUDE_CODE_SESSION_ID:-unknown})"
-rows=$(run_bounded "$herdr" agent list 2>/dev/null |
-  jq -r --arg n "$reporter" '.result.agents[]? | select(.name == $n) | "\(.pane_id) \(.agent // "unknown")"' 2>/dev/null)
+rows=$(pane_tool find "$reporter" 2>/dev/null |
+  jq -r '.agents[]? | "\(.pane) \(.kind // "unknown")"' 2>/dev/null)
 [ -n "$rows" ] && [ "$(printf '%s\n' "$rows" | wc -l | tr -d ' ')" = 1 ] ||
-  new_session "the reporter $reporter is not one live session in herdr agent list (a session herdr did not start may have no name there; herdr agent rename gives it one)"
+  new_session "the reporter $reporter is not one live session the pane tool lists (a session it did not start may have no name there; the adapter's rename gives it one)"
 read -r panes kind <<< "$rows"
 [ "$panes" != "$pane" ] || fix "the reporter $reporter is this session's own pane; name another live session"
 # The relay asks the reporter to tell the maintainer with AskUserQuestion.
@@ -111,6 +118,9 @@ id="${CLAUDE_CODE_SESSION_ID:-}"
   fix "the bindings' latest transcript ($transcript) is not this session's ($id); rerun supervision-setup, which appends it"
 
 [ -f "$handoff" ] || fix "no handoff at $handoff; write it first"
+# GRO-61: the resume prompt names the handoff, and the resumed session may
+# start in another folder, so pass it on by its absolute path.
+handoff="$(cd "$(dirname "$handoff")" && pwd)/$(basename "$handoff")"
 table=$(awk '/^## /{on = ($0 ~ /^## Routing table/)} on' "$handoff")
 # One row per binding, matched on its table and operation cells exactly: an id
 # bound in two tables needs two rows, and one id prefixing another is no match.
@@ -125,8 +135,8 @@ done)
 
 dir="$(dirname "$handoff")"
 : > "$dir/restart-pending"
-nohup "$helper" --pane "$pane" --handoff "$handoff" --transcript "$transcript" --backend "$herdr" \
-  -- "$scripts/report-to-session.sh" "$herdr" "$reporter" \
+nohup "$helper" --pane "$pane" --handoff "$handoff" --transcript "$transcript" --backend "$backend" \
+  -- "$scripts/report-to-session.sh" "$backend" "$reporter" \
   >> "$dir/restart-helper.log" 2>&1 < /dev/null &
 pid=$!
 # The helper waits on the pane for minutes; one that is gone at once, as when
