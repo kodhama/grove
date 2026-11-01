@@ -129,7 +129,7 @@ describe("start-restart.sh — the pane tool comes from the adapter the binding 
     const run = launch("session/handoff.md", dir);
     expect(run.status, run.stdout + run.stderr).toBe(0);
     const args = helperArgs();
-    const handoff = args[args.indexOf("--handoff") + 1];
+    const handoff = args[args.indexOf("--handoff") + 1] ?? "";
     expect(handoff.startsWith("/")).toBe(true);
     expect(readFileSync(handoff, "utf8")).toMatch(/^# Handoff/);
   });
