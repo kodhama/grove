@@ -235,7 +235,7 @@ function helperBudgetMs(opts: HelperOpts = {}): number {
     2 * pollsIn(opts.maxWait ?? MAX_WAIT) +
     pollsIn(CLEAR_TIMEOUT) +
     pollsIn(opts.reportBound ?? REPORT_BOUND);
-  // A scenario that sets --herdr-timeout has herdr calls hang until it cuts
+  // A scenario that sets --backend-timeout has herdr calls hang until it cuts
   // them. In every other the stub answers at once, or late by `get-delay`,
   // which only the poll allowance covers. So this bounds a run against these
   // stubs, not the helper: it leaves out the helper's default 30s cut of a
@@ -265,7 +265,7 @@ function runHelper(opts: HelperOpts = {}): Run {
     );
   }
   budgetLeftMs -= budgetMs;
-  const bounded = opts.herdrTimeout ? ["--herdr-timeout", opts.herdrTimeout] : [];
+  const bounded = opts.herdrTimeout ? ["--backend-timeout", opts.herdrTimeout] : [];
   const result = spawnSync(
     "bash",
     [
@@ -276,7 +276,7 @@ function runHelper(opts: HelperOpts = {}): Run {
       handoff,
       "--transcript",
       transcript,
-      "--herdr",
+      "--backend",
       join(dir, "herdr"),
       "--poll",
       POLL,
@@ -412,7 +412,7 @@ describe("runHelper — the budget a run of the helper gets", () => {
   it("stops a helper that is stuck in a call that hangs, which a signal the helper traps would wait out", () => {
     freshTurn(now());
     states(["idle false s1"]);
-    // With no --herdr-timeout the helper cuts a hung read only at its default
+    // With no --backend-timeout the helper cuts a hung read only at its default
     // 30s, far past this budget, so the read is still hanging when the budget
     // is spent. bash runs a trap only once its foreground child returns: a
     // signal the helper traps would hold the run for the whole hang.
@@ -1246,7 +1246,7 @@ describe("restart-in-place.sh — arguments", () => {
         handoff,
         "--transcript",
         transcript,
-        "--herdr",
+        "--backend",
         join(dir, "herdr"),
       ],
       { encoding: "utf8", env: { ...process.env, STUB_DIR: dir }, timeout: 4000 },
@@ -1261,7 +1261,7 @@ describe("restart-in-place.sh — arguments", () => {
   ])("exits 2 promptly on %s", (_label, tail) => {
     const result = spawnSync(
       "bash",
-      [HELPER, "--handoff", handoff, "--transcript", transcript, "--herdr", "herdr", ...tail],
+      [HELPER, "--handoff", handoff, "--transcript", transcript, "--backend", "herdr", ...tail],
       { encoding: "utf8", timeout: 2000 },
     );
     expect(result.status).toBe(2);
@@ -1501,7 +1501,7 @@ describe("start-restart.sh — choosing the path from the bindings (MQ-359, U6b)
       handoff,
       "--transcript",
       transcript,
-      "--herdr",
+      "--backend",
       join(dir, "herdr"),
     ]);
     expect(args.slice(args.indexOf("--") + 1)).toEqual([

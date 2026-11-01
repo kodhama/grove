@@ -23,7 +23,7 @@
 set -u
 if [ $# -ne 3 ]; then
   cat >&2 <<'EOF'
-Usage: report-to-session.sh <herdr-binary> <reporter-name> <line>
+Usage: report-to-session.sh <backend-binary> <reporter-name> <line>
 EOF
   exit 2
 fi

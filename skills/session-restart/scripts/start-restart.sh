@@ -125,7 +125,7 @@ done)
 
 dir="$(dirname "$handoff")"
 : > "$dir/restart-pending"
-nohup "$helper" --pane "$pane" --handoff "$handoff" --transcript "$transcript" --herdr "$herdr" \
+nohup "$helper" --pane "$pane" --handoff "$handoff" --transcript "$transcript" --backend "$herdr" \
   -- "$scripts/report-to-session.sh" "$herdr" "$reporter" \
   >> "$dir/restart-helper.log" 2>&1 < /dev/null &
 pid=$!

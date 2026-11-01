@@ -25,7 +25,7 @@
 
 set -u
 if [ $# -ne 3 ]; then
-  echo "Usage: read-input-line.sh <herdr-binary> <pane-id> <timeout-seconds>" >&2
+  echo "Usage: read-input-line.sh <backend-binary> <pane-id> <timeout-seconds>" >&2
   exit 2
 fi
 herdr="$1" pane="$2" secs="$3"

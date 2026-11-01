@@ -15,7 +15,7 @@
 
 set -u
 if [ $# -ne 3 ]; then
-  echo "Usage: close-outgoing.sh <herdr-binary> <pane-id> <outgoing-transcript>" >&2
+  echo "Usage: close-outgoing.sh <backend-binary> <pane-id> <outgoing-transcript>" >&2
   exit 2
 fi
 herdr="$1" pane="$2" transcript="$3"

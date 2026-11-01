@@ -9,7 +9,7 @@
 # goes wrong is sent to the maintainer through the report command, never
 # retried by typing.
 #
-# Every wait is bounded, and so is every herdr call (--herdr-timeout): an
+# Every wait is bounded, and so is every herdr call (--backend-timeout): an
 # unbounded detached loop is refused by the auto-mode classifier, and a helper
 # that never ends is not wanted anyway. A bound is counted in polls, so the
 # real wait runs somewhat longer than its seconds by the time each poll's
@@ -49,9 +49,9 @@ pane="" handoff="" transcript="" herdr=""
 usage() {
   cat >&2 <<'EOF'
 Usage: restart-in-place.sh --pane <pane-id> --handoff <path> --transcript <path>
-    --herdr <herdr-binary> [--poll <s>] [--focus-bound <s>] [--max-wait <s>]
+    --backend <backend-binary> [--poll <s>] [--focus-bound <s>] [--max-wait <s>]
     [--clear-timeout <s>] [--resume-timeout <s>] [--report-bound <s>]
-    [--herdr-timeout <s>] -- <report-command> [args...]
+    [--backend-timeout <s>] -- <report-command> [args...]
 EOF
   exit 2
 }
@@ -61,8 +61,8 @@ positive() { awk -v x="$1" 'BEGIN { exit !(x ~ /^[0-9]*\.?[0-9]+$/ && x + 0 > 0)
 while [ $# -gt 0 ]; do
   case "$1" in
     --) shift; break ;;
-    --pane | --handoff | --transcript | --herdr | --poll | --focus-bound | --max-wait | \
-      --clear-timeout | --resume-timeout | --report-bound | --herdr-timeout)
+    --pane | --handoff | --transcript | --backend | --poll | --focus-bound | --max-wait | \
+      --clear-timeout | --resume-timeout | --report-bound | --backend-timeout)
       [ $# -ge 2 ] || usage ;;
     *) usage ;;
   esac
@@ -70,14 +70,14 @@ while [ $# -gt 0 ]; do
     --pane) pane="$2" ;;
     --handoff) handoff="$2" ;;
     --transcript) transcript="$2" ;;
-    --herdr) herdr="$2" ;;
+    --backend) herdr="$2" ;;
     --poll) poll="$2" ;;
     --focus-bound) focus_bound="$2" ;;
     --max-wait) max_wait="$2" ;;
     --clear-timeout) clear_timeout="$2" ;;
     --resume-timeout) resume_timeout="$2" ;;
     --report-bound) report_bound="$2" ;;
-    --herdr-timeout) herdr_timeout="$2" ;;
+    --backend-timeout) herdr_timeout="$2" ;;
   esac
   shift 2
 done
