@@ -45,7 +45,7 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
       expect(skill).toMatch(new RegExp(`"<[^<>]+>/scripts/${script.replaceAll(".", "\\.")}"`));
       expect(skill).not.toMatch(new RegExp(`(?<!")<[^<>]+>/scripts/${script.replaceAll(".", "\\.")}`));
     }
-    expect(skill).toMatch(/close-outgoing\.sh" "<herdr>" <pane> "<transcript>"/);
+    expect(skill).toMatch(/close-outgoing\.sh" "<binary>" <pane> "<transcript>"/);
     expect(skill).toMatch(/`--handoff "<path>"`/);
   });
 
@@ -66,18 +66,18 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
     expect(successor).toMatch(/actual name and your ref/);
   });
 
-  it("the successor takes the herdr name only once the outgoing session has exited (AE4)", () => {
+  it("the successor takes the pane name only once the outgoing session has exited (AE4)", () => {
     // Live AE4, 2026-09-29: `herdr agent start <name>` refused the name with
     // agent_name_taken while the outgoing session held it, and
     // `herdr agent rename` gave it to the successor once that session exited.
     const outgoing = section("New session: the outgoing session");
     expect(outgoing).not.toMatch(/herdr agent start <name> /);
     // KTD9: herdr names are [a-z][a-z0-9_-]{0,31}, so a suffix must fit in 32.
-    expect(outgoing).toMatch(/temporary herdr name/);
+    expect(outgoing).toMatch(/temporary pane\s+name/);
     expect(outgoing).toMatch(/first 30\s+characters/);
     expect(outgoing).not.toMatch(/<name>-next/);
     expect(section("New session: the successor")).toMatch(
-      /herdr agent rename "\$HERDR_PANE_ID" <the handoff's herdr name>/,
+      /"<adapter>" --bin "<binary>" rename <your pane> <the handoff's pane name>/,
     );
   });
 
@@ -115,9 +115,9 @@ describe("SKILL.md — what only the session can do (MQ-359, U6b)", () => {
       );
   });
 
-  it("the handoff records the herdr name the successor takes (KTD10, #823 review)", () => {
-    expect(skill).toMatch(/- herdr name: <value> \(`herdr agent get \$HERDR_PANE_ID`\)/);
-    expect(section("New session: the successor")).toMatch(/<the handoff's herdr name>/);
+  it("the handoff records the pane name the successor takes (KTD10, #823 review)", () => {
+    expect(skill).toMatch(/- pane name: <value> \(the adapter's `get <pane>`, its `name`\)/);
+    expect(section("New session: the successor")).toMatch(/<the handoff's pane name>/);
   });
 
   it("the handoff carries the filled table inline, with the header a remote successor's setup needs (KTD10)", () => {

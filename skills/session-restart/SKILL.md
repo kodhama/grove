@@ -1,6 +1,6 @@
 ---
 name: session-restart
-description: Restart this session at a quiet point, in place in its own herdr pane when it can, or as a new session when it cannot. In place, it writes a handoff, starts a detached helper that clears the session and prompts it to resume, and ends the turn; the resumed session reruns setup seeded with the handoff's table. Use when a session's restart trigger fires (for example context past its line) between tasks, when a prompt says to resume from a session-restart handoff, when a session-restart helper asks for the handoff to be refreshed, or when a successor is launched from a posted handoff. Works from the bindings supervision-setup writes for this skill's own routing table.
+description: Restart this session at a quiet point, in place in its own pane when it can, or as a new session when it cannot. In place, it writes a handoff, starts a detached helper that clears the session and prompts it to resume, and ends the turn; the resumed session reruns setup seeded with the handoff's table. Use when a session's restart trigger fires (for example context past its line) between tasks, when a prompt says to resume from a session-restart handoff, when a session-restart helper asks for the handoff to be refreshed, or when a successor is launched from a posted handoff. Works from the bindings supervision-setup writes for this skill's own routing table.
 ---
 
 # session-restart
@@ -19,11 +19,18 @@ Every harness-specific call goes through this skill's own routing table,
 live in `.context/supervision/<session-name>/bindings.json`, with
 `table: session-restart` on this skill's operations.
 
+**Every call to the pane tool goes through an adapter**, in the scripts and
+in the steps below alike: `<supervision-setup's folder>/scripts/adapter/<tool>.sh`,
+`<tool>` being the file name of the bound pane-tool binary, run as
+`"<adapter>" --bin "<binary>" <operation>`. `interface.md` beside it gives each
+operation's arguments, output and exit codes. A bound binary with no adapter
+there closes the in-place path: the launcher says `no adapter for <binary>`.
+
 ## Never
 
 - Type into, or let the helper type into, a pane that is focused or holds
   unsent text in its input line. The maintainer may be typing there, and
-  herdr submits a draft together with whatever it types next.
+  the pane tool submits a draft together with whatever it types next.
 - Start the helper with a loop that never ends. Every wait in it is bounded;
   keep it that way.
 - Restart mid-step. Finish the step in hand first, and never with a subagent,
@@ -90,9 +97,10 @@ the handoff, rewrite it and end the turn.
 ## What the helper does
 
 It waits until the pane is `idle` or `done`, not focused, not held at a
-dialog, and its input line empty. herdr shows a question or permission dialog
-as `done`, so the helper also reads the transcript: a tool call with no result
-yet means a dialog is open, and it types nothing. It reads the input line
+dialog, and its input line empty. A pane tool can show a question or
+permission dialog as `done`, as herdr does, so the helper also reads the
+transcript: a tool call with no result yet means a dialog is open, and it
+types nothing. It reads the input line
 through `scripts/read-input-line.sh`, and treats an input line it cannot find,
 as after a change to the harness's screen, like unsent text. If the pane stays
 focused or holds text past its bound (10 minutes by default), it reports that
@@ -125,11 +133,11 @@ another.
 ## Identity (each read from the command named)
 
 - -n name: <value> (`ListAgents`, or the transcript's `agent-name` record)
-- herdr pane: <value> (`echo $HERDR_PANE_ID`)
-- herdr name: <value> (`herdr agent get $HERDR_PANE_ID`)
+- pane: <value> (the adapter's `self`)
+- pane name: <value> (the adapter's `get <pane>`, its `name`)
 - session id: <value> (`echo $CLAUDE_CODE_SESSION_ID`)
 - Remote Control name: <value> (<how observed>)
-- reporter: <name> (`herdr agent list`)
+- reporter: <name> (the adapter's `find <name>`)
 - work item: <id and link, or none>
 - restart-owner: self
 
@@ -208,8 +216,8 @@ not yet reached reads bound-but-unused; that is expected, not a fault.
 The prompt that wakes you names the handoff.
 
 1. Read the handoff in full, and any file it says to read first.
-2. Check you are the same session: `echo $HERDR_PANE_ID` and your name in
-   `ListAgents` match the handoff's identity fields. If they do not, tell the
+2. Check you are the same session: the pane the adapter's `self` prints and
+   your name in `ListAgents` match the handoff's identity fields. If they do not, tell the
    maintainer and stop.
 3. Read `restart-helper.log` and `restart-unreported.txt` beside the handoff.
    Tell the maintainer yourself any line that was never reported.
@@ -250,14 +258,25 @@ not known yet. A Codex session that lands here tells the maintainer.
    Resume with the session-restart skill from the handoff at <the note's link>.
    ```
 
-   herdr cannot give it your herdr name yet: it refuses a name a live
-   session holds (`agent_name_taken`). Start it under a temporary herdr name:
-   the first 30 characters of your herdr name, then `-n`, since a herdr name
-   has at most 32. The successor takes your name once you have exited.
-   Its `-n` name stays yours: two Claude Code sessions can share one, told
-   apart by their refs. If herdr refuses the launch, `launch-session` is
-   unavailable, or `restart-owner` is not `self`, ask the restart owner to
-   launch it from the handoff's launch line.
+   Launch it through the adapter's `launch`, with the binary bound to
+   `launch-session`, the launch line's arguments after its harness, and the
+   prompt last:
+
+   ```sh
+   "<adapter>" --bin "<binary>" launch <temporary name> --kind <harness> \
+     --cwd "<folder>" -- <the launch line's arguments> "<prompt>"
+   ```
+
+   The pane tool cannot give it your pane name yet: it refuses a name a live
+   session holds, and the adapter exits 6. Start it under a temporary pane
+   name: the first 30 characters of your pane name, then `-n`, since a pane
+   name may be capped at 32, as herdr's is. The successor takes your name once
+   you have exited. Its `-n` name stays yours: two Claude Code sessions can
+   share one, told apart by their refs. An outcome of `timeout` means it may
+   still come up: read its pane with the adapter's `get` before you launch
+   again. If the launch exits other than 0, `launch-session` is unavailable,
+   or `restart-owner` is not `self`, ask the restart owner to launch it from
+   the handoff's launch line.
 5. **Wait for `successor-up`**, for at most 30 minutes. Nothing wakes you on
    its own, so give yourself a wake source: one bounded background timer,
    such as a background shell command that sleeps five minutes and exits.
@@ -289,13 +308,13 @@ Codex session reads its own identity is not known yet.
 5. Announce yourself to your peers, your lead or reporter at least, with your
    actual name and your ref: while another row shares your name, a
    bare-name send to you is refused as ambiguous.
-6. **Close the outgoing session** when you run in the same herdr and
-   `type-into-pane` is bound to it, with this skill's script and the bound
-   herdr, the handoff's pane and the outgoing session's transcript, the last
+6. **Close the outgoing session** when you run in the same pane tool and
+   `type-into-pane` is bound to it, with this skill's script and the binary
+   bound to `type-into-pane`, the handoff's pane and the outgoing session's transcript, the last
    the handoff's transcripts line lists:
 
    ```sh
-   "<this skill's folder>/scripts/close-outgoing.sh" "<herdr>" <pane> "<transcript>"
+   "<this skill's folder>/scripts/close-outgoing.sh" "<binary>" <pane> "<transcript>"
    ```
 
    It types `/exit` only when the helper's own checks pass right before the
@@ -305,9 +324,12 @@ Codex session reads its own identity is not known yet.
    the maintainer that line. If `type-into-pane` is unbound or cannot reach
    that pane, as from another machine, ask the maintainer to close it: the
    outgoing session cannot exit itself. Once its pane holds no agent, and
-   when you run in the same herdr, take its herdr name, which the launcher
-   and the relay find sessions by:
-   `herdr agent rename "$HERDR_PANE_ID" <the handoff's herdr name>`.
+   when you run in the same pane tool, take its pane name, which the launcher
+   and the relay find sessions by, through the adapter's `rename`, with your
+   own pane from its `self`:
+   `"<adapter>" --bin "<binary>" rename <your pane> <the handoff's pane name>`.
+   If it exits 5, since the tool has no rename, or 6, since the name is still
+   taken, ask the maintainer to rename it.
 7. Write `successor-up <date and time>, <actual name> [<ref>]` under Restart
    record, in the handoff note's thread or the local handoff, and carry on
    from "What I am doing".
