@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+# adapter/herdr.sh — the herdr implementation of the pane-tool adapter.
+#
+# This is the only file in grove that runs herdr. Every script that reads,
+# types into or starts a pane calls this one instead, by path, and reads the
+# neutral output interface.md beside it defines, never herdr's own. Another
+# pane tool gets another file here, named after its binary, and the binding
+# picks it; no caller changes.
+#
+#   herdr.sh [--bin <herdr-binary>] [--timeout <seconds>] <operation> [args...]
+#
+# --bin is the herdr the binding names (default: herdr on PATH). --timeout
+# bounds each herdr call (default 30 s); an operation that waits adds its own
+# wait to the bound. It needs bash, jq and perl, reads nothing of its
+# caller's, and runs the same from any folder.
+#
+# Exit status: 0 done; 2 usage; 3 not found; 4 herdr failed, timed out or
+# answered what cannot be read; 5 unsupported; 6 refused, nothing done.
+
+set -u
+
+operations=(self list find get read-screen prompt wait launch resume rename close remote-check remote-on schedule-list schedule-create worktree-create)
+
+usage() {
+  echo "Usage: herdr.sh [--bin <herdr-binary>] [--timeout <seconds>] <operation> [args...]" >&2
+  echo "Operations: ${operations[*]} (interface.md)" >&2
+  exit 2
+}
+
+positive() { awk -v x="$1" 'BEGIN { exit !(x ~ /^[0-9]*\.?[0-9]+$/ && x + 0 > 0) }'; }
+whole() { [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -gt 0 ]; }
+
+bin=herdr timeout=30
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --bin) [ $# -ge 2 ] || usage; bin="$2"; shift 2 ;;
+    --timeout) [ $# -ge 2 ] && positive "$2" || usage; timeout="$2"; shift 2 ;;
+    *) break ;;
+  esac
+done
+[ $# -gt 0 ] || usage
+op="$1"
+shift
+[[ " ${operations[*]} " == *" $op "* ]] || usage
+
+# --- results ------------------------------------------------------------------
+
+# Prints one JSON object built from name/value pairs (values as JSON) and exits.
+result() {
+  local code="$1"
+  shift
+  jq -cn "$@"
+  exit "$code"
+}
+
+say() { echo "herdr.sh: $op: $*" >&2; }
+
+# herdr's error code from its answer (JSON on stderr with exit 1), or empty.
+error_code() { printf '%s' "$1" | jq -rs '[.[] | objects | .error.code? // empty][0] // empty' 2>/dev/null; }
+
+# Runs herdr, killing it after the given seconds. macOS has no timeout(1);
+# perl is on both macOS and Linux. Sets out (stdout and stderr) and rc.
+out="" rc=0
+call_within() {
+  local secs="$1"
+  shift
+  out=$(perl -MTime::HiRes=alarm -e 'alarm shift; exec @ARGV or exit 127' "$secs" "$bin" "$@" 2>&1)
+  rc=$?
+}
+call() { call_within "$timeout" "$@"; }
+
+# herdr's wait in milliseconds, plus the ordinary bound, in seconds.
+bound_with() { awk -v ms="$1" -v t="$timeout" 'BEGIN { print ms / 1000 + t }'; }
+
+# The neutral agent record (interface.md, "The agent record"). Whatever herdr
+# cannot tell is null, and a status outside the four it reports is unknown.
+RECORD='def record: {
+  pane: (.pane_id // null),
+  name: (.name // null),
+  kind: (.agent // null),
+  status: (.agent_status as $s | if ($s == "idle" or $s == "working" or $s == "blocked" or $s == "done") then $s else "unknown" end),
+  focused: (if .focused == true then true elif .focused == false then false else null end),
+  session: (.agent_session.value? // null | if . == "" then null else . end),
+  cwd: (.cwd // null)
+};'
+
+# Exits 3 for an answer that says the pane or agent is gone, else 4.
+gone_or_failed() {
+  local code
+  code=$(error_code "$out")
+  case "$code" in
+    *not_found*) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
+  esac
+  say "herdr failed (exit $rc${code:+, $code})"
+  result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
+}
+
+# The agent records in herdr's agent list, as a JSON array.
+agents() {
+  call agent list
+  [ "$rc" -eq 0 ] || gone_or_failed
+  printf '%s' "$out" | jq -c "$RECORD"' [.result.agents[]? | record]' 2>/dev/null
+}
+
+# --- operations ---------------------------------------------------------------
+
+case "$op" in
+  self)
+    [ $# -eq 0 ] || usage
+    [ -n "${HERDR_PANE_ID:-}" ] || { say "not in a herdr pane"; result 3 '{outcome: "not-found"}'; }
+    result 0 --arg p "$HERDR_PANE_ID" '{pane: $p}'
+    ;;
+
+  list)
+    [ $# -eq 0 ] || usage
+    all=$(agents) && [ -n "$all" ] || { say "agent list could not be read"; result 4 '{outcome: "failed", code: null}'; }
+    result 0 --argjson a "$all" '{agents: $a}'
+    ;;
+
+  find)
+    [ $# -eq 1 ] || usage
+    all=$(agents) && [ -n "$all" ] || { say "agent list could not be read"; result 4 '{outcome: "failed", code: null}'; }
+    matches=$(printf '%s' "$all" | jq -c --arg n "$1" '[.[] | select(.name == $n)]')
+    [ "$matches" != "[]" ] || { say "no live agent is named $1"; result 3 '{agents: []}'; }
+    result 0 --argjson a "$matches" '{agents: $a}'
+    ;;
+
+  get)
+    [ $# -eq 1 ] || usage
+    call agent get "$1"
+    [ "$rc" -eq 0 ] || gone_or_failed
+    record=$(printf '%s' "$out" | jq -ce "$RECORD"' .result.agent | objects | record' 2>/dev/null) ||
+      { say "herdr's answer could not be read"; result 4 '{outcome: "failed", code: null}'; }
+    printf '%s\n' "$record"
+    exit 0
+    ;;
+
+  read-screen)
+    [ $# -ge 1 ] || usage
+    pane="$1" source=visible format=ansi lines=()
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --recent) source=recent-unwrapped; shift ;;
+        --plain) format=text; shift ;;
+        --lines) [ $# -ge 2 ] && whole "$2" || usage; lines=(--lines "$2"); shift 2 ;;
+        *) usage ;;
+      esac
+    done
+    screen=$(perl -MTime::HiRes=alarm -e 'alarm shift; exec @ARGV or exit 127' "$timeout" \
+      "$bin" agent read "$pane" --source "$source" --format "$format" ${lines[@]+"${lines[@]}"} 2>/dev/null)
+    rc=$?
+    [ "$rc" -eq 0 ] || { out=""; gone_or_failed; }
+    printf '%s\n' "$screen"
+    exit 0
+    ;;
+
+  prompt)
+    [ $# -eq 2 ] || [ $# -eq 4 ] || usage
+    pane="$1" text="$2"
+    if [ $# -eq 4 ]; then
+      [ "$3" = --wait ] && whole "$4" || usage
+      call_within "$(bound_with "$4")" agent prompt "$pane" "$text" --wait --timeout "$4"
+      done=settled
+    else
+      call agent prompt "$pane" "$text"
+      done=sent
+    fi
+    [ "$rc" -ne 0 ] || result 0 --arg o "$done" '{outcome: $o, code: null}'
+    code=$(error_code "$out")
+    case "$code" in
+      timeout) result 0 '{outcome: "timeout", code: "timeout"}' ;;
+      agent_blocked) say "the agent is blocked; nothing was sent"; result 6 --arg c "$code" '{outcome: "blocked", code: $c}' ;;
+      *not_found*) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
+    esac
+    say "herdr failed (exit $rc${code:+, $code})"
+    result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
+    ;;
+
+  wait)
+    [ $# -eq 3 ] && [ "$2" = --timeout ] && whole "$3" || usage
+    call_within "$(bound_with "$3")" agent wait "$1" --timeout "$3"
+    [ "$rc" -ne 0 ] || result 0 '{outcome: "settled"}'
+    [ "$(error_code "$out")" != timeout ] || result 0 '{outcome: "timeout"}'
+    gone_or_failed
+    ;;
+
+  launch | resume)
+    [ $# -ge 1 ] || usage
+    name="$1" kind="" cwd="" session=""
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --) shift; break ;;
+        --kind | --cwd | --session) [ $# -ge 2 ] || usage ;;
+        *) usage ;;
+      esac
+      case "$1" in
+        --kind) kind="$2" ;;
+        --cwd) cwd="$2" ;;
+        --session) session="$2" ;;
+      esac
+      shift 2
+    done
+    [ -n "$kind" ] && [ -n "$cwd" ] || usage
+    args=("$@")
+    if [ "$op" = resume ]; then
+      [ -n "$session" ] || usage
+      # Each harness's own resume arguments; a harness not listed has none here.
+      case "$kind" in
+        claude) args=(--resume "$session" ${args[@]+"${args[@]}"}) ;;
+        codex) args=(resume "$session" ${args[@]+"${args[@]}"}) ;;
+        *) say "no resume arguments are known for $kind"; result 5 '{outcome: "unsupported"}' ;;
+      esac
+    else
+      [ -z "$session" ] || usage
+    fi
+    # agent start needs a pane at a shell prompt: split the caller's own,
+    # which leaves focus where it is.
+    call pane split --current --cwd "$cwd"
+    [ "$rc" -eq 0 ] || gone_or_failed
+    pane=$(printf '%s' "$out" | jq -r '.result.pane.pane_id // empty' 2>/dev/null)
+    [ -n "$pane" ] || { say "the split gave no pane"; result 4 '{outcome: "failed", code: null}'; }
+    # agent start waits up to 30 s for the agent to be ready.
+    call_within "$(bound_with 30000)" agent start "$name" --kind "$kind" --pane "$pane" -- ${args[@]+"${args[@]}"}
+    [ "$rc" -ne 0 ] || result 0 --arg p "$pane" --arg n "$name" '{pane: $p, name: $n}'
+    code=$(error_code "$out")
+    case "$code" in
+      agent_name_taken | agent_not_ready)
+        say "refused ($code); the split pane $pane is left at its shell"
+        result 6 --arg c "$code" --arg p "$pane" '{outcome: "refused", code: $c, pane: $p}' ;;
+    esac
+    say "herdr failed (exit $rc${code:+, $code}); the split pane $pane is left at its shell"
+    result 4 --arg c "$code" --arg p "$pane" '{outcome: "failed", code: (if $c == "" then null else $c end), pane: $p}'
+    ;;
+
+  rename)
+    [ $# -eq 2 ] || usage
+    call agent rename "$1" "$2"
+    [ "$rc" -ne 0 ] || result 0 --arg p "$1" --arg n "$2" '{pane: $p, name: $n}'
+    code=$(error_code "$out")
+    case "$code" in
+      *name_taken* | *invalid*) say "refused ($code)"; result 6 --arg c "$code" '{outcome: "refused", code: $c}' ;;
+    esac
+    gone_or_failed
+    ;;
+
+  close)
+    [ $# -eq 1 ] || usage
+    # The session ends on /exit, so herdr's answer is not the verdict: the
+    # caller reads the pane afterwards. Only a refusal before any input counts.
+    call agent prompt "$1" /exit
+    [ "$(error_code "$out")" != agent_blocked ] || { say "the agent is blocked; nothing was sent"; result 6 '{outcome: "blocked", code: "agent_blocked"}'; }
+    result 0 '{outcome: "sent"}'
+    ;;
+
+  remote-check | remote-on | schedule-list | schedule-create | worktree-create)
+    say "unsupported by this backend"
+    result 5 --arg o "$op" '{outcome: "unsupported", operation: $o}'
+    ;;
+esac
