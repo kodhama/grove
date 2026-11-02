@@ -45,7 +45,7 @@ show two marketplaces named `grove`, this repo's and the one a user
 registered; both point at this repo. Install grove from one of them only:
 two installs list each skill twice, which setup treats as a clash.
 
-**Write for a reader with ADD.** Applies to anything the maintainer reads:
+**Write for a reader who skims.** Applies to anything the maintainer reads:
 chat, reports, PRs, issues and comments.
 
 - First line = the point, and what the maintainer needs to do (if anything).
