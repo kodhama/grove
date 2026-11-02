@@ -49,7 +49,7 @@
  * `write_stdin`, cannot be credited from a script. A call refused at an
  * approval prompt still writes its output, so the last kind of call above
  * reads `ran`. And every command a shell line runs shares that line's outcome:
- * in `cd x && herdr …` a failed `cd` still credits herdr, and a line whose
+ * in `cd x && <cli> …` a failed `cd` still credits the CLI, and a line whose
  * last command could not run (exit 127) reads `failed` for every command in it.
  * Only the first line of a `completed` command's output is read, which cuts
  * both ways: one that starts with zsh's own error reads `failed` for the

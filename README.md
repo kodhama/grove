@@ -14,7 +14,7 @@ approves every merge.
 | `project-lead` | Leads one epic, defect run or plain-intent task: gets its shape approved, starts the workers, carries decisions, accepts each hand-back on its evidence. Never writes the code, unless it carries a one-story intent run itself as that story's worker. |
 | `story-worker` | Carries one story or defect to a pull request ready for review, through its routing table, with a review by someone other than itself. |
 | `supervision-setup` | Binds a level skill's routing table to the performers this session can invoke, and writes the session's bindings file. Ships the receipt checker. |
-| `session-restart` | Restarts a session at a quiet point from a handoff, in place in its herdr pane when it can. |
+| `session-restart` | Restarts a session at a quiet point from a handoff, in place in its own pane when it can. |
 | `context-gauge` | Reads the session's context as a share of its model's window. |
 
 A host lists each as `grove:<skill>` from the plugin, or as the bare
@@ -150,6 +150,7 @@ plugin dependency.
   fallback, so a lead's setup stops without herdr. A worker without it still
   hands back through its harness's own messaging where it has one, and by
   work note where it has none; its restart takes the new-session path.
+  Every herdr call goes through the pane-tool adapter (below).
 - **Your work tracker**, through your overrides: posting a work note is
   required at both levels, and a lead also needs to read them.
 - **Your knowledge-base skill**, through your override: `document-change`
@@ -158,8 +159,32 @@ plugin dependency.
   dependency or a design change. It is optional. Without it the worker
   updates those docs itself, and the receipt says the step ran by fallback.
 - **Node 24, or 26 and newer** (`package.json`'s `engines`) runs the receipt
-  checker, which uses `node:fs`'s `globSync`. **jq** runs the restart scripts
-  and the context gauge.
+  checker, which uses `node:fs`'s `globSync`. **jq** runs the restart scripts,
+  the pane-tool adapter and the context gauge, and the adapter also needs
+  **perl**, to bound each call.
+
+## The pane-tool adapter
+
+**Grove reaches a pane tool only through one script**:
+`skills/supervision-setup/scripts/adapter/<tool>.sh`, named after the tool's
+binary. herdr is the only implementation today, `herdr.sh`. Callers name an
+operation (`self`, `list`, `find`, `get`, `read-screen`, `prompt`, `wait`,
+`launch`, `resume`, `rename`, `close`, and a few the herdr backend marks
+unsupported) and read neutral JSON back, never the tool's own output.
+`interface.md` beside it is the contract: each operation's arguments,
+output, exit codes and herdr command.
+
+- **The binding picks the backend.** A pane-tool binary bound as
+  `/path/to/<tool>` is served by `<tool>.sh`. A binary with no file there has
+  no adapter, and session-restart takes the new-session path with
+  `no adapter for <binary>`.
+- **Adding a backend** is one new `<tool>.sh` that implements the same
+  operations and output, and one binding to its binary. No caller changes.
+  An operation the tool cannot serve exits 5, and a field it cannot tell is
+  `null`, which callers read as unsafe.
+- **A script outside grove** runs the adapter by its path, with no grove skill
+  involved:
+  `<grove>/skills/supervision-setup/scripts/adapter/herdr.sh --bin <herdr> get <pane>`.
 
 ## Versions
 

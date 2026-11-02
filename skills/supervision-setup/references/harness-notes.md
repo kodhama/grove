@@ -319,7 +319,10 @@ interactive terminal.` It works when typed into a terminal pane, such as
 `herdr pane run <pane> "claude --cloud \"<prompt>\""`, so a local lead starts a
 cloud worker through herdr. Inside a cloud session it fails the same way, no
 routine trigger tool is available, and no other way to start a session was
-found (observed on 2.1.283, 2026-09-27).
+found (observed on 2.1.283, 2026-09-27). The pane-tool adapter has no
+operation that types a raw command into a shell pane; its `launch` starts a
+harness in a new pane, and whether it serves a cloud start, where the harness
+exits once the cloud session starts, is untested.
 
 **Messaging from a cloud session.** A cloud session's `ListAgents` showed no
 peers, and SendMessage to a local session returned `success:false`. A local
@@ -486,8 +489,9 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   from `ALL_TOOLS` plus the collaboration tools. There is no agent-type
   catalog. Two installs of one plugin list each of its skills twice, which is
   a clash, so every one of them goes to discovery on every setup. The session
-  read its own name from `herdr agent get $HERDR_PANE_ID`. That setup's
-  evidence paraphrased the catalog rather than quoting it.
+  read its own name from `herdr agent get $HERDR_PANE_ID`, which the
+  pane-tool adapter now serves as `get` on the pane its `self` prints. That
+  setup's evidence paraphrased the catalog rather than quoting it.
 - **Marked copies** are probed as on Claude Code, from the user folder
   `$HOME/.agents/skills/<name>/` and `.agents/skills/<name>/` at the repo's root,
   where the kodhama CLI installs for Codex (read in its source at
@@ -519,6 +523,10 @@ Claude Code, Codex and Droid are all integrated at
 session-only integrations "can miss permission approval results, escape
 interrupts, or other transitions" (verified 2026-09-20; the herdr version was
 not recorded).
+
+Grove's scripts reach herdr only through the pane-tool adapter,
+`scripts/adapter/herdr.sh` in this skill's folder. Its `interface.md` gives
+each operation's herdr command and how herdr's error codes map to exits.
 
 ## Choosing a reviewer
 

@@ -18,7 +18,7 @@
  * Plan: docs/plans/2026-10-04-0734-feat-receipt-check-credits-calls-that-ran-plan.md,
  * R7 and KTD6; split out of `receipt-check.mjs`.
  */
-import { basename } from "node:path";
+import { basename, dirname } from "node:path";
 import { CARRIED } from "./handoff-receipt.mjs";
 import { isSubagentPlace, MAIN } from "./transcript-uses.mjs";
 
@@ -44,7 +44,12 @@ export function matches(binding, use) {
         ? use.name === binding.native_id
         : use.name === unqualified(binding.native_id);
     case "cli":
-      return use.name === binding.native_id || basename(use.name) === basename(binding.native_id);
+      // The pane-tool adapter named after the bound binary (adapter/<binary>.sh) is a call of that binary.
+      return (
+        use.name === binding.native_id ||
+        basename(use.name) === basename(binding.native_id) ||
+        (basename(dirname(use.name)) === "adapter" && basename(use.name) === `${basename(binding.native_id)}.sh`)
+      );
     default:
       return use.name === binding.native_id;
   }

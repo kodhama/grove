@@ -39,9 +39,9 @@
  * wording is read, and `claudeOutcome` two more that keep one. A call
  * with no result yet, such as the last
  * one in a live transcript, is `pending`. Every use of one call shares that
- * call's outcome, which gives two known limits. In `cd x && herdr …` a
- * failed `cd` still credits herdr, since the line is split but the result
- * cannot say which part failed. And a CLI call, such as a herdr hand-back,
+ * call's outcome, which gives two known limits. In `cd x && <cli> …` a
+ * failed `cd` still credits the CLI, since the line is split but the result
+ * cannot say which part failed. And a CLI call, such as a pane-tool hand-back,
  * reads `ran` when its command exits 0 even if the tool it ran reported a
  * false success.
  *
