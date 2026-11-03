@@ -240,8 +240,9 @@ case "$op" in
     [ "$(printf '%s' "$all" | jq --arg n "$name" '[.[] | select(.name == $n)] | length')" = 0 ] ||
       { say "the name $name is taken; nothing was started"; result 6 '{outcome: "refused", code: "agent_name_taken"}'; }
     # agent start needs a pane at a shell prompt: split the caller's own,
-    # which leaves focus where it is.
-    call pane split --current --no-focus --cwd "$cwd"
+    # which leaves focus where it is. herdr refuses a split that names no
+    # direction; the new pane always opens to the right.
+    call pane split --current --direction right --no-focus --cwd "$cwd"
     [ "$rc" -eq 0 ] || gone_or_failed
     pane=$(printf '%s' "$out" | jq -r '.result.pane.pane_id // empty' 2>/dev/null)
     [ -n "$pane" ] || { say "the split gave no pane"; result 4 '{outcome: "failed", code: null}'; }

@@ -224,8 +224,8 @@ mode included (`-n <name> --permission-mode auto`, for example).
     the pane is left at its shell prompt.
 
 - herdr: checks the name against `agent list` first. Then
-  `pane split --current --no-focus --cwd <folder>`, whose answer names the new pane
-  (`.result.pane.pane_id`), then
+  `pane split --current --direction right --no-focus --cwd <folder>`, whose
+  answer names the new pane (`.result.pane.pane_id`), then
   `agent start <name> --kind <harness> --pane <new pane> -- <harness args>`,
   which waits up to 30 s for the agent to be ready. herdr names are unique
   among live agents and match `[a-z][a-z0-9_-]{0,31}`. The split needs a
