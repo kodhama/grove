@@ -55,29 +55,26 @@ result() {
 
 say() { echo "herdr.sh: $op: $*" >&2; }
 
-# herdr's error code from its last answer, or empty. herdr prints its error
-# as JSON with exit 1, on stderr; it is read from stdout too, and line by line
-# where a stream holds other text.
-error_code() {
-  local stream code
+# A field of herdr's JSON error in its last answer, or empty. herdr prints its
+# error as JSON with exit 1, on stderr; it is read from stdout too, and line by
+# line where a stream holds other text.
+error_field() {
+  local field="$1" stream value
   for stream in "$err" "$out"; do
-    code=$(printf '%s' "$stream" | jq -rs '[.[] | objects | .error.code? // empty][0] // empty' 2>/dev/null) ||
-      code=$(printf '%s\n' "$stream" | jq -rR 'fromjson? | objects | .error.code? // empty' 2>/dev/null | head -n 1)
-    [ -z "$code" ] || { printf '%s' "$code"; return; }
+    value=$(printf '%s' "$stream" | jq -rs --arg f "$field" '[.[] | objects | .error[$f]? // empty][0] // empty' 2>/dev/null) ||
+      value=$(printf '%s\n' "$stream" | jq -rR --arg f "$field" 'fromjson? | objects | .error[$f]? // empty' 2>/dev/null | head -n 1)
+    [ -z "$value" ] || { printf '%s' "$value"; return; }
   done
 }
 
+error_code() { error_field code; }
+
 # herdr's reason for its last failure, for the human-readable line only: its
-# JSON error's message where it gave one, else its stderr, where a usage error
-# is one plain line; of either, the first non-empty line, so the reason stays
-# one line; else nothing.
+# JSON error's message if it gave one, else its stderr. Only the first
+# non-empty line is kept, so the reason stays one line.
 reason() {
-  local stream msg=""
-  for stream in "$err" "$out"; do
-    msg=$(printf '%s' "$stream" | jq -rs '[.[] | objects | .error.message? // empty | strings][0] // empty' 2>/dev/null) ||
-      msg=$(printf '%s\n' "$stream" | jq -rR 'fromjson? | objects | .error.message? // empty | strings' 2>/dev/null | head -n 1)
-    [ -z "$msg" ] || break
-  done
+  local msg
+  msg=$(error_field message)
   printf '%s\n' "${msg:-$err}" | awk 'NF { print; exit }'
 }
 
