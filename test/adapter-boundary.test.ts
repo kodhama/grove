@@ -405,8 +405,19 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
     const run = adapter(["read-screen", "w1:p2"]);
     expect(run.status).toBe(4);
     expect(json(run.stdout)).toEqual({ outcome: "failed", code: null });
-    expect(run.stderr).toContain(`herdr failed (exit 2): ${usage}\n`);
-    expect(run.stderr).not.toContain("more help below");
+    expect(run.stderr).toBe(`herdr.sh: read-screen: herdr failed (exit 2): ${usage}\n`);
+  });
+
+  it("a JSON error with no message gives no reason, never the raw JSON", () => {
+    for (const err of [JSON.stringify({ error: { code: "x" } }), JSON.stringify({ error: { code: "x" } }, null, 2)]) {
+      answer("agent-read", "", 1, err);
+      expect(adapter(["read-screen", "w1:p2"]).stderr).toBe("herdr.sh: read-screen: herdr failed (exit 1, x)\n");
+    }
+  });
+
+  it("a long stderr still gives one line (interface.md)", () => {
+    answer("agent-read", "", 2, `${usage}\n${"x".repeat(200)}\n`.repeat(1000));
+    expect(adapter(["read-screen", "w1:p2"]).stderr).toBe(`herdr.sh: read-screen: herdr failed (exit 2): ${usage}\n`);
   });
 
   it("a failure shows the message of herdr's JSON error, not the raw JSON", () => {

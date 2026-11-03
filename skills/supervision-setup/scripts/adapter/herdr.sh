@@ -61,8 +61,8 @@ say() { echo "herdr.sh: $op: $*" >&2; }
 error_field() {
   local field="$1" stream value
   for stream in "$err" "$out"; do
-    value=$(printf '%s' "$stream" | jq -rs --arg f "$field" '[.[] | objects | .error[$f]? // empty][0] // empty' 2>/dev/null) ||
-      value=$(printf '%s\n' "$stream" | jq -rR --arg f "$field" 'fromjson? | objects | .error[$f]? // empty' 2>/dev/null | head -n 1)
+    value=$(printf '%s' "$stream" 2>/dev/null | jq -rs --arg f "$field" '[.[] | objects | .error[$f]? // empty][0] // empty' 2>/dev/null) ||
+      value=$(printf '%s\n' "$stream" 2>/dev/null | jq -rR --arg f "$field" 'fromjson? | objects | .error[$f]? // empty' 2>/dev/null | head -n 1)
     [ -z "$value" ] || { printf '%s' "$value"; return; }
   done
 }
@@ -70,12 +70,14 @@ error_field() {
 error_code() { error_field code; }
 
 # herdr's reason for its last failure, for the human-readable line only: its
-# JSON error's message if it gave one, else its stderr. Only the first
-# non-empty line is kept, so the reason stays one line.
+# JSON error's message if it gave one, else its stderr when it gave no JSON
+# error at all. Only the first non-empty line is kept, so the reason stays one
+# line; awk reads to the end, so a long stderr cannot break the pipe.
 reason() {
   local msg
   msg=$(error_field message)
-  printf '%s\n' "${msg:-$err}" | awk 'NF { print; exit }'
+  [ -n "$msg" ] || [ -n "$(error_field code)" ] || msg="$err"
+  printf '%s\n' "$msg" | awk 'NF && !seen { print; seen = 1 }'
 }
 
 # The line a failure says: the exit, herdr's error code if any, and its reason.
