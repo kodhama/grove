@@ -91,6 +91,12 @@ const STUB = `#!/usr/bin/env bash
 d="$STUB_DIR"
 { printf '%s' "$1"; for a in "\${@:2}"; do printf '\\t%s' "$a"; done; printf '\\n'; } >> "$d/calls.log"
 key="$1-$2"
+# herdr 0.9.3 refuses a split that names no direction, with exit 2.
+if [ "$key" = pane-split ]; then
+  dir=""; prev=""
+  for a in "\${@:3}"; do [ "$prev" = --direction ] && dir="$a"; prev="$a"; done
+  case "$dir" in right | down) ;; *) echo "usage: herdr pane split [<pane_id>|--pane ID|--current] --direction right|down ..." >&2; exit 2 ;; esac
+fi
 [ -f "$d/$key-sleep" ] && exec sleep "$(cat "$d/$key-sleep")"
 [ -f "$d/$key-err" ] && cat "$d/$key-err" >&2
 [ -f "$d/$key-out" ] && cat "$d/$key-out"
@@ -305,7 +311,7 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
     expect(json(run.stdout)).toEqual({ outcome: "started", pane: "w1:p9", name: "worker-2" });
     expect(run.calls).toEqual([
       ["agent", "list"],
-      ["pane", "split", "--current", "--no-focus", "--cwd", "/Users/maintainer/repo"],
+      ["pane", "split", "--current", "--direction", "right", "--no-focus", "--cwd", "/Users/maintainer/repo"],
       ["agent", "start", "worker-2", "--kind", "claude", "--pane", "w1:p9", "--", "-n", "worker-2", "--permission-mode", "auto"],
     ]);
   });
@@ -341,6 +347,7 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
       "resume", "lead", "--kind", "claude", "--cwd", "/tmp", "--session", "s1", "--", "--permission-mode", "auto",
     ]);
     expect(run.status, run.stderr).toBe(0);
+    expect(run.calls.at(-2)).toEqual(["pane", "split", "--current", "--direction", "right", "--no-focus", "--cwd", "/tmp"]);
     expect(run.calls.at(-1)).toEqual([
       "agent", "start", "lead", "--kind", "claude", "--pane", "w1:p9", "--", "--resume", "s1", "--permission-mode", "auto",
     ]);
