@@ -395,6 +395,64 @@ describe("herdr.sh — each operation's herdr realization (interface.md)", () =>
     expect(json(run.stdout)).toMatchObject({ outcome: "not-found", code: "agent_not_found" });
   });
 
+  // herdr 0.9.3 answers a usage error with one plain line on stderr and exit 2,
+  // and a refusal with one JSON line on stderr and exit 1. Its reason goes in
+  // the human-readable line only; the record keeps its shape.
+  const usage = "usage: herdr agent read <target> [--source visible|recent|recent-unwrapped] [--lines N]";
+
+  it("a failure shows herdr's plain-text reason on stderr, its first line only, and the record keeps its shape", () => {
+    answer("agent-read", "", 2, `${usage}\n\nmore help below\n`);
+    const run = adapter(["read-screen", "w1:p2"]);
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toEqual({ outcome: "failed", code: null });
+    expect(run.stderr).toContain(`herdr failed (exit 2): ${usage}\n`);
+    expect(run.stderr).not.toContain("more help below");
+  });
+
+  it("a failure shows the message of herdr's JSON error, not the raw JSON", () => {
+    const refusal = JSON.stringify({ error: { code: "agent_not_ready", message: "agent w1:p2 is not ready" } });
+    answer("agent-rename", "", 1, refusal);
+    const run = adapter(["rename", "w1:p2", "lead"]);
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toEqual({ outcome: "failed", code: "agent_not_ready" });
+    expect(run.stderr).toContain("herdr failed (exit 1, agent_not_ready): agent w1:p2 is not ready\n");
+    expect(run.stderr).not.toContain('{"error"');
+  });
+
+  it("a JSON error's message that spans lines keeps the reason to one line (interface.md)", () => {
+    answer("agent-read", "", 1, JSON.stringify({ error: { code: "x", message: "first part\nsecond part" } }));
+    const run = adapter(["read-screen", "w1:p2"]);
+    expect(run.stderr).toContain("herdr failed (exit 1, x): first part\n");
+    expect(run.stderr).not.toContain("second part");
+  });
+
+  it("a failure with nothing on stderr says only the exit", () => {
+    answer("agent-read", "", 1);
+    const run = adapter(["read-screen", "w1:p2"]);
+    expect(run.status).toBe(4);
+    expect(run.stderr).toMatch(/herdr failed \(exit 1\)\n/);
+  });
+
+  it("a failed agent list shows herdr's reason on stderr", () => {
+    answer("agent-list", "", 2, "usage: herdr agent list [--json]\n");
+    const run = adapter(["list"]);
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toEqual({ outcome: "failed", code: null });
+    expect(run.stderr).toContain("herdr failed (exit 2): usage: herdr agent list [--json]\n");
+  });
+
+  it("a failed agent start shows herdr's reason on stderr and still names the pane left at its shell", () => {
+    answer("agent-list", JSON.stringify({ result: { agents: [] } }));
+    answer("pane-split", JSON.stringify({ result: { pane: { pane_id: "w1:p9" } } }));
+    answer("agent-start", "", 2, "usage: herdr agent start <name> --kind KIND --pane ID\n");
+    const run = adapter(["launch", "lead", "--kind", "claude", "--cwd", "/tmp"]);
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toEqual({ outcome: "failed", code: null, pane: "w1:p9" });
+    expect(run.stderr).toContain(
+      "herdr failed (exit 2): usage: herdr agent start <name> --kind KIND --pane ID; pane w1:p9 is left at its shell\n",
+    );
+  });
+
   it("exits 4 with a failure object when it cannot make its temporary file", () => {
     answer("agent-get", JSON.stringify({ result: { agent: herdrAgent() } }));
     const run = adapter(["get", "w1:p2"], { TMPDIR: "/dev/null" });

@@ -67,6 +67,27 @@ error_code() {
   done
 }
 
+# herdr's reason for its last failure, for the human-readable line only: its
+# JSON error's message where it gave one, else its stderr, where a usage error
+# is one plain line; of either, the first non-empty line, so the reason stays
+# one line; else nothing.
+reason() {
+  local stream msg=""
+  for stream in "$err" "$out"; do
+    msg=$(printf '%s' "$stream" | jq -rs '[.[] | objects | .error.message? // empty | strings][0] // empty' 2>/dev/null) ||
+      msg=$(printf '%s\n' "$stream" | jq -rR 'fromjson? | objects | .error.message? // empty | strings' 2>/dev/null | head -n 1)
+    [ -z "$msg" ] || break
+  done
+  printf '%s\n' "${msg:-$err}" | awk 'NF { print; exit }'
+}
+
+# The line a failure says: the exit, herdr's error code if any, and its reason.
+failed_line() {
+  local why
+  why=$(reason)
+  printf 'herdr failed (exit %s%s)%s' "$rc" "${code:+, $code}" "${why:+: $why}"
+}
+
 # Runs herdr, killing it after the given seconds. macOS has no timeout(1);
 # perl is on both macOS and Linux.
 within() {
@@ -112,7 +133,7 @@ gone_or_failed() {
   case "$code" in
     agent_not_found) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
   esac
-  say "herdr failed (exit $rc${code:+, $code})"
+  say "$(failed_line)"
   result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
 }
 
@@ -121,7 +142,7 @@ gone_or_failed() {
 # answer with no list in it is a failure, never an empty list.
 agents() {
   call agent list
-  [ "$rc" -eq 0 ] || { code=$(error_code); say "herdr failed (exit $rc${code:+, $code})"; return 1; }
+  [ "$rc" -eq 0 ] || { code=$(error_code); say "$(failed_line)"; return 1; }
   printf '%s' "$out" | jq -ce "$RECORD"' .result.agents | arrays | [.[] | record]' 2>/dev/null
 }
 
@@ -255,7 +276,7 @@ case "$op" in
       say "the start did not answer in time; the agent may still come up in pane $pane"
       result 0 --arg p "$pane" --arg n "$name" '{outcome: "timeout", pane: $p, name: $n}'
     fi
-    say "herdr failed (exit $rc${code:+, $code}); pane $pane is left at its shell"
+    say "$(failed_line); pane $pane is left at its shell"
     result 4 --arg c "$code" --arg p "$pane" '{outcome: "failed", code: (if $c == "" then null else $c end), pane: $p}'
     ;;
 
