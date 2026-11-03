@@ -55,16 +55,36 @@ result() {
 
 say() { echo "herdr.sh: $op: $*" >&2; }
 
-# herdr's error code from its last answer, or empty. herdr prints its error
-# as JSON with exit 1, on stderr; it is read from stdout too, and line by line
-# where a stream holds other text.
-error_code() {
-  local stream code
+# A field of herdr's JSON error in its last answer, or empty. herdr prints its
+# error as JSON with exit 1, on stderr; it is read from stdout too, and line by
+# line where a stream holds other text.
+error_field() {
+  local field="$1" stream value
   for stream in "$err" "$out"; do
-    code=$(printf '%s' "$stream" | jq -rs '[.[] | objects | .error.code? // empty][0] // empty' 2>/dev/null) ||
-      code=$(printf '%s\n' "$stream" | jq -rR 'fromjson? | objects | .error.code? // empty' 2>/dev/null | head -n 1)
-    [ -z "$code" ] || { printf '%s' "$code"; return; }
+    value=$(printf '%s' "$stream" 2>/dev/null | jq -rs --arg f "$field" '[.[] | objects | .error[$f]? // empty][0] // empty' 2>/dev/null) ||
+      value=$(printf '%s\n' "$stream" 2>/dev/null | jq -rR --arg f "$field" 'fromjson? | objects | .error[$f]? // empty' 2>/dev/null | head -n 1)
+    [ -z "$value" ] || { printf '%s' "$value"; return; }
   done
+}
+
+error_code() { error_field code; }
+
+# herdr's reason for its last failure, for the human-readable line only: its
+# JSON error's message if it gave one, else its stderr when it gave no JSON
+# error at all. Only the first non-empty line is kept, so the reason stays one
+# line; awk reads to the end, so a long stderr cannot break the pipe.
+reason() {
+  local msg
+  msg=$(error_field message)
+  [ -n "$msg" ] || [ -n "$(error_field code)" ] || msg="$err"
+  printf '%s\n' "$msg" | awk 'NF && !seen { print; seen = 1 }'
+}
+
+# The line a failure says: the exit, herdr's error code if any, and its reason.
+failed_line() {
+  local why
+  why=$(reason)
+  printf 'herdr failed (exit %s%s)%s' "$rc" "${code:+, $code}" "${why:+: $why}"
 }
 
 # Runs herdr, killing it after the given seconds. macOS has no timeout(1);
@@ -112,7 +132,7 @@ gone_or_failed() {
   case "$code" in
     agent_not_found) say "not found ($code)"; result 3 --arg c "$code" '{outcome: "not-found", code: $c}' ;;
   esac
-  say "herdr failed (exit $rc${code:+, $code})"
+  say "$(failed_line)"
   result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
 }
 
@@ -121,7 +141,7 @@ gone_or_failed() {
 # answer with no list in it is a failure, never an empty list.
 agents() {
   call agent list
-  [ "$rc" -eq 0 ] || { code=$(error_code); say "herdr failed (exit $rc${code:+, $code})"; return 1; }
+  [ "$rc" -eq 0 ] || { code=$(error_code); say "$(failed_line)"; return 1; }
   printf '%s' "$out" | jq -ce "$RECORD"' .result.agents | arrays | [.[] | record]' 2>/dev/null
 }
 
@@ -255,7 +275,7 @@ case "$op" in
       say "the start did not answer in time; the agent may still come up in pane $pane"
       result 0 --arg p "$pane" --arg n "$name" '{outcome: "timeout", pane: $p, name: $n}'
     fi
-    say "herdr failed (exit $rc${code:+, $code}); pane $pane is left at its shell"
+    say "$(failed_line); pane $pane is left at its shell"
     result 4 --arg c "$code" --arg p "$pane" '{outcome: "failed", code: (if $c == "" then null else $c end), pane: $p}'
     ;;
 
