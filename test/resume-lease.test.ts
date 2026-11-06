@@ -302,6 +302,60 @@ describe("review round: claims that cannot be judged, and changes mid-takeover",
   });
 });
 
+describe("review round: the guards and the real wiring", () => {
+  it("leaves a live claim that records no pane or session, without reading any pane", () => {
+    for (const over of [{ pane: null }, { session: null }, { pane: "" }]) {
+      writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: BOOT, expires: null, pane: "p1", session: "sess-1", ...over });
+      const adapter = stubAdapter({});
+      const r = lease.acquire({ home, name: NAME, resumer: "lead", adapter, bootId: BOOT, now: NOW, nonce: "new" });
+      expect(r.outcome, JSON.stringify(over)).toBe("left");
+      expect(adapter.calls).toEqual([]);
+    }
+  });
+
+  it("runs the real adapter script and session-restart's input-line and dialog checks over a stub pane tool", () => {
+    // The stub stands in for the pane-tool binary itself; the adapter script,
+    // read-input-line.sh and open-tool-call.sh are the shipped ones.
+    const bin = mkdtempSync(join(tmpdir(), "pane-tool-"));
+    try {
+      const tool = join(bin, "herdr");
+      writeFileSync(
+        tool,
+        `#!/usr/bin/env bash
+case "$1 $2" in
+  "agent get") printf '{"result":{"agent":{"name":"worker-a","agent_session":{"value":"sess-1"},"agent_status":"idle","focused":false,"pane_id":"%s"}}}\\n' "$3" ;;
+  "agent read") [ -f ${JSON.stringify(join(bin, "draft"))} ] && d=$(cat ${JSON.stringify(join(bin, "draft"))}) || d=""
+    printf '\u23fa done\\n\u2500\u2500\u2500\u2500\u2500\u2500 probe \u2500\\n\u276f\u00a0%s\\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\\n  Model \u00b7 status\\n' "$d" ;;
+  *) echo "unexpected $*" >&2; exit 64 ;;
+esac
+`,
+      );
+      chmodSync(tool, 0o755);
+      const closed = join(bin, "closed.jsonl");
+      writeFileSync(
+        closed,
+        [
+          { type: "assistant", message: { id: "m1", content: [{ type: "tool_use", id: "t1" }] } },
+          { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1" }] } },
+        ].map((l) => JSON.stringify(l)).join("\n") + "\n",
+      );
+      const open = join(bin, "open.jsonl");
+      writeFileSync(open, JSON.stringify({ type: "assistant", message: { id: "m2", content: [{ type: "tool_use", id: "t2" }] } }) + "\n");
+
+      const adapter = lease.adapterFor(tool);
+      const expected = { pane: "p1", name: NAME, session: "sess-1", transcript: closed };
+      const mycelium = () => ({ state: "unverified", reason: "mycelium is not installed" });
+
+      expect(lease.checkPaneReuse({ expected, adapter, mycelium })).toMatchObject({ outcome: "reuse", checks: { input: "empty", dialog: "closed" } });
+      expect(lease.checkPaneReuse({ expected: { ...expected, transcript: open }, adapter, mycelium }).outcome).toBe("quarantine");
+      writeFileSync(join(bin, "draft"), "half-typed");
+      expect(lease.checkPaneReuse({ expected, adapter, mycelium })).toMatchObject({ outcome: "quarantine", checks: { input: "draft" } });
+    } finally {
+      rmSync(bin, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("adoption and clean exit", () => {
   it("adopts pending → live by compare-and-swap on the nonce, recording pane and session", () => {
     lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
