@@ -69,6 +69,32 @@ function readClaimFile() {
   return JSON.parse(readFileSync(lease.claimPath(home, NAME), "utf8"));
 }
 
+/**
+ * Runs `n` processes that each call acquire at the same instant, and returns
+ * their outcomes. Their adapter fails every read, so only the claim decides.
+ */
+async function race(n: number, now?: number): Promise<string[]> {
+  const racer = `
+    import * as lease from ${JSON.stringify(LEASE)};
+    const start = Number(process.argv[1]);
+    while (Date.now() < start) {}
+    const r = lease.acquire({ home: ${JSON.stringify(home)}, name: ${JSON.stringify(NAME)}, resumer: "r" + process.pid,
+      adapter: { get: () => ({ exit: 4, record: null }) }, bootId: ${JSON.stringify(BOOT)}${now === undefined ? "" : `, now: ${now}`} });
+    console.log(r.outcome);`;
+  const start = Date.now() + 400;
+  return Promise.all(
+    Array.from({ length: n }, () =>
+      new Promise<string>((resolve, reject) => {
+        const p = spawn(process.execPath, ["--input-type=module", "-e", racer, String(start)]);
+        let out = "";
+        p.stdout.on("data", (d) => (out += d));
+        p.on("error", reject);
+        p.on("close", () => resolve(out.trim()));
+      }),
+    ),
+  );
+}
+
 describe("where the claim lives (spec §1)", () => {
   it("is <home>/.kodhama/grove/local/<name>/claim", () => {
     expect(lease.claimPath("/Users/maintainer/hub", NAME)).toBe("/Users/maintainer/hub/.kodhama/grove/local/worker-a/claim");
@@ -97,25 +123,7 @@ describe("acquire (spec §5.4 step 2)", () => {
   });
 
   it("of racing claimants, exactly one wins", async () => {
-    const racer = `
-      import * as lease from ${JSON.stringify(LEASE)};
-      const start = Number(process.argv[1]);
-      while (Date.now() < start) {}
-      const r = lease.acquire({ home: ${JSON.stringify(home)}, name: ${JSON.stringify(NAME)}, resumer: "r" + process.pid,
-        adapter: { get: () => ({ exit: 4, record: null }) }, bootId: ${JSON.stringify(BOOT)} });
-      console.log(r.outcome);`;
-    const start = Date.now() + 400;
-    const outcomes = await Promise.all(
-      Array.from({ length: 6 }, () =>
-        new Promise<string>((resolve, reject) => {
-          const p = spawn(process.execPath, ["--input-type=module", "-e", racer, String(start)]);
-          let out = "";
-          p.stdout.on("data", (d) => (out += d));
-          p.on("error", reject);
-          p.on("close", () => resolve(out.trim()));
-        }),
-      ),
-    );
+    const outcomes = await race(6);
     expect(outcomes.filter((o) => o === "acquired")).toHaveLength(1);
     expect(outcomes.filter((o) => o === "left")).toHaveLength(5);
   });
@@ -188,25 +196,7 @@ describe("acquire (spec §5.4 step 2)", () => {
 
   it("of racing takeovers of one expired claim, exactly one wins", async () => {
     writeClaim({ state: "pending", nonce: "old", resumer: "other", boot: BOOT, expires: "2026-11-06T11:00:00.000Z", pane: null, session: null });
-    const racer = `
-      import * as lease from ${JSON.stringify(LEASE)};
-      const start = Number(process.argv[1]);
-      while (Date.now() < start) {}
-      const r = lease.acquire({ home: ${JSON.stringify(home)}, name: ${JSON.stringify(NAME)}, resumer: "r" + process.pid,
-        adapter: { get: () => ({ exit: 4, record: null }) }, bootId: ${JSON.stringify(BOOT)}, now: ${NOW} });
-      console.log(r.outcome);`;
-    const start = Date.now() + 400;
-    const outcomes = await Promise.all(
-      Array.from({ length: 6 }, () =>
-        new Promise<string>((resolve, reject) => {
-          const p = spawn(process.execPath, ["--input-type=module", "-e", racer, String(start)]);
-          let out = "";
-          p.stdout.on("data", (d) => (out += d));
-          p.on("error", reject);
-          p.on("close", () => resolve(out.trim()));
-        }),
-      ),
-    );
+    const outcomes = await race(6, NOW);
     expect(outcomes.filter((o) => o === "taken-over")).toHaveLength(1);
     expect(outcomes.filter((o) => o === "left")).toHaveLength(5);
   });
