@@ -202,13 +202,13 @@ describe("acquire (spec §5.4 step 2)", () => {
   });
 
   it("removes a lock left by an earlier boot, but reports one held in this boot", () => {
-    writeClaim({ state: "pending", nonce: "old", resumer: "other", boot: "boot-before", expires: null, pane: null, session: null });
+    writeClaim({ state: "pending", nonce: "old", resumer: "other", boot: "boot-before", expires: "2026-11-06T12:05:00.000Z", pane: null, session: null });
     const lock = `${lease.claimPath(home, NAME)}.lock`;
     mkdirSync(lock);
     writeFileSync(join(lock, "owner"), JSON.stringify({ boot: "boot-before", pid: 1 }));
     expect(lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" }).outcome).toBe("taken-over");
 
-    writeClaim({ state: "pending", nonce: "old", resumer: "other", boot: "boot-before", expires: null, pane: null, session: null });
+    writeClaim({ state: "pending", nonce: "old", resumer: "other", boot: "boot-before", expires: "2026-11-06T12:05:00.000Z", pane: null, session: null });
     mkdirSync(lock);
     writeFileSync(join(lock, "owner"), JSON.stringify({ boot: BOOT, pid: 1 }));
     const held = lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n2" });
@@ -218,10 +218,94 @@ describe("acquire (spec §5.4 step 2)", () => {
   });
 });
 
+describe("review round: claims that cannot be judged, and changes mid-takeover", () => {
+  it("leaves a claim whose boot id is missing, empty or not a string, without reading the pane", () => {
+    for (const boot of [undefined, "", 7, null]) {
+      writeClaim({ state: "live", nonce: "old", resumer: "lead", ...(boot === undefined ? {} : { boot }), expires: null, pane: "p1", session: "sess-1" });
+      const adapter = stubAdapter({ p1: { exit: 0, record: rec() } });
+      const r = lease.acquire({ home, name: NAME, resumer: "lead", adapter, bootId: BOOT, now: NOW, nonce: "new" });
+      expect(r.outcome, String(boot)).toBe("left");
+      expect(readClaimFile().nonce).toBe("old");
+    }
+  });
+
+  it("leaves a pending claim whose expiry is not the timestamp the lease writes", () => {
+    for (const expires of [[2000], "2026-02-30T12:00:00Z", "soon", 0]) {
+      writeClaim({ state: "pending", nonce: "old", resumer: "other", boot: BOOT, expires, pane: null, session: null });
+      const r = lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "new" });
+      expect(r.outcome, JSON.stringify(expires)).toBe("left");
+      expect(readClaimFile().nonce).toBe("old");
+    }
+  });
+
+  it("backs off when the claim changes between its judgement and the swap, even with the same nonce", () => {
+    writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: BOOT, expires: null, pane: "p1", session: "sess-1" });
+    const adapter = {
+      bin: "/stub/pane-tool",
+      get() {
+        // While the pane is read, the holder moves to a new pane: same nonce, new identity.
+        writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: BOOT, expires: null, pane: "p2", session: "sess-2" });
+        return { exit: 3, record: null };
+      },
+    };
+    const r = lease.acquire({ home, name: NAME, resumer: "lead", adapter, bootId: BOOT, now: NOW, nonce: "new" });
+    expect(r.outcome).toBe("left");
+    expect(readClaimFile()).toMatchObject({ nonce: "old", pane: "p2" });
+  });
+
+  it("of racing takeovers after a reboot, with the earlier boot's lock still on disk, exactly one wins", async () => {
+    writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: "boot-before", expires: null, pane: "p1", session: "sess-1" });
+    const lock = `${lease.claimPath(home, NAME)}.lock`;
+    mkdirSync(lock);
+    writeFileSync(join(lock, "owner"), JSON.stringify({ boot: "boot-before", pid: 1 }));
+    const outcomes = await race(6, NOW);
+    expect(outcomes.filter((o) => o === "taken-over")).toHaveLength(1);
+  });
+
+  it("release finds no claim, and says so, when the agent's folder does not exist", () => {
+    expect(lease.release({ home, name: NAME, nonce: "n1", bootId: BOOT }).outcome).toBe("absent");
+    expect(lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s", bootId: BOOT, now: NOW })).toMatchObject({ outcome: "stop", reason: "there is no claim to adopt" });
+  });
+
+  it("adoption stops on a claim from an earlier boot, so the resumed session must take the new nonce (spec §9b)", () => {
+    writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: "boot-before", expires: null, pane: "p1", session: "sess-1" });
+    expect(lease.adopt({ home, name: NAME, nonce: "old", pane: "p1", session: "sess-1", bootId: BOOT, now: NOW }).outcome).toBe("stop");
+    expect(readClaimFile().boot).toBe("boot-before");
+  });
+
+  it("adoption stops on a pending claim whose 10 minutes have run out", () => {
+    writeClaim({ state: "pending", nonce: "n1", resumer: "lead", boot: BOOT, expires: "2026-11-06T11:59:00.000Z", pane: null, session: null });
+    expect(lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s1", bootId: BOOT, now: NOW }).outcome).toBe("stop");
+  });
+
+  it("a second session with the same nonce cannot rebind a live lease; the holder re-adopting is a no-op", () => {
+    lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
+    expect(lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s1", bootId: BOOT, now: NOW }).outcome).toBe("adopted");
+    expect(lease.adopt({ home, name: NAME, nonce: "n1", pane: "p2", session: "s2", bootId: BOOT, now: NOW }).outcome).toBe("stop");
+    expect(readClaimFile()).toMatchObject({ pane: "p1", session: "s1" });
+    expect(lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s1", bootId: BOOT, now: NOW }).outcome).toBe("adopted");
+  });
+
+  it("quarantines a pane whose identity changes while the dialog and input checks run", () => {
+    const panes: Record<string, Get> = { p1: { exit: 0, record: rec() } };
+    const r = lease.checkPaneReuse({
+      expected: { pane: "p1", name: NAME, session: "sess-1", transcript: "/Users/maintainer/t.jsonl" },
+      adapter: stubAdapter(panes),
+      dialog: () => {
+        panes.p1 = { exit: 0, record: rec({ session: "sess-9" }) };
+        return "closed";
+      },
+      inputLine: () => "empty",
+      mycelium: () => ({ state: "unverified", reason: "mycelium is not installed" }),
+    });
+    expect(r.outcome).toBe("quarantine");
+  });
+});
+
 describe("adoption and clean exit", () => {
   it("adopts pending → live by compare-and-swap on the nonce, recording pane and session", () => {
     lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
-    const r = lease.adopt({ home, name: NAME, nonce: "n1", pane: "p7", session: "sess-7", bootId: BOOT });
+    const r = lease.adopt({ home, name: NAME, nonce: "n1", pane: "p7", session: "sess-7", bootId: BOOT, now: NOW });
     expect(r.outcome).toBe("adopted");
     expect(readClaimFile()).toMatchObject({ state: "live", nonce: "n1", pane: "p7", session: "sess-7", expires: null });
   });
@@ -229,7 +313,7 @@ describe("adoption and clean exit", () => {
   it("a mismatched nonce stops the session, and the claim is untouched", () => {
     lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
     const before = readFileSync(lease.claimPath(home, NAME), "utf8");
-    const r = lease.adopt({ home, name: NAME, nonce: "stale", pane: "p7", session: "sess-7", bootId: BOOT });
+    const r = lease.adopt({ home, name: NAME, nonce: "stale", pane: "p7", session: "sess-7", bootId: BOOT, now: NOW });
     expect(r).toMatchObject({ outcome: "stop", reason: "the claim's nonce does not match" });
     expect(readFileSync(lease.claimPath(home, NAME), "utf8")).toBe(before);
   });
@@ -237,17 +321,17 @@ describe("adoption and clean exit", () => {
   it("a session resumed after a takeover adopts with the new nonce, never the old one (spec §9b)", () => {
     writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: "boot-before", expires: null, pane: "p1", session: "sess-1" });
     lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "new" });
-    expect(lease.adopt({ home, name: NAME, nonce: "old", pane: "p1", session: "sess-1", bootId: BOOT }).outcome).toBe("stop");
-    expect(lease.adopt({ home, name: NAME, nonce: "new", pane: "p1", session: "sess-1", bootId: BOOT }).outcome).toBe("adopted");
+    expect(lease.adopt({ home, name: NAME, nonce: "old", pane: "p1", session: "sess-1", bootId: BOOT, now: NOW }).outcome).toBe("stop");
+    expect(lease.adopt({ home, name: NAME, nonce: "new", pane: "p1", session: "sess-1", bootId: BOOT, now: NOW }).outcome).toBe("adopted");
   });
 
   it("stops when there is no claim to adopt", () => {
-    expect(lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s", bootId: BOOT }).outcome).toBe("stop");
+    expect(lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s", bootId: BOOT, now: NOW }).outcome).toBe("stop");
   });
 
   it("a clean exit deletes the live claim, and only its own (spec §9c)", () => {
     lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
-    lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s1", bootId: BOOT });
+    lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s1", bootId: BOOT, now: NOW });
     expect(lease.release({ home, name: NAME, nonce: "other", bootId: BOOT }).outcome).toBe("left");
     expect(existsSync(lease.claimPath(home, NAME))).toBe(true);
     expect(lease.release({ home, name: NAME, nonce: "n1", bootId: BOOT }).outcome).toBe("released");
