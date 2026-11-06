@@ -42,9 +42,13 @@
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
+  closeSync,
+  fstatSync,
   linkSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  readSync,
   renameSync,
   rmSync,
   statSync,
@@ -61,6 +65,9 @@ export const PENDING_TTL_MS = 10 * 60 * 1000;
 
 /** How long a caller waits for the claim's lock before it reports it held. */
 export const LOCK_WAIT_MS = 2000;
+
+/** A stale-lock breaker older than this was left by a caller that died. */
+const BREAKER_STALE_MS = 10_000;
 
 /** The statuses a pane may show and still be typed into (step 3). */
 const READY_STATUSES = new Set(["idle", "done"]);
@@ -192,14 +199,36 @@ function breakStaleLock(lock, bootId) {
   try {
     mkdirSync(breaker);
   } catch {
+    // A breaker is held for microseconds, so one this old was left by a
+    // caller that died holding it; clear it, and the next pass retries.
+    try {
+      if (Date.now() - statSync(breaker).mtimeMs > BREAKER_STALE_MS) rmSync(breaker, { recursive: true, force: true });
+    } catch {
+      // gone already
+    }
     return;
   }
   try {
     const again = lockOwner(lock);
-    if (again && typeof again.boot === "string" && again.boot !== bootId) rmSync(lock, { recursive: true, force: true });
+    if (again && typeof again.boot === "string" && again.boot !== bootId) discard(lock);
   } finally {
     rmSync(breaker, { recursive: true, force: true });
   }
+}
+
+/**
+ * Removes a lock directory by first renaming it to a name of its own. A
+ * recursive remove in place would empty it before removing it, and a waiter
+ * may rename its own lock onto an empty directory in between.
+ */
+function discard(lock) {
+  const tomb = `${lock}.gone-${randomUUID()}`;
+  try {
+    renameSync(lock, tomb);
+  } catch {
+    return;
+  }
+  rmSync(tomb, { recursive: true, force: true });
 }
 
 /**
@@ -224,7 +253,12 @@ function withLock(file, bootId, fn, { wait = LOCK_WAIT_MS } = {}) {
   try {
     return { held: true, value: fn() };
   } finally {
-    if (lockOwner(lock)?.token === token) rmSync(lock, { recursive: true, force: true });
+    // A failed cleanup must not replace the result of the work done.
+    try {
+      if (lockOwner(lock)?.token === token) discard(lock);
+    } catch {
+      // a leftover lock names this boot and is reported, never broken
+    }
   }
 }
 
@@ -339,6 +373,11 @@ export function acquire({ home, name, resumer, adapter, bootId = readBootId(), n
  */
 export function adopt({ home, name, nonce, pane, session, bootId = readBootId(), now = Date.now() }) {
   if (!bootId) return { outcome: "stop", reason: "the boot id cannot be read" };
+  // Without both, a later liveness check could never read the session, and
+  // the claim could not be taken over until a reboot.
+  if (typeof pane !== "string" || !pane || typeof session !== "string" || !session) {
+    return { outcome: "stop", reason: "the session has no pane or session id to record" };
+  }
   const file = claimPath(home, name);
   const locked = withLock(file, bootId, () => {
     const seen = readClaim(file);
@@ -353,7 +392,12 @@ export function adopt({ home, name, nonce, pane, session, bootId = readBootId(),
     }
     if (Date.parse(claim.expires) <= now) return { outcome: "stop", reason: "the pending claim expired" };
     const live = { ...claim, state: "live", expires: null, pane, session };
-    const tmp = writeTemp(file, live);
+    let tmp;
+    try {
+      tmp = writeTemp(file, live);
+    } catch (e) {
+      return { outcome: "stop", reason: `cannot write the claim: ${e && e.code}` };
+    }
     try {
       renameSync(tmp, file);
     } finally {
@@ -439,8 +483,36 @@ function readInputLine(bin, pane) {
   return (r.stdout || "").trim() || "unreadable";
 }
 
+/**
+ * Whether the transcript's last non-empty line is whole JSON. The dialog
+ * check skips lines that do not parse, so a tool call still being written
+ * would otherwise read as no dialog.
+ */
+function lastLineParses(transcript) {
+  let fd;
+  try {
+    fd = openSync(transcript, "r");
+    const size = fstatSync(fd).size;
+    const len = Math.min(size, TAIL_BYTES);
+    const buf = Buffer.alloc(len);
+    readSync(fd, buf, 0, len, size - len);
+    const lines = buf.toString("utf8").split("\n").filter((l) => l.trim());
+    const last = lines[lines.length - 1];
+    if (last === undefined) return false;
+    JSON.parse(last);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
+
+const TAIL_BYTES = 1 << 20;
+
 /** session-restart's dialog check on the transcript: `closed` or `open`. */
 function openToolCall(transcript) {
+  if (!lastLineParses(transcript)) return "open";
   const r = spawnSync(join(RESTART_SCRIPTS, "open-tool-call.sh"), [transcript], { encoding: "utf8", timeout: 20000 });
   return (r.stdout || "").trim() || "open";
 }

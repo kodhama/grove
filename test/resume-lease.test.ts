@@ -16,6 +16,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -353,6 +354,71 @@ esac
     } finally {
       rmSync(bin, { recursive: true, force: true });
     }
+  });
+});
+
+describe("review round 2: the lock under contention, crash leftovers, half-written transcripts", () => {
+  it("racing takeovers never throw and exactly one wins, round after round", async () => {
+    for (let round = 0; round < 4; round++) {
+      writeClaim({ state: "pending", nonce: `old-${round}`, resumer: "other", boot: BOOT, expires: "2026-11-06T11:00:00.000Z", pane: null, session: null });
+      const outcomes = await race(6, NOW);
+      expect(outcomes.filter((o) => o === "taken-over"), outcomes.join(",")).toHaveLength(1);
+      expect(outcomes.filter((o) => o === "left"), outcomes.join(",")).toHaveLength(5);
+    }
+  });
+
+  it("a breaker left by a crash in this boot does not wedge stale-lock recovery", () => {
+    writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: "boot-before", expires: null, pane: "p1", session: "sess-1" });
+    const lock = `${lease.claimPath(home, NAME)}.lock`;
+    mkdirSync(lock);
+    writeFileSync(join(lock, "owner"), JSON.stringify({ boot: "boot-before", pid: 1 }));
+    const breaker = `${lock}.break-${BOOT}`;
+    mkdirSync(breaker);
+    const old = new Date(Date.now() - 60_000);
+    utimesSync(breaker, old, old);
+    const r = lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "new" });
+    expect(r.outcome).toBe("taken-over");
+  });
+
+  it("reads a transcript whose last line is still being written as a possible dialog", () => {
+    const dir = mkdtempSync(join(tmpdir(), "transcript-"));
+    try {
+      const t = join(dir, "t.jsonl");
+      writeFileSync(
+        t,
+        [
+          JSON.stringify({ type: "assistant", message: { id: "m1", content: [{ type: "tool_use", id: "t1" }] } }),
+          JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1" }] } }),
+          '{"type":"assistant","message":{"id":"m2","content":[{"type":"tool_u',
+        ].join("\n"),
+      );
+      const r = lease.checkPaneReuse({
+        expected: { pane: "p1", name: NAME, session: "sess-1", transcript: t },
+        adapter: stubAdapter({ p1: { exit: 0, record: rec({ status: "done" }) } }),
+        inputLine: () => "empty",
+        mycelium: () => ({ state: "unverified", reason: "mycelium is not installed" }),
+      });
+      expect(r).toMatchObject({ outcome: "quarantine", checks: { dialog: "open" } });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("adoption stops without a pane and session to record, since liveness could never be read", () => {
+    for (const [pane, session] of [[null, "s1"], ["p1", null], ["", "s1"], ["p1", ""]]) {
+      lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
+      expect(lease.adopt({ home, name: NAME, nonce: "n1", pane, session, bootId: BOOT, now: NOW }).outcome, `${pane}/${session}`).toBe("stop");
+      expect(readClaimFile().state).toBe("pending");
+      lease.release({ home, name: NAME, nonce: "n1", bootId: BOOT });
+    }
+  });
+
+  it("reads this machine's boot id", () => {
+    if (process.platform !== "darwin" && process.platform !== "linux") return;
+    const id = lease.readBootId();
+    expect(typeof id).toBe("string");
+    expect(id.length).toBeGreaterThan(8);
+    expect(lease.readBootId()).toBe(id);
   });
 });
 
