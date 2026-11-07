@@ -301,6 +301,85 @@ describe("the record's title and workspace (GRO-65)", () => {
   });
 });
 
+describe("workspace-list (GRO-65)", () => {
+  /** herdr's shape for one workspace, as `workspace list` prints it. */
+  const herdrWorkspace = (over: Record<string, unknown> = {}) => ({
+    active_tab_id: "w1:t1",
+    agent_status: "idle",
+    focused: false,
+    label: "hub",
+    number: 1,
+    pane_count: 2,
+    tab_count: 1,
+    workspace_id: "w1",
+    ...over,
+  });
+
+  const listed = (workspaces: unknown) => {
+    answer("workspace-list", JSON.stringify({ id: "cli:workspace:list", result: { workspaces } }));
+    return adapter(["workspace-list"]);
+  };
+
+  it("gives each workspace's id, label, checkout path and status, in herdr's order (AE3)", () => {
+    const run = listed([
+      herdrWorkspace({ workspace_id: "w2", label: "hq", agent_status: "done" }),
+      herdrWorkspace({
+        workspace_id: "w9",
+        label: "narrative",
+        agent_status: "working",
+        worktree: { checkout_path: "/Users/maintainer/narrative", repo_name: "narrative" },
+      }),
+    ]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(json(run.stdout)).toEqual({
+      workspaces: [
+        { workspace: "w2", label: "hq", path: null, status: "done" },
+        { workspace: "w9", label: "narrative", path: "/Users/maintainer/narrative", status: "working" },
+      ],
+    });
+    expect(run.calls).toEqual([["workspace", "list"]]);
+  });
+
+  it("an empty list is exit 0 and no workspaces", () => {
+    const run = listed([]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(json(run.stdout)).toEqual({ workspaces: [] });
+  });
+
+  it("a status outside the four reads unknown, and a missing or empty label or path reads null (KTD3, KTD4)", () => {
+    const run = listed([herdrWorkspace({ agent_status: "starting", label: "", worktree: { checkout_path: "" } })]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(json(run.stdout)).toEqual({ workspaces: [{ workspace: "w1", label: null, path: null, status: "unknown" }] });
+    expect(json(listed([herdrWorkspace({ label: undefined })]).stdout)).toMatchObject({ workspaces: [{ label: null }] });
+  });
+
+  it("an answer with no workspace list, or a workspace with no id, exits 4 and is never an empty list (R6)", () => {
+    answer("workspace-list", JSON.stringify({ result: {} }));
+    const missing = adapter(["workspace-list"]);
+    expect(missing.status).toBe(4);
+    expect(json(missing.stdout)).toEqual({ outcome: "failed", code: null });
+    answer("workspace-list", "not json");
+    expect(adapter(["workspace-list"]).status).toBe(4);
+    const noId = listed([herdrWorkspace(), herdrWorkspace({ workspace_id: undefined })]);
+    expect(noId.status).toBe(4);
+    expect(json(noId.stdout)).toEqual({ outcome: "failed", code: null });
+    expect(listed([herdrWorkspace({ workspace_id: "" })]).status).toBe(4);
+  });
+
+  it("a failed herdr call exits 4 with herdr's error code", () => {
+    answer("workspace-list", "", 1, herdrError("server_unavailable"));
+    const run = adapter(["workspace-list"]);
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toEqual({ outcome: "failed", code: "server_unavailable" });
+  });
+
+  it("takes no arguments: an extra one is a usage error, and herdr is never called", () => {
+    const run = adapter(["workspace-list", "w1"]);
+    expect(run.status).toBe(2);
+    expect(run.calls).toEqual([]);
+  });
+});
+
 describe("herdr.sh — each operation's herdr realization (interface.md)", () => {
   it("self reads the pane id herdr gives the process, and exits 3 outside a pane", () => {
     const inside = adapter(["self"], { HERDR_PANE_ID: "w1:p2" });

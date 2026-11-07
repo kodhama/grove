@@ -19,7 +19,7 @@
 
 set -u
 
-operations=(self list find get read-screen prompt wait launch resume rename close remote-check remote-on schedule-list schedule-create worktree-create)
+operations=(self list find get workspace-list read-screen prompt wait launch resume rename close remote-check remote-on schedule-list schedule-create worktree-create)
 
 usage() {
   echo "Usage: herdr.sh [--bin <herdr-binary>] [--timeout <seconds>] <operation> [args...]" >&2
@@ -181,6 +181,20 @@ case "$op" in
       { say "herdr's answer could not be read"; result 4 '{outcome: "failed", code: null}'; }
     printf '%s\n' "$record"
     exit 0
+    ;;
+
+  # A workspace with no id fails the whole answer: an unjoinable row would
+  # mislead a caller joining records to workspaces.
+  workspace-list)
+    [ $# -eq 0 ] || usage
+    call workspace list
+    [ "$rc" -eq 0 ] || gone_or_failed
+    workspaces=$(printf '%s' "$out" | jq -ce "$STATUS"' .result.workspaces | arrays
+      | map({workspace: (.workspace_id | text), label: (.label | text),
+             path: ((.worktree.checkout_path?) // null | text), status: (.agent_status | status)})
+      | if any(.[]; .workspace == null) then error("a workspace has no id") else . end' 2>/dev/null) ||
+      { say "herdr's answer could not be read"; result 4 '{outcome: "failed", code: null}'; }
+    result 0 --argjson w "$workspaces" '{workspaces: $w}'
     ;;
 
   read-screen)
