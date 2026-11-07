@@ -133,6 +133,9 @@ const herdrAgent = (over: Record<string, unknown> = {}) => ({
   focused: false,
   name: "worker-1",
   pane_id: "w1:p2",
+  terminal_title: "✳ worker-1",
+  terminal_title_stripped: "worker-1",
+  workspace_id: "w1",
   ...over,
 });
 
@@ -140,7 +143,12 @@ const herdrError = (code: string) => JSON.stringify({ error: { code, message: co
 
 /** Runs herdr.sh by its absolute path from a folder outside skills/, as an outside script would. */
 function adapter(args: string[], env: Record<string, string | undefined> = {}) {
-  const result = spawnSync("bash", [ADAPTER, "--bin", join(stubDir, "herdr"), ...args], {
+  return adapterAt(ADAPTER, args, env);
+}
+
+/** As adapter, for the adapter script at `script`, such as a mutated copy. */
+function adapterAt(script: string, args: string[], env: Record<string, string | undefined> = {}) {
+  const result = spawnSync("bash", [script, "--bin", join(stubDir, "herdr"), ...args], {
     cwd: outside,
     encoding: "utf8",
     env: { PATH: process.env.PATH, STUB_DIR: stubDir, ...env },
@@ -171,6 +179,8 @@ describe("herdr.sh run by path from outside skills/ (ruling 8, U9.5)", () => {
       focused: false,
       session: "s1",
       cwd: "/Users/maintainer/repo",
+      title: "worker-1",
+      workspace: "w1",
     });
     expect(run.calls).toEqual([["agent", "get", "w1:p2"]]);
   });
@@ -220,6 +230,74 @@ describe("herdr.sh run by path from outside skills/ (ruling 8, U9.5)", () => {
     expect(adapter(["get"]).status).toBe(2);
     expect(adapter(["--timeout", "soon", "list"]).status).toBe(2);
     expect(adapter(["prompt", "w1:p2", "hi", "--wait", "later"]).status).toBe(2);
+  });
+});
+
+describe("the record's title and workspace (GRO-65)", () => {
+  /** The record herdrAgent() reads as: 0.3.3's seven fields, plus title and workspace. */
+  const FULL = {
+    pane: "w1:p2",
+    name: "worker-1",
+    kind: "claude",
+    status: "idle",
+    focused: false,
+    session: "s1",
+    cwd: "/Users/maintainer/repo",
+    title: "worker-1",
+    workspace: "w1",
+  };
+
+  const got = (over: Record<string, unknown>) => {
+    answer("agent-get", JSON.stringify({ result: { agent: herdrAgent(over) } }));
+    const run = adapter(["get", "w1:p2"]);
+    expect(run.status, run.stderr).toBe(0);
+    return json(run.stdout);
+  };
+
+  it("list and find carry both fields on every record, beside 0.3.3's fields unchanged (AE1)", () => {
+    answer(
+      "agent-list",
+      JSON.stringify({ result: { agents: [herdrAgent(), herdrAgent({ name: "lead", pane_id: "w1:p7", workspace_id: "w3" })] } }),
+    );
+    const list = adapter(["list"]);
+    expect(list.status, list.stderr).toBe(0);
+    expect(json(list.stdout)).toEqual({ agents: [FULL, { ...FULL, name: "lead", pane: "w1:p7", workspace: "w3" }] });
+    const found = adapter(["find", "lead"]);
+    expect(found.status).toBe(0);
+    expect(json(found.stdout)).toEqual({ agents: [{ ...FULL, name: "lead", pane: "w1:p7", workspace: "w3" }] });
+  });
+
+  it("title is herdr's stripped title, not the raw one with the harness's glyph (AE2, KTD2)", () => {
+    expect(got({ terminal_title: "✳ majordomo", terminal_title_stripped: "majordomo" }).title).toBe("majordomo");
+  });
+
+  it("title is null when herdr gives none, an empty one or a non-string (AE2, KTD4)", () => {
+    expect(got({ terminal_title_stripped: undefined }).title).toBeNull();
+    expect(got({ terminal_title_stripped: "" }).title).toBeNull();
+    expect(got({ terminal_title_stripped: 7 }).title).toBeNull();
+  });
+
+  it("workspace is null when herdr gives none, an empty one or a non-string (KTD4)", () => {
+    expect(got({ workspace_id: undefined }).workspace).toBeNull();
+    expect(got({ workspace_id: "" }).workspace).toBeNull();
+    expect(got({ workspace_id: { id: "w1" } }).workspace).toBeNull();
+  });
+
+  it("a copy of herdr.sh with title removed from the record fails the record test (AE4, the mutation check)", () => {
+    const scratch = mkdtempSync(join(tmpdir(), "adapter-title-mutation-"));
+    try {
+      const original = readFileSync(ADAPTER, "utf8");
+      const mutated = original.replace(/^\s*title: .*\n/m, "");
+      expect(mutated).not.toBe(original);
+      const copy = join(scratch, "herdr.sh");
+      writeFileSync(copy, mutated);
+      answer("agent-get", JSON.stringify({ result: { agent: herdrAgent() } }));
+      const run = adapterAt(copy, ["get", "w1:p2"]);
+      expect(run.status, run.stderr).toBe(0);
+      expect(() => expect(json(run.stdout)).toEqual(FULL)).toThrow();
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 });
 

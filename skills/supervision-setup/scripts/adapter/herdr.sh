@@ -115,14 +115,19 @@ bound_with() { awk -v ms="$1" -v t="$timeout" 'BEGIN { print ms / 1000 + t }'; }
 
 # The neutral agent record (interface.md, "The agent record"). Whatever herdr
 # cannot tell is null, and a status outside the four it reports is unknown.
-RECORD='def record: {
+# title is herdr's terminal title with the harness's status glyph stripped.
+STATUS='def status: if (. == "idle" or . == "working" or . == "blocked" or . == "done") then . else "unknown" end;
+def text: if type == "string" and . != "" then . else null end;'
+RECORD="$STATUS"'def record: {
   pane: (.pane_id // null),
   name: (.name // null),
   kind: (.agent // null),
-  status: (.agent_status as $s | if ($s == "idle" or $s == "working" or $s == "blocked" or $s == "done") then $s else "unknown" end),
+  status: (.agent_status | status),
   focused: (if .focused == true then true elif .focused == false then false else null end),
   session: (.agent_session.value? // null | if . == "" then null else . end),
-  cwd: (.cwd // null)
+  cwd: (.cwd // null),
+  title: (.terminal_title_stripped | text),
+  workspace: (.workspace_id | text)
 };'
 
 # Exits 3 for an answer that says the pane or agent is gone, else 4.
