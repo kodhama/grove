@@ -79,13 +79,15 @@ failure object as the other operations when it does not.
 - `status` is normalized. A state the tool reports outside those four reads
   `unknown`.
 - `title` is the pane's terminal title with the harness's status glyph
-  removed, or `null` when the tool gives none or an empty one. **It is for
-  display and matching hints only, never an address.** Names stay the only
-  address: a caller that picks a pane by its title confirms it with `get`
-  before it types into it.
+  removed, or `null` when the tool gives none, an empty one, or a value that
+  is not a string. **It is untrusted: for display and matching hints only,
+  never an address.** Any program in a pane can set its title, and `get`
+  returns the same title, so a title cannot confirm itself. A caller that
+  picks a pane by its title confirms who is there by `get`'s `name` or
+  `session` before it types into it.
 - `workspace` is an opaque id of the workspace the pane is in, or `null`
-  when unknown. It is the join key for `workspace-list`; a caller never
-  derives it from the pane id.
+  when unknown, empty or not a string. It is the join key for
+  `workspace-list`; a caller never derives it from the pane id.
 - `kind` is the harness, named by the words `launch --kind` takes: `claude`
   for Claude Code, `codex` for Codex. These are herdr's agent kinds, and
   another implementation maps its own names onto them.
@@ -180,8 +182,9 @@ Prints:
   `path` are `null` when unknown.
 - `status` is the workspace's rollup of its agents' statuses, as the tool
   reports it, normalized as the record's `status` is.
-- An answer with no workspace list in it, or a workspace with no id, exits
-  4, never an empty list. No workspaces at all is exit 0 with
+- Every failure exits 4, since it names no pane: a failed call, an answer
+  with no workspace list in it, or a workspace with no id, never an empty
+  list. No workspaces at all is exit 0 with
   `{"workspaces": []}`.
 - herdr: `workspace list`. `workspace` is `workspace_id`, `label` is
   `label`, `path` is `worktree.checkout_path`, and `status` is

@@ -285,6 +285,7 @@ describe("the record's title and workspace (GRO-65)", () => {
       answer("agent-get", JSON.stringify({ result: { agent: herdrAgent() } }));
       const run = adapterAt(copy, ["get", "w1:p2"]);
       expect(run.status, run.stderr).toBe(0);
+      expect(json(run.stdout)).not.toHaveProperty("title");
       expect(() => expect(json(run.stdout)).toEqual(FULL)).toThrow();
     } finally {
       rmSync(scratch, { recursive: true, force: true });
@@ -362,6 +363,32 @@ describe("workspace-list (GRO-65)", () => {
     const run = adapter(["workspace-list"]);
     expect(run.status).toBe(4);
     expect(json(run.stdout)).toEqual({ outcome: "failed", code: "server_unavailable" });
+  });
+
+  it("takes no pane, so herdr's not-found code is a failure too: exit 4, never 3 (R6)", () => {
+    answer("workspace-list", "", 1, herdrError("agent_not_found"));
+    const run = adapter(["workspace-list"]);
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toEqual({ outcome: "failed", code: "agent_not_found" });
+  });
+
+  it("two JSON answers where one belongs exit 4 with the failure object, never 0 with nothing (list, workspace-list)", () => {
+    const one = JSON.stringify({ result: { workspaces: [herdrWorkspace()] } });
+    answer("workspace-list", `${one}\n${one}\n`);
+    const ws = adapter(["workspace-list"]);
+    expect(ws.status).toBe(4);
+    expect(json(ws.stdout)).toEqual({ outcome: "failed", code: null });
+    const agents = JSON.stringify({ result: { agents: [herdrAgent()] } });
+    answer("agent-list", `${agents}\n${agents}\n`);
+    const list = adapter(["list"]);
+    expect(list.status).toBe(4);
+    expect(json(list.stdout)).toEqual({ outcome: "failed", code: null });
+  });
+
+  it("says which rule failed: a workspace with no id, or an answer it cannot read", () => {
+    expect(listed([herdrWorkspace({ workspace_id: undefined })]).stderr).toMatch(/a workspace has no id/);
+    answer("workspace-list", "not json");
+    expect(adapter(["workspace-list"]).stderr).toMatch(/could not be read/);
   });
 
   it("takes no arguments: an extra one is a usage error, and herdr is never called", () => {

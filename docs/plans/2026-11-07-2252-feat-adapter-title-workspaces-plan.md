@@ -15,7 +15,7 @@ execution: code
 - **Means:** two nullable fields on the agent record, plus a `workspace-list` operation (KTD1, KTD2).
 - **Authority:** GRO-65, the GRO-65 brief, then this plan. `skills/supervision-setup/scripts/adapter/interface.md` is the contract the code must match.
 - **Stop conditions:** stop if any existing field or exit code of `list`, `find` or `get` would have to change meaning.
-- **Who ships:** the story worker opens the PR. On hq-resume-lead's acceptance, the maintainer approves the merge through kodhama-pm and cuts the v0.3.4 tag.
+- **Who ships:** the story worker opens the PR. On hq-resume-lead's acceptance, kodhama-pm merges it pinned to the reviewed head and tags v0.3.4 on the merge commit, under the maintainer's standing approval.
 
 ---
 

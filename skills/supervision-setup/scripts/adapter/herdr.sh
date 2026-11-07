@@ -46,10 +46,14 @@ shift
 # --- results ------------------------------------------------------------------
 
 # Prints one JSON object built from name/value pairs (values as JSON) and exits.
+# A value jq cannot take, such as two answers where herdr gave one, is an
+# answer that cannot be read: exit 4, never 0 with nothing printed.
 result() {
-  local code="$1"
+  local code="$1" line
   shift
-  jq -cn "$@"
+  line=$(jq -cn "$@" 2>/dev/null) ||
+    { echo "herdr.sh: $op: herdr's answer could not be read" >&2; echo '{"outcome":"failed","code":null}'; exit 4; }
+  printf '%s\n' "$line"
   exit "$code"
 }
 
@@ -189,12 +193,18 @@ case "$op" in
   workspace-list)
     [ $# -eq 0 ] || usage
     call workspace list
-    [ "$rc" -eq 0 ] || gone_or_failed
+    # It names no pane, so every failed call is exit 4, herdr's not-found too.
+    [ "$rc" -eq 0 ] || {
+      code=$(error_code)
+      say "$(failed_line)"
+      result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
+    }
     workspaces=$(printf '%s' "$out" | jq -ce "$JQ_DEFS"' .result.workspaces | arrays
       | map({workspace: (.workspace_id | text), label: (.label | text),
-             path: (.worktree.checkout_path? // null | text), status: (.agent_status | status)})
-      | if any(.[]; .workspace == null) then error("a workspace has no id") else . end' 2>/dev/null) ||
+             path: (.worktree.checkout_path? // null | text), status: (.agent_status | status)})' 2>/dev/null) ||
       { say "herdr's answer could not be read"; result 4 '{outcome: "failed", code: null}'; }
+    printf '%s' "$workspaces" | jq -e 'all(.[]; .workspace != null)' >/dev/null ||
+      { say "a workspace has no id"; result 4 '{outcome: "failed", code: null}'; }
     result 0 --argjson w "$workspaces" '{workspaces: $w}'
     ;;
 
