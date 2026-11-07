@@ -197,7 +197,8 @@ resume that does is a later unit.
   `{"state": "pending|live", "nonce", "resumer", "boot", "expires", "pane", "session"}`.
 - **`acquire`** creates it exclusively as `pending`, with a fresh nonce, this
   boot's id and a 10-minute expiry. It takes over, by compare-and-swap on the
-  nonce, a claim from an earlier boot, an expired `pending` one, or a `live`
+  whole claim it judged (not only its nonce, which adoption keeps), a claim
+  from an earlier boot, an expired `pending` one, or a `live`
   one whose pane is gone or holds another session. A `live` claim whose
   session runs, an unexpired `pending` one, and anything it cannot judge are
   left alone and reported.
@@ -207,7 +208,9 @@ resume that does is a later unit.
   nonce), an expired `pending` claim, or a lease another session already holds
   live in another pane. The same pane with a new session id, as after an
   in-place restart, rebinds the live claim to it. **`release`** deletes the
-  claim on a clean exit.
+  claim on a clean exit, while it carries the session's nonce and, once
+  `live`, its session id: after an in-place restart the cleared session's
+  late release leaves the lease its successor holds.
 - **`checkPaneReuse`** runs right before a send to a restored pane: its name
   and session id match the restart record, it is unfocused and idle or done,
   its transcript shows no open dialog, and its input line is empty. Any
@@ -227,6 +230,19 @@ lets a consuming repo name the commit it pins by its version.
 - **The lease's mycelium check reads `unverified`.** No mycelium command that
   reads a named agent's binding is agreed yet, so `checkPaneReuse` records
   that check as `unverified` and never runs mycelium, installed or not.
+- **A lock a killed holder leaves blocks that agent's lease until the next
+  boot.** A process killed while it holds `<claim>.lock-<boot id>` leaves the
+  directory behind, and the lease never breaks a lock held in this boot,
+  since a pid can be reused. Each `acquire`, `adopt` and `release` then gives
+  up after a short wait and names the lock and its owner's pid. To recover by
+  hand, confirm that pid is no longer running, then remove that lock
+  directory. A reboot clears it too, since the next boot's lock has another
+  name.
+- **An in-place restart can lose its lease to a takeover.** If a manager's
+  `acquire` runs between the clear and the new session's re-adopt, it takes
+  the claim over. The new session's re-adopt then stops on the nonce, and the
+  pane-reuse check quarantines the pane. No second session starts, but the
+  agent has none until the next resume.
 - **Codex does not restart in place yet** (GRO-3). A Codex session takes the
   new-session path, and a Codex worker hands its restart to its lead.
 

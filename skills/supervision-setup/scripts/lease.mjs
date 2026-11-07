@@ -14,14 +14,15 @@
  *   nonce, the resumer, this boot's id and an expiry 10 minutes out. Where a
  *   claim exists it is read and judged: one from an earlier boot, an expired
  *   `pending` one, or a `live` one whose session the adapter says is gone is
- *   taken over by compare-and-swap on its nonce; a `live` one whose session
+ *   taken over by compare-and-swap on the whole claim it judged, not only
+ *   its nonce, since adoption keeps the nonce; a `live` one whose session
  *   runs, a `pending` one not yet expired, and anything that cannot be
  *   judged are left alone and reported.
  * - **Adopt** turns `pending` into `live` by compare-and-swap on the nonce,
  *   recording the session's pane and harness session id, which is what the
  *   liveness check reads later. A nonce that does not match stops the session.
- * - **Release**, on a clean exit, deletes the claim, by the same
- *   compare-and-swap.
+ * - **Release**, on a clean exit, deletes the claim while it carries this
+ *   nonce and, once `live`, this session id.
  * - **checkPaneReuse** is step 3: right before a send, it confirms through
  *   the pane-tool adapter that a restored pane still holds the session the
  *   restart record names and is safe to type into.
@@ -167,6 +168,18 @@ function lockOwner(lock) {
 }
 
 /**
+ * Why a lock held in this boot blocks, naming it and its owner, so a lock a
+ * killed holder left is never silent: it is never broken (a pid can be
+ * reused), and it clears at the next boot, since its name carries the boot
+ * id. The README's Known gaps gives the manual recovery.
+ */
+function heldReason(lock) {
+  const pid = lockOwner(lock)?.pid;
+  const owner = Number.isInteger(pid) ? `pid ${pid}` : "an owner it cannot read";
+  return `the claim's lock ${lock} is held by ${owner}; a lock held in this boot is never broken: if that process is dead, remove the lock directory`;
+}
+
+/**
  * Takes the lock as one atomic step: a temporary directory holding the owner
  * record is renamed into place, so the lock never exists without its owner.
  * Returns "held", "busy", or a reason it cannot be taken.
@@ -235,7 +248,7 @@ function withLock(file, bootId, fn, { wait = LOCK_WAIT_MS } = {}) {
     const got = tryLock(lock, bootId, token);
     if (got === "held") break;
     if (got !== "busy") return { held: false, reason: got };
-    if (Date.now() >= deadline) return { held: false, reason: "the claim's lock is held by another caller" };
+    if (Date.now() >= deadline) return { held: false, reason: heldReason(lock) };
     sleepMs(25);
   }
   try {
@@ -408,11 +421,15 @@ export function adopt({ home, name, nonce, pane, session, bootId = readBootId(),
 }
 
 /**
- * A clean exit deletes the claim (spec §9c), only while it still carries
- * this session's nonce. Returns `{outcome: "released"}`, `{outcome: "absent"}`
- * when there is none, or `{outcome: "left", reason}` when it is another's.
+ * A clean exit deletes the claim (spec §9c), only while it is still this
+ * session's: it carries this nonce and, once `live`, this session id. The
+ * nonce alone is not enough, since an in-place restart rebinds the live
+ * claim to a new session under the same nonce, and the cleared session's
+ * late release must not delete the lease its successor holds. Returns
+ * `{outcome: "released"}`, `{outcome: "absent"}` when there is none, or
+ * `{outcome: "left", reason}` when it is another's.
  */
-export function release({ home, name, nonce, bootId = readBootId() }) {
+export function release({ home, name, nonce, session = null, bootId = readBootId() }) {
   if (!bootId) return { outcome: "left", reason: "the boot id cannot be read" };
   const file = claimPath(home, name);
   const locked = withLock(file, bootId, () => {
@@ -420,6 +437,9 @@ export function release({ home, name, nonce, bootId = readBootId() }) {
     if (seen.missing) return { outcome: "absent" };
     if (seen.unreadable) return { outcome: "left", reason: seen.unreadable };
     if (seen.claim.nonce !== nonce) return { outcome: "left", reason: "the claim carries another nonce" };
+    if (seen.claim.state === "live" && seen.claim.session !== session) {
+      return { outcome: "left", reason: "another session holds the live lease" };
+    }
     unlinkSync(file);
     return { outcome: "released" };
   });

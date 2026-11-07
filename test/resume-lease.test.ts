@@ -214,9 +214,43 @@ describe("acquire (spec §5.4 step 2)", () => {
     mkdirSync(lock);
     writeFileSync(join(lock, "owner"), JSON.stringify({ boot: BOOT, pid: 1 }));
     const held = lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n2" });
-    expect(held).toMatchObject({ outcome: "left", reason: "the claim's lock is held by another caller" });
+    expect(held.outcome).toBe("left");
+    expect(held.reason).toContain(`the claim's lock ${lock} is held by pid 1`);
     expect(existsSync(lock)).toBe(true);
     expect(readClaimFile().nonce).toBe("old");
+  });
+
+  it("a lock a killed holder left in this boot is never silent: acquire, adopt and release refuse within a bounded wait, naming its path and owner pid", () => {
+    lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
+    lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s1", bootId: BOOT, now: NOW });
+    const lock = `${lease.claimPath(home, NAME)}.lock-${BOOT}`;
+    mkdirSync(lock);
+    writeFileSync(join(lock, "owner"), JSON.stringify({ boot: BOOT, pid: 999999, token: "dead" }));
+    const gone = stubAdapter({});
+    const calls = [
+      () => lease.acquire({ home, name: NAME, resumer: "lead", adapter: gone, bootId: BOOT, now: NOW, nonce: "n2" }),
+      () => lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s2", bootId: BOOT, now: NOW }),
+      () => lease.release({ home, name: NAME, nonce: "n1", session: "s1", bootId: BOOT }),
+    ];
+    for (const call of calls) {
+      const start = Date.now();
+      const r = call();
+      expect(Date.now() - start).toBeLessThan(lease.LOCK_WAIT_MS + 1500);
+      expect(["left", "stop"]).toContain(r.outcome);
+      expect(r.reason).toContain(`the claim's lock ${lock} is held by pid 999999`);
+      expect(r.reason).toContain("never broken");
+    }
+    expect(existsSync(lock)).toBe(true);
+    expect(readClaimFile()).toMatchObject({ state: "live", nonce: "n1", session: "s1" });
+  }, 15_000);
+
+  it("names a held lock whose owner record cannot be read", () => {
+    writeClaim({ state: "pending", nonce: "old", resumer: "other", boot: "boot-before", expires: "2026-11-06T12:05:00.000Z", pane: null, session: null });
+    const lock = `${lease.claimPath(home, NAME)}.lock-${BOOT}`;
+    mkdirSync(lock);
+    writeFileSync(join(lock, "owner"), "{half-writ");
+    const r = lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n2" });
+    expect(r.reason).toContain(`the claim's lock ${lock} is held by an owner it cannot read`);
   });
 });
 
@@ -273,6 +307,12 @@ describe("review round: claims that cannot be judged, and changes mid-takeover",
     writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: "boot-before", expires: null, pane: "p1", session: "sess-1" });
     expect(lease.adopt({ home, name: NAME, nonce: "old", pane: "p1", session: "sess-1", bootId: BOOT, now: NOW }).outcome).toBe("stop");
     expect(readClaimFile().boot).toBe("boot-before");
+  });
+
+  it("adoption stops on a pending claim from an earlier boot even before its 10 minutes run out", () => {
+    writeClaim({ state: "pending", nonce: "old", resumer: "lead", boot: "boot-before", expires: "2026-11-06T12:05:00.000Z", pane: null, session: null });
+    expect(lease.adopt({ home, name: NAME, nonce: "old", pane: "p1", session: "sess-1", bootId: BOOT, now: NOW })).toMatchObject({ outcome: "stop", reason: "the claim is from an earlier boot" });
+    expect(readClaimFile()).toMatchObject({ state: "pending", boot: "boot-before" });
   });
 
   it("adoption stops on a pending claim whose 10 minutes have run out", () => {
@@ -460,6 +500,16 @@ describe("an in-place restart (lead ruling, KOD-42)", () => {
     expect(lease.adopt({ home, name: NAME, nonce: "n1", pane: "p2", session: "s9", bootId: BOOT, now: NOW }).outcome).toBe("stop");
     expect(readClaimFile()).toMatchObject({ pane: "p1", session: "s1" });
   });
+
+  it("a late release from the cleared session leaves the lease the new session holds", () => {
+    lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
+    lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "sess-before-clear", bootId: BOOT, now: NOW });
+    lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "sess-after-clear", bootId: BOOT, now: NOW });
+    const r = lease.release({ home, name: NAME, nonce: "n1", session: "sess-before-clear", bootId: BOOT });
+    expect(r).toMatchObject({ outcome: "left", reason: "another session holds the live lease" });
+    expect(readClaimFile()).toMatchObject({ state: "live", session: "sess-after-clear" });
+    expect(lease.release({ home, name: NAME, nonce: "n1", session: "sess-after-clear", bootId: BOOT }).outcome).toBe("released");
+  });
 });
 
 describe("adoption and clean exit", () => {
@@ -492,11 +542,18 @@ describe("adoption and clean exit", () => {
   it("a clean exit deletes the live claim, and only its own (spec §9c)", () => {
     lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
     lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s1", bootId: BOOT, now: NOW });
-    expect(lease.release({ home, name: NAME, nonce: "other", bootId: BOOT }).outcome).toBe("left");
+    expect(lease.release({ home, name: NAME, nonce: "other", session: "s1", bootId: BOOT }).outcome).toBe("left");
     expect(existsSync(lease.claimPath(home, NAME))).toBe(true);
-    expect(lease.release({ home, name: NAME, nonce: "n1", bootId: BOOT }).outcome).toBe("released");
+    expect(lease.release({ home, name: NAME, nonce: "n1", session: "s1", bootId: BOOT }).outcome).toBe("released");
     expect(existsSync(lease.claimPath(home, NAME))).toBe(false);
-    expect(lease.release({ home, name: NAME, nonce: "n1", bootId: BOOT }).outcome).toBe("absent");
+    expect(lease.release({ home, name: NAME, nonce: "n1", session: "s1", bootId: BOOT }).outcome).toBe("absent");
+  });
+
+  it("releasing a live claim needs the session that holds it, not only the nonce", () => {
+    lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
+    lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s1", bootId: BOOT, now: NOW });
+    expect(lease.release({ home, name: NAME, nonce: "n1", bootId: BOOT })).toMatchObject({ outcome: "left", reason: "another session holds the live lease" });
+    expect(existsSync(lease.claimPath(home, NAME))).toBe(true);
   });
 
   it("after a clean exit, the next resumer acquires afresh", () => {
