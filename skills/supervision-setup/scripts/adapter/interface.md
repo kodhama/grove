@@ -121,7 +121,7 @@ herdr answers a failed call with an error code. `herdr.sh` maps them so:
 
 | herdr code | result |
 | --- | --- |
-| `agent_not_found` | exit 3 from an operation given a pane (`get`, `read-screen`, `prompt`, `wait`, `rename`, `close`) and from `launch`'s split; exit 4 from the others, `list`, `find` and `workspace-list` among them |
+| `agent_not_found` | exit 3 from `get`, `read-screen`, `prompt`, `wait`, `rename`, `close`, and the split in `launch` and `resume`; exit 4 from the others, `list`, `find` and `workspace-list` among them |
 | `agent_blocked` | exit 6, nothing sent |
 | `agent_name_taken` | exit 6, nothing changed |
 | `timeout` | outcome `timeout`, exit 0, where the operation waits |
