@@ -205,7 +205,9 @@ resume that does is a later unit.
   session's pane and session id. It stops the session on a nonce that does
   not match, a claim from an earlier boot (the resumed session takes the new
   nonce), an expired `pending` claim, or a lease another session already holds
-  live. **`release`** deletes the claim on a clean exit.
+  live in another pane. The same pane with a new session id, as after an
+  in-place restart, rebinds the live claim to it. **`release`** deletes the
+  claim on a clean exit.
 - **`checkPaneReuse`** runs right before a send to a restored pane: its name
   and session id match the restart record, it is unfocused and idle or done,
   its transcript shows no open dialog, and its input line is empty. Any

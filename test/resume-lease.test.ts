@@ -422,6 +422,23 @@ describe("review round 2: the lock under contention, crash leftovers, half-writt
   });
 });
 
+describe("an in-place restart (lead ruling, KOD-42)", () => {
+  it("after a simulated /clear, the same nonce and pane rebind the live lease to the new session id", () => {
+    lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
+    lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "sess-before-clear", bootId: BOOT, now: NOW });
+    const r = lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "sess-after-clear", bootId: BOOT, now: NOW });
+    expect(r.outcome).toBe("adopted");
+    expect(readClaimFile()).toMatchObject({ state: "live", nonce: "n1", pane: "p1", session: "sess-after-clear" });
+  });
+
+  it("a new session id from another pane still stops, whatever the nonce", () => {
+    lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });
+    lease.adopt({ home, name: NAME, nonce: "n1", pane: "p1", session: "s1", bootId: BOOT, now: NOW });
+    expect(lease.adopt({ home, name: NAME, nonce: "n1", pane: "p2", session: "s9", bootId: BOOT, now: NOW }).outcome).toBe("stop");
+    expect(readClaimFile()).toMatchObject({ pane: "p1", session: "s1" });
+  });
+});
+
 describe("adoption and clean exit", () => {
   it("adopts pending → live by compare-and-swap on the nonce, recording pane and session", () => {
     lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" });

@@ -364,7 +364,9 @@ export function acquire({ home, name, resumer, adapter, bootId = readBootId(), n
  * Adoption: the resumed session turns its `pending` claim `live`, by
  * compare-and-swap on the nonce it was given, before any work. It records
  * the session's pane and harness session id. The holder re-adopting its
- * live claim from the same pane and session is a no-op success.
+ * live claim from the same pane and session is a no-op success; from the
+ * same pane with a new session id, as after an in-place restart, it rebinds
+ * the claim to that session.
  *
  * Returns `{outcome: "adopted", claim}`, or `{outcome: "stop", reason}`:
  * the session must stop, as when the nonce does not match, the claim is from
@@ -387,10 +389,13 @@ export function adopt({ home, name, nonce, pane, session, bootId = readBootId(),
     if (claim.nonce !== nonce) return { outcome: "stop", reason: "the claim's nonce does not match" };
     if (claim.boot !== bootId) return { outcome: "stop", reason: "the claim is from an earlier boot" };
     if (claim.state === "live") {
-      if (claim.pane === pane && claim.session === session) return { outcome: "adopted", claim };
-      return { outcome: "stop", reason: "another session holds the live lease" };
+      // Another pane is another session. The same pane with a new session id
+      // is an in-place restart (a clear), which keeps the lease.
+      if (claim.pane !== pane) return { outcome: "stop", reason: "another session holds the live lease" };
+      if (claim.session === session) return { outcome: "adopted", claim };
+    } else if (Date.parse(claim.expires) <= now) {
+      return { outcome: "stop", reason: "the pending claim expired" };
     }
-    if (Date.parse(claim.expires) <= now) return { outcome: "stop", reason: "the pending claim expired" };
     const live = { ...claim, state: "live", expires: null, pane, session };
     let tmp;
     try {
