@@ -115,10 +115,11 @@ bound_with() { awk -v ms="$1" -v t="$timeout" 'BEGIN { print ms / 1000 + t }'; }
 
 # The neutral agent record (interface.md, "The agent record"). Whatever herdr
 # cannot tell is null, and a status outside the four it reports is unknown.
-# title is herdr's terminal title with the harness's status glyph stripped.
-STATUS='def status: if (. == "idle" or . == "working" or . == "blocked" or . == "done") then . else "unknown" end;
+# JQ_DEFS normalizes a status, and reads a value that is not a non-empty
+# string as null; workspace-list shares it.
+JQ_DEFS='def status: if (. == "idle" or . == "working" or . == "blocked" or . == "done") then . else "unknown" end;
 def text: if type == "string" and . != "" then . else null end;'
-RECORD="$STATUS"'def record: {
+RECORD="$JQ_DEFS"'def record: {
   pane: (.pane_id // null),
   name: (.name // null),
   kind: (.agent // null),
@@ -126,7 +127,7 @@ RECORD="$STATUS"'def record: {
   focused: (if .focused == true then true elif .focused == false then false else null end),
   session: (.agent_session.value? // null | if . == "" then null else . end),
   cwd: (.cwd // null),
-  title: (.terminal_title_stripped | text),
+  title: (.terminal_title_stripped | text),  # the terminal title, its status glyph stripped
   workspace: (.workspace_id | text)
 };'
 
@@ -189,9 +190,9 @@ case "$op" in
     [ $# -eq 0 ] || usage
     call workspace list
     [ "$rc" -eq 0 ] || gone_or_failed
-    workspaces=$(printf '%s' "$out" | jq -ce "$STATUS"' .result.workspaces | arrays
+    workspaces=$(printf '%s' "$out" | jq -ce "$JQ_DEFS"' .result.workspaces | arrays
       | map({workspace: (.workspace_id | text), label: (.label | text),
-             path: ((.worktree.checkout_path?) // null | text), status: (.agent_status | status)})
+             path: (.worktree.checkout_path? // null | text), status: (.agent_status | status)})
       | if any(.[]; .workspace == null) then error("a workspace has no id") else . end' 2>/dev/null) ||
       { say "herdr's answer could not be read"; result 4 '{outcome: "failed", code: null}'; }
     result 0 --argjson w "$workspaces" '{workspaces: $w}'

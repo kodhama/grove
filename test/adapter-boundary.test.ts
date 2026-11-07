@@ -139,6 +139,19 @@ const herdrAgent = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/** The neutral record herdrAgent() reads as. */
+const FULL = {
+  pane: "w1:p2",
+  name: "worker-1",
+  kind: "claude",
+  status: "idle",
+  focused: false,
+  session: "s1",
+  cwd: "/Users/maintainer/repo",
+  title: "worker-1",
+  workspace: "w1",
+};
+
 const herdrError = (code: string) => JSON.stringify({ error: { code, message: code } });
 
 /** Runs herdr.sh by its absolute path from a folder outside skills/, as an outside script would. */
@@ -171,17 +184,7 @@ describe("herdr.sh run by path from outside skills/ (ruling 8, U9.5)", () => {
     answer("agent-get", JSON.stringify({ id: "cli:agent:get", result: { agent: herdrAgent() } }));
     const run = adapter(["get", "w1:p2"]);
     expect(run.status, run.stderr).toBe(0);
-    expect(json(run.stdout)).toEqual({
-      pane: "w1:p2",
-      name: "worker-1",
-      kind: "claude",
-      status: "idle",
-      focused: false,
-      session: "s1",
-      cwd: "/Users/maintainer/repo",
-      title: "worker-1",
-      workspace: "w1",
-    });
+    expect(json(run.stdout)).toEqual(FULL);
     expect(run.calls).toEqual([["agent", "get", "w1:p2"]]);
   });
 
@@ -234,19 +237,6 @@ describe("herdr.sh run by path from outside skills/ (ruling 8, U9.5)", () => {
 });
 
 describe("the record's title and workspace (GRO-65)", () => {
-  /** The record herdrAgent() reads as: 0.3.3's seven fields, plus title and workspace. */
-  const FULL = {
-    pane: "w1:p2",
-    name: "worker-1",
-    kind: "claude",
-    status: "idle",
-    focused: false,
-    session: "s1",
-    cwd: "/Users/maintainer/repo",
-    title: "worker-1",
-    workspace: "w1",
-  };
-
   const got = (over: Record<string, unknown>) => {
     answer("agent-get", JSON.stringify({ result: { agent: herdrAgent(over) } }));
     const run = adapter(["get", "w1:p2"]);
@@ -254,17 +244,18 @@ describe("the record's title and workspace (GRO-65)", () => {
     return json(run.stdout);
   };
 
-  it("list and find carry both fields on every record, beside 0.3.3's fields unchanged (AE1)", () => {
+  it("list and find carry title and workspace on every record, beside the other fields (AE1)", () => {
+    const lead = { ...FULL, name: "lead", pane: "w1:p7", workspace: "w3" };
     answer(
       "agent-list",
       JSON.stringify({ result: { agents: [herdrAgent(), herdrAgent({ name: "lead", pane_id: "w1:p7", workspace_id: "w3" })] } }),
     );
     const list = adapter(["list"]);
     expect(list.status, list.stderr).toBe(0);
-    expect(json(list.stdout)).toEqual({ agents: [FULL, { ...FULL, name: "lead", pane: "w1:p7", workspace: "w3" }] });
+    expect(json(list.stdout)).toEqual({ agents: [FULL, lead] });
     const found = adapter(["find", "lead"]);
     expect(found.status).toBe(0);
-    expect(json(found.stdout)).toEqual({ agents: [{ ...FULL, name: "lead", pane: "w1:p7", workspace: "w3" }] });
+    expect(json(found.stdout)).toEqual({ agents: [lead] });
   });
 
   it("title is herdr's stripped title, not the raw one with the harness's glyph (AE2, KTD2)", () => {
