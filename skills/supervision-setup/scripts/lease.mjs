@@ -29,8 +29,9 @@
  * Creating the claim is a hard link from a finished temporary file, so no
  * reader ever sees a half-written claim and exactly one of several racing
  * creators wins. Every rewrite or delete runs under a lock directory beside
- * the claim. A lock left by an earlier boot is removed; one held in this boot
- * past the wait is reported, never broken.
+ * the claim, whose name carries the boot id: a lock an earlier boot left
+ * never blocks, and one held in this boot past the wait is reported, never
+ * broken.
  *
  * Pane operations go only through the adapter (`adapter/interface.md`): this
  * module reads a pane with `get`, and its input line and dialog checks are
@@ -49,6 +50,7 @@ import {
   openSync,
   readFileSync,
   readSync,
+  readdirSync,
   renameSync,
   rmSync,
   statSync,
@@ -66,8 +68,6 @@ export const PENDING_TTL_MS = 10 * 60 * 1000;
 /** How long a caller waits for the claim's lock before it reports it held. */
 export const LOCK_WAIT_MS = 2000;
 
-/** A stale-lock breaker older than this was left by a caller that died. */
-const BREAKER_STALE_MS = 10_000;
 
 /** The statuses a pane may show and still be typed into (step 3). */
 const READY_STATUSES = new Set(["idle", "done"]);
@@ -186,37 +186,6 @@ function tryLock(lock, bootId, token) {
 }
 
 /**
- * Removes a lock an earlier boot left, under a breaker directory named for
- * this boot, re-reading the owner inside it: of several callers that saw the
- * same stale lock, only one removes it, and none removes the lock a
- * successor took meanwhile. A breaker from an earlier boot has another name,
- * so it never blocks this one.
- */
-function breakStaleLock(lock, bootId) {
-  const owner = lockOwner(lock);
-  if (!owner || typeof owner.boot !== "string" || owner.boot === bootId) return;
-  const breaker = `${lock}.break-${bootId}`;
-  try {
-    mkdirSync(breaker);
-  } catch {
-    // A breaker is held for microseconds, so one this old was left by a
-    // caller that died holding it; clear it, and the next pass retries.
-    try {
-      if (Date.now() - statSync(breaker).mtimeMs > BREAKER_STALE_MS) rmSync(breaker, { recursive: true, force: true });
-    } catch {
-      // gone already
-    }
-    return;
-  }
-  try {
-    const again = lockOwner(lock);
-    if (again && typeof again.boot === "string" && again.boot !== bootId) discard(lock);
-  } finally {
-    rmSync(breaker, { recursive: true, force: true });
-  }
-}
-
-/**
  * Removes a lock directory by first renaming it to a name of its own. A
  * recursive remove in place would empty it before removing it, and a waiter
  * may rename its own lock onto an empty directory in between.
@@ -231,24 +200,48 @@ function discard(lock) {
   rmSync(tomb, { recursive: true, force: true });
 }
 
+/** The claim's lock for this boot: the boot id is part of its name. */
+function lockPath(file, bootId) {
+  return `${file}.lock-${bootId.replace(/[^A-Za-z0-9-]/g, "_")}`;
+}
+
 /**
- * Runs `fn` while holding the lock directory `<claim>.lock`. Returns
- * `{held: false, reason}` when the lock stays taken past the wait. A lock
- * whose owner names an earlier boot is stale and is removed; one held in
- * this boot is never broken. Only the holder removes its own lock.
+ * Removes the locks earlier boots left beside the claim, with their
+ * temporary and discarded forms. No caller in this boot uses those names,
+ * so none of them can be a live lock.
+ */
+function clearEarlierBoots(file, lock) {
+  const dir = dirname(file);
+  const prefix = `${basename(file)}.lock-`;
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (entry.startsWith(prefix) && !path.startsWith(lock)) rmSync(path, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Runs `fn` while holding the claim's lock directory. Returns
+ * `{held: false, reason}` when the lock stays taken past the wait. The
+ * lock's name carries the boot id, so a lock an earlier boot left never
+ * blocks, and the holder removes it. One held in this boot is reported,
+ * never broken, and only its holder removes it.
  */
 function withLock(file, bootId, fn, { wait = LOCK_WAIT_MS } = {}) {
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  const lock = `${file}.lock`;
+  const lock = lockPath(file, bootId);
   const token = randomUUID();
   const deadline = Date.now() + wait;
   for (;;) {
     const got = tryLock(lock, bootId, token);
     if (got === "held") break;
     if (got !== "busy") return { held: false, reason: got };
-    breakStaleLock(lock, bootId);
     if (Date.now() >= deadline) return { held: false, reason: "the claim's lock is held by another caller" };
     sleepMs(25);
+  }
+  try {
+    clearEarlierBoots(file, lock);
+  } catch {
+    // leftovers from an earlier boot block nothing
   }
   try {
     return { held: true, value: fn() };
@@ -501,7 +494,10 @@ function lastLineParses(transcript) {
     const len = Math.min(size, TAIL_BYTES);
     const buf = Buffer.alloc(len);
     readSync(fd, buf, 0, len, size - len);
-    const lines = buf.toString("utf8").split("\n").filter((l) => l.trim());
+    let text = buf.toString("utf8");
+    // A last record longer than the tail starts before it: read it whole.
+    if (len < size && !text.slice(0, text.trimEnd().length).includes("\n")) text = readFileSync(transcript, "utf8");
+    const lines = text.split("\n").filter((l) => l.trim());
     const last = lines[lines.length - 1];
     if (last === undefined) return false;
     JSON.parse(last);

@@ -16,7 +16,6 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
-  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -204,12 +203,14 @@ describe("acquire (spec §5.4 step 2)", () => {
 
   it("removes a lock left by an earlier boot, but reports one held in this boot", () => {
     writeClaim({ state: "pending", nonce: "old", resumer: "other", boot: "boot-before", expires: "2026-11-06T12:05:00.000Z", pane: null, session: null });
-    const lock = `${lease.claimPath(home, NAME)}.lock`;
-    mkdirSync(lock);
-    writeFileSync(join(lock, "owner"), JSON.stringify({ boot: "boot-before", pid: 1 }));
+    const before = `${lease.claimPath(home, NAME)}.lock-boot-before`;
+    mkdirSync(before);
+    writeFileSync(join(before, "owner"), JSON.stringify({ boot: "boot-before", pid: 1 }));
     expect(lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n1" }).outcome).toBe("taken-over");
+    expect(existsSync(before)).toBe(false);
 
     writeClaim({ state: "pending", nonce: "old", resumer: "other", boot: "boot-before", expires: "2026-11-06T12:05:00.000Z", pane: null, session: null });
+    const lock = `${lease.claimPath(home, NAME)}.lock-${BOOT}`;
     mkdirSync(lock);
     writeFileSync(join(lock, "owner"), JSON.stringify({ boot: BOOT, pid: 1 }));
     const held = lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "n2" });
@@ -256,7 +257,7 @@ describe("review round: claims that cannot be judged, and changes mid-takeover",
 
   it("of racing takeovers after a reboot, with the earlier boot's lock still on disk, exactly one wins", async () => {
     writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: "boot-before", expires: null, pane: "p1", session: "sess-1" });
-    const lock = `${lease.claimPath(home, NAME)}.lock`;
+    const lock = `${lease.claimPath(home, NAME)}.lock-boot-before`;
     mkdirSync(lock);
     writeFileSync(join(lock, "owner"), JSON.stringify({ boot: "boot-before", pid: 1 }));
     const outcomes = await race(6, NOW);
@@ -367,17 +368,39 @@ describe("review round 2: the lock under contention, crash leftovers, half-writt
     }
   });
 
-  it("a breaker left by a crash in this boot does not wedge stale-lock recovery", () => {
+  it("locks an earlier boot left, with their temporary forms, never block, and the next holder clears them", () => {
     writeClaim({ state: "live", nonce: "old", resumer: "lead", boot: "boot-before", expires: null, pane: "p1", session: "sess-1" });
-    const lock = `${lease.claimPath(home, NAME)}.lock`;
-    mkdirSync(lock);
-    writeFileSync(join(lock, "owner"), JSON.stringify({ boot: "boot-before", pid: 1 }));
-    const breaker = `${lock}.break-${BOOT}`;
-    mkdirSync(breaker);
-    const old = new Date(Date.now() - 60_000);
-    utimesSync(breaker, old, old);
+    const base = lease.claimPath(home, NAME);
+    for (const left of [`${base}.lock-boot-before`, `${base}.lock-boot-before.tmp-x`, `${base}.lock-older.gone-y`]) {
+      mkdirSync(left);
+      writeFileSync(join(left, "owner"), JSON.stringify({ boot: "boot-before", pid: 1 }));
+    }
     const r = lease.acquire({ home, name: NAME, resumer: "lead", adapter: stubAdapter({}), bootId: BOOT, now: NOW, nonce: "new" });
     expect(r.outcome).toBe("taken-over");
+    for (const left of [`${base}.lock-boot-before`, `${base}.lock-boot-before.tmp-x`, `${base}.lock-older.gone-y`]) expect(existsSync(left)).toBe(false);
+  });
+
+  it("reads a whole final record longer than the tail it reads first", () => {
+    const dir = mkdtempSync(join(tmpdir(), "transcript-"));
+    try {
+      const t = join(dir, "t.jsonl");
+      writeFileSync(
+        t,
+        [
+          JSON.stringify({ type: "assistant", message: { id: "m1", content: [{ type: "tool_use", id: "t1" }] } }),
+          JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "x".repeat(1_200_000) }] } }),
+        ].join("\n") + "\n",
+      );
+      const r = lease.checkPaneReuse({
+        expected: { pane: "p1", name: NAME, session: "sess-1", transcript: t },
+        adapter: stubAdapter({ p1: { exit: 0, record: rec({ status: "done" }) } }),
+        inputLine: () => "empty",
+        mycelium: () => ({ state: "unverified", reason: "mycelium is not installed" }),
+      });
+      expect(r).toMatchObject({ outcome: "reuse", checks: { dialog: "closed" } });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("reads a transcript whose last line is still being written as a possible dialog", () => {
