@@ -52,7 +52,7 @@ result() {
   local code="$1" line
   shift
   line=$(jq -cn "$@" 2>/dev/null) ||
-    { say "the result could not be built from herdr's answer"; echo '{"outcome":"failed","code":null}'; exit 4; }
+    { say "the result could not be built"; echo '{"outcome":"failed","code":null}'; exit 4; }
   printf '%s\n' "$line"
   exit "$code"
 }
