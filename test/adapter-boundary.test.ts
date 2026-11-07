@@ -378,6 +378,7 @@ describe("workspace-list (GRO-65)", () => {
     const ws = adapter(["workspace-list"]);
     expect(ws.status).toBe(4);
     expect(json(ws.stdout)).toEqual({ outcome: "failed", code: null });
+    expect(ws.stderr).toMatch(/the result could not be built/);
     const agents = JSON.stringify({ result: { agents: [herdrAgent()] } });
     answer("agent-list", `${agents}\n${agents}\n`);
     const list = adapter(["list"]);

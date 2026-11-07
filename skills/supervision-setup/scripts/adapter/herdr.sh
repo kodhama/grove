@@ -46,13 +46,13 @@ shift
 # --- results ------------------------------------------------------------------
 
 # Prints one JSON object built from name/value pairs (values as JSON) and exits.
-# A value jq cannot take, such as two answers where herdr gave one, is an
-# answer that cannot be read: exit 4, never 0 with nothing printed.
+# A value jq cannot take, such as two answers where herdr gave one, is a
+# result that cannot be built: exit 4, never 0 with nothing printed.
 result() {
   local code="$1" line
   shift
   line=$(jq -cn "$@" 2>/dev/null) ||
-    { echo "herdr.sh: $op: herdr's answer could not be read" >&2; echo '{"outcome":"failed","code":null}'; exit 4; }
+    { say "the result could not be built from herdr's answer"; echo '{"outcome":"failed","code":null}'; exit 4; }
   printf '%s\n' "$line"
   exit "$code"
 }

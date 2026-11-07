@@ -121,7 +121,7 @@ herdr answers a failed call with an error code. `herdr.sh` maps them so:
 
 | herdr code | result |
 | --- | --- |
-| `agent_not_found` | exit 3 |
+| `agent_not_found` | exit 3, except from `workspace-list`, which names no pane: exit 4 |
 | `agent_blocked` | exit 6, nothing sent |
 | `agent_name_taken` | exit 6, nothing changed |
 | `timeout` | outcome `timeout`, exit 0, where the operation waits |
@@ -182,7 +182,7 @@ Prints:
   `path` are `null` when unknown.
 - `status` is the workspace's rollup of its agents' statuses, as the tool
   reports it, normalized as the record's `status` is.
-- Every failure exits 4, since it names no pane: a failed call, an answer
+- Every failure but a usage error exits 4, since it names no pane: a failed call, an answer
   with no workspace list in it, or a workspace with no id, never an empty
   list. No workspaces at all is exit 0 with
   `{"workspaces": []}`.
