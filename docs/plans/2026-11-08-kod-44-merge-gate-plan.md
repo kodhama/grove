@@ -146,7 +146,9 @@ flowchart TB
   A -->|yes| F{B is the merge-base of H with the base branch, and not a Codex CLI run?}
   A -->|no| P{patch-id equals a chain commit?}
   P -->|no| X
-  P -->|yes, judged on H's own merge-base| F
+  P -->|yes| PF{B is the merge-base of H with the base branch, and not a Codex CLI run?}
+  PF -->|yes| FULL
+  PF -->|no: no patch-id credit for a re-check| X
   F -->|yes| FULL[full review at H]
   F -->|no| RC[re-check covering B..H]
   FULL --> L[latest full review = chain start, at its matched commit after a rebase]
