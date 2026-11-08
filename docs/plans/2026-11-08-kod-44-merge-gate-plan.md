@@ -57,9 +57,9 @@ Two worker-side gaps feed this. The floor `review` binds the native single-pass 
 - R1. The gate checks one pinned head: the head the lead passes must equal the pull request's live head and, when a receipt is given, the receipt's shipped revision.
 - R2. Every CI check on that head has completed with a passing conclusion, and at least one check reported.
 - R3. A full review read that head, or an earlier head that later re-checks connect to it (R4). It ran in a fresh, non-fork reviewer, over a clean tree, from the merge-base of its own reviewed head with the base branch. Its performer is the one bound to `review` in a worker's bindings or to `review-before-merge` in the lead's, or the one bound to `doc-review` when the final pull request is docs-only (KTD6).
-- R4. Every commit after the last full review is covered by a re-check whose range starts at or before the end of the previous one. When the commits since the last full review change 150 or more non-test lines, a full review must come again.
+- R4. Every commit after the last full review is covered by a re-check whose range starts at or before the end of the previous one. A clean merge from the base branch needs none (KTD5). When the commits since the last full review change 150 or more non-test lines, a full review must come again.
 - R5. No review thread on the pull request is unresolved.
-- R6. Each automated reviewer the lead names has finished on that head. One that finished only on an earlier head fails, naming that head. An automated reviewer that reviewed or commented on the pull request without being named fails as unnamed. One the lead marks unavailable prints `unavailable` with its reason and does not fail.
+- R6. Each automated reviewer the lead names has finished on that head. One that finished only on an earlier head fails, naming that head. A bot account that left a pull-request review without being named fails as unnamed. Comments alone, as CI or dependency bots leave, do not count. One the lead marks unavailable prints `unavailable` with its reason and does not fail.
 - R7. Exit 0 means every condition holds, and the last line is `ok <sha>`. Exit 1 means at least one condition fails, with one line per failure. Exit 2 means the gate could not check.
 - R8. Where a reviewer's transcript cannot be read, as on another machine, the gate takes the worker's carried output and labels it `carried`. Carried evidence alone never passes R3.
 
@@ -110,8 +110,8 @@ Two worker-side gaps feed this. The floor `review` binds the native single-pass 
 - KTD3. **A review's head comes from command output in the reviewer's own transcript, not from command lines.** The full review skill diffs the working tree against a base held in a shell variable, so no command line names the head. Its run artifact under a scratch folder does record `head_sha`, but it does not last, and it is another plugin's format. So the reviewer request (U5, U6) has the reviewer run one fixed read command before it invokes the review performer. The command prints three labelled lines: `head <sha>`, `status <count of porcelain lines>`, and `base <sha>`, where the base is the merge-base of the head with the commit the reviewer will diff from. That commit is the base branch for a full review, and the last reviewed head for a re-check. The reviewer then tells the performer to diff from that base, by its commit id. The harness writes the output as a tool result. The gate's **read record** for a reviewer is the last such output before the review call: head, clean or dirty, base. The record credits only when the review call's arguments name the recorded base commit, for a performer that takes a base. A dirty tree credits nothing, and so does a read command in any other form, such as one chained with other commands. Rejected: parsing `git diff A B` lines, which no current review run produces.
 - KTD4. **Coverage runs over the first-parent chain from the last full review to the head.** A full review is a read record whose base equals the merge-base of its own head with the base branch. That merge-base never moves for a fixed head, so a later merge from the base branch leaves the review full. A clean merge from the base branch (KTD5) is covered without a re-check. The last full review is the latest one whose head is an ancestor of the final head, or patch-equivalent to one (KTD7). The re-checks form a chain: each read record's base must be the previous link's head or an ancestor of it, and its head an ancestor of the final head. The chain must reach the final head. Overlaps are fine. A gap fails, naming the uncovered commits. A re-check is any fresh, non-fork reviewer that ran a performer bound to `review`, `review-before-merge` or `doc-review`, or a Codex CLI rollout with its own read record (KTD8). A `doc-review` re-check covers only a range whose paths are docs-only by KTD6.
 - KTD5. **The 150-line count uses the full review skill's own test pattern.** Lines are added plus deleted from `git log --first-parent --no-merges --numstat` over the commits since the last full review, skipping binary files and any path the test pattern matches. The pattern is copied from the full review skill's scope script, with a comment naming its source, so the gate and the reviewer agree on what a test is. A clean merge from the base branch counts zero lines. A merge whose `--remerge-diff` is non-empty counts those lines and needs a re-check of its own. Rejected: a diff from the review's head to the final head, which counts the base branch's lines after a merge.
-- KTD6. **Docs-only is decided by path, never by the `Docs:` line.** The `Docs:` line records doc upkeep, not the kind of change. A pull request is docs-only when every changed path is markdown or under `docs/`, and none is an agent surface: skills, `SKILL.md`, the instruction files and the plugin manifests, as the full review skill's agent-surface pattern lists them. A manifest change that touches only its `version` field is ignored, since every grove pull request carries one. A mixed pull request needs the full review. The classification is made on the final pull request, so a docs-only review stops counting once a later commit adds a code path. The doc review takes documents, not a range, so its credit needs review calls whose arguments together name every changed markdown path, each after a read record at the reviewed head.
-- KTD7. **A rebase after the review is credited by patch-id, or not at all.** Story-worker forbids rebasing a pushed branch, but the first review runs before the first push, so a rebase onto the base branch before pushing is normal. When a reviewed head is not an ancestor of the final head, the gate compares `git patch-id --stable` of its cumulative merge-base-to-head diff with the cumulative merge-base-to-commit diff of each commit on the final head's chain. A match credits it, for a branch of any length. Without this, a rebase before the first push would leave no full review to start the chain, and so force a whole new full review rather than a re-check. A reviewed commit missing from the lead's clone cannot be compared, so it fails, saying so. The worker's remedy is a re-check of the final head. Rejected: `git range-diff`, whose output is a judgment aid, not a yes or no.
+- KTD6. **Docs-only is decided by path, never by the `Docs:` line.** The `Docs:` line records doc upkeep, not the kind of change. A pull request is docs-only when every changed path is a markdown file, and none is an agent surface: skills, `SKILL.md`, the instruction files and the plugin manifests, as the full review skill's agent-surface pattern lists them. A manifest change that touches only its `version` field is ignored, since every grove pull request carries one. A mixed pull request needs the full review. The classification is made on the final pull request, so a docs-only review stops counting once a later commit adds a code path. The doc review takes documents, not a range, so its credit needs review calls whose arguments together name every markdown file changed in the range from its read record's base, each after a read record at the reviewed head. That base makes it a full review or a re-check by KTD4.
+- KTD7. **A rebase after the review is credited by patch-id, or not at all.** Story-worker forbids rebasing a pushed branch, but the first review runs before the first push, so a rebase onto the base branch before pushing is normal. When a reviewed head is not an ancestor of the final head, the gate compares `git patch-id --stable` of its cumulative merge-base-to-head diff with the cumulative merge-base-to-commit diff of each commit on the final head's chain. A match credits it, for a branch of any length, and the chain then starts at the matched commit. Without this, a rebase before the first push would leave no full review to start the chain, and so force a whole new full review rather than a re-check. A reviewed commit missing from the lead's clone cannot be compared, so it fails, saying so. The worker's remedy is a re-check of the final head. Rejected: `git range-diff`, whose output is a judgment aid, not a yes or no.
 - KTD8. **Codex counts in two places, read from two sources.** A connector review is a bot review (R6), found through the pull request's reviews, comments and reactions, using story-worker's step 7 completion signals. A signal counts for a head only when it names that head's SHA, as a review's commit id or a summary row does. A reaction names no SHA, so it counts only when dated after the head's push time, read as the creation time of the earliest check suite on the head. A Codex CLI run is a re-check (R4), never the full review R3 requires, when its rollout is fresh, with no `forked_from_id`, and holds its own read record. No transcript links a `codex exec` started from a shell to its rollout, so the worker names the rollout's path in the receipt, and the lead passes it with `--codex-rollout`.
 - KTD9. **Exit 2 is for transport failures only.** These are a `gh` or `git` call that fails, an unauthenticated `gh`, an unreadable listed transcript with no carried section, and bad arguments. Readable evidence that fails, including finding no review at all, is exit 1. Otherwise deleting evidence would turn a 1 into a 2. In blocking mode, 2 means do not merge, the same as 1.
 - KTD10. **The receipt check lists every review use, and the handoff parser accepts several.** For operations the table marks `fresh_context`, the receipt check prints one `used` line per creditable call, with the call's arguments and its read record, in time order. Other operations keep one line. The `--handoff` parser accepts several `used` lines for one operation, so a restart carries every review. `judge` keeps first-match credit for the used-or-not verdict, so exit codes stay the same.
@@ -143,16 +143,16 @@ flowchart TB
   R[read record: head H, base B, clean?] --> D{tree clean?}
   D -->|no| X[credits nothing]
   D -->|yes| A{H ancestor of final head?}
-  A -->|yes| F{B is the merge-base of H with the base branch?}
+  A -->|yes| F{B is the merge-base of H with the base branch, and not a Codex CLI run?}
   A -->|no| P{patch-id equals a chain commit?}
   P -->|no| X
-  P -->|yes| F
+  P -->|yes: H becomes the matched commit| F
   F -->|yes| FULL[full review at H]
   F -->|no| RC[re-check covering B..H]
   FULL --> L[latest full review = chain start]
   RC --> CH{chain from start reaches final head with no gap?}
   L --> CH
-  CH -->|no| FAIL[fail: names uncovered commits]
+  CH -->|no, after exempting clean merges| FAIL[fail: names uncovered commits]
   CH -->|yes| N{150+ non-test lines since start?}
   N -->|yes| FAIL2[fail: full review must come again]
   N -->|no| PASS[pass]
@@ -163,12 +163,12 @@ flowchart TB
 - The worker's review subagent runs in the story's checkout, so its git reads see the head it reviews. Story-worker already gives every subagent the checkout's full path. The lead's reviewer runs in a checkout at the pull request's head: the story's worktree where one exists, or else a fresh worktree of the fetched head (U6).
 - Worker and lead share one repository's object store, as worktrees of one clone do. Where they do not, KTD7 fails closed, and the remedy is a re-check of the final head.
 - Grove's own project-lead says to merge only on the maintainer's approval, "given in your conversation, or by a signal the repo's instructions recognise". A repo whose instructions grant a standing approval meets that clause, so the gate adds a precondition without changing the approval rule.
-- The lead passes `--bot` for each automated reviewer the repo's instructions name. The gate does not discover bots, though it fails one that took part without being named (R6).
+- The lead passes `--bot` for each automated reviewer the repo's instructions name. The gate takes the list of bots that must finish only from the lead, and fails a bot that reviewed without being named (R6).
 - A read record shows the checkout just before the review call, not what the performer diffed. Tying the record to the call's base argument (KTD3) narrows this, and a reviewer that then reviews another checkout is the residual risk the shadow week should watch for.
 
 ### Sequencing
 
-U1, U3 and U5 have no dependency on each other. U2 needs U1, U4 needs U1 and U3, and U6 needs U4 and U5. The shadow week starts when U6 merges.
+U1, U3 and U5 have no dependency on each other, though U2 and U5 both edit the receipt-check test, so whichever merges second rebases onto the first. U2 needs U1, U4 needs U1 and U3, and U6 needs U4 and U5. The shadow week starts when U6 merges.
 
 ---
 
@@ -279,16 +279,16 @@ U1, U3 and U5 have no dependency on each other. U2 needs U1, U4 needs U1 and U3,
   - Overlapping re-checks: pass.
   - A re-check that told the review performer to diff from A while its read command recorded the pull request's merge-base: credits nothing.
   - Full review at A, then a clean merge from the base branch as the head: passes, with zero lines counted.
-  - A docs-only pull request whose doc review names every changed document: passes R3. The same with two documents and one named: fails R3.
+  - A docs-only pull request whose doc review names every changed markdown file: passes R3. The same with two files and one named: fails R3.
   - A docs-only review, then a later commit that adds a `skills/` path: fails, needing the full review.
   - The lead's `review-before-merge` read the final head and no worker review did: passes R3.
-  - A lead review whose read record's head is not the pull request's head: does not count.
+  - A lead review whose read record's head is not an ancestor of the pull request's head: does not count.
   - A manifest change of only `version` in a docs pull request: still docs-only.
   - Rebased before push, patch-id equal: credited. Reviewed commit absent from the clone: fails, saying so.
   - One unresolved thread: fails R5.
   - A named bot with no signal on the head: fails as not finished. The same bot passed as unavailable with a reason: an `unavailable` line, no failure.
   - A named bot whose last review names an earlier head: fails, naming that head.
-  - A bot that commented on the pull request but was not named: fails as unnamed.
+  - A bot that left a review on the pull request but was not named: fails as unnamed. A CI bot's comment alone: no failure.
   - A Codex connector 👍 dated after the head's earliest check suite: the bot passes. One dated before it: the bot has not finished.
   - A Codex CLI rollout from the merge-base to the head, with no other review: fails R3, since a CLI run is only a re-check.
   - `review` bound by fallback: fails R3, saying the review ran by fallback.
@@ -306,13 +306,14 @@ U1, U3 and U5 have no dependency on each other. U2 needs U1, U4 needs U1 and U3,
   - `skills/story-worker/references/receipt.md` (`Reviewed by`, and an exception field)
   - `AGENTS.md` (the review loop: the full review skill runs on every pull request)
   - `test/supervision-routing-tables.test.ts`, `test/session-restart-skill.test.ts` and any test pinning step 5, 7 or 8 sentences
-  - `test/supervision-receipt-check.test.ts` and `test/fixtures/supervision/bindings.example.json`, which read the live story table: their `review-escalation` cases are retargeted to `review` or `doc-review`, not deleted
+  - `test/supervision-receipt-check.test.ts`, `test/fixtures/supervision/bindings.example.json` and `test/fixtures/supervision/receipt-check/handoff-with-receipt.md`, which read or quote the live story table: their `review-escalation` cases are retargeted to `review` or `doc-review`, not deleted
+  - `skills/supervision-setup/scripts/routing-table.mjs` (a comment naming `review-escalation`)
   - `README.md` (what the routing tables expect of a repo)
 - **Approach:**
   1. Change the rows per KTD12.
   2. Step 5's first paragraph invokes the performer bound to `review` on every change, and drops the sentence that invokes `review-escalation`.
   3. Step 5's "Check what it read" gains one instruction to the reviewer: run the fixed read command before invoking the review performer, and tell the performer to diff from the base it printed (KTD3). The existing quote-and-compare check stays.
-  4. Step 5 runs the `doc-review` performer, in place of `review`, only for a change that is docs-only by KTD6, naming every changed document.
+  4. Step 5 runs the `doc-review` performer, in place of `review`, only for a change that is docs-only by KTD6, naming every changed markdown file.
   5. Step 7 asks each automated reviewer that re-reviews only on request to review the final head before the hand-back (R6).
   6. A Codex CLI review's rollout path goes in the receipt's `Reviewed by` entry.
   7. Step 8 requires receipt-check exit 0 for `STATUS: ready`, or one named exception in the receipt for the lead to accept or send back (R12).
