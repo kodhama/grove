@@ -168,9 +168,10 @@ plugin dependency.
 **Grove reaches a pane tool only through one script**:
 `skills/supervision-setup/scripts/adapter/<tool>.sh`, named after the tool's
 binary. herdr is the only implementation today, `herdr.sh`. Callers name an
-operation (`self`, `list`, `find`, `get`, `read-screen`, `prompt`, `wait`,
-`launch`, `resume`, `rename`, `close`, and a few the herdr backend marks
-unsupported) and read neutral JSON back, never the tool's own output.
+operation (`self`, `list`, `find`, `get`, `workspace-list`, `read-screen`,
+`prompt`, `wait`, `launch`, `resume`, `rename`, `close`, and a few the herdr
+backend marks unsupported) and read neutral JSON back, never the tool's own
+output.
 `interface.md` beside it is the contract: each operation's arguments,
 output, exit codes and herdr command.
 

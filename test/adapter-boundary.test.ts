@@ -133,14 +133,35 @@ const herdrAgent = (over: Record<string, unknown> = {}) => ({
   focused: false,
   name: "worker-1",
   pane_id: "w1:p2",
+  terminal_title: "✳ worker-1",
+  terminal_title_stripped: "worker-1",
+  workspace_id: "w1",
   ...over,
 });
+
+/** The neutral record herdrAgent() reads as. */
+const FULL = {
+  pane: "w1:p2",
+  name: "worker-1",
+  kind: "claude",
+  status: "idle",
+  focused: false,
+  session: "s1",
+  cwd: "/Users/maintainer/repo",
+  title: "worker-1",
+  workspace: "w1",
+};
 
 const herdrError = (code: string) => JSON.stringify({ error: { code, message: code } });
 
 /** Runs herdr.sh by its absolute path from a folder outside skills/, as an outside script would. */
 function adapter(args: string[], env: Record<string, string | undefined> = {}) {
-  const result = spawnSync("bash", [ADAPTER, "--bin", join(stubDir, "herdr"), ...args], {
+  return adapterAt(ADAPTER, args, env);
+}
+
+/** As adapter, for the adapter script at `script`, such as a mutated copy. */
+function adapterAt(script: string, args: string[], env: Record<string, string | undefined> = {}) {
+  const result = spawnSync("bash", [script, "--bin", join(stubDir, "herdr"), ...args], {
     cwd: outside,
     encoding: "utf8",
     env: { PATH: process.env.PATH, STUB_DIR: stubDir, ...env },
@@ -163,15 +184,7 @@ describe("herdr.sh run by path from outside skills/ (ruling 8, U9.5)", () => {
     answer("agent-get", JSON.stringify({ id: "cli:agent:get", result: { agent: herdrAgent() } }));
     const run = adapter(["get", "w1:p2"]);
     expect(run.status, run.stderr).toBe(0);
-    expect(json(run.stdout)).toEqual({
-      pane: "w1:p2",
-      name: "worker-1",
-      kind: "claude",
-      status: "idle",
-      focused: false,
-      session: "s1",
-      cwd: "/Users/maintainer/repo",
-    });
+    expect(json(run.stdout)).toEqual(FULL);
     expect(run.calls).toEqual([["agent", "get", "w1:p2"]]);
   });
 
@@ -220,6 +233,169 @@ describe("herdr.sh run by path from outside skills/ (ruling 8, U9.5)", () => {
     expect(adapter(["get"]).status).toBe(2);
     expect(adapter(["--timeout", "soon", "list"]).status).toBe(2);
     expect(adapter(["prompt", "w1:p2", "hi", "--wait", "later"]).status).toBe(2);
+  });
+});
+
+describe("the record's title and workspace (GRO-65)", () => {
+  const got = (over: Record<string, unknown>) => {
+    answer("agent-get", JSON.stringify({ result: { agent: herdrAgent(over) } }));
+    const run = adapter(["get", "w1:p2"]);
+    expect(run.status, run.stderr).toBe(0);
+    return json(run.stdout);
+  };
+
+  it("list and find carry title and workspace on every record, beside the other fields (AE1)", () => {
+    const lead = { ...FULL, name: "lead", pane: "w1:p7", workspace: "w3" };
+    answer(
+      "agent-list",
+      JSON.stringify({ result: { agents: [herdrAgent(), herdrAgent({ name: "lead", pane_id: "w1:p7", workspace_id: "w3" })] } }),
+    );
+    const list = adapter(["list"]);
+    expect(list.status, list.stderr).toBe(0);
+    expect(json(list.stdout)).toEqual({ agents: [FULL, lead] });
+    const found = adapter(["find", "lead"]);
+    expect(found.status).toBe(0);
+    expect(json(found.stdout)).toEqual({ agents: [lead] });
+  });
+
+  it("title is herdr's stripped title, not the raw one with the harness's glyph (AE2, KTD2)", () => {
+    expect(got({ terminal_title: "✳ majordomo", terminal_title_stripped: "majordomo" }).title).toBe("majordomo");
+  });
+
+  it("title is null when herdr gives none, an empty one or a non-string (AE2, KTD4)", () => {
+    expect(got({ terminal_title_stripped: undefined }).title).toBeNull();
+    expect(got({ terminal_title_stripped: "" }).title).toBeNull();
+    expect(got({ terminal_title_stripped: 7 }).title).toBeNull();
+  });
+
+  it("workspace is null when herdr gives none, an empty one or a non-string (KTD4)", () => {
+    expect(got({ workspace_id: undefined }).workspace).toBeNull();
+    expect(got({ workspace_id: "" }).workspace).toBeNull();
+    expect(got({ workspace_id: { id: "w1" } }).workspace).toBeNull();
+  });
+
+  it("a copy of herdr.sh with title removed from the record fails the record test (AE4, the mutation check)", () => {
+    const scratch = mkdtempSync(join(tmpdir(), "adapter-title-mutation-"));
+    try {
+      const original = readFileSync(ADAPTER, "utf8");
+      const mutated = original.replace(/^\s*title: .*\n/m, "");
+      expect(mutated).not.toBe(original);
+      const copy = join(scratch, "herdr.sh");
+      writeFileSync(copy, mutated);
+      answer("agent-get", JSON.stringify({ result: { agent: herdrAgent() } }));
+      const run = adapterAt(copy, ["get", "w1:p2"]);
+      expect(run.status, run.stderr).toBe(0);
+      expect(json(run.stdout)).not.toHaveProperty("title");
+      expect(() => expect(json(run.stdout)).toEqual(FULL)).toThrow();
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("workspace-list (GRO-65)", () => {
+  /** herdr's shape for one workspace, as `workspace list` prints it. */
+  const herdrWorkspace = (over: Record<string, unknown> = {}) => ({
+    active_tab_id: "w1:t1",
+    agent_status: "idle",
+    focused: false,
+    label: "hub",
+    number: 1,
+    pane_count: 2,
+    tab_count: 1,
+    workspace_id: "w1",
+    ...over,
+  });
+
+  const listed = (workspaces: unknown) => {
+    answer("workspace-list", JSON.stringify({ id: "cli:workspace:list", result: { workspaces } }));
+    return adapter(["workspace-list"]);
+  };
+
+  it("gives each workspace's id, label, checkout path and status, in herdr's order (AE3)", () => {
+    const run = listed([
+      herdrWorkspace({ workspace_id: "w2", label: "hq", agent_status: "done" }),
+      herdrWorkspace({
+        workspace_id: "w9",
+        label: "narrative",
+        agent_status: "working",
+        worktree: { checkout_path: "/Users/maintainer/narrative", repo_name: "narrative" },
+      }),
+    ]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(json(run.stdout)).toEqual({
+      workspaces: [
+        { workspace: "w2", label: "hq", path: null, status: "done" },
+        { workspace: "w9", label: "narrative", path: "/Users/maintainer/narrative", status: "working" },
+      ],
+    });
+    expect(run.calls).toEqual([["workspace", "list"]]);
+  });
+
+  it("an empty list is exit 0 and no workspaces", () => {
+    const run = listed([]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(json(run.stdout)).toEqual({ workspaces: [] });
+  });
+
+  it("a status outside the four reads unknown, and a missing or empty label or path reads null (KTD3, KTD4)", () => {
+    const run = listed([herdrWorkspace({ agent_status: "starting", label: "", worktree: { checkout_path: "" } })]);
+    expect(run.status, run.stderr).toBe(0);
+    expect(json(run.stdout)).toEqual({ workspaces: [{ workspace: "w1", label: null, path: null, status: "unknown" }] });
+    expect(json(listed([herdrWorkspace({ label: undefined })]).stdout)).toMatchObject({ workspaces: [{ label: null }] });
+  });
+
+  it("an answer with no workspace list, or a workspace with no id, exits 4 and is never an empty list (R6)", () => {
+    answer("workspace-list", JSON.stringify({ result: {} }));
+    const missing = adapter(["workspace-list"]);
+    expect(missing.status).toBe(4);
+    expect(json(missing.stdout)).toEqual({ outcome: "failed", code: null });
+    answer("workspace-list", "not json");
+    expect(adapter(["workspace-list"]).status).toBe(4);
+    const noId = listed([herdrWorkspace(), herdrWorkspace({ workspace_id: undefined })]);
+    expect(noId.status).toBe(4);
+    expect(json(noId.stdout)).toEqual({ outcome: "failed", code: null });
+    expect(listed([herdrWorkspace({ workspace_id: "" })]).status).toBe(4);
+  });
+
+  it("a failed herdr call exits 4 with herdr's error code", () => {
+    answer("workspace-list", "", 1, herdrError("server_unavailable"));
+    const run = adapter(["workspace-list"]);
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toEqual({ outcome: "failed", code: "server_unavailable" });
+  });
+
+  it("takes no pane, so herdr's not-found code is a failure too: exit 4, never 3 (R6)", () => {
+    answer("workspace-list", "", 1, herdrError("agent_not_found"));
+    const run = adapter(["workspace-list"]);
+    expect(run.status).toBe(4);
+    expect(json(run.stdout)).toEqual({ outcome: "failed", code: "agent_not_found" });
+  });
+
+  it("two JSON answers where one belongs exit 4 with the failure object, never 0 with nothing (list, workspace-list)", () => {
+    const one = JSON.stringify({ result: { workspaces: [herdrWorkspace()] } });
+    answer("workspace-list", `${one}\n${one}\n`);
+    const ws = adapter(["workspace-list"]);
+    expect(ws.status).toBe(4);
+    expect(json(ws.stdout)).toEqual({ outcome: "failed", code: null });
+    expect(ws.stderr).toMatch(/the result could not be built/);
+    const agents = JSON.stringify({ result: { agents: [herdrAgent()] } });
+    answer("agent-list", `${agents}\n${agents}\n`);
+    const list = adapter(["list"]);
+    expect(list.status).toBe(4);
+    expect(json(list.stdout)).toEqual({ outcome: "failed", code: null });
+  });
+
+  it("says which rule failed: a workspace with no id, or an answer it cannot read", () => {
+    expect(listed([herdrWorkspace({ workspace_id: undefined })]).stderr).toMatch(/a workspace has no id/);
+    answer("workspace-list", "not json");
+    expect(adapter(["workspace-list"]).stderr).toMatch(/could not be read/);
+  });
+
+  it("takes no arguments: an extra one is a usage error, and herdr is never called", () => {
+    const run = adapter(["workspace-list", "w1"]);
+    expect(run.status).toBe(2);
+    expect(run.calls).toEqual([]);
   });
 });
 

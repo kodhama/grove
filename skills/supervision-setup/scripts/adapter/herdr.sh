@@ -19,7 +19,7 @@
 
 set -u
 
-operations=(self list find get read-screen prompt wait launch resume rename close remote-check remote-on schedule-list schedule-create worktree-create)
+operations=(self list find get workspace-list read-screen prompt wait launch resume rename close remote-check remote-on schedule-list schedule-create worktree-create)
 
 usage() {
   echo "Usage: herdr.sh [--bin <herdr-binary>] [--timeout <seconds>] <operation> [args...]" >&2
@@ -46,10 +46,14 @@ shift
 # --- results ------------------------------------------------------------------
 
 # Prints one JSON object built from name/value pairs (values as JSON) and exits.
+# A value jq cannot take, such as two answers where herdr gave one, is a
+# result that cannot be built: exit 4, never 0 with nothing printed.
 result() {
-  local code="$1"
+  local code="$1" line
   shift
-  jq -cn "$@"
+  line=$(jq -cn "$@" 2>/dev/null) ||
+    { say "the result could not be built"; echo '{"outcome":"failed","code":null}'; exit 4; }
+  printf '%s\n' "$line"
   exit "$code"
 }
 
@@ -115,14 +119,20 @@ bound_with() { awk -v ms="$1" -v t="$timeout" 'BEGIN { print ms / 1000 + t }'; }
 
 # The neutral agent record (interface.md, "The agent record"). Whatever herdr
 # cannot tell is null, and a status outside the four it reports is unknown.
-RECORD='def record: {
+# JQ_DEFS normalizes a status, and reads a value that is not a non-empty
+# string as null; workspace-list shares it.
+JQ_DEFS='def status: if (. == "idle" or . == "working" or . == "blocked" or . == "done") then . else "unknown" end;
+def text: if type == "string" and . != "" then . else null end;'
+RECORD="$JQ_DEFS"'def record: {
   pane: (.pane_id // null),
   name: (.name // null),
   kind: (.agent // null),
-  status: (.agent_status as $s | if ($s == "idle" or $s == "working" or $s == "blocked" or $s == "done") then $s else "unknown" end),
+  status: (.agent_status | status),
   focused: (if .focused == true then true elif .focused == false then false else null end),
   session: (.agent_session.value? // null | if . == "" then null else . end),
-  cwd: (.cwd // null)
+  cwd: (.cwd // null),
+  title: (.terminal_title_stripped | text),  # the terminal title, its status glyph stripped
+  workspace: (.workspace_id | text)
 };'
 
 # Exits 3 for an answer that says the pane or agent is gone, else 4.
@@ -176,6 +186,26 @@ case "$op" in
       { say "herdr's answer could not be read"; result 4 '{outcome: "failed", code: null}'; }
     printf '%s\n' "$record"
     exit 0
+    ;;
+
+  # A workspace with no id fails the whole answer: an unjoinable row would
+  # mislead a caller joining records to workspaces.
+  workspace-list)
+    [ $# -eq 0 ] || usage
+    call workspace list
+    # It names no pane, so every failed call is exit 4, herdr's not-found too.
+    [ "$rc" -eq 0 ] || {
+      code=$(error_code)
+      say "$(failed_line)"
+      result 4 --arg c "$code" '{outcome: "failed", code: (if $c == "" then null else $c end)}'
+    }
+    workspaces=$(printf '%s' "$out" | jq -ce "$JQ_DEFS"' .result.workspaces | arrays
+      | map({workspace: (.workspace_id | text), label: (.label | text),
+             path: (.worktree.checkout_path? // null | text), status: (.agent_status | status)})' 2>/dev/null) ||
+      { say "herdr's answer could not be read"; result 4 '{outcome: "failed", code: null}'; }
+    printf '%s' "$workspaces" | jq -e 'all(.[]; .workspace != null)' >/dev/null ||
+      { say "a workspace has no id"; result 4 '{outcome: "failed", code: null}'; }
+    result 0 --argjson w "$workspaces" '{workspaces: $w}'
     ;;
 
   read-screen)

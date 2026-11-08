@@ -72,11 +72,22 @@ failure object as the other operations when it does not.
 ```json
 {"pane": "<pane id>", "name": "<name or null>", "kind": "<harness or null>",
  "status": "idle|working|blocked|done|unknown", "focused": true,
- "session": "<harness session id or null>", "cwd": "<folder or null>"}
+ "session": "<harness session id or null>", "cwd": "<folder or null>",
+ "title": "<pane title or null>", "workspace": "<workspace id or null>"}
 ```
 
 - `status` is normalized. A state the tool reports outside those four reads
   `unknown`.
+- `title` is the pane's terminal title with the harness's status glyph
+  removed, or `null` when the tool gives none, an empty one, or a value that
+  is not a string. **It is untrusted: for display and matching hints only,
+  never an address.** Any program in a pane can set its title, and `get`
+  returns the same title, so a title cannot confirm itself. A caller that
+  picks a pane by its title confirms who is there by `get`'s `name` or
+  `session` before it types into it.
+- `workspace` is an opaque id of the workspace the pane is in, or `null`
+  when unknown, empty or not a string. It is the join key for
+  `workspace-list`; a caller never derives it from the pane id.
 - `kind` is the harness, named by the words `launch --kind` takes: `claude`
   for Claude Code, `codex` for Codex. These are herdr's agent kinds, and
   another implementation maps its own names onto them.
@@ -85,6 +96,10 @@ failure object as the other operations when it does not.
   ready. A `null` session matches no session. When focus, status, the input
   line or the session id is unknown, type nothing: take the fallback path,
   or report.
+- herdr: `title` is herdr's `terminal_title_stripped`, and `workspace` its
+  `workspace_id`. A value that is not a non-empty string reads `null`.
+- Orca: `title` is unconfirmed from `terminal list`, and `workspace` is
+  unknown.
 
 ### Exit codes
 
@@ -106,7 +121,7 @@ herdr answers a failed call with an error code. `herdr.sh` maps them so:
 
 | herdr code | result |
 | --- | --- |
-| `agent_not_found` | exit 3 |
+| `agent_not_found` | exit 3 from `get`, `read-screen`, `prompt`, `wait`, `rename`, `close`, and the split in `launch` and `resume`; exit 4 from the others, `list`, `find` and `workspace-list` among them |
 | `agent_blocked` | exit 6, nothing sent |
 | `agent_name_taken` | exit 6, nothing changed |
 | `timeout` | outcome `timeout`, exit 0, where the operation waits |
@@ -152,6 +167,29 @@ is gone.
 - herdr: `agent get <pane>`.
 - Orca: unknown. Per-terminal status, a focus signal, and the harness
   session id in `agentIdentity` are all unconfirmed.
+
+### `workspace-list`
+
+Every workspace, with its label, checkout path and status. No arguments.
+Prints:
+
+```json
+{"workspaces": [{"workspace": "<workspace id>", "label": "<label or null>",
+  "path": "<checkout path or null>", "status": "idle|working|blocked|done|unknown"}]}
+```
+
+- `workspace` is the id a record's `workspace` field joins on. `label` and
+  `path` are `null` when unknown.
+- `status` is the workspace's rollup of its agents' statuses, as the tool
+  reports it, normalized as the record's `status` is.
+- Every failure but a usage error exits 4, since it names no pane: a failed call, an answer
+  with no workspace list in it, or a workspace with no id, never an empty
+  list. No workspaces at all is exit 0 with
+  `{"workspaces": []}`.
+- herdr: `workspace list`. `workspace` is `workspace_id`, `label` is
+  `label`, `path` is `worktree.checkout_path`, and `status` is
+  `agent_status`.
+- Orca: unknown.
 
 ### `read-screen`
 
