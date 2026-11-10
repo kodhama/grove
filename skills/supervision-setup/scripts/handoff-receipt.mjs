@@ -58,9 +58,10 @@ const CARRIED_TEXT = CARRIED.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const DETAIL_TEXT = String.raw`read(?: [0-9a-f]{40} from [0-9a-f]{40}(?: \(dirty tree\))?|: none recorded); args (?:none|unknown|"(?:[^"\\]|\\.)*")`;
 /**
  * A used line, plain or shared: its `table/op` key, its performer, its
- * place, less any carried mark, a review's detail and a shared line's
- * `; also bound to …` tail, and that detail. The place's first word stops
- * at a `;`, which a shared line can put right after the session id.
+ * place, and a review's detail, the place less any carried mark, that
+ * detail and a shared line's `; also bound to …` tail. The place's first
+ * word stops at a `;`, which a shared line can put right after the session
+ * id.
  */
 const USED_LINE = new RegExp(
   String.raw`^(\S+\/\S+): used (?:\(shared\): )?(\S+) in ([^\s;]+.*?)(?: ${CARRIED_TEXT})?(?:; (${DETAIL_TEXT}))?(?:; also bound to .*)?$`,
@@ -92,10 +93,10 @@ function keysMatching(lines, pattern) {
  * What a handoff's receipt-check section carries: each operation it reports
  * used, by `table/op` key, with the performer, the session it was used in,
  * the whole place and a review's detail: the first such use in `used`, and
- * every one, in order, in `all`; the session ids of the transcripts it read or itself
- * carried; and its `--since` as written, or null when it ran without one,
- * or, where the section holds more than one, all of them joined, which reads
- * as no time.
+ * every one, in order, in `all`; the session ids of the transcripts it read
+ * or itself carried; and its `--since` as written, or null when it ran
+ * without one, or, where the section holds more than one, all of them
+ * joined, which reads as no time.
  */
 export function readHandoff(path) {
   const lines = readFileSync(path, "utf8").split("\n");

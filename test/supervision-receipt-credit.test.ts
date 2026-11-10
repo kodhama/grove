@@ -573,10 +573,12 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
 
   describe("across a handoff", () => {
     const REVIEW = "story-worker/review";
-    const carriedLines = [
-      `${REVIEW}: used code-review in s-old subagent agent-r1; read ${H1} from ${B1}; args "base:${B1}"`,
-      `${REVIEW}: used code-review in s-old subagent agent-r2 (carried from handoff); read: none recorded; args none`,
+    /** Two used lines for one operation from an unread session, the second already carried once. */
+    const carriedLinesFor = (key: string, performer: string) => [
+      `${key}: used ${performer} in s-old subagent agent-r1; read ${H1} from ${B1}; args "base:${B1}"`,
+      `${key}: used ${performer} in s-old subagent agent-r2 (carried from handoff); read: none recorded; args none`,
     ];
+    const carriedLines = carriedLinesFor(REVIEW, "code-review");
     const handoffOf = (...lines: string[]) => {
       const path = join(dir, "handoff.md");
       writeFileSync(path, ["## Receipt check", "", ...lines, ""].join("\n"));
@@ -609,7 +611,8 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     it("lists the carried reviews before this session's own", () => {
       const file = bindingsOf();
       subagent("now", review("2026-10-08T10:02:00.000Z"));
-      const lines = linesOf(run(file, "--handoff", handoffOf(...carriedLines.map((l) => l.replace(REVIEW, ESCALATION).replace(" code-review ", " compound-engineering:ce-code-review ")))).stdout, ESCALATION);
+      const handoff = handoffOf(...carriedLinesFor(ESCALATION, "compound-engineering:ce-code-review"));
+      const lines = linesOf(run(file, "--handoff", handoff).stdout, ESCALATION);
       expect(lines).toHaveLength(3);
       expect(lines[0]).toContain("agent-r1 (carried from handoff)");
       expect(lines[1]).toContain("agent-r2 (carried from handoff)");

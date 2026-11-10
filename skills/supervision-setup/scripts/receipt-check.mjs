@@ -164,7 +164,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { scopeCalls, sinceTime } from "./call-scope.mjs";
 import { CARRIED, readDetail, readHandoff } from "./handoff-receipt.mjs";
-import { carriedUse, creditable, hasPerformer, judge, matches, unqualified } from "./operation-state.mjs";
+import { carriedUse, creditable, hasPerformer, judge, matches, ranCalls, unqualified } from "./operation-state.mjs";
 import { LINE_BREAK, readBodyLines } from "./pr-body-lines.mjs";
 import { readReviewReads } from "./review-reads.mjs";
 import { readRoutingTable } from "./routing-table.mjs";
@@ -248,16 +248,14 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
   // listed, so a carried use in one stands only while its session is unread.
   const read = new Set(transcripts.filter((t) => t.status === "read").map((t) => t.session_id));
   const unread = new Set(transcripts.filter((t) => t.status !== "read").map((t) => t.session_id));
+  const stands = (use) => !read.has(use.session) || unread.has(use.child);
   const standing = new Map(
-    [...carried.all]
-      .map(([key, all]) => [key, all.filter((use) => !read.has(use.session) || unread.has(use.child))])
-      .filter(([, all]) => all.length > 0),
+    [...carried.all].map(([key, all]) => [key, all.filter(stands)]).filter(([, all]) => all.length > 0),
   );
   // A carried use has no time to cut, so it counts only for the story its
   // handoff's check was scoped to: one run with another `--since`, or with
   // none where this run has one, carries nothing.
-  const total = [...standing.values()].reduce((n, all) => n + all.length, 0);
-  const dropped = handoff && !sameInstant(carried.since, since) ? total : 0;
+  const dropped = handoff && !sameInstant(carried.since, since) ? [...standing.values()].flat().length : 0;
   if (dropped > 0) standing.clear();
   // Every call, whatever its outcome: `judge` credits only one that ran (`uses`).
   const context = {
@@ -303,30 +301,26 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
   };
 }
 
-/** How many carried uses a row shows: each listed use carried, or one when its single line is. */
+/** How many carried uses a row shows: each of its listed uses, or the row itself, whose place is carried. */
 function carriedCount(row) {
-  if (row.uses) return row.uses.filter((use) => use.where.endsWith(CARRIED)).length;
-  return row.where?.endsWith(CARRIED) ? 1 : 0;
+  return (row.uses ?? [row]).filter((use) => use.where?.endsWith(CARRIED)).length;
 }
 
 /** A use's key for pairing it with its review record: where, when and which skill. */
 const recordKey = (where, at, name) => `${where}\u0000${at}\u0000${name}`;
 
 /**
- * The read record of each review call in the listed transcripts, as
- * `review-reads.mjs` reads them, queued by `recordKey`; read only when a
- * marked operation has a skill call that ran in a fresh-context subagent.
+ * The read record of each review call, as `review-reads.mjs` reads them,
+ * queued by `recordKey`, from only the listed sessions where a call credits
+ * a marked operation, so a session with none is not read twice.
  */
 function reviewDetails(bindings, context) {
-  const marked = bindings.operations.filter(
-    (binding) => binding.kind === "skill" && context.marked.has(`${binding.table}/${binding.id}`),
-  );
-  const wanted = context.calls.some(
-    (call) => call.fresh && call.outcome === "ran" && marked.some((binding) => matches(binding, call)),
-  );
+  const marked = bindings.operations.filter((binding) => context.marked.has(`${binding.table}/${binding.id}`));
+  const sessions = new Set(marked.flatMap((binding) => ranCalls(binding, context.calls, true)).map((call) => call.session));
   const queues = new Map();
-  if (!wanted) return queues;
-  for (const record of readReviewReads(bindings.transcripts).reviews) {
+  if (sessions.size === 0) return queues;
+  const listed = bindings.transcripts.filter((t) => sessions.has(t.session_id));
+  for (const record of readReviewReads(listed).reviews) {
     const key = recordKey(record.place, record.at, record.skill);
     queues.set(key, [...(queues.get(key) ?? []), record]);
   }
@@ -351,14 +345,14 @@ function everyUse(binding, context, carriedUses, details, bindings) {
     if (!credited) return [];
     return [withShared({ where: `${use.place} ${CARRIED}`, detail: use.detail ?? null }, credited)];
   });
-  const later = (a, b) => (a.at === null) - (b.at === null) || (a.at ?? "").localeCompare(b.at ?? "");
-  const calls = context.calls
-    .filter((call) => matches(binding, call) && creditable(call, true) && call.outcome === "ran")
-    .map((call, index) => ({ call, at: call.at ?? null, index }))
-    .sort((a, b) => later(a, b) || a.index - b.index)
-    .map(({ call }) => {
-      const queue = details.get(recordKey(call.where, call.at ?? null, call.name)) ?? [];
-      return withShared({ where: call.where, detail: readDetail(queue.shift()) }, call);
+  // Sorting is stable, so calls at one time, or with none, keep their transcript order.
+  const untimedLast = (a, b) => Number(a.at === null) - Number(b.at === null);
+  const byTime = (a, b) => untimedLast(a, b) || (a.at < b.at ? -1 : a.at > b.at ? 1 : 0);
+  const calls = ranCalls(binding, context.calls, true)
+    .sort(byTime)
+    .map((call) => {
+      const record = details.get(recordKey(call.where, call.at, call.name))?.shift();
+      return withShared({ where: call.where, detail: readDetail(record) }, call);
     });
   return [...carried, ...calls];
 }
