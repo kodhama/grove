@@ -784,9 +784,29 @@ describe("the read command against a git checkout", () => {
     expect(run("--checkout", dir, "--from", "main").stdout).toMatch(/^status 1$/m);
   });
 
+  it("a changed submodule makes the tree dirty, even where git's config or .gitmodules ignores it", () => {
+    const sub = repo();
+    const { dir } = repo();
+    git(dir, "-c", "protocol.file.allow=always", "submodule", "add", "-q", sub.dir, "sm");
+    git(dir, "commit", "-q", "-m", "sm");
+    expect(run("--checkout", dir, "--from", "main").stdout).toMatch(/^status 0$/m);
+    writeFileSync(join(dir, "sm", "a.txt"), "changed\n");
+    expect(run("--checkout", dir, "--from", "main").stdout).toMatch(/^status 1$/m);
+    git(dir, "config", "diff.ignoreSubmodules", "all");
+    git(dir, "config", "submodule.sm.ignore", "all");
+    git(dir, "config", "-f", ".gitmodules", "submodule.sm.ignore", "all");
+    git(dir, "commit", "-q", "-m", "ignore sm", "--", ".gitmodules");
+    expect(run("--checkout", dir, "--from", "main").stdout).toMatch(/^status 1$/m);
+  });
+
   it("reads the checkout --checkout names, whatever GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE point at", () => {
     const { dir, base, head } = repo();
     const other = repo();
+    writeFileSync(join(other.dir, "c.txt"), "c\n");
+    git(other.dir, "add", "c.txt");
+    git(other.dir, "commit", "-q", "-m", "c");
+    writeFileSync(join(other.dir, "a.txt"), "changed\n");
+    expect(git(other.dir, "rev-parse", "HEAD")).not.toBe(head);
     const env = {
       ...process.env,
       GIT_DIR: join(other.dir, ".git"),
