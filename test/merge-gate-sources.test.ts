@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createGateSources, TransportFailure } from "../skills/supervision-setup/scripts/gate-sources.mjs";
 
 type Result = { status: number | null; stdout: string; stderr: string; error?: Error };
-type Options = { cwd?: string; input?: string; env?: NodeJS.ProcessEnv };
+type Options = { cwd?: string; input?: string | Buffer; env?: NodeJS.ProcessEnv; encoding?: "utf8" | "buffer" };
 const ok = (value: unknown): Result => ({ status: 0, stdout: JSON.stringify(value), stderr: "" });
 
 /** A gh runner that answers from a queue of pages and logs each call. */
@@ -270,10 +270,13 @@ describe("git sources in temporary repositories", () => {
     const r = repo();
     r.write(".gitattributes", "*.txt diff=lossy\n");
     r.write("src/original.txt", "one\ntwo\nthree\n");
+    r.write("src/second.txt", "alpha\nbeta\ngamma\n");
     const start = r.commit("original");
     r.git("checkout", "-b", "feature");
     r.git("mv", "src/original.txt", "src/renamed.txt");
     r.write("src/renamed.txt", "one\ntwo\nthree\nfour\n");
+    r.git("mv", "src/second.txt", "src/moved.txt");
+    r.write("src/moved.txt", "alpha\nbeta\ngamma\ndelta\n");
     const rename = r.commit("rename");
     r.write("seed", "feature\n");
     r.commit("feature");
@@ -291,9 +294,22 @@ describe("git sources in temporary repositories", () => {
       patchId: r.sources.patchId(start, merge),
     });
     const clean = answers();
-    expect(clean.numstat.find((c: { sha: string }) => c.sha === rename).files).toEqual([{ path: "src/renamed.txt", added: 1, deleted: 0 }]);
-    expect(clean.remergeNumstat).toEqual([{ path: "seed", added: 1, deleted: 5 }]);
+    expect(clean.numstat.find((c: { sha: string }) => c.sha === rename).files).toEqual([
+      { path: "src/moved.txt", oldPath: "src/second.txt", added: 1, deleted: 0 },
+      { path: "src/renamed.txt", oldPath: "src/original.txt", added: 1, deleted: 0 },
+    ]);
+    expect(clean.remergeNumstat).toEqual([{ path: "seed", oldPath: null, added: 1, deleted: 5 }]);
+    const attributesDir = mkdtempSync(join(tmpdir(), "gate-global-attributes-"));
+    dirs.push(attributesDir);
+    const attributes = join(attributesDir, "attributes");
+    writeFileSync(attributes, "* -diff\n");
     for (const [key, value] of Object.entries({
+      "core.attributesFile": attributes,
+      "diff.context": "0",
+      "diff.interHunkContext": "5",
+      "diff.indentHeuristic": "false",
+      "diff.suppressBlankEmpty": "true",
+      "diff.renameLimit": "1",
       "diff.renames": "false",
       "diff.algorithm": "histogram",
       "merge.conflictStyle": "diff3",
@@ -306,7 +322,53 @@ describe("git sources in temporary repositories", () => {
       "diff.external": "/usr/bin/true",
       "diff.lossy.textconv": "sed s/./x/g",
     })) r.git("config", key, value);
-    expect(answers()).toEqual(clean);
+    const saved = process.env.GIT_DIFF_OPTS;
+    try {
+      process.env.GIT_DIFF_OPTS = "-u0";
+      expect(answers()).toEqual(clean);
+    } finally {
+      if (saved === undefined) delete process.env.GIT_DIFF_OPTS;
+      else process.env.GIT_DIFF_OPTS = saved;
+    }
+  });
+
+  it.each(["add nested", "delete root", "none"])("reports attributesTouched for %s", (kind) => {
+    const r = repo();
+    r.write(".gitattributes", "*.txt text\n");
+    const start = r.commit("attributes");
+    if (kind === "add nested") r.write("src/.gitattributes", "*.js text\n");
+    else if (kind === "delete root") r.git("rm", ".gitattributes");
+    else r.write("src/a", "code\n");
+    const head = r.commit(kind);
+    expect(r.sources.nonTestLines(start, head, r.base).attributesTouched).toBe(kind !== "none");
+  });
+
+  it("includes gitlink changes despite a committed submodule ignore=all", () => {
+    const r = repo();
+    r.write(".gitmodules", '[submodule "sub"]\n\tpath = sub\n\turl = ./offline\n\tignore = all\n');
+    const start = r.commit("submodule config");
+    r.git("update-index", "--add", "--cacheinfo", `160000,${r.base},sub`);
+    r.git("commit", "-m", "first pointer");
+    const first = r.git("rev-parse", "HEAD");
+    r.git("update-index", "--add", "--cacheinfo", `160000,${start},sub`);
+    r.git("commit", "-m", "second pointer");
+    const second = r.git("rev-parse", "HEAD");
+    expect(r.sources.patchId(start, first)).not.toBe(r.sources.patchId(start, second));
+    expect(r.sources.numstat(first, second)[0].files).toContainEqual({
+      path: "sub",
+      oldPath: null,
+      added: 1,
+      deleted: 1,
+    });
+  });
+
+  it("preserves non-UTF-8 text bytes in patch IDs", () => {
+    const r = repo();
+    r.write("text", Buffer.from([0xff, 10]));
+    const first = r.commit("first byte");
+    r.write("text", Buffer.from([0xfe, 10]));
+    const second = r.commit("second byte");
+    expect(r.sources.patchId(r.base, first)).not.toBe(r.sources.patchId(r.base, second));
   });
 
   it("distinguishes patches differing only in binary content", () => {
@@ -325,13 +387,44 @@ describe("git sources in temporary repositories", () => {
     const feature = r.commit("feature");
     r.git("checkout", "main");
     r.write("base-file", "base\n".repeat(200));
+    r.write(".gitattributes", "*.js text\n");
     const main = r.commit("base update");
     r.git("checkout", "feature");
     r.git("merge", "--no-ff", "main", "-m", "merge base");
     const merge = r.git("rev-parse", "HEAD");
     expect(r.sources.firstParentChain(feature, merge)).toEqual([{ sha: merge, parents: [feature, main] }]);
     expect(r.sources.remergeNumstat(merge)).toEqual([]);
-    expect(r.sources.nonTestLines(r.base, merge, main)).toEqual({ total: 2, commits: [{ sha: feature, lines: 2 }, { sha: merge, lines: 0 }], merges: [], binaryPaths: [] });
+    expect(r.sources.nonTestLines(r.base, merge, main).attributesTouched).toBe(false);
+    expect(r.sources.nonTestLines(r.base, merge, main)).toEqual({ total: 2, commits: [{ sha: feature, lines: 2 }, { sha: merge, lines: 0 }], merges: [], binaryPaths: [], attributesTouched: false });
+  });
+
+  it("counts an octopus of base ancestors without asking for remerge-diff", () => {
+    const r = repo();
+    r.git("checkout", "-b", "one");
+    r.write("one", "one\n");
+    r.commit("one");
+    r.git("checkout", "-b", "two", r.base);
+    r.write("two", "two\n");
+    r.commit("two");
+    r.git("checkout", "main");
+    r.git("merge", "--no-ff", "one", "two", "-m", "base ancestors");
+    const base = r.git("rev-parse", "HEAD");
+    r.git("checkout", "-b", "feature", r.base);
+    r.write("feature", "feature\n");
+    const feature = r.commit("feature");
+    r.git("merge", "one", "two", "-m", "octopus");
+    const merge = r.git("rev-parse", "HEAD");
+    const calls: string[][] = [];
+    const run = (cmd: string, args: string[], options: Options) => {
+      calls.push(args);
+      return spawnSync(cmd, args, { ...options, encoding: "utf8" });
+    };
+    const sources = createGateSources({ ...config, checkout: r.cwd, run });
+    expect(sources.nonTestLines(feature, merge, base)).toMatchObject({
+      total: 2,
+      merges: [{ sha: merge, lines: 2 }],
+    });
+    expect(calls.some((args) => args.includes("--remerge-diff"))).toBe(false);
   });
 
   it("counts a clean side-branch merge that is not from the base", () => {
@@ -348,10 +441,11 @@ describe("git sources in temporary repositories", () => {
       commits: [{ sha: merge, lines: 100 }],
       merges: [{ sha: merge, lines: 100 }],
       binaryPaths: [],
+      attributesTouched: false,
     });
   });
 
-  it.each(["conflict", "test/conflict"])("counts a resolution and records a merge touching %s", (path) => {
+  it.each(["conflict", "test/conflict", "src/é\tname", "src/a b/name"])("counts a resolution and records a merge touching %s", (path) => {
     const r = repo();
     r.write(path, "start\n");
     const start = r.commit("start");
@@ -365,9 +459,34 @@ describe("git sources in temporary repositories", () => {
     expect(r.gitStatus("merge", "main")).toBe(1);
     r.write(path, "resolved\n");
     const merge = r.commit("resolve");
-    expect(r.sources.remergeNumstat(merge)).toEqual([{ path, added: 1, deleted: 5 }]);
+    expect(r.sources.remergeNumstat(merge)).toEqual([{ path, oldPath: null, added: 1, deleted: 5 }]);
     const isTest = path.startsWith("test/");
     expect(r.sources.nonTestLines(start, merge, main)).toMatchObject({ total: isTest ? 0 : 8, merges: [{ sha: merge, lines: isTest ? 0 : 6 }] });
+  });
+
+  it("counts a base merge whose binary-driver conflict has no remerge row", () => {
+    const r = repo();
+    r.write(".gitattributes", "* merge=binary\n");
+    r.write("conflict", "start\n");
+    const start = r.commit("start");
+    r.git("checkout", "-b", "feature");
+    r.write("conflict", "feature\n");
+    const feature = r.commit("feature");
+    r.git("checkout", "main");
+    r.write("conflict", "main\n");
+    r.write("base-file", "base\n".repeat(20));
+    const main = r.commit("main");
+    r.git("checkout", "feature");
+    expect(r.gitStatus("merge", "main")).toBe(1);
+    const merge = r.commit("keep feature side");
+    const patch = r.git("show", "--remerge-diff", "--format=", merge);
+    expect(patch).toContain("remerge CONFLICT");
+    expect(r.sources.remergeNumstat(merge)).toEqual([]);
+    expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
+      total: 20,
+      merges: [{ sha: merge, lines: 20 }],
+    });
+    expect(r.sources.nonTestLines(start, merge, main).total).toBe(22);
   });
 
   it("skips binary files and all test patterns, with a case-sensitive class suffix", () => {
@@ -379,8 +498,8 @@ describe("git sources in temporary repositories", () => {
     r.write("src/footest.java", "count\n");
     r.write("src/a", "one\ntwo\n");
     const head = r.commit("mixed");
-    expect(r.sources.nonTestLines(r.base, head, r.base)).toEqual({ total: 3, commits: [{ sha: head, lines: 3 }], merges: [], binaryPaths: ["binary"] });
-    expect(r.sources.numstat(r.base, head)[0].files).toContainEqual({ path: "binary", added: null, deleted: null });
+    expect(r.sources.nonTestLines(r.base, head, r.base)).toEqual({ total: 3, commits: [{ sha: head, lines: 3 }], merges: [], binaryPaths: ["binary"], attributesTouched: false });
+    expect(r.sources.numstat(r.base, head)[0].files).toContainEqual({ path: "binary", oldPath: null, added: null, deleted: null });
   });
 
   it("reports attribute-marked binary text without adding its 300 lines", () => {
@@ -394,7 +513,31 @@ describe("git sources in temporary repositories", () => {
       commits: [{ sha: head, lines: 0 }],
       merges: [],
       binaryPaths: ["src/a.mjs"],
+      attributesTouched: false,
     });
+  });
+
+  it("reports a binary row from a merge in binaryPaths", () => {
+    const r = repo();
+    r.git("checkout", "-b", "side");
+    r.write("binary", Buffer.from([0, 1]));
+    r.commit("binary");
+    r.git("checkout", "main");
+    r.git("merge", "--no-ff", "side", "-m", "side merge");
+    const merge = r.git("rev-parse", "HEAD");
+    expect(r.sources.nonTestLines(r.base, merge, r.base)).toMatchObject({
+      total: 0,
+      merges: [{ sha: merge, lines: 0 }],
+      binaryPaths: ["binary"],
+    });
+  });
+
+  it.each(["isAncestor", "mergeBase"])("throws a named %s failure for a real unknown commit", (method) => {
+    const r = repo();
+    const unknown = "f".repeat(40);
+    expect(r.gitStatus("merge-base", ...(method === "isAncestor" ? ["--is-ancestor"] : []), r.base, unknown)).toBe(128);
+    expect(() => r.sources[method](r.base, unknown)).toThrow(TransportFailure);
+    expect(() => r.sources[method](r.base, unknown)).toThrow(new RegExp(`^${method}:`));
   });
 
   it("reports binary paths in commit order, de-duplicated", () => {
@@ -420,8 +563,85 @@ describe("git sources in temporary repositories", () => {
     r.git("mv", oldPath, newPath);
     r.write(newPath, "one\ntwo\nthree\nfour\n");
     const head = r.commit("rename");
-    expect(r.sources.numstat(base, head)[0].files).toEqual([{ path: newPath, added: 1, deleted: 0 }]);
+    expect(r.sources.numstat(base, head)[0].files).toEqual([{ path: newPath, oldPath, added: 1, deleted: 0 }]);
     expect(r.sources.nonTestLines(base, head, r.base).total).toBe(0);
+  });
+
+  it.each([
+    ["test/a.test.js", "src/a.js", 200],
+    ["src/x.js", "src/y.js", 0],
+    ["test/a.test.js", "test/b.test.js", 0],
+    ["test/a.test.js", "src/a*.js", 200],
+    ["test/a.test.js", "src/:a.js", 200],
+  ])("counts a move from %s to %s as %i lines", (oldPath, newPath, lines) => {
+    const r = repo();
+    r.write(oldPath, "code\n".repeat(200));
+    r.write("src/another.js", "other\n".repeat(7));
+    const start = r.commit("original");
+    r.git("mv", oldPath, newPath);
+    r.write("src/another.js", "changed\n".repeat(7));
+    const head = r.commit("move");
+    expect(r.sources.numstat(start, head)[0].files).toContainEqual({
+      path: newPath,
+      oldPath,
+      added: 0,
+      deleted: 0,
+    });
+    expect(r.sources.nonTestLines(start, head, r.base).total).toBe(lines + 14);
+  });
+
+  it("recounts a test-to-source rename in a non-base merge's first-parent diff", () => {
+    const r = repo();
+    r.write("test/a.test.js", "code\n".repeat(200));
+    const start = r.commit("test file");
+    r.git("checkout", "-b", "side");
+    mkdirSync(join(r.cwd, "src"));
+    r.git("mv", "test/a.test.js", "src/a.js");
+    r.commit("move");
+    r.git("checkout", "main");
+    r.git("merge", "--no-ff", "side", "-m", "side merge");
+    const merge = r.git("rev-parse", "HEAD");
+    expect(r.sources.nonTestLines(start, merge, start)).toMatchObject({
+      total: 200,
+      merges: [{ sha: merge, lines: 200 }],
+    });
+  });
+
+  it("recounts a test-to-source rename in a base merge's remerge rows", () => {
+    const r = repo();
+    const body = Array.from({ length: 199 }, (_, i) => `line ${i}\n`).join("");
+    r.write("test/a.test.js", "start\n" + body);
+    r.commit("test file");
+    r.git("checkout", "-b", "feature");
+    r.write("test/a.test.js", "feature\n" + body);
+    const feature = r.commit("feature");
+    r.git("checkout", "main");
+    r.write("test/a.test.js", "main\n" + body);
+    const main = r.commit("main");
+    r.git("checkout", "feature");
+    expect(r.gitStatus("merge", "main")).toBe(1);
+    r.git("rm", "test/a.test.js");
+    r.write("src/a.js", "resolved\n" + body);
+    const merge = r.commit("resolve and move");
+    expect(r.sources.remergeNumstat(merge)).toEqual([{
+      path: "src/a.js",
+      oldPath: "test/a.test.js",
+      added: 1,
+      deleted: 5,
+    }]);
+    expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
+      total: 200,
+      merges: [{ sha: merge, lines: 200 }],
+    });
+  });
+
+  it("reports attributesTouched when a rename removes the attributes filename", () => {
+    const r = repo();
+    r.write("src/.gitattributes", "*.js text\n");
+    const start = r.commit("attributes");
+    r.git("mv", "src/.gitattributes", "src/attributes");
+    const head = r.commit("rename attributes");
+    expect(r.sources.nonTestLines(start, head, start).attributesTouched).toBe(true);
   });
 
   it("frames empty commits between numstat records", () => {
@@ -433,9 +653,9 @@ describe("git sources in temporary repositories", () => {
     r.write("b", "two\n");
     const last = r.commit("last");
     expect(r.sources.numstat(r.base, last)).toEqual([
-      { sha: last, files: [{ path: "b", added: 1, deleted: 0 }] },
+      { sha: last, files: [{ path: "b", oldPath: null, added: 1, deleted: 0 }] },
       { sha: empty, files: [] },
-      { sha: first, files: [{ path: "a", added: 1, deleted: 0 }] },
+      { sha: first, files: [{ path: "a", oldPath: null, added: 1, deleted: 0 }] },
     ]);
   });
 
@@ -446,10 +666,18 @@ describe("git sources in temporary repositories", () => {
     r.write(path, "one\ntwo\nthree\n");
     const second = r.commit("second");
     expect(r.sources.numstat(r.base, second)).toEqual([
-      { sha: second, files: [{ path, added: 1, deleted: 0 }] },
-      { sha: first, files: [{ path, added: 2, deleted: 0 }] },
+      { sha: second, files: [{ path, oldPath: null, added: 1, deleted: 0 }] },
+      { sha: first, files: [{ path, oldPath: null, added: 2, deleted: 0 }] },
     ]);
     expect(r.sources.nonTestLines(r.base, second, r.base).total).toBe(3);
+  });
+
+  it("rejects a work-tree filename used as patchId's head revision", () => {
+    const r = repo();
+    r.write("a.txt", "text\n");
+    const start = r.commit("file");
+    expect(() => r.sources.patchId(start, "a.txt")).toThrow(TransportFailure);
+    expect(() => r.sources.patchId(start, "a.txt")).toThrow(/^patchId:/);
   });
 
   it("credits a rebased multi-commit patch but preserves indentation differences", () => {
@@ -539,9 +767,19 @@ describe("git runner contract", () => {
     const run = (cmd: string, args: string[], options: Options) => {
       expect(cmd).toBe("git");
       calls.push({ args, options });
-      return { status: 0, stdout: args.includes("diff") ? "the diff" : "a".repeat(40) + " 0000\n", stderr: "" };
+      return { status: 0, stdout: args.includes("diff") ? Buffer.from("the diff") : "a".repeat(40) + " 0000\n", stderr: "" };
     };
-    createGateSources({ ...config, run }).patchId("base", "head");
+    const keys = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_DIFF_OPTS", "GIT_EXTERNAL_DIFF"];
+    const saved = keys.map((key) => process.env[key]);
+    try {
+      for (const key of keys) process.env[key] = "hostile";
+      createGateSources({ ...config, run }).patchId("base", "head");
+    } finally {
+      keys.forEach((key, i) => {
+        if (saved[i] === undefined) delete process.env[key];
+        else process.env[key] = saved[i];
+      });
+    }
     const prefix = ["-C", "/checkout", ...[
       "diff.algorithm=myers",
       "diff.renames=true",
@@ -552,20 +790,95 @@ describe("git runner contract", () => {
       "log.showSignature=false",
       "merge.conflictStyle=merge",
       "core.quotePath=true",
+      "core.attributesFile=/dev/null",
+      "diff.context=3",
+      "diff.interHunkContext=0",
+      "diff.indentHeuristic=true",
+      "diff.suppressBlankEmpty=false",
+      "diff.renameLimit=1000",
+      "merge.renameLimit=7000",
+      "diff.ignoreSubmodules=none",
+      "diff.submodule=short",
     ].flatMap((value) => ["-c", value])];
     expect(calls.map((c) => c.args)).toEqual([
-      [...prefix, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", "--src-prefix=a/", "--dst-prefix=b/", "base", "head"],
+      [...prefix, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--ignore-submodules=none", "-M", "--binary", "--src-prefix=a/", "--dst-prefix=b/", "base", "head", "--"],
       [...prefix, "patch-id", "--verbatim"],
     ]);
-    expect(calls[1]?.options.input).toBe("the diff");
+    expect(calls[1]?.options.input).toEqual(Buffer.from("the diff"));
+    expect(calls[0]?.options.encoding).toBe("buffer");
+    expect(calls[1]?.options.encoding).toBe("utf8");
     for (const call of calls) {
-      for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) expect(call.options.env).not.toHaveProperty(key);
+      for (const key of keys) expect(call.options.env).not.toHaveProperty(key);
     }
+  });
+
+  it("rejects a string stdout when patchId requested bytes", () => {
+    const run = (_cmd: string, args: string[]) => ({
+      status: 0,
+      stdout: args.includes("diff") ? "a diff" : "a".repeat(40) + " 0000\n",
+      stderr: "",
+    });
+    expect(() => createGateSources({ ...config, run }).patchId("a", "b")).toThrow(new TransportFailure("patchId", "missing or invalid stdout"));
+  });
+
+  it.each([
+    ["one-sided binary", "-\t1\tx\0", "invalid numstat row"],
+    ["unsafe count", "9007199254740992\t0\tx\0", "invalid numstat count"],
+    ["bad commit header", "commit:bad\0", "invalid numstat commit header"],
+    ["missing rename path", "0\t0\t\0old\0", "invalid numstat rename"],
+    ["missing final NUL", "1\t0\tx", "unterminated numstat output"],
+  ])("rejects malformed numstat: %s", (name, text, reason) => {
+    const stdout = name === "bad commit header" ? text : `commit:${"a".repeat(40)}\0\n${text}`;
+    const run = () => ({ status: 0, stdout, stderr: "" });
+    expect(() => createGateSources({ ...config, run }).numstat("a", "b")).toThrow(TransportFailure);
+    expect(() => createGateSources({ ...config, run }).numstat("a", "b")).toThrow(new TransportFailure("numstat", reason));
+  });
+
+  it("rejects an invalid patch-id answer", () => {
+    const run = (_cmd: string, args: string[]) => ({
+      status: 0,
+      stdout: args.includes("diff") ? Buffer.from("a diff") : "not a patch ID",
+      stderr: Buffer.from(""),
+    });
+    expect(() => createGateSources({ ...config, run }).patchId("a", "b")).toThrow(new TransportFailure("patchId", "invalid patch-id answer"));
+  });
+
+  it("rejects mergeBase exit 1 with stdout", () => {
+    const run = () => ({ status: 1, stdout: "a".repeat(40), stderr: "" });
+    expect(() => createGateSources({ ...config, run }).mergeBase("a", "b")).toThrow(new TransportFailure("mergeBase", "invalid merge-base answer"));
+  });
+
+  it.each([
+    ["remerge CONFLICT (content): Merge conflict in unknown\n"],
+    ["diff --git a/known b/known\nremerge CONFLICT (content): Merge conflict in known\ndiff --git a/hidden b/hidden\nremerge CONFLICT (content): Merge conflict in hidden\n"],
+  ])("falls back when a conflict notice has no matching row: %j", (patch) => {
+    const sha = "a".repeat(40);
+    const parent = "b".repeat(40);
+    const base = "c".repeat(40);
+    const run = (_cmd: string, args: string[]) => {
+      let stdout = "";
+      if (args.includes("rev-list")) stdout = `${sha} ${parent} ${base}\n`;
+      else if (args.includes("show")) stdout = args.includes("--patch") ? patch : "1\t0\tknown\0";
+      else if (args.includes("diff")) stdout = "7\t0\timported\0";
+      return { status: 0, stdout, stderr: "" };
+    };
+    expect(createGateSources({ ...config, run }).nonTestLines(parent, sha, base)).toMatchObject({
+      total: 7,
+      merges: [{ sha, lines: 7 }],
+    });
+  });
+
+  it.each([
+    [128, "fatal: unreadable", "patchId: fatal: unreadable"],
+    [129, "error: unknown option", "patchId: git 2.39 or newer is required (git patch-id --verbatim)"],
+  ])("checks buffered stderr and stdout on exit %i", (status, stderr, reason) => {
+    const run = () => ({ status, stdout: Buffer.alloc(0), stderr: Buffer.from(stderr) });
+    expect(() => createGateSources({ ...config, run }).patchId("a", "b")).toThrow(reason);
   });
 
   it("recognises old patch-id's usage-only exit 129", () => {
     const run = (_cmd: string, args: string[]) => args.includes("diff")
-      ? { status: 0, stdout: "a diff", stderr: "" }
+      ? { status: 0, stdout: Buffer.from("a diff"), stderr: "" }
       : { status: 129, stdout: "", stderr: "usage: git patch-id [--stable | --unstable]\n" };
     expect(() => createGateSources({ ...config, run }).patchId("a", "b")).toThrow(
       "patchId: git 2.39 or newer is required (git patch-id --verbatim)",
@@ -581,7 +894,7 @@ describe("git runner contract", () => {
 
   it("names the git floor when any git call reports an unknown option", () => {
     const run = (_cmd: string, args: string[]) =>
-      args.includes("diff") ? { status: 0, stdout: "a diff", stderr: "" } : { status: 129, stdout: "", stderr: "error: unknown option `verbatim'" };
+      args.includes("diff") ? { status: 0, stdout: Buffer.from("a diff"), stderr: "" } : { status: 129, stdout: "", stderr: "error: unknown option `verbatim'" };
     expect(() => createGateSources({ ...config, run }).patchId("a", "b")).toThrow(/patchId: git 2.39 or newer is required/);
     expect(() => createGateSources({ ...config, run }).hasCommit("a")).toThrow(TransportFailure);
   });

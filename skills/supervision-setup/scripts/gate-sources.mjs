@@ -16,10 +16,11 @@
  * remergeNumstat, nonTestLines and patchId. A defined negative answer, such
  * as a missing commit or no merge-base, is a value, not a failure.
  *
- * run(cmd, args, { cwd, input, env }) returns spawnSync's result shape. The
+ * run(cmd, args, { cwd, input, env, encoding }) returns spawnSync's result shape. The
  * default runner bounds each argv-only call, never a shell, to 30 seconds and
- * 64 MiB. Git runs by `-C <checkout>`, with the environment variables that
- * would point it at another checkout cleared.
+ * 64 MiB. Git runs by `-C <checkout>`, with checkout redirects and diff
+ * environment overrides cleared.
+ * encoding defaults to utf8; "buffer" requests raw stdout and stderr bytes.
  *
  * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U3;
  * KTD1 (one runner), KTD5 (line counts), KTD7 (verbatim patch IDs),
@@ -42,7 +43,7 @@ export class TransportFailure extends Error {
 
 /** The runner used when none is injected: a bounded synchronous spawn. */
 export function defaultRunner(cmd, args, options) {
-  return spawnSync(cmd, args, { ...options, encoding: "utf8", timeout: 30_000, maxBuffer: 64 * 1024 * 1024 });
+  return spawnSync(cmd, args, { encoding: "utf8", ...options, timeout: 30_000, maxBuffer: 64 * 1024 * 1024 });
 }
 
 const PAGE_CAP = 50;
@@ -56,7 +57,17 @@ const GIT_CONFIG = [
   "log.showSignature=false",
   "merge.conflictStyle=merge",
   "core.quotePath=true",
+  "core.attributesFile=/dev/null",
+  "diff.context=3",
+  "diff.interHunkContext=0",
+  "diff.indentHeuristic=true",
+  "diff.suppressBlankEmpty=false",
+  "diff.renameLimit=1000",
+  "merge.renameLimit=7000",
+  "diff.ignoreSubmodules=none",
+  "diff.submodule=short",
 ].flatMap((value) => ["-c", value]);
+const DIFF_FLAGS = ["--no-ext-diff", "--no-textconv", "--no-color", "--ignore-submodules=none", "-M"];
 const GIT_FLOOR = "git 2.39 or newer is required (git patch-id --verbatim)";
 const SHA = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
 // Copied from Compound Engineering 3.27.0,
@@ -126,11 +137,11 @@ function account(row, call) {
   };
 }
 
-/** The environment git runs with: this one, less what would point it at another checkout. */
-// Keep in step with review-read.mjs's gitEnv: each script ships standalone.
+/** The process environment without checkout redirects or diff overrides. */
+// Like review-read.mjs, clear checkout redirects; also clear diff options and drivers.
 function gitEnv() {
   const env = { ...process.env };
-  for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) delete env[key];
+  for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_DIFF_OPTS", "GIT_EXTERNAL_DIFF"]) delete env[key];
   return env;
 }
 
@@ -147,13 +158,15 @@ function statRow(text, parts, call) {
   const match = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/.exec(text);
   if (!match || (match[1] === "-") !== (match[2] === "-")) fail(call, "invalid numstat row");
   let path = match[3];
+  let oldPath = null;
   if (path === "") {
-    const oldPath = parts.next().value;
+    oldPath = parts.next().value;
     path = parts.next().value;
     if (!oldPath || !path) fail(call, "invalid numstat rename");
   }
   return {
     path,
+    oldPath,
     added: numstatCount(match[1], call),
     deleted: numstatCount(match[2], call),
   };
@@ -176,17 +189,56 @@ function* numstatRecords(out, call) {
   }
 }
 
+/** A path as Git quotes it in a patch header with core.quotePath enabled. */
+function patchPath(path) {
+  const bytes = Buffer.from(path);
+  if (![...bytes].some((byte) => byte < 32 || byte >= 127 || byte === 34 || byte === 92)) return path;
+  const escapes = {
+    7: "a",
+    8: "b",
+    9: "t",
+    10: "n",
+    11: "v",
+    12: "f",
+    13: "r",
+    34: '"',
+    92: "\\",
+  };
+  return '"' + [...bytes].map((byte) => {
+    if (escapes[byte]) return "\\" + escapes[byte];
+    if (byte < 32 || byte >= 127) return "\\" + byte.toString(8).padStart(3, "0");
+    return String.fromCharCode(byte);
+  }).join("") + '"';
+}
+
+/** Whether any conflict notice lacks a numstat row in its per-file patch section. */
+function hiddenRemergeConflict(patch, files) {
+  const headers = new Set(files.map((row) => `diff --git ${patchPath(`a/${row.oldPath ?? row.path}`)} ${patchPath(`b/${row.path}`)}`));
+  let header = null;
+  for (const line of patch.split("\n")) {
+    if (line.startsWith("diff --git ")) header = line;
+    if (line.startsWith("remerge CONFLICT") && !headers.has(header)) return true;
+  }
+  return false;
+}
+
+/** Whether a path matches the reviewer's test patterns. */
+function isTestPath(path) {
+  return TEST_PATTERN.test(path) || TEST_CLASS_PATTERN.test(path);
+}
+
 /** Whether a row counts toward the non-test total: not binary, and not a test path. */
 function countsTowardTotal(row) {
   if (row.added === null || row.deleted === null) return false;
-  return !TEST_PATTERN.test(row.path) && !TEST_CLASS_PATTERN.test(row.path);
+  return !isTestPath(row.path);
 }
 
-/** Added plus deleted lines over the rows that count. */
-function nonTestLineCount(files) {
+/** Added plus deleted non-test lines, recounting files moved out of test paths. */
+function nonTestLineCount(files, recount) {
   let total = 0;
   for (const row of files) {
-    if (countsTowardTotal(row)) total += row.added + row.deleted;
+    if (!countsTowardTotal(row)) continue;
+    total += row.oldPath && isTestPath(row.oldPath) ? recount(row) : row.added + row.deleted;
   }
   return total;
 }
@@ -241,12 +293,13 @@ export function createGateSources({ checkout, owner, repo, number, run = default
   const root = `repos/${owner}/${repo}`;
 
   /** Run one process; `allowed` lists the non-zero exits the call answers with. */
-  function execute(call, cmd, args, { allowed = [], input } = {}) {
+  function execute(call, cmd, args, { allowed = [], input, encoding = "utf8" } = {}) {
     let result;
     try {
       result = run(cmd, args, {
         ...(cmd === "git" ? {} : { cwd: checkoutPath }),
         input,
+        encoding,
         env: cmd === "git" ? gitEnv() : { ...process.env },
       });
     } catch (error) {
@@ -261,7 +314,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     if (result.status !== 0 && !allowed.includes(result.status)) {
       fail(call, String(result.stderr ?? "").trim() || `exit ${result.status}`);
     }
-    if (typeof result.stdout !== "string") fail(call, "missing or invalid stdout");
+    if (encoding === "buffer" ? !Buffer.isBuffer(result.stdout) : typeof result.stdout !== "string") fail(call, "missing or invalid stdout");
     return result;
   }
 
@@ -300,7 +353,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
   /** The commits from `from` (excluded) to `to`, first parents only, oldest first. */
   function firstParentChain(from, to, call = "firstParentChain") {
     revisions(call, from, to);
-    const out = git(call, ["rev-list", "--first-parent", "--reverse", "--parents", `${from}..${to}`]).stdout.trim();
+    const out = git(call, ["rev-list", "--first-parent", "--reverse", "--parents", `${from}..${to}`, "--"]).stdout.trim();
     if (!out) return [];
     return out.split("\n").map((line) => {
       const [sha, ...parents] = line.split(" ");
@@ -318,14 +371,14 @@ export function createGateSources({ checkout, owner, repo, number, run = default
   /** The numstat rows between two commits, with the same pinning as the log. */
   function diffNumstat(from, to, call) {
     revisions(call, from, to);
-    const out = git(call, ["diff", "--no-ext-diff", "--no-textconv", "--no-color", "-M", "--numstat", "-z", from, to]).stdout;
+    const out = git(call, ["diff", ...DIFF_FLAGS, "--numstat", "-z", from, to, "--"]).stdout;
     return [...numstatRecords(out, call)];
   }
 
   /** Each non-merge first-parent commit's numstat rows. */
   function numstat(from, to, call = "numstat") {
     revisions(call, from, to);
-    const out = git(call, ["log", "--no-ext-diff", "--no-textconv", "-M", "--first-parent", "--no-merges", "--numstat", "-z", "--format=commit:%H", `${from}..${to}`]).stdout;
+    const out = git(call, ["log", ...DIFF_FLAGS, "--first-parent", "--no-merges", "--numstat", "-z", "--format=commit:%H", `${from}..${to}`, "--"]).stdout;
     const commits = [];
     let current;
     for (const record of numstatRecords(out, call)) {
@@ -343,11 +396,26 @@ export function createGateSources({ checkout, owner, repo, number, run = default
   /** A merge's remerge-diff numstat rows; none for a clean merge. */
   function remergeNumstat(merge, call = "remergeNumstat") {
     revisions(call, merge);
-    const out = git(call, ["show", "--no-ext-diff", "--no-textconv", "-M", "--remerge-diff", "--format=", "--numstat", "-z", merge]).stdout;
+    const out = git(call, ["show", ...DIFF_FLAGS, "--remerge-diff", "--format=", "--numstat", "-z", merge, "--"]).stdout;
     return [...numstatRecords(out, call)].map((row) => {
       if (row.sha) fail(call, "unexpected numstat commit header");
       return row;
     });
+  }
+
+  /** A test-to-source rename's full new-file count from the same diff without renames. */
+  function renamedLineCount(row, args, call) {
+    const [command, ...rest] = args;
+    const out = git(call, [command, ...DIFF_FLAGS, "--numstat", "-z", "--no-renames", ...rest, "--", `:(literal)${row.path}`]).stdout;
+    const files = [...numstatRecords(out, call)];
+    if (files.length !== 1 || files[0].path !== row.path || files[0].oldPath !== null) fail(call, "invalid renamed file numstat");
+    return nonTestLineCount(files);
+  }
+
+  /** Whether a base merge has conflict notices absent from its remerge numstat rows. */
+  function hasHiddenConflict(merge, files, call) {
+    const patch = git(call, ["show", ...DIFF_FLAGS, "--src-prefix=a/", "--dst-prefix=b/", "--remerge-diff", "--format=", "--patch", merge, "--"]).stdout;
+    return hiddenRemergeConflict(patch, files);
   }
 
   return {
@@ -459,10 +527,13 @@ export function createGateSources({ checkout, owner, repo, number, run = default
 
     /**
      * Non-test lines from `from` to `to` (KTD5): {total, commits:[{sha, lines}],
-     * merges:[{sha, lines}], binaryPaths}, commits oldest first. A merge counts its
-     * remerge-diff lines when its other parents belong to `base`; otherwise
-     * it counts the diff from its first parent. `merges` lists every non-base
-     * merge and every base merge with remerge rows, including tests or binary.
+     * merges:[{sha, lines}], binaryPaths, attributesTouched}, oldest first.
+     * attributesTouched reports a .gitattributes path (old or new) in the rows
+     * read for the count, including test and binary rows. A two-parent merge
+     * from base counts its remerge rows, unless a conflict notice lacks a row;
+     * then it counts its first-parent diff, as all other merges do. `merges`
+     * lists those merges and base merges with remerge rows, even tests or binary.
+     * A rename from a test path to a non-test path counts the new file in full.
      */
     nonTestLines(from, to, base) {
       const call = "nonTestLines";
@@ -471,26 +542,39 @@ export function createGateSources({ checkout, owner, repo, number, run = default
       const commits = [];
       const merges = [];
       const binaryPaths = new Set();
+      let attributesTouched = false;
       for (const commit of firstParentChain(from, to, call)) {
         let files;
+        let diffArgs;
+        let listMerge = false;
         if (commit.parents.length >= 2) {
-          const fromBase = commit.parents.slice(1).every((parent) => isAncestor(parent, base, call));
+          let fromBase = commit.parents.length === 2 && isAncestor(commit.parents[1], base, call);
           files = fromBase ? remergeNumstat(commit.sha, call) : diffNumstat(commit.parents[0], commit.sha, call);
-          if (!fromBase || files.length) merges.push({ sha: commit.sha, lines: nonTestLineCount(files) });
+          if (fromBase && hasHiddenConflict(commit.sha, files, call)) {
+            fromBase = false;
+            files = diffNumstat(commit.parents[0], commit.sha, call);
+          }
+          diffArgs = fromBase ? ["show", "--remerge-diff", "--format=", commit.sha] : ["diff", commit.parents[0], commit.sha];
+          listMerge = !fromBase || files.length > 0;
         } else {
           if (!stats.has(commit.sha)) fail(call, `missing numstat for ${commit.sha}`);
           files = stats.get(commit.sha);
+          diffArgs = ["show", "--format=", commit.sha];
         }
         for (const row of files) {
           if (row.added === null) binaryPaths.add(row.path);
+          if ([row.path, row.oldPath].some((path) => path?.split("/").at(-1) === ".gitattributes")) attributesTouched = true;
         }
-        commits.push({ sha: commit.sha, lines: nonTestLineCount(files) });
+        const lines = nonTestLineCount(files, (row) => renamedLineCount(row, diffArgs, call));
+        if (listMerge) merges.push({ sha: commit.sha, lines });
+        commits.push({ sha: commit.sha, lines });
       }
       return {
         total: commits.reduce((sum, commit) => sum + commit.lines, 0),
         commits,
         merges,
         binaryPaths: [...binaryPaths],
+        attributesTouched,
       };
     },
 
@@ -498,8 +582,8 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     patchId(base, head) {
       const call = "patchId";
       revisions(call, base, head);
-      const diff = git(call, ["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", "--src-prefix=a/", "--dst-prefix=b/", base, head]).stdout;
-      if (diff === "") return null;
+      const diff = git(call, ["diff", ...DIFF_FLAGS, "--binary", "--src-prefix=a/", "--dst-prefix=b/", base, head, "--"], { encoding: "buffer" }).stdout;
+      if (diff.length === 0) return null;
       const out = git(call, ["patch-id", "--verbatim"], { input: diff }).stdout.trim();
       const match = /^([a-f0-9]{40}(?:[a-f0-9]{24})?)\s+[a-f0-9]+$/.exec(out);
       if (!match) fail(call, "invalid patch-id answer");
