@@ -29,12 +29,14 @@
  *
  *   story-worker/review: used code-review in <session id> subagent agent-a1; read <head> from <base>; args "base:<sha>"
  *
- * or `read <head> from <base> (dirty tree)`, or `read: none recorded`, and
- * `args none` for a call with none. The arguments are one JSON string, so no
- * text in them can end the line or start another. Several used lines for one
- * operation all carry, in order (`all`); `used` keeps the first, the one the
- * operation's verdict is judged from. A carried line's read and arguments
- * stay with it (`detail`), so a second restart carries them unchanged.
+ * or `read <head> from <base> (dirty tree)`, or `read: none recorded`; then
+ * `args none` for a call with none, or `args unknown` where the check found
+ * no record of the call, each part set on its own. The arguments are one
+ * JSON string, so no text in them can end the line or start another. Several
+ * used lines for one operation all carry, in order (`all`); `used` keeps the
+ * first, the one `judge` credits when no call of the new run does. A carried
+ * line's read and arguments stay with it (`detail`), so a second restart
+ * carries them unchanged.
  *
  * Plan: docs/plans/2026-09-25-0105-feat-supervision-operating-model-plan.md,
  * U8 and KTD12; the whole place, MQ-377:

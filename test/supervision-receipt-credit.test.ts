@@ -42,8 +42,8 @@ interface ReceiptCheckModule {
 }
 const { checkReceipts } = receiptCheck as unknown as ReceiptCheckModule;
 
-/** One call at a time, or none (untimed) when null, and its result's text, "ok" when not given. */
-type Timed = [string | null, Record<string, unknown>, string?];
+/** One call at a time, or none (untimed) when null, its result's text, "ok" when not given, and whether it is an error. */
+type Timed = [string | null, Record<string, unknown>, string?, boolean?];
 
 const skill = (name: string, args?: string) => ({
   type: "tool_use",
@@ -56,10 +56,10 @@ const tool = (name: string) => ({ type: "tool_use", name, input: {} });
 /** A transcript holding these calls in order, each answered, each record at its call's time. */
 function transcript(calls: Timed[]) {
   return calls
-    .flatMap(([at, call, content = "ok"], i) => {
+    .flatMap(([at, call, content = "ok", isError = false], i) => {
       const id = `toolu_${i}_${Math.random().toString(36).slice(2)}`;
       const time = at ? { timestamp: at } : {};
-      const answer = { type: "tool_result", tool_use_id: id, content, is_error: false };
+      const answer = { type: "tool_result", tool_use_id: id, content, is_error: isError };
       return [
         { type: "assistant", sessionId: SESSION, ...time, message: { content: [{ ...call, id }] } },
         { type: "user", sessionId: SESSION, ...time, message: { content: [answer] } },
@@ -559,6 +559,61 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     ]);
   });
 
+  it("shows the read on every marked operation one review call credits", () => {
+    const file = bindingsOf();
+    file.operations.find((o: Row) => `${o.table}/${o.id}` === "story-worker/review").native_id =
+      "compound-engineering:ce-code-review";
+    subagent("both", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
+    const result = checkReceipts({ bindings: file });
+    for (const key of ["story-worker/review", ESCALATION]) {
+      const row = rowOf(result, key) as Row & { uses?: { detail: string }[] };
+      expect(row.uses?.map((use) => use.detail), key).toEqual([`read ${H1} from ${B1}; args "base:${B1}"`]);
+    }
+  });
+
+  it("lists no line for a run of the review skill's own script, only the review call", () => {
+    const file = bindingsOf();
+    const script = "bash /Users/maintainer/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.0.0/skills/ce-code-review/scripts/x.sh";
+    subagent(
+      "script",
+      readAt("2026-10-08T10:01:00.000Z", H1, B1),
+      review("2026-10-08T10:02:00.000Z", `base:${B1}`),
+      ["2026-10-08T10:03:00.000Z", bash(script)],
+    );
+    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
+      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("script")}; read ${H1} from ${B1}; args "base:${B1}"`,
+    ]);
+  });
+
+  it("keeps the plain line when only a run of the skill's script credits it", () => {
+    const file = bindingsOf();
+    const script = "bash /Users/maintainer/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.0.0/skills/ce-code-review/scripts/x.sh";
+    subagent("onlyscript", ["2026-10-08T10:03:00.000Z", bash(script)]);
+    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
+      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("onlyscript")}`,
+    ]);
+  });
+
+  it("pairs a call that ran with its own record, not a refused call's at the same time", () => {
+    const file = bindingsOf();
+    const at = "2026-10-08T10:02:00.000Z";
+    const refused = "<tool_use_error>Permission for this action was denied</tool_use_error>";
+    subagent("pair", [at, skill("compound-engineering:ce-code-review", "REFUSED-A"), refused, true], review(at, "RAN-B"));
+    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
+      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("pair")}; read: none recorded; args "RAN-B"`,
+    ]);
+  });
+
+  it("orders by instant, not by the text of the time", () => {
+    const file = bindingsOf();
+    subagent("a-half", review("2026-10-08T10:01:00.500Z", "later"));
+    subagent("b-whole", review("2026-10-08T10:01:00Z", "earlier"));
+    expect(linesOf(run(file).stdout, ESCALATION).map((line) => line.split("; args ")[1])).toEqual([
+      '"earlier"',
+      '"later"',
+    ]);
+  });
+
   it("returns every creditable use on the row, with its read, and keeps the first as where", () => {
     const file = bindingsOf();
     subagent("one", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
@@ -597,6 +652,18 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
         { ...r2, detail: "read: none recorded; args none" },
       ]);
       expect(used.get(REVIEW)).toEqual(all.get(REVIEW)?.[0]);
+    });
+
+    it("reads a line whose arguments are unknown, and one with a read but no record of args", () => {
+      const lines = [
+        `${REVIEW}: used code-review in s-old subagent agent-r3; read: none recorded; args unknown`,
+        `${REVIEW}: used code-review in s-old subagent agent-r4; read: none recorded; args "x"`,
+      ];
+      const { all } = readHandoff(handoffOf(...lines)) as { all: Map<string, { place: string; detail: string }[]> };
+      expect(all.get(REVIEW)?.map((use) => [use.place, use.detail])).toEqual([
+        ["s-old subagent agent-r3", "read: none recorded; args unknown"],
+        ["s-old subagent agent-r4", 'read: none recorded; args "x"'],
+      ]);
     });
 
     it("carries both, each labelled carried with its read and args kept, and counts both", () => {

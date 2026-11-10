@@ -60,9 +60,12 @@
  *
  *   story-worker/review: used code-review in <session id> subagent agent-a1; read <head> from <base>; args "base:<sha>"
  *
- * (`handoff-receipt.mjs` gives the forms). The operation's state, and so the
- * exit code, is still the one `judge` gives from its first creditable use.
- * An operation the table does not mark keeps its one line.
+ * (`handoff-receipt.mjs` gives the forms). A run of the bound skill's own
+ * script is no review call, so it gets a line, with no read, only where no
+ * review call credits the operation. The operation's state, and so the exit
+ * code, is still the one `judge` gives, from a call that ran ahead of a
+ * carried use, so the operation's `where` need not be its first line. An
+ * operation the table does not mark keeps its one line.
  * It also lists skills whose call ran, among the calls counted (below), that
  * no binding names (used-but-unbound), except the level skill and
  * `supervision-setup`, which produced the bindings.
@@ -306,34 +309,47 @@ function carriedCount(row) {
   return (row.uses ?? [row]).filter((use) => use.where?.endsWith(CARRIED)).length;
 }
 
-/** A use's key for pairing it with its review record: where, when and which skill. */
+/** A call's key for pairing it with its review record: where, when and which skill. */
 const recordKey = (where, at, name) => `${where}\u0000${at}\u0000${name}`;
 
 /**
- * The read record of each review call, as `review-reads.mjs` reads them,
- * queued by `recordKey`, from only the listed sessions where a call credits
- * a marked operation, so a session with none is not read twice.
+ * Each skill call's review record, as `review-reads.mjs` reads them, by the
+ * call itself, read from only the listed sessions where a call credits a
+ * marked operation, so a session with none is not read twice. Within a key,
+ * calls and records pair in the order they appear, whatever each call's
+ * outcome, so a call that ran never takes a refused call's record; and the
+ * pairing is made once, so every operation one call credits shows the same
+ * record.
  */
 function reviewDetails(bindings, context) {
   const marked = bindings.operations.filter((binding) => context.marked.has(`${binding.table}/${binding.id}`));
   const sessions = new Set(marked.flatMap((binding) => ranCalls(binding, context.calls, true)).map((call) => call.session));
-  const queues = new Map();
-  if (sessions.size === 0) return queues;
+  const paired = new Map();
+  if (sessions.size === 0) return paired;
   const listed = bindings.transcripts.filter((t) => sessions.has(t.session_id));
-  for (const record of readReviewReads(listed).reviews) {
-    const key = recordKey(record.place, record.at, record.skill);
-    queues.set(key, [...(queues.get(key) ?? []), record]);
+  const records = Map.groupBy(readReviewReads(listed).reviews, (r) => recordKey(r.place, r.at, r.skill));
+  const calls = context.calls.filter((call) => call.kind === "skill" && sessions.has(call.session));
+  for (const [key, group] of Map.groupBy(calls, (call) => recordKey(call.where, call.at, call.name))) {
+    const found = records.get(key) ?? [];
+    group.forEach((call, i) => paired.set(call, found[i]));
   }
-  return queues;
+  return paired;
+}
+
+/** A call's time as an instant, for ordering; a call with no time, or one that does not read as a time, sorts last. */
+function instantOf(call) {
+  const ms = call.at === null ? Number.NaN : Date.parse(call.at);
+  return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
 }
 
 /**
  * Every use that could credit a marked operation, as `{ where, detail }`,
  * with `shared` where another operation's binding could take it too: the
- * carried ones first, in the handoff's order, then each call that ran in a
- * fresh-context subagent, in time order, an untimed call last. A call's
- * detail comes from its review record (`details`), taken in order where two
- * calls share a key.
+ * carried ones first, in the handoff's order, then each review call that ran
+ * in a fresh-context subagent, by instant, an untimed call last, each with
+ * the detail of its review record (`details`). A run of the bound skill's own
+ * script is not a review call, and is listed, with no detail, only where no
+ * review call credits the operation. Null when nothing is listed.
  */
 function everyUse(binding, context, carriedUses, details, bindings) {
   const withShared = (use, credited) => {
@@ -345,16 +361,14 @@ function everyUse(binding, context, carriedUses, details, bindings) {
     if (!credited) return [];
     return [withShared({ where: `${use.place} ${CARRIED}`, detail: use.detail ?? null }, credited)];
   });
-  // Sorting is stable, so calls at one time, or with none, keep their transcript order.
-  const untimedLast = (a, b) => Number(a.at === null) - Number(b.at === null);
-  const byTime = (a, b) => untimedLast(a, b) || (a.at < b.at ? -1 : a.at > b.at ? 1 : 0);
-  const calls = ranCalls(binding, context.calls, true)
-    .sort(byTime)
-    .map((call) => {
-      const record = details.get(recordKey(call.where, call.at, call.name))?.shift();
-      return withShared({ where: call.where, detail: readDetail(record) }, call);
-    });
-  return [...carried, ...calls];
+  // Sorting is stable, so calls at one instant keep their transcript order.
+  const ran = ranCalls(binding, context.calls, true).sort((a, b) => instantOf(a) - instantOf(b));
+  const reviews = ran.filter((call) => call.kind !== "skill-script");
+  const calls = reviews.length > 0
+    ? reviews.map((call) => withShared({ where: call.where, detail: readDetail(details.get(call)) }, call))
+    : ran.map((call) => withShared({ where: call.where, detail: null }, call));
+  const uses = [...carried, ...calls];
+  return uses.length > 0 ? uses : null;
 }
 
 /** Whether two `--since` values, either absent, name one instant; one that does not read as a time matches nothing. */

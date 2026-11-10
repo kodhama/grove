@@ -247,8 +247,12 @@ check lists it; later units of that plan build the gate on it.
   first, then each fresh-subagent call in time order. Each line ends in what
   that reviewer read and the call's arguments, as one JSON string:
   `…; read <head> from <base>; args "base:<sha>"`, with `(dirty tree)` after
-  the base when the tree was not clean, or `read: none recorded` and
-  `args none`. A handoff carries every such line, with its read and args.
+  the base when the tree was not clean. Each part is set on its own: the
+  read is `read: none recorded` when the reviewer ran no read command first,
+  and the args are `args none` for a call with none, or `args unknown` when
+  the check found no record of the call. A run of the review skill's own
+  script gets a line, with neither part, only when no review call credits
+  the operation. A handoff carries every such line, with its read and args.
   The operation's verdict and the exit code are unchanged.
 
 ## Versions
