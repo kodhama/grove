@@ -340,9 +340,9 @@ describe("MQ-353 · text that only mentions a command", () => {
 describe("MQ-353 · a Codex subagent", () => {
   it("reads the child rollout a SubAgentActivity names, in another date folder", () => {
     const result = checkReceipts({ bindings: reading(ROLLOUT) });
-    const escalation = result.operations.find((o) => o.id === "review-escalation");
-    expect(escalation).toMatchObject({ state: "used" });
-    expect(escalation?.where).toContain("subagent 019a0000-0000-7000-8000-0000000c41d0");
+    const docReview = result.operations.find((o) => o.id === "doc-review");
+    expect(docReview).toMatchObject({ state: "used" });
+    expect(docReview?.where).toContain("subagent 019a0000-0000-7000-8000-0000000c41d0");
     expect(result.transcripts[0]).toMatchObject({ status: "read", subagents: 1 });
   });
 });
@@ -559,7 +559,7 @@ describe("GRO-11 · a routing table that moved", () => {
     expect(read.error).toBeUndefined();
     expect(read.path).toBe(resolve(TABLE));
     expect(read.moved).toBe(GONE);
-    expect(read.marked).toEqual(["review", "review-escalation"]);
+    expect(read.marked).toEqual(["review", "doc-review"]);
   });
 
   it("GRO-12 · reports a relative recorded path that is gone as the path it resolved", () => {
@@ -629,7 +629,7 @@ describe("GRO-11 · a routing table that moved", () => {
       // A move that keeps the table's content is not a change (GRO-12).
       expect(result.stdout).not.toContain("changed since setup read it");
       expect(result.stdout).not.toMatch(/^summary: .*the table changed/m);
-      expect(result.stdout).toContain("fresh_context on review, review-escalation");
+      expect(result.stdout).toContain("fresh_context on review, doc-review");
       // Moved and changed: the table read in its place is not the one setup bound.
       Object.assign(file.table as object, { sha256: STALE_SHA256 });
       writeFileSync(path, JSON.stringify(file));
@@ -1554,9 +1554,9 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
       expect.objectContaining({ session_id: thread("d4"), status: "missing" }),
     );
     expect(stateOf(result, "story-worker/plan")).toBe("no evidence");
-    const escalation = result.operations.find((o) => o.id === "review-escalation");
-    expect(escalation).toMatchObject({ state: "used" });
-    expect(escalation?.where).toContain(`subagent ${thread("c4")}`);
+    const docReview = result.operations.find((o) => o.id === "doc-review");
+    expect(docReview).toMatchObject({ state: "used" });
+    expect(docReview?.where).toContain(`subagent ${thread("c4")}`);
   });
 });
 
@@ -1619,13 +1619,13 @@ describe("MQ-377 · a review counts only from a fresh-context subagent", () => {
   });
 
   it("credits a Codex skill read only when its command completed", () => {
-    const read = "cat /codex/skills/ce-code-review/SKILL.md";
+    const read = "cat /codex/skills/ce-doc-review/SKILL.md";
     const states = ["failed", "completed"].map((status) => {
       const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-read-"));
-      const child = [commandRecord(read, status, 1, "ce-code-review")];
+      const child = [commandRecord(read, status, 1, "ce-doc-review")];
       const file = codexBindingsOf(dir, [], child);
-      const row = reviewRow(file, "story-worker/review-escalation");
-      const skill = outcomesOf(file.transcripts, "skill", "ce-code-review");
+      const row = reviewRow(file, "story-worker/doc-review");
+      const skill = outcomesOf(file.transcripts, "skill", "ce-doc-review");
       const cli = outcomesOf(file.transcripts, "cli", "cat");
       rmSync(dir, { recursive: true });
       return { status, state: row.state, skill, cli };
@@ -1640,13 +1640,13 @@ describe("MQ-377 · a review counts only from a fresh-context subagent", () => {
   // A completed command is not always one that ran: with the part zsh could
   // not parse before a pipe, the line exits 0 and the file was never read.
   it("does not credit a Codex skill read whose completed command starts with zsh's parse error", () => {
-    const read = 'cat /codex/skills/ce-code-review/SKILL.md "$(if)" | head -5';
+    const read = 'cat /codex/skills/ce-doc-review/SKILL.md "$(if)" | head -5';
     const stdout = "zsh:1: parse error near `if'\nzsh:1: parse error in command substitution\n";
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-read-parse-"));
-    const child = [commandRecord(read, "completed", 0, "ce-code-review", { stdout })];
+    const child = [commandRecord(read, "completed", 0, "ce-doc-review", { stdout })];
     const file = codexBindingsOf(dir, [], child);
-    const row = reviewRow(file, "story-worker/review-escalation");
-    const skill = outcomesOf(file.transcripts, "skill", "ce-code-review");
+    const row = reviewRow(file, "story-worker/doc-review");
+    const skill = outcomesOf(file.transcripts, "skill", "ce-doc-review");
     const cat = outcomesOf(file.transcripts, "cli", "cat");
     const head = outcomesOf(file.transcripts, "cli", "head");
     rmSync(dir, { recursive: true });
@@ -1661,13 +1661,13 @@ describe("MQ-377 · a review counts only from a fresh-context subagent", () => {
   // Only the first line is read, as for the command itself: an error on a
   // later line follows the output of a read that ran.
   it("credits a Codex skill read whose completed command shows zsh's parse error only on a later line", () => {
-    const read = "cat /codex/skills/ce-code-review/SKILL.md";
+    const read = "cat /codex/skills/ce-doc-review/SKILL.md";
     const stdout = "# The skill's text\nzsh:1: parse error near `x'\n";
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-codex-read-later-"));
-    const child = [commandRecord(read, "completed", 0, "ce-code-review", { stdout })];
+    const child = [commandRecord(read, "completed", 0, "ce-doc-review", { stdout })];
     const file = codexBindingsOf(dir, [], child);
-    const row = reviewRow(file, "story-worker/review-escalation");
-    const skill = outcomesOf(file.transcripts, "skill", "ce-code-review");
+    const row = reviewRow(file, "story-worker/doc-review");
+    const skill = outcomesOf(file.transcripts, "skill", "ce-doc-review");
     const cat = outcomesOf(file.transcripts, "cli", "cat");
     rmSync(dir, { recursive: true });
     expect({ state: row.state, skill, cat }).toEqual({ state: "used", skill: ["ran"], cat: ["ran"] });
@@ -1675,9 +1675,9 @@ describe("MQ-377 · a review counts only from a fresh-context subagent", () => {
 
   it("notes where a marked performer was called on a no evidence line", () => {
     const dir = mkdtempSync(join(tmpdir(), "receipt-check-no-evidence-"));
-    const read = "cat /codex/skills/ce-code-review/SKILL.md";
-    const main = [commandRecord(read, "completed", 0, "ce-code-review")];
-    const row = reviewRow(codexBindingsOf(dir, main, "missing"), "story-worker/review-escalation");
+    const read = "cat /codex/skills/ce-doc-review/SKILL.md";
+    const main = [commandRecord(read, "completed", 0, "ce-doc-review")];
+    const row = reviewRow(codexBindingsOf(dir, main, "missing"), "story-worker/doc-review");
     rmSync(dir, { recursive: true });
     expect(row).toMatchObject({
       state: "no evidence",
@@ -1739,15 +1739,15 @@ describe("MQ-377 · a review counts only from a fresh-context subagent", () => {
     return file;
   };
 
-  it("does not credit review-escalation from a Codex child forked from the author", () => {
+  it("does not credit doc-review from a Codex child forked from the author", () => {
     // The fork's second session_meta, a copy of its parent's, names no fork: only the first counts.
-    const row = reviewRow(codexReading("b1", "09-00-00"), "story-worker/review-escalation");
+    const row = reviewRow(codexReading("b1", "09-00-00"), "story-worker/doc-review");
     expect(row.state).toBe("bound-but-unused");
     expect(row.note).toContain("fork");
   });
 
-  it("credits review-escalation from a fork of a fresh Codex child", () => {
-    const row = reviewRow(codexReading("b2", "10-00-00"), "story-worker/review-escalation");
+  it("credits doc-review from a fork of a fresh Codex child", () => {
+    const row = reviewRow(codexReading("b2", "10-00-00"), "story-worker/doc-review");
     expect(row).toMatchObject({ state: "used" });
     expect(row.where).toContain(`subagent ${codexThread("a8")}`);
   });
@@ -1823,14 +1823,14 @@ describe("MQ-377 · a call made but not run reads attempted-failed", () => {
       handoff,
       "## Receipt check\n\n" +
         "story-worker/review: used code-review in s-old\n" +
-        "story-worker/review-escalation: used compound-engineering:ce-code-review in s-old subagent agent-a1\n",
+        "story-worker/doc-review: used compound-engineering:ce-doc-review in s-old subagent agent-a1\n",
     );
     const result = checkReceipts({
       bindings: bindingsReading([BY_HAND, "claude-built-by-hand"]),
       handoff,
     });
     expect(stateOf(result, "story-worker/review")).toBe("bound-but-unused");
-    expect(rowOf(result, "story-worker/review-escalation")).toMatchObject({
+    expect(rowOf(result, "story-worker/doc-review")).toMatchObject({
       state: "used",
       where: "s-old subagent agent-a1 (carried from handoff)",
     });
@@ -1846,7 +1846,7 @@ describe("MQ-377 · a call made but not run reads attempted-failed", () => {
       handoff,
       "## Receipt check\n\n" +
         `transcript ${CODEX_PARENT}: read /elsewhere/${CODEX_PARENT}.jsonl (1 subagent files)\n` +
-        "story-worker/review-escalation: used compound-engineering:ce-code-review " +
+        "story-worker/doc-review: used compound-engineering:ce-doc-review " +
         `in ${CODEX_PARENT} subagent ${CODEX_CHILD}\n`,
     );
     const result = checkReceipts({ bindings: file, handoff });
@@ -1854,7 +1854,7 @@ describe("MQ-377 · a call made but not run reads attempted-failed", () => {
     expect(result.transcripts).toContainEqual(
       expect.objectContaining({ session_id: CODEX_CHILD, status: "covered" }),
     );
-    expect(rowOf(result, "story-worker/review-escalation")).toMatchObject({
+    expect(rowOf(result, "story-worker/doc-review")).toMatchObject({
       state: "used",
       where: `${CODEX_PARENT} subagent ${CODEX_CHILD} (carried from handoff)`,
     });
@@ -1913,10 +1913,10 @@ describe("MQ-353 · a handoff carrying an earlier result", () => {
       bindings: bindingsReading([AFTER, "claude-after-restart"]),
       handoff: HANDOFF,
     });
-    const escalation = result.operations.find((o) => o.id === "review-escalation");
-    expect(escalation).toMatchObject({ state: "used" });
+    const docReview = result.operations.find((o) => o.id === "doc-review");
+    expect(docReview).toMatchObject({ state: "used" });
     // A marked operation carries only from a line whose place names a subagent (MQ-377).
-    expect(escalation?.where).toBe(
+    expect(docReview?.where).toBe(
       "dddd4444-0000-4000-8000-000000000004 subagent agent-a7c1 (carried from handoff)",
     );
     expect(result.handoff).toMatchObject({ path: HANDOFF, merged: 1 });
@@ -2321,11 +2321,11 @@ describe("MQ-353 · the command line", () => {
     const file = bindingsReading([AFTER, "claude-after-restart"]);
     Object.assign(file.table as object, { sha256: STALE_SHA256 });
     const changed = run(file).stdout;
-    expect(changed).toContain("fresh_context on review, review-escalation");
+    expect(changed).toContain("fresh_context on review, doc-review");
     expect(changed).toContain("changed since setup read it");
     Object.assign(file.table as object, { sha256: TABLE_SHA256 });
     const same = run(file).stdout;
-    expect(same).toContain("fresh_context on review, review-escalation");
+    expect(same).toContain("fresh_context on review, doc-review");
     expect(same).not.toContain("changed since setup read it");
   });
 
@@ -2346,11 +2346,11 @@ describe("MQ-353 · the command line", () => {
   });
 
   it("prints the note on a no evidence line too", () => {
-    const read = "cat /codex/skills/ce-code-review/SKILL.md";
-    const main = [commandRecord(read, "completed", 0, "ce-code-review")];
+    const read = "cat /codex/skills/ce-doc-review/SKILL.md";
+    const main = [commandRecord(read, "completed", 0, "ce-doc-review")];
     const file = codexBindingsOf(join(dir, "codex-home"), main, "missing");
     expect(run(file).stdout).toMatch(
-      /^story-worker\/review-escalation: no evidence compound-engineering:ce-code-review \(a transcript is missing; called outside a fresh-context subagent in the transcripts read: in the main session\)$/m,
+      /^story-worker\/doc-review: no evidence compound-engineering:ce-doc-review \(a transcript is missing; called outside a fresh-context subagent in the transcripts read: in the main session\)$/m,
     );
   });
 
@@ -2417,7 +2417,7 @@ describe("MQ-353 · the command line", () => {
     delete (file as { skill?: string }).skill;
     const result = run(file);
     expect(result.status).not.toBe(2);
-    expect(result.stdout).toContain("fresh_context on review, review-escalation");
+    expect(result.stdout).toContain("fresh_context on review, doc-review");
   });
 
   it("runs when invoked through a symlinked path", () => {

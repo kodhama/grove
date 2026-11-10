@@ -79,10 +79,10 @@ you find, and rerun the checks."""
 [[operation]]
 id = "review"
 intent = """
-The floor review every change gets before any pull request opens: one native
-single-pass review of the branch's diff."""
+The full review every change gets before any pull request opens: a review of
+the branch's whole diff that sizes its own depth to the change."""
 step = "after simplifying, before committing for the pull request"
-performers = ["code-review", "review"]
+performers = ["ce-code-review", "code-review", "review"]
 required = false
 fresh_context = true
 fallback = """
@@ -93,19 +93,21 @@ repo's standards, and ask for findings with evidence, not patches. Fix what hold
 hand-back who reviewed and that the review ran by fallback."""
 
 [[operation]]
-id = "review-escalation"
+id = "doc-review"
 intent = """
-A multi-reviewer pass on top of the floor review, run only when the change's
-scope calls for it: anything bigger than a small, focused change, sized as the
-repo's project instructions set out its review loop."""
-step = "after the floor review, when the change's scope calls for escalation"
-performers = ["ce-code-review"]
+The review of a docs-only change, in place of the full review: a review of
+each document the change touches. A change is docs-only when every path it
+changes is a markdown file and none is an agent surface: a skill's files, an
+agent instruction file or a plugin manifest. A manifest change that touches
+only its version is ignored."""
+step = "after simplifying, before committing for the pull request, for a docs-only change"
+performers = ["ce-doc-review"]
 required = false
 fresh_context = true
 fallback = """
-Run the floor review again at higher effort over the whole diff, and say in
-the hand-back that the change's scope called for an escalated review that ran
-by fallback."""
+Invoke the performer bound to `review` over the same range instead, from a
+fresh-context subagent as for any review, and say in the hand-back that the
+docs-only change had the full review because no doc review was available."""
 
 [[operation]]
 id = "browser-test"

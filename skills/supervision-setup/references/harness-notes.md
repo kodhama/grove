@@ -451,8 +451,11 @@ on Claude Code 2.1.288, compound-engineering 3.27.0 and codex-cli 0.155.1,
   with `review` bound to `collaboration.spawn_agent`, a simplify reviewer's
   spawn read as the review (codex-cli 0.160.0, 2026-10-03). The
   catalog there listed no single-pass review skill, only `ce-code-review` and
-  `ce-doc-review`, so both review operations bind `ce-code-review`, and one
-  reviewer's run credits both, each line reading `used (shared)`. The caller
+  `ce-doc-review`, so both review operations of that day's table bound
+  `ce-code-review`, and one reviewer's run credited both, each line reading
+  `used (shared)`. The story table now suggests `ce-code-review` first for
+  `review` and `ce-doc-review` for `doc-review`, so on that catalog each
+  binds its own skill by check. The caller
   spawns the reviewer with `fork_turns: "none"` and has it invoke that
   skill. The child reads the skill's `SKILL.md`, and the check credits that
   read from the child's own rollout.

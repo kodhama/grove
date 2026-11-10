@@ -10,7 +10,7 @@
  * table the bindings file names and returns:
  *
  *   { path: "<checkout>/.agents/skills/story-worker/routing.toml",
- *     skill: "story-worker", marked: ["review", "review-escalation"],
+ *     skill: "story-worker", marked: ["review", "doc-review"],
  *     sha256: "<hex>", recorded: "<hex setup recorded>", changed: false }
  *
  * The table's path in a bindings file is relative to the checkout setup ran

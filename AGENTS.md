@@ -64,10 +64,12 @@ skill text.
 
 ## Review loop
 
-**Review runs before the PR, always, sized by scope**: every change gets an
-in-session review on the branch before a PR opens. The native single-pass
-reviewer (`/code-review` in Claude Code) is the floor; bigger scope escalates
-to `ce-code-review` (report-only). The repo's automated GitHub reviewers, the
+**Review runs before the PR, always**: every change gets an in-session review
+on the branch before a PR opens. The full review skill, `ce-code-review`
+(report-only), runs on every change and sizes its own depth; a docs-only
+change gets `ce-doc-review` in its place. The native single-pass reviewer
+(`/code-review` in Claude Code) is the fallback where the full one is not
+installed. The repo's automated GitHub reviewers, the
 Codex connector and Gemini Code Assist, are the second round:
 
 - **Gemini** reviews on open and on every push, and skips drafts. **Open a PR
@@ -75,7 +77,8 @@ Codex connector and Gemini Code Assist, are the second round:
   is final.** If no review appears once it is ready, comment `/gemini review`.
 - **Codex** reviews on open and when a draft is marked ready, and re-reviews
   only when asked: comment `@codex review` after a fix that changes behavior,
-  a test, config, or what an instruction tells agents to do.
+  a test, config, or what an instruction tells agents to do, and before the
+  hand-back whenever it has not reviewed the final head.
 
 ## Checks that must stay green
 

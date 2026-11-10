@@ -59,6 +59,10 @@ Decided myself:  <the calls you made without asking, one line each — or "none"
 Receipt check:   <the check's output, run with --since the Started time and, when the pull
                   request is ready, --pr-body its saved body, pasted unchanged; or
                   "unavailable: <why it could not run>">
+Exception:       <the one failing receipt-check line, pasted as it printed, why it fails, and why
+                  the story is ready all the same, for the lead to accept or send back — or
+                  "none". A check that fails on two lines or more, or could not run, has no
+                  exception: the story is not ready>
 
 Evidence:        <PR link / head and base SHAs / diff stat>
 Checks:          <each check as its command and result; any required check that did not run,
@@ -90,6 +94,9 @@ Reviewed by:     <one entry per in-session review, before or after the pull requ
                   reviewer is named either way, since only the model identity is in doubt>
                  <what it read: the commit, or each file's blob, it ran on, and its start and
                   end times>
+                 <for a reviewer run as its own command-line process, outside your harness's
+                  subagents, the path of the session file it wrote, since no transcript links
+                  that process to you — or "none">
                  <observed how: the call that started it, in your transcript, for performer
                   and context; the model the reviewer's own transcript records, or the run
                   log or status output where its route keeps one, for its model, and the
