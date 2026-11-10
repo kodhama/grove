@@ -18,9 +18,9 @@
  * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U1 and KTD3.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
 import * as reviewReads from "../skills/supervision-setup/scripts/review-reads.mjs";
@@ -428,13 +428,31 @@ function command(line: string, stdout: string, status = "completed", skillName?:
   return { type: "event_msg", timestamp: "2026-11-08T11:00:00.000Z", payload: { type: "item_completed", item } };
 }
 
+/** A turn's start, as a Codex rollout records it: `codex exec` writes one, and each resume one more. */
+const TASK_STARTED = { type: "event_msg", timestamp: "2026-11-08T11:00:00.000Z", payload: { type: "task_started" } };
+/** How a rollout began: its `session_meta` `source` (none when undefined) and how many turns it started. */
+type Run = { source?: unknown; tasks?: number };
+
+/**
+ * A Codex thread's lines: its `session_meta` (forked from a thread when
+ * `forkedFrom` names one), a first `task_started` unless `tasks` is 0, these
+ * records, then any further `task_started`, as a resume appends them. By
+ * default a single `codex exec` run.
+ */
+function threadLines(id: string, records: unknown[], forkedFrom: string | null, run: Run) {
+  const source = "source" in run ? run.source : "exec";
+  const tasks = run.tasks ?? 1;
+  const payload = { id, ...(source !== undefined && { source }), ...(forkedFrom && { forked_from_id: forkedFrom }) };
+  const starts = Array.from({ length: tasks }, () => TASK_STARTED);
+  return [{ type: "session_meta", payload }, ...starts.slice(0, 1), ...records, ...starts.slice(1)];
+}
+
 /** A Codex rollout holding these records, forked from a thread when `forkedFrom` names one. */
-function rollout(records: unknown[], forkedFrom: string | null = null) {
+function rollout(records: unknown[], forkedFrom: string | null = null, run: Run = {}) {
   const day = join(tempDir("review-reads-codex-"), "sessions", "2026", "11", "08");
   mkdirSync(day, { recursive: true });
   const path = join(day, `rollout-2026-11-08T11-00-00-${ROLLOUT_ID}.jsonl`);
-  const meta = { type: "session_meta", payload: { id: ROLLOUT_ID, ...(forkedFrom && { forked_from_id: forkedFrom }) } };
-  writeFileSync(path, jsonl([meta, ...records]));
+  writeFileSync(path, jsonl(threadLines(ROLLOUT_ID, records, forkedFrom, run)));
   return path;
 }
 
@@ -468,6 +486,41 @@ describe("read records from a Codex rollout", () => {
         read: READ_ARGS,
       },
     ]);
+  });
+
+  it.each([
+    ["an interactive vscode source", { source: "vscode" }],
+    ["an interactive cli source", { source: "cli" }],
+    ["a subagent's object source", { source: { subagent: { parent_thread_id: PARENT_FORK } } }],
+    ["no source", { source: undefined }],
+    ["an exec run resumed, two task_started", { tasks: 2 }],
+    ["an exec run with no task_started", { tasks: 0 }],
+  ])("a caller-named rollout with %s and no forked_from_id: not fresh", (_what, run) => {
+    const path = rollout([command(READ, labelled()), CODEX_REVIEW], null, run);
+    const [record] = readReviewReads([], { rollouts: [path] }).reviews;
+    expect(record).toMatchObject({ context: "named rollout not a single exec run", fresh: false, head: HEAD });
+  });
+
+  it("a caller-named rollout with no session_meta: not fresh", () => {
+    const path = rollout([], null);
+    writeFileSync(path, jsonl([TASK_STARTED, command(READ, labelled()), CODEX_REVIEW]));
+    const [record] = readReviewReads([], { rollouts: [path] }).reviews;
+    expect(record).toMatchObject({ context: "subagent with no session_meta", fresh: false });
+  });
+
+  it("the same rollout listed and named by the caller: one record per review call, with the listed context", () => {
+    const path = rollout([command(READ, labelled()), CODEX_REVIEW]);
+    const listed = [{ session_id: ROLLOUT_ID, path }];
+    for (const named of [path, realpathSync(path), path.replace("/sessions/", "/sessions/./")]) {
+      const reviews = reviewsOf(listed, { rollouts: [named] });
+      expect(reviews).toHaveLength(1);
+      expect(reviews[0]).toMatchObject({ place: ROLLOUT_ID, context: "main session", fresh: false });
+    }
+  });
+
+  it("a rollout named twice by the caller: one record per review call", () => {
+    const path = rollout([command(READ, labelled()), CODEX_REVIEW]);
+    expect(reviewsOf([], { rollouts: [path, path] })).toHaveLength(1);
   });
 
   it("a rollout with forked_from_id: not fresh", () => {
@@ -506,6 +559,8 @@ const started = (threadId: string) => ({
 });
 
 type Thread = { id: string; records: unknown[]; forkedFrom?: string };
+/** How a Codex subagent's rollout begins: its source is an object, not `exec`. */
+const CHILD_RUN: Run = { source: { subagent: { parent_thread_id: ROLLOUT_ID } } };
 
 /**
  * A Codex home whose `sessions/` holds a parent rollout and these child
@@ -514,16 +569,15 @@ type Thread = { id: string; records: unknown[]; forkedFrom?: string };
  */
 function codexHome(parent: unknown[], parentForkedFrom: string | null, ...threads: Thread[]) {
   const sessions = join(tempDir("review-reads-codex-home-"), "sessions");
-  const write = (day: string, { id, records, forkedFrom }: Thread) => {
+  const write = (day: string, { id, records, forkedFrom }: Thread, run: Run) => {
     const folder = join(sessions, "2026", "11", day);
     mkdirSync(folder, { recursive: true });
     const path = join(folder, `rollout-2026-11-${day}T11-00-00-${id}.jsonl`);
-    const meta = { type: "session_meta", payload: { id, ...(forkedFrom && { forked_from_id: forkedFrom }) } };
-    writeFileSync(path, jsonl([meta, ...records]));
+    writeFileSync(path, jsonl(threadLines(id, records, forkedFrom ?? null, run)));
     return path;
   };
-  const root = write("08", { id: ROLLOUT_ID, records: parent, ...(parentForkedFrom && { forkedFrom: parentForkedFrom }) });
-  for (const thread of threads) write("09", thread);
+  const root = write("08", { id: ROLLOUT_ID, records: parent, ...(parentForkedFrom && { forkedFrom: parentForkedFrom }) }, {});
+  for (const thread of threads) write("09", thread, CHILD_RUN);
   return root;
 }
 
@@ -578,6 +632,14 @@ describe("read records from the Codex child threads a rollout started", () => {
       [`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fresh subagent", true],
       [`${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, "fresh subagent", true],
     ]);
+  });
+
+  it("a caller-named rollout already reached as a listed rollout's child: skipped, keeping the child's context", () => {
+    const child = { id: CHILD_ID, records: childReview, forkedFrom: ROLLOUT_ID };
+    const path = codexHome([started(CHILD_ID)], null, child);
+    const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
+    const reviews = reviewsOf([{ session_id: ROLLOUT_ID, path }], { rollouts: [childPath] });
+    expect(reviews.map((r) => [r.place, r.context])).toEqual([[`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fork"]]);
   });
 
   it("a child with a forked_from_id under the main session: a fork, not fresh", () => {

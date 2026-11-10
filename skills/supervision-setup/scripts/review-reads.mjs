@@ -70,10 +70,26 @@
  * that one.
  *
  * Context is `transcript-uses.mjs`'s: the main session is never fresh, a
- * Claude Code subagent is fresh only from its sidecar, and a Codex rollout
- * only when its first `session_meta` names no `forked_from_id`. A rollout
- * the caller names directly has no known starter, so one with a
- * `forked_from_id` is a fork; its place and session are its thread id.
+ * Claude Code subagent is fresh only from its sidecar, and a Codex child
+ * rollout only when its first `session_meta` names no `forked_from_id`, or
+ * when it does and the thread that started it is fresh.
+ *
+ * A rollout the caller names directly has no known starter, and no
+ * `forked_from_id` alone does not make it fresh: an interactive session
+ * names none either. It is fresh only as one `codex exec` run: its first
+ * record is a `session_meta` whose `source` is the string `exec` (an
+ * interactive one shows `vscode` or `cli`, a Codex subagent an object),
+ * naming no `forked_from_id`, and the rollout holds exactly one `event_msg`
+ * of type `task_started`. `codex exec resume` appends to the same file,
+ * keeping its one `session_meta` and adding a `task_started`, so a second
+ * one means the run went on with old context. Otherwise it is not fresh: no
+ * `session_meta` reads `subagent with no session_meta` and a
+ * `forked_from_id` reads `fork`, as for a child, and anything else reads
+ * `named rollout not a single exec run`. Its place and session are its
+ * thread id. A caller-named rollout already reached through a listed
+ * transcript, as its root or as a child, or named twice, is read once:
+ * the first reach wins, so a listed one keeps its listed context. Paths are
+ * compared resolved, through symbolic links.
  *
  * A listed transcript that is not found, a caller-named rollout that does
  * not exist, and a Codex child that was started but whose rollout is not
@@ -83,6 +99,8 @@
  *
  * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U1 and KTD3.
  */
+import { readFileSync, realpathSync } from "node:fs";
+import { resolve } from "node:path";
 import { codexChildren, codexItem, codexShellLine, commandOutput, commandUses, timeOf } from "./codex-uses.mjs";
 import {
   childName,
@@ -114,6 +132,10 @@ const LABELS = {
   status: /^status (\d+)$/,
   base: new RegExp(`^base (${SHA})$`),
 };
+/** The context of a caller-named rollout that is not one `codex exec` run with a `session_meta`. */
+const NOT_ONE_EXEC = "named rollout not a single exec run";
+/** A rollout line that may record a turn's start; `records` drops such lines, so they are read apart. */
+const TASK_STARTED = /"task_started"/;
 /** A hex token in a review's arguments that may name a commit. */
 const HEX_TOKEN = /\b[0-9a-f]{7,40}\b/gi;
 
@@ -270,12 +292,12 @@ function reviewsIn(recorded, replayed) {
  * its Claude Code subagents and the Codex child rollouts any of them
  * started, each child with the context of the thread that started it.
  * Returns the records and each started child whose rollout was not found,
- * once per thread id, as `sessionUses` keeps them. `read` is the root's
- * records when the caller has already read them.
+ * once per thread id, as `sessionUses` keeps them, and every transcript
+ * path it read (`reached`). `rootContext` is the root's context; `read` is
+ * the root's records when the caller has already read them.
  */
-function walk({ path, subagentDirs }, sessionId, place, context, read = records(path)) {
-  const { recorded, first } = read;
-  const rootContext = context ?? codexContext(first, null);
+function walk({ path, subagentDirs }, sessionId, place, rootContext, read = records(path)) {
+  const { recorded } = read;
   const tag = (where, ctx) => ({ place: where, session: sessionId, context: ctx, fresh: ctx === FRESH });
   const parts = [reviewsIn(recorded, null).map((review) => ({ ...tag(place, rootContext), ...review }))];
   const codex = codexChildren(path, recorded);
@@ -301,19 +323,55 @@ function walk({ path, subagentDirs }, sessionId, place, context, read = records(
     children.push(...grandchildren.found.map((file) => ({ path: file, starter: childContext })));
     for (const lost of grandchildren.missing) missing.set(lost.id, { session_id: lost.id, path: lost.path });
   }
-  return { reviews: parts.flat(), missing: [...missing.values()] };
+  return { reviews: parts.flat(), missing: [...missing.values()], reached: [...seen] };
+}
+
+/** A path resolved through symbolic links when it exists, else only made absolute. */
+function realPath(path) {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+}
+
+/** How many `event_msg` records of type `task_started` a rollout holds, read from its raw lines. */
+function taskStarts(path) {
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .filter((line) => TASK_STARTED.test(line))
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line)];
+      } catch {
+        return [];
+      }
+    })
+    .filter((record) => record?.type === "event_msg" && record.payload?.type === "task_started").length;
+}
+
+/**
+ * A caller-named rollout's context: fresh only as one `codex exec` run, its
+ * `session_meta` from `exec` with no `forked_from_id` and one `task_started`.
+ */
+function namedContext(path, first) {
+  const context = codexContext(first, null);
+  if (context !== FRESH) return context;
+  return first.payload.source === "exec" && taskStarts(path) === 1 ? FRESH : NOT_ONE_EXEC;
 }
 
 /**
  * The review records every listed transcript `{ session_id, path }` reaches,
  * and those of each Codex rollout path in `rollouts`, read as its own
- * reviewer. `skills`, when given, keeps only the review calls it names.
+ * reviewer unless a listed transcript or an earlier rollout already reached
+ * it. `skills`, when given, keeps only the review calls it names.
  * Returns `{ reviews, missing }`; the caller exits 2 when `missing` is not
  * empty. A missing caller-named rollout has `session_id` null.
  */
 export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   const reviews = [];
   const missing = [];
+  const reached = new Set();
   for (const { session_id: sessionId, path } of listed) {
     const at = locate(path, sessionId);
     if (!at) {
@@ -323,8 +381,10 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     const found = walk(at, sessionId, sessionId, MAIN);
     reviews.push(...found.reviews);
     missing.push(...found.missing);
+    for (const file of found.reached) reached.add(realPath(file));
   }
   for (const path of rollouts) {
+    if (reached.has(realPath(path))) continue;
     let read;
     try {
       read = records(path);
@@ -334,9 +394,10 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
       continue;
     }
     const id = typeof read.first?.payload?.id === "string" ? read.first.payload.id : childName(path);
-    const found = walk({ path, subagentDirs: [] }, id, id, null, read);
+    const found = walk({ path, subagentDirs: [] }, id, id, namedContext(path, read.first), read);
     reviews.push(...found.reviews);
     missing.push(...found.missing);
+    for (const file of found.reached) reached.add(realPath(file));
   }
   if (!skills) return { reviews, missing };
   const wanted = new Set(skills.map(unqualified));
