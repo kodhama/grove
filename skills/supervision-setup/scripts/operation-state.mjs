@@ -107,7 +107,7 @@ export function creditable(use, marked) {
  * names a subagent: the check writes a marked operation's `used` line only
  * from a fresh-context subagent.
  */
-function carriedUse(binding, carried, marked) {
+export function carriedUse(binding, carried, marked) {
   if (!carried) return null;
   const use = { kind: binding.kind, name: carried.performer, fresh: isSubagentPlace(carried.place) };
   return matches(binding, use) && creditable(use, marked) ? use : null;

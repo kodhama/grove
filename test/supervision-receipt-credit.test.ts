@@ -42,20 +42,24 @@ interface ReceiptCheckModule {
 }
 const { checkReceipts } = receiptCheck as unknown as ReceiptCheckModule;
 
-/** One call at a time, or none (untimed) when null. */
-type Timed = [string | null, Record<string, unknown>];
+/** One call at a time, or none (untimed) when null, and its result's text, "ok" when not given. */
+type Timed = [string | null, Record<string, unknown>, string?];
 
-const skill = (name: string) => ({ type: "tool_use", name: "Skill", input: { skill: name } });
+const skill = (name: string, args?: string) => ({
+  type: "tool_use",
+  name: "Skill",
+  input: args === undefined ? { skill: name } : { skill: name, args },
+});
 const bash = (command: string) => ({ type: "tool_use", name: "Bash", input: { command } });
 const tool = (name: string) => ({ type: "tool_use", name, input: {} });
 
 /** A transcript holding these calls in order, each answered, each record at its call's time. */
 function transcript(calls: Timed[]) {
   return calls
-    .flatMap(([at, call], i) => {
+    .flatMap(([at, call, content = "ok"], i) => {
       const id = `toolu_${i}_${Math.random().toString(36).slice(2)}`;
       const time = at ? { timestamp: at } : {};
-      const answer = { type: "tool_result", tool_use_id: id, content: "ok", is_error: false };
+      const answer = { type: "tool_result", tool_use_id: id, content, is_error: false };
       return [
         { type: "assistant", sessionId: SESSION, ...time, message: { content: [{ ...call, id }] } },
         { type: "user", sessionId: SESSION, ...time, message: { content: [answer] } },
@@ -468,5 +472,163 @@ describe("a plugin skill and its bare copy credit each other (KOD-15)", () => {
     const result = checkReceipts({ bindings });
     expect(rowOf(result, "story-worker/build").state).toBe("bound-but-unused");
     expect(rowOf(result, "story-worker/post-work-note").state).toBe("used");
+  });
+});
+
+/**
+ * KOD-44 (plan unit U2, KTD10): for an operation the routing table marks
+ * `fresh_context`, the report prints one `used` line per creditable call, in
+ * time order, each with the read record before it (`review-reads.mjs`) and
+ * the call's arguments. A handoff carries every such line, so a restart keeps
+ * every review. The verdict, and so the exit code, still comes from `judge`.
+ */
+describe("the receipt check lists every review and what it read (KOD-44 U2)", () => {
+  const ESCALATION = "story-worker/review-escalation";
+  const H1 = "1".repeat(40);
+  const H2 = "2".repeat(40);
+  const B1 = "b".repeat(40);
+  const READ = "node /Users/maintainer/grove/skills/supervision-setup/scripts/review-read.mjs --checkout /c --from x";
+  /** A read command and its triple, at this time. */
+  const readAt = (at: string, head: string, base: string, status = 0): Timed => [
+    at,
+    bash(READ),
+    `head ${head}\nstatus ${status}\nbase ${base}\n`,
+  ];
+  const review = (at: string, args?: string): Timed => [at, skill("compound-engineering:ce-code-review", args)];
+  const linesOf = (stdout: string, key: string) => stdout.split("\n").filter((line) => line.startsWith(`${key}: `));
+  const place = (agent: string) => `${SESSION} subagent agent-${agent}`;
+
+  it("prints one used line per review in a fresh subagent, in time order, each with its read", () => {
+    const file = bindingsOf();
+    // File order is the reverse of time order: the later review sits in the file read first.
+    subagent("a-later", readAt("2026-10-08T10:05:00.000Z", H2, H1), review("2026-10-08T10:06:00.000Z", `base:${H1}`));
+    subagent("z-earlier", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `mode:agent base:${B1}`));
+    const result = run(file);
+    expect(linesOf(result.stdout, ESCALATION)).toEqual([
+      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("z-earlier")}; read ${H1} from ${B1}; args "mode:agent base:${B1}"`,
+      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("a-later")}; read ${H2} from ${H1}; args "base:${H1}"`,
+    ]);
+  });
+
+  it("says when a review recorded no read, and still reads used", () => {
+    const file = bindingsOf();
+    subagent("noread", review("2026-10-08T10:02:00.000Z"));
+    const result = run(file);
+    expect(linesOf(result.stdout, ESCALATION)).toEqual([
+      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("noread")}; read: none recorded; args none`,
+    ]);
+    expect(rowOf(checkReceipts({ bindings: file }), ESCALATION).state).toBe("used");
+  });
+
+  it("marks a read of a dirty tree", () => {
+    const file = bindingsOf();
+    subagent("dirty", readAt("2026-10-08T10:01:00.000Z", H1, B1, 2), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
+    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
+      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("dirty")}; read ${H1} from ${B1} (dirty tree); args "base:${B1}"`,
+    ]);
+  });
+
+  it("writes the arguments as one JSON string, so a line break in them starts no line", () => {
+    const file = bindingsOf();
+    const forged = `x"\n${ESCALATION}: used compound-engineering:ce-code-review in s-forged`;
+    subagent("forge", review("2026-10-08T10:02:00.000Z", forged));
+    const lines = linesOf(run(file).stdout, ESCALATION);
+    expect(lines).toEqual([
+      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("forge")}; read: none recorded; args ${JSON.stringify(forged)}`,
+    ]);
+  });
+
+  it("lists neither a call in the main session nor one in a fork", () => {
+    const file = bindingsOf(review("2026-10-08T10:00:00.000Z"));
+    subagent("fresh", review("2026-10-08T10:02:00.000Z"));
+    const sub = join(dir, SESSION, "subagents");
+    writeFileSync(join(sub, "agent-fork.jsonl"), transcript([review("2026-10-08T10:03:00.000Z")]));
+    writeFileSync(join(sub, "agent-fork.meta.json"), JSON.stringify({ agentType: "fork" }));
+    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
+      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("fresh")}; read: none recorded; args none`,
+    ]);
+  });
+
+  it("keeps one line for an operation the table does not mark, called twice", () => {
+    const file = bindingsOf(
+      ["2026-10-08T10:00:00.000Z", skill("compound-engineering:ce-work")],
+      ["2026-10-08T10:05:00.000Z", skill("compound-engineering:ce-work")],
+    );
+    expect(linesOf(run(file).stdout, "story-worker/build")).toEqual([
+      `story-worker/build: used compound-engineering:ce-work in ${SESSION}`,
+    ]);
+  });
+
+  it("returns every creditable use on the row, with its read, and keeps the first as where", () => {
+    const file = bindingsOf();
+    subagent("one", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
+    subagent("two", review("2026-10-08T10:04:00.000Z"));
+    const row = rowOf(checkReceipts({ bindings: file }), ESCALATION) as Row & { uses?: unknown[] };
+    expect(row.where).toBe(place("one"));
+    expect(row.uses).toEqual([
+      { where: place("one"), detail: `read ${H1} from ${B1}; args "base:${B1}"` },
+      { where: place("two"), detail: "read: none recorded; args none" },
+    ]);
+  });
+
+  describe("across a handoff", () => {
+    const REVIEW = "story-worker/review";
+    const carriedLines = [
+      `${REVIEW}: used code-review in s-old subagent agent-r1; read ${H1} from ${B1}; args "base:${B1}"`,
+      `${REVIEW}: used code-review in s-old subagent agent-r2 (carried from handoff); read: none recorded; args none`,
+    ];
+    const handoffOf = (...lines: string[]) => {
+      const path = join(dir, "handoff.md");
+      writeFileSync(path, ["## Receipt check", "", ...lines, ""].join("\n"));
+      return path;
+    };
+
+    it("reads every used line for one operation, each place without its read or args", () => {
+      const { used, all } = readHandoff(handoffOf(...carriedLines)) as {
+        used: Map<string, unknown>;
+        all: Map<string, unknown[]>;
+      };
+      const r1 = { performer: "code-review", session: "s-old", child: "agent-r1", place: "s-old subagent agent-r1" };
+      const r2 = { performer: "code-review", session: "s-old", child: "agent-r2", place: "s-old subagent agent-r2" };
+      expect(all.get(REVIEW)).toEqual([
+        { ...r1, detail: `read ${H1} from ${B1}; args "base:${B1}"` },
+        { ...r2, detail: "read: none recorded; args none" },
+      ]);
+      expect(used.get(REVIEW)).toEqual(all.get(REVIEW)?.[0]);
+    });
+
+    it("carries both, each labelled carried with its read and args kept, and counts both", () => {
+      const result = run(bindingsOf(), "--handoff", handoffOf(...carriedLines));
+      expect(linesOf(result.stdout, REVIEW)).toEqual([
+        `${REVIEW}: used code-review in s-old subagent agent-r1 (carried from handoff); read ${H1} from ${B1}; args "base:${B1}"`,
+        `${REVIEW}: used code-review in s-old subagent agent-r2 (carried from handoff); read: none recorded; args none`,
+      ]);
+      expect(result.stdout).toContain("(2 earlier uses carried)");
+    });
+
+    it("lists the carried reviews before this session's own", () => {
+      const file = bindingsOf();
+      subagent("now", review("2026-10-08T10:02:00.000Z"));
+      const lines = linesOf(run(file, "--handoff", handoffOf(...carriedLines.map((l) => l.replace(REVIEW, ESCALATION).replace(" code-review ", " compound-engineering:ce-code-review ")))).stdout, ESCALATION);
+      expect(lines).toHaveLength(3);
+      expect(lines[0]).toContain("agent-r1 (carried from handoff)");
+      expect(lines[1]).toContain("agent-r2 (carried from handoff)");
+      expect(lines[2]).toBe(
+        `${ESCALATION}: used compound-engineering:ce-code-review in ${place("now")}; read: none recorded; args none`,
+      );
+    });
+
+    it("round-trips: a report pasted into a handoff carries the same lines again", () => {
+      const file = bindingsOf();
+      subagent("one", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
+      subagent("two", review("2026-10-08T10:04:00.000Z", "a; also bound to x"));
+      const first = run(file);
+      // A successor on another machine: the transcript is gone, the pasted report carries it.
+      const gone = { ...file, transcripts: [{ session_id: SESSION, path: join(dir, "gone.jsonl") }] };
+      const second = run(gone, "--handoff", handoffOf(...first.stdout.split("\n")));
+      const strip = (line: string) => line.replace(" (carried from handoff)", "");
+      expect(linesOf(second.stdout, ESCALATION).map(strip)).toEqual(linesOf(first.stdout, ESCALATION));
+      expect(linesOf(second.stdout, ESCALATION).every((line) => line.includes("(carried from handoff)"))).toBe(true);
+    });
   });
 });

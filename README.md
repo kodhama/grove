@@ -222,8 +222,8 @@ resume that does is a later unit.
 ## The review read
 
 **A review records what it read**, so a merge gate can later tell whether
-the last review read a pull request's final head (KOD-44). No skill or check
-uses it yet; later units of that plan do.
+the last review read a pull request's final head (KOD-44). The receipt
+check lists it; later units of that plan build the gate on it.
 
 - **The read command** is the reviewer's first call, run alone:
   `node skills/supervision-setup/scripts/review-read.mjs --checkout <dir> --from <commit>`.
@@ -241,6 +241,15 @@ uses it yet; later units of that plan do.
   does not depend on the order rollouts are named in (their sequence
   follows it), and a transcript or rollout that cannot be found is reported
   as missing, never skipped.
+- **The receipt check lists every review.** For an operation the routing
+  table marks `fresh_context`, it prints one `used` line per review that
+  could credit it, rather than one per operation: those a handoff carries
+  first, then each fresh-subagent call in time order. Each line ends in what
+  that reviewer read and the call's arguments, as one JSON string:
+  `…; read <head> from <base>; args "base:<sha>"`, with `(dirty tree)` after
+  the base when the tree was not clean, or `read: none recorded` and
+  `args none`. A handoff carries every such line, with its read and args.
+  The operation's verdict and the exit code are unchanged.
 
 ## Versions
 
