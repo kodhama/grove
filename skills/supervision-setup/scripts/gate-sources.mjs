@@ -25,9 +25,9 @@
  * KTD1 (one runner), KTD5 (line counts), KTD7 (verbatim patch IDs),
  * KTD8 (check-suite time), KTD9 (transport failures).
  */
-import { Buffer } from "node:buffer";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { resolve } from "node:path";
 
 /** A gh or git call that failed or answered malformed: the gate maps it to exit 2. */
 export class TransportFailure extends Error {
@@ -46,21 +46,24 @@ export function defaultRunner(cmd, args, options) {
 }
 
 const PAGE_CAP = 50;
-const GIT_FLOOR = "git 2.39 or newer is required (patch-id --verbatim, git RelNotes 2.39.0)";
+const GIT_CONFIG = [
+  "diff.algorithm=myers",
+  "diff.renames=true",
+  "diff.noprefix=false",
+  "diff.mnemonicPrefix=false",
+  "diff.relative=false",
+  "color.ui=never",
+  "log.showSignature=false",
+  "merge.conflictStyle=merge",
+  "core.quotePath=true",
+].flatMap((value) => ["-c", value]);
+const GIT_FLOOR = "git 2.39 or newer is required (git patch-id --verbatim)";
 const SHA = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
-// `git cat-file -e` exits 128 for an unknown object, so any non-zero exit
-// means the commit is absent; a failure to run still throws.
-const ANY_EXIT_STATUS = Array.from({ length: 255 }, (_, i) => i + 1);
-
 // Copied from Compound Engineering 3.27.0,
 // skills/ce-code-review/scripts/review-scope.py: TEST_PATTERN.
 // Its (?-i:...) class-file alternative needs a separate, case-sensitive JS regex.
 const TEST_PATTERN = /(^|\/)(tests?|spec|__tests__)\/|(^|\/)[^/]+[._-](test|spec)\.[^/]+$|(^|\/)(test_[^/]+|conftest)\.[^/]+$/i;
 const TEST_CLASS_PATTERN = /(^|\/)[^/]+(Test|Tests|Spec)\.(java|kt|scala|swift|cs)$/;
-
-// Git's C-style path quoting, including octal UTF-8 bytes.
-const PATH_ESCAPES = { a: 7, b: 8, t: 9, n: 10, v: 11, f: 12, r: 13, '"': 34, "\\": 92 };
-const QUOTED_PATH_PART = /\\([0-7]{3}|[abtnvfr"\\])|([^\\]+)|(\\)/g;
 
 const THREAD_QUERY = `query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
@@ -76,6 +79,13 @@ const THREAD_QUERY = `query($owner: String!, $repo: String!, $number: Int!, $cur
 /** Throw the transport failure for one call. */
 function fail(call, reason) {
   throw new TransportFailure(call, reason);
+}
+
+/** Reject missing revisions and option-like inputs before any process runs. */
+function revisions(call, ...values) {
+  for (const value of values) {
+    if (typeof value !== "string" || value === "" || value.startsWith("-")) fail(call, `invalid revision ${value}`);
+  }
 }
 
 /** The value, when it is a plain object; otherwise a failure naming it. */
@@ -105,6 +115,10 @@ function nullableString(value, name, call) {
 
 /** The login and account type of the user a REST row names. */
 function account(row, call) {
+  if (row?.user === null) return {
+    login: null,
+    type: null,
+  };
   const user = object(row?.user, "user", call);
   return {
     login: field(user, "login", "string", call),
@@ -120,37 +134,6 @@ function gitEnv() {
   return env;
 }
 
-/** A path as git printed it, with C-style quoting undone. */
-function unquotePath(path, call) {
-  if (!path.startsWith('"')) return path;
-  if (!path.endsWith('"')) fail(call, "invalid quoted numstat path");
-  const parts = [];
-  for (const match of path.slice(1, -1).matchAll(QUOTED_PATH_PART)) {
-    const [, escape, text, loneBackslash] = match;
-    if (loneBackslash) fail(call, "invalid escape in numstat path");
-    if (text) parts.push(Buffer.from(text));
-    else parts.push(Buffer.from([escape.length === 3 ? parseInt(escape, 8) : PATH_ESCAPES[escape]]));
-  }
-  return Buffer.concat(parts).toString("utf8");
-}
-
-/** A renamed path's new name, as review-scope.py's numstat_path reads it. */
-function destination(path) {
-  if (!path.includes(" => ")) return path;
-  if (path.includes("{") && path.includes("}")) return path.replace(/\{[^{}]* => ([^{}]*)\}/, "$1");
-  return path.slice(path.lastIndexOf(" => ") + 4);
-}
-
-/** The path a numstat row counts under. */
-function rowPath(raw, call) {
-  // With unusual names git may quote the two sides of a rename separately.
-  const quotedRename = /^("(?:[^"\\]|\\.)*"|[^"]*) => ("(?:[^"\\]|\\.)*"|[^"]*)$/.exec(raw);
-  if (quotedRename && (quotedRename[1].startsWith('"') || quotedRename[2].startsWith('"'))) {
-    return unquotePath(quotedRename[2], call);
-  }
-  return destination(unquotePath(raw, call));
-}
-
 /** One numstat count: a number, or null for a binary file's `-`. */
 function numstatCount(text, call) {
   if (text === "-") return null;
@@ -159,14 +142,38 @@ function numstatCount(text, call) {
   return count;
 }
 
-/** One `added<TAB>deleted<TAB>path` row. */
-function statRow(line, call) {
-  const match = /^(\d+|-)\t(\d+|-)\t(.+)$/.exec(line);
+/** One NUL-delimited numstat row, consuming the two paths of a rename. */
+function statRow(text, parts, call) {
+  const match = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/.exec(text);
   if (!match || (match[1] === "-") !== (match[2] === "-")) fail(call, "invalid numstat row");
-  const path = rowPath(match[3], call);
-  const added = numstatCount(match[1], call);
-  const deleted = numstatCount(match[2], call);
-  return { path, added, deleted };
+  let path = match[3];
+  if (path === "") {
+    const oldPath = parts.next().value;
+    path = parts.next().value;
+    if (!oldPath || !path) fail(call, "invalid numstat rename");
+  }
+  return {
+    path,
+    added: numstatCount(match[1], call),
+    deleted: numstatCount(match[2], call),
+  };
+}
+
+/** NUL-framed commit headers and rows; only Git's row separator is a newline. */
+function* numstatRecords(out, call) {
+  if (out !== "" && !out.endsWith("\0")) fail(call, "unterminated numstat output");
+  const parts = out.split("\0").values();
+  for (const part of parts) {
+    if (part === "") continue;
+    const text = part.replace(/^\n/, "");
+    if (text.startsWith("commit:")) {
+      const sha = text.slice(7);
+      if (!SHA.test(sha)) fail(call, "invalid numstat commit header");
+      yield { sha };
+    } else {
+      yield statRow(text, parts, call);
+    }
+  }
 }
 
 /** Whether a row counts toward the non-test total: not binary, and not a test path. */
@@ -230,19 +237,27 @@ function threadConnection(response, call) {
  * human accounts too: deciding which accounts matter belongs to the gate.
  */
 export function createGateSources({ checkout, owner, repo, number, run = defaultRunner }) {
+  const checkoutPath = resolve(checkout);
   const root = `repos/${owner}/${repo}`;
 
   /** Run one process; `allowed` lists the non-zero exits the call answers with. */
   function execute(call, cmd, args, { allowed = [], input } = {}) {
     let result;
     try {
-      result = run(cmd, args, { cwd: checkout, input, env: cmd === "git" ? gitEnv() : { ...process.env } });
+      result = run(cmd, args, {
+        ...(cmd === "git" ? {} : { cwd: checkoutPath }),
+        input,
+        env: cmd === "git" ? gitEnv() : { ...process.env },
+      });
     } catch (error) {
       fail(call, error.message);
     }
     if (!result || typeof result !== "object") fail(call, "runner returned no result");
     if (result.error) fail(call, result.error.message || result.error);
-    if (cmd === "git" && /unknown option/i.test(result.stderr ?? "")) fail(call, GIT_FLOOR);
+    if (cmd === "git" && (
+      /unknown option|unrecognized argument/i.test(result.stderr ?? "") ||
+      (args.includes("patch-id") && result.status === 129)
+    )) fail(call, GIT_FLOOR);
     if (result.status !== 0 && !allowed.includes(result.status)) {
       fail(call, String(result.stderr ?? "").trim() || `exit ${result.status}`);
     }
@@ -252,7 +267,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
 
   /** One git command in the checkout. */
   function git(call, args, options) {
-    return execute(call, "git", ["-C", checkout, ...args], options);
+    return execute(call, "git", ["-C", checkoutPath, ...GIT_CONFIG, ...args], options);
   }
 
   /** One `gh api` request, parsed as JSON. */
@@ -284,6 +299,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
 
   /** The commits from `from` (excluded) to `to`, first parents only, oldest first. */
   function firstParentChain(from, to, call = "firstParentChain") {
+    revisions(call, from, to);
     const out = git(call, ["rev-list", "--first-parent", "--reverse", "--parents", `${from}..${to}`]).stdout.trim();
     if (!out) return [];
     return out.split("\n").map((line) => {
@@ -293,21 +309,32 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     });
   }
 
+  /** Whether one commit is an ancestor of another, including equality. */
+  function isAncestor(a, b, call = "isAncestor") {
+    revisions(call, a, b);
+    return git(call, ["merge-base", "--is-ancestor", a, b], { allowed: [1] }).status === 0;
+  }
+
+  /** The numstat rows between two commits, with the same pinning as the log. */
+  function diffNumstat(from, to, call) {
+    revisions(call, from, to);
+    const out = git(call, ["diff", "--no-ext-diff", "--no-textconv", "--no-color", "-M", "--numstat", "-z", from, to]).stdout;
+    return [...numstatRecords(out, call)];
+  }
+
   /** Each non-merge first-parent commit's numstat rows. */
   function numstat(from, to, call = "numstat") {
-    const out = git(call, ["log", "--first-parent", "--no-merges", "--numstat", "--format=%x00%H", `${from}..${to}`]).stdout;
+    revisions(call, from, to);
+    const out = git(call, ["log", "--no-ext-diff", "--no-textconv", "-M", "--first-parent", "--no-merges", "--numstat", "-z", "--format=commit:%H", `${from}..${to}`]).stdout;
     const commits = [];
     let current;
-    for (const line of out.split("\n")) {
-      if (line === "") continue;
-      if (line.startsWith("\0")) {
-        const sha = line.slice(1);
-        if (!SHA.test(sha)) fail(call, "invalid numstat commit header");
-        current = { sha, files: [] };
+    for (const record of numstatRecords(out, call)) {
+      if (record.sha) {
+        current = { sha: record.sha, files: [] };
         commits.push(current);
       } else {
         if (!current) fail(call, "numstat row without a commit");
-        current.files.push(statRow(line, call));
+        current.files.push(record);
       }
     }
     return commits;
@@ -315,8 +342,12 @@ export function createGateSources({ checkout, owner, repo, number, run = default
 
   /** A merge's remerge-diff numstat rows; none for a clean merge. */
   function remergeNumstat(merge, call = "remergeNumstat") {
-    const out = git(call, ["show", "--remerge-diff", "--format=", "--numstat", merge]).stdout;
-    return out.split("\n").filter(Boolean).map((line) => statRow(line, call));
+    revisions(call, merge);
+    const out = git(call, ["show", "--no-ext-diff", "--no-textconv", "-M", "--remerge-diff", "--format=", "--numstat", "-z", merge]).stdout;
+    return [...numstatRecords(out, call)].map((row) => {
+      if (row.sha) fail(call, "unexpected numstat commit header");
+      return row;
+    });
   }
 
   return {
@@ -326,12 +357,14 @@ export function createGateSources({ checkout, owner, repo, number, run = default
       return {
         sha: field(row.head, "sha", "string", call),
         baseRef: field(row.base, "ref", "string", call),
+        baseSha: field(row.base, "sha", "string", call),
         state: field(row, "state", "string", call),
       };
     },
 
     checks(sha) {
       const call = "checks";
+      revisions(call, sha);
       const runs = pages(call, `commits/${sha}/check-runs`, "check_runs", checkRun);
       const statuses = pages(call, `commits/${sha}/status`, "statuses", commitStatus);
       return [...runs, ...statuses];
@@ -339,6 +372,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
 
     firstSuiteAt(sha) {
       const call = "firstSuiteAt";
+      revisions(call, sha);
       const dates = pages(call, `commits/${sha}/check-suites`, "check_suites", (row) => field(row, "created_at", "string", call));
       let earliest = null;
       let earliestTime = Infinity;
@@ -376,10 +410,10 @@ export function createGateSources({ checkout, owner, repo, number, run = default
       const call = "botReviews";
       return pages(call, `pulls/${number}/reviews`, null, (row) => ({
         ...account(row, call),
-        commitId: field(row, "commit_id", "string", call),
+        commitId: nullableString(row.commit_id, "commit_id", call),
         body: field(row, "body", "string", call),
         state: field(row, "state", "string", call),
-        submittedAt: field(row, "submitted_at", "string", call),
+        submittedAt: nullableString(row.submitted_at ?? null, "submitted_at", call),
       }));
     },
 
@@ -403,15 +437,15 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     },
 
     hasCommit(sha) {
-      return git("hasCommit", ["cat-file", "-e", `${sha}^{commit}`], { allowed: ANY_EXIT_STATUS }).status === 0;
+      revisions("hasCommit", sha);
+      return git("hasCommit", ["rev-parse", "--verify", "--quiet", `${sha}^{commit}`], { allowed: [1] }).status === 0;
     },
 
-    isAncestor(a, b) {
-      return git("isAncestor", ["merge-base", "--is-ancestor", a, b], { allowed: [1] }).status === 0;
-    },
+    isAncestor,
 
     mergeBase(a, b) {
       const call = "mergeBase";
+      revisions(call, a, b);
       const result = git(call, ["merge-base", a, b], { allowed: [1] });
       if (result.status === 1 && result.stdout.trim() === "") return null;
       const sha = result.stdout.trim();
@@ -425,34 +459,46 @@ export function createGateSources({ checkout, owner, repo, number, run = default
 
     /**
      * Non-test lines from `from` to `to` (KTD5): {total, commits:[{sha, lines}],
-     * merges:[{sha, lines}]}, commits oldest first. A merge counts its
-     * remerge-diff lines; `merges` lists every merge with remerge rows, even
-     * when all its rows are tests or binary.
+     * merges:[{sha, lines}], binaryPaths}, commits oldest first. A merge counts its
+     * remerge-diff lines when its other parents belong to `base`; otherwise
+     * it counts the diff from its first parent. `merges` lists every non-base
+     * merge and every base merge with remerge rows, including tests or binary.
      */
-    nonTestLines(from, to) {
+    nonTestLines(from, to, base) {
       const call = "nonTestLines";
+      revisions(call, from, to, base);
       const stats = new Map(numstat(from, to, call).map((commit) => [commit.sha, commit.files]));
       const commits = [];
       const merges = [];
+      const binaryPaths = new Set();
       for (const commit of firstParentChain(from, to, call)) {
-        let count;
+        let files;
         if (commit.parents.length >= 2) {
-          const files = remergeNumstat(commit.sha, call);
-          count = nonTestLineCount(files);
-          if (files.length) merges.push({ sha: commit.sha, lines: count });
+          const fromBase = commit.parents.slice(1).every((parent) => isAncestor(parent, base, call));
+          files = fromBase ? remergeNumstat(commit.sha, call) : diffNumstat(commit.parents[0], commit.sha, call);
+          if (!fromBase || files.length) merges.push({ sha: commit.sha, lines: nonTestLineCount(files) });
         } else {
           if (!stats.has(commit.sha)) fail(call, `missing numstat for ${commit.sha}`);
-          count = nonTestLineCount(stats.get(commit.sha));
+          files = stats.get(commit.sha);
         }
-        commits.push({ sha: commit.sha, lines: count });
+        for (const row of files) {
+          if (row.added === null) binaryPaths.add(row.path);
+        }
+        commits.push({ sha: commit.sha, lines: nonTestLineCount(files) });
       }
-      return { total: commits.reduce((sum, commit) => sum + commit.lines, 0), commits, merges };
+      return {
+        total: commits.reduce((sum, commit) => sum + commit.lines, 0),
+        commits,
+        merges,
+        binaryPaths: [...binaryPaths],
+      };
     },
 
     /** The verbatim patch-id of the diff from `base` to `head`; null for an empty diff (KTD7). */
     patchId(base, head) {
       const call = "patchId";
-      const diff = git(call, ["diff", base, head]).stdout;
+      revisions(call, base, head);
+      const diff = git(call, ["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", "--src-prefix=a/", "--dst-prefix=b/", base, head]).stdout;
       if (diff === "") return null;
       const out = git(call, ["patch-id", "--verbatim"], { input: diff }).stdout.trim();
       const match = /^([a-f0-9]{40}(?:[a-f0-9]{24})?)\s+[a-f0-9]+$/.exec(out);

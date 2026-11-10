@@ -2,7 +2,7 @@
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
@@ -36,8 +36,8 @@ const review = { user, commit_id: "abc", body: "done", state: "COMMENTED", submi
 
 describe("gh sources", () => {
   it("reads the live head and base", () => {
-    const s = stub([ok({ head: { sha: "abc" }, base: { ref: "main" }, state: "open" })]);
-    expect(createGateSources({ ...config, run: s.run }).head()).toEqual({ sha: "abc", baseRef: "main", state: "open" });
+    const s = stub([ok({ head: { sha: "abc" }, base: { ref: "main", sha: "base-sha" }, state: "open" })]);
+    expect(createGateSources({ ...config, run: s.run }).head()).toEqual({ sha: "abc", baseRef: "main", baseSha: "base-sha", state: "open" });
     expect(s.calls[0]?.args).toEqual(["api", "repos/owner/repo/pulls/44"]);
   });
 
@@ -49,6 +49,34 @@ describe("gh sources", () => {
     expect(s.calls).toHaveLength(2);
     expect(s.calls[1]?.args).toContain("cursor=cursor1");
     expect(s.calls.every((c) => c.cmd === "gh" && c.args[0] === "api" && !c.args.includes("--paginate"))).toBe(true);
+  });
+
+  it("rejects a GraphQL body containing errors", () => {
+    const response = JSON.parse(threadPage([], false, null).stdout);
+    response.errors = [{ message: "partial response" }];
+    expect(() => createGateSources({ ...config, run: stub([ok(response)]).run }).threads()).toThrow(/^threads: GraphQL response contains errors/);
+  });
+
+  it("rejects a repeated thread cursor", () => {
+    const s = stub([threadPage([thread("one")], true, "same"), threadPage([thread("two")], true, "same")]);
+    expect(() => createGateSources({ ...config, run: s.run }).threads()).toThrow(/^threads: invalid next thread cursor/);
+    expect(s.calls).toHaveLength(2);
+  });
+
+  it("rejects a thread with no first comment", () => {
+    const row = { ...thread("empty"), comments: { nodes: [] } };
+    expect(() => createGateSources({ ...config, run: stub([threadPage([row], false, null)]).run }).threads()).toThrow(/^threads: missing first thread comment/);
+  });
+
+  it("reports a null first thread author", () => {
+    const row = { ...thread("deleted"), comments: { nodes: [{ author: null }] } };
+    expect(createGateSources({ ...config, run: stub([threadPage([row], false, null)]).run }).threads()).toEqual([{
+      id: "deleted",
+      isResolved: false,
+      isOutdated: true,
+      path: "src/a",
+      authorLogin: null,
+    }]);
   });
 
   it("reports running checks without interpreting their empty conclusion", () => {
@@ -66,8 +94,8 @@ describe("gh sources", () => {
 
   it("finds the earliest suite across REST pages, or null with none", () => {
     const s = stub([
-      ok({ check_suites: Array.from({ length: 100 }, () => ({ created_at: "2026-11-09T12:00:00Z" })) }),
-      ok({ check_suites: [{ created_at: "2026-11-08T12:00:00Z" }] }),
+      ok({ check_suites: Array.from({ length: 100 }, (_, i) => ({ created_at: i === 0 ? "2026-11-08T12:00:00Z" : "2026-11-09T12:00:00Z" })) }),
+      ok({ check_suites: [{ created_at: "2026-11-10T12:00:00Z" }] }),
     ]);
     expect(createGateSources({ ...config, run: s.run }).firstSuiteAt("abc")).toBe("2026-11-08T12:00:00Z");
     expect(s.calls[1]?.args[1]).toContain("page=2");
@@ -99,6 +127,27 @@ describe("gh sources", () => {
     expect(s.calls[1]?.args[1]).toContain("page=2");
   });
 
+  it("normalises nullable and omitted review fields", () => {
+    const raw = { user: null, commit_id: null, body: "pending", state: "PENDING" };
+    const sources = createGateSources({ ...config, run: stub([ok([raw])]).run });
+    expect(sources.botReviews()).toEqual([{
+      login: null,
+      type: null,
+      commitId: null,
+      body: "pending",
+      state: "PENDING",
+      submittedAt: null,
+    }]);
+  });
+
+  it.each([
+    ["botComments", { user: null, body: "summary", created_at: "then", updated_at: "now" }],
+    ["botReactions", { user: null, content: "+1", created_at: "then" }],
+  ])("normalises a deleted account on %s", (method, raw) => {
+    const sources = createGateSources({ ...config, run: stub([ok([raw])]).run });
+    expect(sources[method]()[0]).toMatchObject({ login: null, type: null });
+  });
+
   it("paginates both check endpoints", () => {
     const s = stub([
       ok({ check_runs: Array.from({ length: 100 }, () => ({ name: "ci", status: "completed", conclusion: "success" })) }),
@@ -115,6 +164,7 @@ describe("gh sources", () => {
     { status: null, stdout: "", stderr: "", error: new Error("timed out") },
     { status: 0, stdout: "not json", stderr: "" },
     ok({ head: { sha: "abc" }, base: {} }),
+    ok({ head: { sha: "abc" }, base: { ref: "main" }, state: "open" }),
   ])("throws a named transport failure for failed or malformed head reads", (result) => {
     const source = createGateSources({ ...config, run: stub([result]).run });
     let error: unknown;
@@ -136,6 +186,8 @@ describe("gh sources", () => {
   it("rejects missing or wrongly typed fields instead of passing", () => {
     for (const [method, value] of [
       ["botReviews", [{ ...review, commit_id: undefined }]],
+      ["botReviews", [{ ...review, state: undefined }]],
+      ["botReviews", [{ ...review, user: undefined }]],
       ["botComments", [{ user, body: 3, created_at: "a", updated_at: "b" }]],
       ["botReactions", [{ user, content: "+1" }]],
       ["checks", { check_runs: [{ name: "ci", status: "completed" }] }],
@@ -214,6 +266,58 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.mergeBase(one, other)).toBeNull();
   });
 
+  it("pins git config and attributes across a rename and resolved merge", () => {
+    const r = repo();
+    r.write(".gitattributes", "*.txt diff=lossy\n");
+    r.write("src/original.txt", "one\ntwo\nthree\n");
+    const start = r.commit("original");
+    r.git("checkout", "-b", "feature");
+    r.git("mv", "src/original.txt", "src/renamed.txt");
+    r.write("src/renamed.txt", "one\ntwo\nthree\nfour\n");
+    const rename = r.commit("rename");
+    r.write("seed", "feature\n");
+    r.commit("feature");
+    r.git("checkout", "main");
+    r.write("seed", "main\n");
+    const main = r.commit("main");
+    r.git("checkout", "feature");
+    expect(r.gitStatus("merge", "main")).toBe(1);
+    r.write("seed", "resolved\n");
+    const merge = r.commit("resolve");
+    const answers = () => ({
+      numstat: r.sources.numstat(start, merge),
+      remergeNumstat: r.sources.remergeNumstat(merge),
+      nonTestLines: r.sources.nonTestLines(start, merge, main),
+      patchId: r.sources.patchId(start, merge),
+    });
+    const clean = answers();
+    expect(clean.numstat.find((c: { sha: string }) => c.sha === rename).files).toEqual([{ path: "src/renamed.txt", added: 1, deleted: 0 }]);
+    expect(clean.remergeNumstat).toEqual([{ path: "seed", added: 1, deleted: 5 }]);
+    for (const [key, value] of Object.entries({
+      "diff.renames": "false",
+      "diff.algorithm": "histogram",
+      "merge.conflictStyle": "diff3",
+      "log.showSignature": "true",
+      "color.ui": "always",
+      "diff.noprefix": "true",
+      "diff.mnemonicPrefix": "true",
+      "diff.relative": "true",
+      "core.quotePath": "false",
+      "diff.external": "/usr/bin/true",
+      "diff.lossy.textconv": "sed s/./x/g",
+    })) r.git("config", key, value);
+    expect(answers()).toEqual(clean);
+  });
+
+  it("distinguishes patches differing only in binary content", () => {
+    const r = repo();
+    r.write("binary", Buffer.from([0, 1, 2]));
+    const first = r.commit("first binary");
+    r.write("binary", Buffer.from([0, 3, 4]));
+    const second = r.commit("second binary");
+    expect(r.sources.patchId(r.base, first)).not.toBe(r.sources.patchId(r.base, second));
+  });
+
   it("excludes base-branch lines in a clean merge", () => {
     const r = repo();
     r.git("checkout", "-b", "feature");
@@ -227,7 +331,24 @@ describe("git sources in temporary repositories", () => {
     const merge = r.git("rev-parse", "HEAD");
     expect(r.sources.firstParentChain(feature, merge)).toEqual([{ sha: merge, parents: [feature, main] }]);
     expect(r.sources.remergeNumstat(merge)).toEqual([]);
-    expect(r.sources.nonTestLines(r.base, merge)).toEqual({ total: 2, commits: [{ sha: feature, lines: 2 }, { sha: merge, lines: 0 }], merges: [] });
+    expect(r.sources.nonTestLines(r.base, merge, main)).toEqual({ total: 2, commits: [{ sha: feature, lines: 2 }, { sha: merge, lines: 0 }], merges: [], binaryPaths: [] });
+  });
+
+  it("counts a clean side-branch merge that is not from the base", () => {
+    const r = repo();
+    r.git("checkout", "-b", "side");
+    r.write("src/side", "side\n".repeat(100));
+    r.commit("side work");
+    r.git("checkout", "main");
+    r.git("merge", "--no-ff", "side", "-m", "merge side");
+    const merge = r.git("rev-parse", "HEAD");
+    expect(r.sources.remergeNumstat(merge)).toEqual([]);
+    expect(r.sources.nonTestLines(r.base, merge, r.base)).toEqual({
+      total: 100,
+      commits: [{ sha: merge, lines: 100 }],
+      merges: [{ sha: merge, lines: 100 }],
+      binaryPaths: [],
+    });
   });
 
   it.each(["conflict", "test/conflict"])("counts a resolution and records a merge touching %s", (path) => {
@@ -239,14 +360,14 @@ describe("git sources in temporary repositories", () => {
     r.commit("feature");
     r.git("checkout", "main");
     r.write(path, "main\n");
-    r.commit("main");
+    const main = r.commit("main");
     r.git("checkout", "feature");
     expect(r.gitStatus("merge", "main")).toBe(1);
     r.write(path, "resolved\n");
     const merge = r.commit("resolve");
     expect(r.sources.remergeNumstat(merge)).toEqual([{ path, added: 1, deleted: 5 }]);
     const isTest = path.startsWith("test/");
-    expect(r.sources.nonTestLines(start, merge)).toMatchObject({ total: isTest ? 0 : 8, merges: [{ sha: merge, lines: isTest ? 0 : 6 }] });
+    expect(r.sources.nonTestLines(start, merge, main)).toMatchObject({ total: isTest ? 0 : 8, merges: [{ sha: merge, lines: isTest ? 0 : 6 }] });
   });
 
   it("skips binary files and all test patterns, with a case-sensitive class suffix", () => {
@@ -258,8 +379,33 @@ describe("git sources in temporary repositories", () => {
     r.write("src/footest.java", "count\n");
     r.write("src/a", "one\ntwo\n");
     const head = r.commit("mixed");
-    expect(r.sources.nonTestLines(r.base, head)).toEqual({ total: 3, commits: [{ sha: head, lines: 3 }], merges: [] });
+    expect(r.sources.nonTestLines(r.base, head, r.base)).toEqual({ total: 3, commits: [{ sha: head, lines: 3 }], merges: [], binaryPaths: ["binary"] });
     expect(r.sources.numstat(r.base, head)[0].files).toContainEqual({ path: "binary", added: null, deleted: null });
+  });
+
+  it("reports attribute-marked binary text without adding its 300 lines", () => {
+    const r = repo();
+    r.write(".gitattributes", "*.mjs -diff\n");
+    const start = r.commit("attributes");
+    r.write("src/a.mjs", "code\n".repeat(300));
+    const head = r.commit("binary text");
+    expect(r.sources.nonTestLines(start, head, r.base)).toEqual({
+      total: 0,
+      commits: [{ sha: head, lines: 0 }],
+      merges: [],
+      binaryPaths: ["src/a.mjs"],
+    });
+  });
+
+  it("reports binary paths in commit order, de-duplicated", () => {
+    const r = repo();
+    r.write("z", Buffer.from([0, 1]));
+    r.commit("z first");
+    r.write("a", Buffer.from([0, 2]));
+    r.commit("a second");
+    r.write("z", Buffer.from([0, 3]));
+    const head = r.commit("z again");
+    expect(r.sources.nonTestLines(r.base, head, r.base).binaryPaths).toEqual(["z", "a"]);
   });
 
   it.each([
@@ -275,7 +421,35 @@ describe("git sources in temporary repositories", () => {
     r.write(newPath, "one\ntwo\nthree\nfour\n");
     const head = r.commit("rename");
     expect(r.sources.numstat(base, head)[0].files).toEqual([{ path: newPath, added: 1, deleted: 0 }]);
-    expect(r.sources.nonTestLines(base, head).total).toBe(0);
+    expect(r.sources.nonTestLines(base, head, r.base).total).toBe(0);
+  });
+
+  it("frames empty commits between numstat records", () => {
+    const r = repo();
+    r.write("a", "one\n");
+    const first = r.commit("first");
+    r.git("commit", "--allow-empty", "-m", "empty");
+    const empty = r.git("rev-parse", "HEAD");
+    r.write("b", "two\n");
+    const last = r.commit("last");
+    expect(r.sources.numstat(r.base, last)).toEqual([
+      { sha: last, files: [{ path: "b", added: 1, deleted: 0 }] },
+      { sha: empty, files: [] },
+      { sha: first, files: [{ path: "a", added: 1, deleted: 0 }] },
+    ]);
+  });
+
+  it.each(["src => test/x.js", "src/line\nbreak.js", "src/tab\tname.js"])("reads a literal numstat path %j", (path) => {
+    const r = repo();
+    r.write(path, "one\ntwo\n");
+    const first = r.commit("first");
+    r.write(path, "one\ntwo\nthree\n");
+    const second = r.commit("second");
+    expect(r.sources.numstat(r.base, second)).toEqual([
+      { sha: second, files: [{ path, added: 1, deleted: 0 }] },
+      { sha: first, files: [{ path, added: 2, deleted: 0 }] },
+    ]);
+    expect(r.sources.nonTestLines(r.base, second, r.base).total).toBe(3);
   });
 
   it("credits a rebased multi-commit patch but preserves indentation differences", () => {
@@ -303,6 +477,63 @@ describe("git sources in temporary repositories", () => {
 });
 
 describe("git runner contract", () => {
+  it.each([
+    ["hasCommit", ["sha"]],
+    ["isAncestor", ["a", "b"]],
+    ["mergeBase", ["a", "b"]],
+    ["firstParentChain", ["from", "to"]],
+    ["numstat", ["from", "to"]],
+    ["remergeNumstat", ["merge"]],
+    ["nonTestLines", ["from", "to", "base"]],
+    ["patchId", ["base", "head"]],
+    ["checks", ["sha"]],
+    ["firstSuiteAt", ["sha"]],
+  ])("refuses invalid revisions before running %s", (method, names) => {
+    let calls = 0;
+    const run = () => {
+      calls++;
+      return { status: 0, stdout: "", stderr: "" };
+    };
+    const sources = createGateSources({ ...config, run });
+    for (const invalid of ["", "--octopus", undefined]) {
+      for (let i = 0; i < names.length; i++) {
+        const args: (string | undefined)[] = names.map(() => "a".repeat(40));
+        args[i] = invalid;
+        expect(() => sources[method](...args)).toThrow(new TransportFailure(method, `invalid revision ${invalid}`));
+      }
+    }
+    expect(calls).toBe(0);
+  });
+
+  it("resolves a relative checkout once and uses only absolute -C for git", () => {
+    const r = repo();
+    r.write("src/a", "one\n");
+    const head = r.commit("one");
+    const calls: { args: string[]; options: Options }[] = [];
+    const run = (cmd: string, args: string[], options: Options) => {
+      calls.push({ args, options });
+      return spawnSync(cmd, args, { ...options, encoding: "utf8" });
+    };
+    const sources = createGateSources({ ...config, checkout: relative(process.cwd(), r.cwd), run });
+    expect(sources.hasCommit(head)).toBe(true);
+    expect(sources.numstat(r.base, head)).toEqual(r.sources.numstat(r.base, head));
+    for (const call of calls) {
+      expect(call.args.slice(0, 2)).toEqual(["-C", r.cwd]);
+      expect(call.options).not.toHaveProperty("cwd");
+    }
+  });
+
+  it("throws hasCommit outside a git repository", () => {
+    const checkout = mkdtempSync(join(tmpdir(), "gate-not-repo-"));
+    dirs.push(checkout);
+    expect(() => createGateSources({ ...config, checkout }).hasCommit("f".repeat(40))).toThrow(/^hasCommit:/);
+    try {
+      createGateSources({ ...config, checkout }).hasCommit("f".repeat(40));
+    } catch (error) {
+      expect(error).toBeInstanceOf(TransportFailure);
+    }
+  });
+
   it("clears redirecting git variables, supplies -C and pipes the diff as input", () => {
     const calls: { args: string[]; options: Options }[] = [];
     const run = (cmd: string, args: string[], options: Options) => {
@@ -311,11 +542,41 @@ describe("git runner contract", () => {
       return { status: 0, stdout: args.includes("diff") ? "the diff" : "a".repeat(40) + " 0000\n", stderr: "" };
     };
     createGateSources({ ...config, run }).patchId("base", "head");
-    expect(calls.map((c) => c.args)).toEqual([["-C", "/checkout", "diff", "base", "head"], ["-C", "/checkout", "patch-id", "--verbatim"]]);
+    const prefix = ["-C", "/checkout", ...[
+      "diff.algorithm=myers",
+      "diff.renames=true",
+      "diff.noprefix=false",
+      "diff.mnemonicPrefix=false",
+      "diff.relative=false",
+      "color.ui=never",
+      "log.showSignature=false",
+      "merge.conflictStyle=merge",
+      "core.quotePath=true",
+    ].flatMap((value) => ["-c", value])];
+    expect(calls.map((c) => c.args)).toEqual([
+      [...prefix, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary", "--src-prefix=a/", "--dst-prefix=b/", "base", "head"],
+      [...prefix, "patch-id", "--verbatim"],
+    ]);
     expect(calls[1]?.options.input).toBe("the diff");
     for (const call of calls) {
       for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) expect(call.options.env).not.toHaveProperty(key);
     }
+  });
+
+  it("recognises old patch-id's usage-only exit 129", () => {
+    const run = (_cmd: string, args: string[]) => args.includes("diff")
+      ? { status: 0, stdout: "a diff", stderr: "" }
+      : { status: 129, stdout: "", stderr: "usage: git patch-id [--stable | --unstable]\n" };
+    expect(() => createGateSources({ ...config, run }).patchId("a", "b")).toThrow(
+      "patchId: git 2.39 or newer is required (git patch-id --verbatim)",
+    );
+  });
+
+  it("recognises unrecognized arguments on remergeNumstat", () => {
+    const run = () => ({ status: 128, stdout: "", stderr: "fatal: unrecognized argument: --remerge-diff\n" });
+    expect(() => createGateSources({ ...config, run }).remergeNumstat("a")).toThrow(
+      "remergeNumstat: git 2.39 or newer is required (git patch-id --verbatim)",
+    );
   });
 
   it("names the git floor when any git call reports an unknown option", () => {
