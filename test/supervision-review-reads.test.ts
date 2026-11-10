@@ -508,6 +508,13 @@ describe("read records from a Codex rollout", () => {
     expect(record).toMatchObject({ context: "subagent with no session_meta", fresh: false });
   });
 
+  it("a caller-named rollout whose session_meta has no payload: not fresh, and no throw", () => {
+    const path = rollout([], null);
+    writeFileSync(path, jsonl([{ type: "session_meta" }, TASK_STARTED, command(READ, labelled()), CODEX_REVIEW]));
+    const [record] = readReviewReads([], { rollouts: [path] }).reviews;
+    expect(record).toMatchObject({ context: "named rollout not a single exec run", fresh: false });
+  });
+
   it("the same rollout listed and named by the caller: one record per review call, with the listed context", () => {
     const path = rollout([command(READ, labelled()), CODEX_REVIEW]);
     const listed = [{ session_id: ROLLOUT_ID, path }];
@@ -640,6 +647,16 @@ describe("read records from the Codex child threads a rollout started", () => {
     const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
     const reviews = reviewsOf([{ session_id: ROLLOUT_ID, path }], { rollouts: [childPath] });
     expect(reviews.map((r) => [r.place, r.context])).toEqual([[`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fork"]]);
+  });
+
+  it("a caller-named child named before the rollout that started it: read once, the first reach winning", () => {
+    const child = { id: CHILD_ID, records: childReview, forkedFrom: ROLLOUT_ID };
+    const path = codexHome([started(CHILD_ID)], null, child);
+    const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
+    const childFirst = reviewsOf([], { rollouts: [childPath, path] });
+    expect(childFirst.map((r) => [r.place, r.context])).toEqual([[CHILD_ID, "fork"]]);
+    const parentFirst = reviewsOf([], { rollouts: [path, childPath] });
+    expect(parentFirst.map((r) => [r.place, r.context])).toEqual([[`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fresh subagent"]]);
   });
 
   it("a child with a forked_from_id under the main session: a fork, not fresh", () => {

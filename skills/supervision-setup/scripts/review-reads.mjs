@@ -62,12 +62,13 @@
  *   one of theirs after its last `:`; with none, every skill call.
  *
  * `clean` is `status` 0. `baseNamed` says whether the call's `args` name the
- * recorded base and nothing that could be another commit. A hex token is 7
+ * recorded base and no other commit id. A hex token is 7
  * to 40 hex characters, in any case, bounded by non-word characters. The
  * args must hold at least one, and the base must start with every one: the
  * full sha or a prefix of it, once or more. Any other hex token, a decoy or
  * a second commit, makes it false, since the reviewer may have diffed from
- * that one.
+ * that one. A ref such as `origin/main` or `HEAD~2` is not a hex token, so
+ * it is not seen: args that name the base and a ref still read true.
  *
  * Context is `transcript-uses.mjs`'s: the main session is never fresh, a
  * Claude Code subagent is fresh only from its sidecar, and a Codex child
@@ -87,8 +88,10 @@
  * `forked_from_id` reads `fork`, as for a child, and anything else reads
  * `named rollout not a single exec run`. Its place and session are its
  * thread id. A caller-named rollout already reached through a listed
- * transcript, as its root or as a child, or named twice, is read once:
- * the first reach wins, so a listed one keeps its listed context. Paths are
+ * transcript, as its root or as a child, by an earlier caller-named one, as
+ * its root or as a child, or named twice, is read once: the first reach
+ * wins, so a listed one keeps its listed context, and a child named before
+ * the rollout that started it keeps its named context. Paths are
  * compared resolved, through symbolic links.
  *
  * A listed transcript that is not found, a caller-named rollout that does
@@ -294,9 +297,11 @@ function reviewsIn(recorded, replayed) {
  * Returns the records and each started child whose rollout was not found,
  * once per thread id, as `sessionUses` keeps them, and every transcript
  * path it read (`reached`). `rootContext` is the root's context; `read` is
- * the root's records when the caller has already read them.
+ * the root's records when the caller has already read them; a child whose
+ * resolved path is in `skip`, already reached by an earlier walk, is not
+ * read again.
  */
-function walk({ path, subagentDirs }, sessionId, place, rootContext, read = records(path)) {
+function walk({ path, subagentDirs }, sessionId, place, rootContext, read = records(path), skip = new Set()) {
   const { recorded } = read;
   const tag = (where, ctx) => ({ place: where, session: sessionId, context: ctx, fresh: ctx === FRESH });
   const parts = [reviewsIn(recorded, null).map((review) => ({ ...tag(place, rootContext), ...review }))];
@@ -309,7 +314,7 @@ function walk({ path, subagentDirs }, sessionId, place, rootContext, read = reco
   const seen = new Set([path]);
   for (let i = 0; i < children.length; i += 1) {
     const child = children[i];
-    if (seen.has(child.path)) continue;
+    if (seen.has(child.path) || skip.has(realPath(child.path))) continue;
     seen.add(child.path);
     const { recorded: childRecords, first: childFirst } = records(child.path);
     const sidecar = child.claude ? claudeSidecar(child.path) : null;
@@ -357,7 +362,7 @@ function taskStarts(path) {
 function namedContext(path, first) {
   const context = codexContext(first, null);
   if (context !== FRESH) return context;
-  return first.payload.source === "exec" && taskStarts(path) === 1 ? FRESH : NOT_ONE_EXEC;
+  return first.payload?.source === "exec" && taskStarts(path) === 1 ? FRESH : NOT_ONE_EXEC;
 }
 
 /**
@@ -394,7 +399,7 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
       continue;
     }
     const id = typeof read.first?.payload?.id === "string" ? read.first.payload.id : childName(path);
-    const found = walk({ path, subagentDirs: [] }, id, id, namedContext(path, read.first), read);
+    const found = walk({ path, subagentDirs: [] }, id, id, namedContext(path, read.first), read, reached);
     reviews.push(...found.reviews);
     missing.push(...found.missing);
     for (const file of found.reached) reached.add(realPath(file));
