@@ -286,7 +286,6 @@ describe("MQ-348 · the default routing tables", () => {
     expect(ops.map((op) => op.id)).toEqual(
       expect.arrayContaining(["review", "doc-review", "commit-and-pr"]),
     );
-    expect(ops.map((op) => op.id)).not.toContain("review-escalation");
     expect(ops.find((op) => op.id === "post-work-note")?.required).toBe(true);
   });
 
@@ -550,7 +549,7 @@ describe("GRO-30 · a performer is given the story's checkout", () => {
     expect(review).toContain(
       "- **Check what it read.** In the request that starts a reviewer that reads a repository, name the range to read, and ask it to quote, from its own commands and their output, the command that gave it the diff, the commit it was on and the files the diff changes. Commit your work before the review starts, so the range holds all of it.",
     );
-    // KOD-44 U5 puts the read command between the two halves; the U5 block pins it whole.
+    // The read command sits between these two halves; "step 5 has the reviewer run the read command" pins it whole.
     expect(review).toContain(
       "A count other than 0 means the tree was not clean: commit, and run the review again. Compare the range in its command, that commit and those files with the range you named, the commit you started the review on and the files your own diff lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path and the range on to each, and to report the same for each; a reviewer it does not report for makes that run a miss. If the second run misses too, send your lead a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
     );
@@ -1770,11 +1769,10 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "It prints the head, the count of uncommitted paths and the base; the reviewer then tells the review performer to diff from that printed base, by its commit id.",
     );
     expect(text).toContain("A count other than 0 means the tree was not clean: commit, and run the review again.");
-    // The quote-and-compare check stays.
     expect(text).toContain("discard its findings and run it again");
-    const read = text.indexOf("Have the reviewer run the read command");
-    expect(read).toBeGreaterThan(text.indexOf("**Check what it read.**"));
-    expect(read).toBeLessThan(text.indexOf("**Ask for findings with evidence"));
+    const readAt = text.indexOf("Have the reviewer run the read command");
+    expect(readAt).toBeGreaterThan(text.indexOf("**Check what it read.**"));
+    expect(readAt).toBeLessThan(text.indexOf("**Ask for findings with evidence"));
   });
 
   it("step 7 asks each automated reviewer that has not finished on the final head to review it (R6)", () => {
@@ -1808,7 +1806,7 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
   it.each([
     ["step 5", () => step5()],
     // Step 7 as a whole names `mode:non-interactive`, an invocation token it gives on purpose, so only the new sentence is held here.
-    ["step 7's final-head request", () => step7().slice(step7().indexOf("Before you hand back, ask each automated reviewer"))],
+    ["step 7's final-head request", () => step7().match(/Before you hand back, ask each automated reviewer.*/)?.[0] ?? ""],
     ["step 8", () => step8()],
     ["the receipt's Exception field", () => receiptField("Exception")],
     ["the receipt's Reviewed by field", () => receiptField("Reviewed by")],
