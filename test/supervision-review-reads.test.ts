@@ -36,6 +36,8 @@ const INSTALLED =
   "/Users/maintainer/.claude/plugins/cache/grove/grove/0.3.6/skills/supervision-setup/scripts/review-read.mjs";
 const READ = `node ${INSTALLED} --checkout /Users/maintainer/work/repo --from origin/main`;
 const REVIEW = "compound-engineering:ce-code-review";
+/** The arguments the read record carries for `READ`. */
+const READ_ARGS = { script: INSTALLED, checkout: "/Users/maintainer/work/repo", from: "origin/main" };
 
 type Review = {
   place: string;
@@ -51,7 +53,9 @@ type Review = {
   clean: boolean | null;
   base: string | null;
   baseNamed: boolean | null;
+  read: ReadArgs | null;
 };
+type ReadArgs = { script: string; checkout: string; from: string };
 type Listed = { session_id: string; path: string };
 interface ReviewReadsModule {
   readReviewReads(
@@ -59,10 +63,11 @@ interface ReviewReadsModule {
     options?: { skills?: string[] | null; rollouts?: string[] },
   ): { reviews: Review[]; missing: { session_id: string; path: string }[] };
   isReadCommand(line: string): boolean;
+  readCommandArgs(line: string): ReadArgs | null;
   readTriple(text: string): { head: string; status: number; base: string } | null;
   namesBase(args: string | null, base: string | null): boolean | null;
 }
-const { readReviewReads, isReadCommand, readTriple, namesBase } =
+const { readReviewReads, isReadCommand, readCommandArgs, readTriple, namesBase } =
   reviewReads as unknown as ReviewReadsModule;
 
 type Result = { content: unknown; is_error?: boolean } | null;
@@ -162,6 +167,7 @@ describe("read records from a Claude Code reviewer subagent", () => {
         clean: true,
         base: BASE,
         baseNamed: true,
+        read: READ_ARGS,
       },
     ]);
   });
@@ -218,7 +224,27 @@ describe("read records from a Claude Code reviewer subagent", () => {
 
   it("the review call comes before any triple: a record with no head", () => {
     const [record] = reviewsOf(session([], reviewer(review(), read())));
-    expect(record).toMatchObject({ head: null, clean: null, base: null, baseNamed: null });
+    expect(record).toMatchObject({ head: null, clean: null, base: null, baseNamed: null, read: null });
+  });
+
+  it("the record carries the read command's script, --checkout and --from, unquoted", () => {
+    const line = `node "${INSTALLED}" --from main --checkout '/Users/maintainer/a b'`;
+    const [record] = reviewsOf(session([], reviewer([bash(line), ok(labelled())], review())));
+    expect(record?.read).toEqual({ script: INSTALLED, checkout: "/Users/maintainer/a b", from: "main" });
+  });
+
+  it("the record carries the arguments of the read that gave its triple, not of a later failed one", () => {
+    const first = `node ${INSTALLED} --checkout /Users/maintainer/work/one --from main`;
+    const second = `node ${INSTALLED} --checkout /Users/maintainer/work/two --from main`;
+    const failed = { content: "Exit code 1\nreview-read: no commit", is_error: true };
+    const [record] = reviewsOf(session([], reviewer([bash(first), ok(labelled())], [bash(second), failed], review())));
+    expect(record?.read).toEqual({ script: INSTALLED, checkout: "/Users/maintainer/work/one", from: "main" });
+  });
+
+  it("two reads before one review: the record carries the later read's arguments", () => {
+    const other = `node scripts/review-read.mjs --checkout . --from ${OTHER}`;
+    const [record] = reviewsOf(session([], reviewer(read(), [bash(other), ok(labelled())], review())));
+    expect(record?.read).toEqual({ script: "scripts/review-read.mjs", checkout: ".", from: OTHER });
   });
 
   it("a command line that names a SHA whose result is an error: no head taken", () => {
@@ -306,6 +332,17 @@ describe("which command lines are the read command", () => {
     ["quoted values", `node ${INSTALLED} --checkout "/Users/maintainer/work/repo" --from "origin/main"`],
   ])("recognises %s", (_what, line) => {
     expect(isReadCommand(line)).toBe(true);
+    expect(readCommandArgs(line)).not.toBeNull();
+  });
+
+  it("gives the recognised script, --checkout and --from, in either order", () => {
+    expect(readCommandArgs(READ)).toEqual(READ_ARGS);
+    expect(readCommandArgs(`/opt/homebrew/bin/node '${INSTALLED}' --from "${BASE}" --checkout .`)).toEqual({
+      script: INSTALLED,
+      checkout: ".",
+      from: BASE,
+    });
+    expect(readCommandArgs(`${INSTALLED} --checkout . --from main`)).toEqual({ script: INSTALLED, checkout: ".", from: "main" });
   });
 
   it.each([
@@ -324,6 +361,7 @@ describe("which command lines are the read command", () => {
     ["an empty line", ""],
   ])("does not recognise %s", (_what, line) => {
     expect(isReadCommand(line)).toBe(false);
+    expect(readCommandArgs(line)).toBeNull();
   });
 });
 
@@ -344,6 +382,23 @@ describe("the labelled lines and the base a review names", () => {
     expect(namesBase(`diff from x${BASE.slice(0, 12)}`, BASE)).toBe(false);
     expect(namesBase(null, BASE)).toBe(false);
     expect(namesBase(`base:${BASE}`, null)).toBeNull();
+  });
+
+  it("is true only when every hex token the arguments hold is a prefix of the base", () => {
+    const decoy = "f".repeat(40);
+    expect(namesBase(`base:${decoy} also ${BASE.slice(0, 7)}`, BASE)).toBe(false);
+    expect(namesBase(`base:${BASE} then ${OTHER.slice(0, 7)}`, BASE)).toBe(false);
+    expect(namesBase(`base:${BASE}`, BASE)).toBe(true);
+    expect(namesBase(`base:${BASE.slice(0, 7)}`, BASE)).toBe(true);
+    expect(namesBase(`base:${OTHER}`, BASE)).toBe(false);
+    expect(namesBase(`base:${BASE} (${BASE.slice(0, 10)})`, BASE)).toBe(true);
+    expect(namesBase("mode:agent", BASE)).toBe(false);
+  });
+
+  it("a review whose arguments name a decoy commit beside the base: not matching", () => {
+    const decoy: Call = [skill(REVIEW, `base:${OTHER} also ${BASE.slice(0, 7)}`), ok("ok")];
+    const [record] = reviewsOf(session([], reviewer(read(), decoy)));
+    expect(record?.baseNamed).toBe(false);
   });
 
   it("a review naming a 7-char prefix of the recorded base matches", () => {
@@ -410,6 +465,7 @@ describe("read records from a Codex rollout", () => {
         clean: true,
         base: BASE,
         baseNamed: false,
+        read: READ_ARGS,
       },
     ]);
   });
@@ -432,6 +488,110 @@ describe("read records from a Codex rollout", () => {
     const path = rollout([command(READ, labelled()), CODEX_REVIEW]);
     const [record] = reviewsOf([{ session_id: ROLLOUT_ID, path }]);
     expect(record).toMatchObject({ place: ROLLOUT_ID, context: "main session", fresh: false, head: HEAD });
+  });
+});
+
+const CHILD_ID = "01a40000-0000-7000-8000-0000000000c1";
+const GRANDCHILD_ID = "01a40000-0000-7000-8000-0000000000c2";
+const PARENT_FORK = "01a40000-0000-7000-8000-0000000000aa";
+
+/** A `started` activity naming the child thread it started, as a Codex rollout records it. */
+const started = (threadId: string) => ({
+  type: "event_msg",
+  timestamp: "2026-11-08T11:00:00.000Z",
+  payload: {
+    type: "item_completed",
+    item: { type: "SubAgentActivity", id: `call_${threadId.slice(-2)}`, kind: "started", agent_thread_id: threadId },
+  },
+});
+
+type Thread = { id: string; records: unknown[]; forkedFrom?: string };
+
+/**
+ * A Codex home whose `sessions/` holds a parent rollout and these child
+ * rollouts, each in its own date folder; returns the parent's path. A child
+ * a parent starts but that is not written here is missing.
+ */
+function codexHome(parent: unknown[], parentForkedFrom: string | null, ...threads: Thread[]) {
+  const sessions = join(tempDir("review-reads-codex-home-"), "sessions");
+  const write = (day: string, { id, records, forkedFrom }: Thread) => {
+    const folder = join(sessions, "2026", "11", day);
+    mkdirSync(folder, { recursive: true });
+    const path = join(folder, `rollout-2026-11-${day}T11-00-00-${id}.jsonl`);
+    const meta = { type: "session_meta", payload: { id, ...(forkedFrom && { forked_from_id: forkedFrom }) } };
+    writeFileSync(path, jsonl([meta, ...records]));
+    return path;
+  };
+  const root = write("08", { id: ROLLOUT_ID, records: parent, ...(parentForkedFrom && { forkedFrom: parentForkedFrom }) });
+  for (const thread of threads) write("09", thread);
+  return root;
+}
+
+const childReview = [command(READ, labelled()), CODEX_REVIEW];
+
+describe("read records from the Codex child threads a rollout started", () => {
+  it("a listed rollout that starts a child whose rollout is missing: the child is missing once, by thread id", () => {
+    const path = codexHome([started(CHILD_ID)], null);
+    const { missing } = readReviewReads([{ session_id: ROLLOUT_ID, path }]);
+    expect(missing).toHaveLength(1);
+    expect(missing[0]).toMatchObject({ session_id: CHILD_ID });
+    expect(missing[0]?.path).toContain(CHILD_ID);
+  });
+
+  it("the same missing child started by two records: still missing once", () => {
+    const path = codexHome([started(CHILD_ID), started(CHILD_ID)], null);
+    const { missing } = readReviewReads([{ session_id: ROLLOUT_ID, path }]);
+    expect(missing.map((m) => m.session_id)).toEqual([CHILD_ID]);
+  });
+
+  it("the same missing grandchild started by the parent and by a found child: still missing once", () => {
+    const child = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
+    const path = codexHome([started(CHILD_ID), started(GRANDCHILD_ID)], null, child);
+    const { missing } = readReviewReads([{ session_id: ROLLOUT_ID, path }]);
+    expect(missing.map((m) => m.session_id)).toEqual([GRANDCHILD_ID]);
+  });
+
+  it("a found child's review carries its own read record, placed under the starter's session", () => {
+    const path = codexHome([started(CHILD_ID)], null, { id: CHILD_ID, records: childReview });
+    const [record] = reviewsOf([{ session_id: ROLLOUT_ID, path }]);
+    expect(record).toMatchObject({
+      place: `${ROLLOUT_ID} subagent ${CHILD_ID}`,
+      session: ROLLOUT_ID,
+      head: HEAD,
+      base: BASE,
+      read: READ_ARGS,
+    });
+  });
+
+  it("a fresh starter's child with no forked_from_id: fresh", () => {
+    const path = codexHome([started(CHILD_ID)], null, { id: CHILD_ID, records: childReview });
+    const [record] = reviewsOf([], { rollouts: [path] });
+    expect(record).toMatchObject({ context: "fresh subagent", fresh: true, head: HEAD });
+  });
+
+  it("a fresh starter's child with a forked_from_id inherits the starter's freshness, down to a grandchild", () => {
+    const child = { id: CHILD_ID, records: [...childReview, started(GRANDCHILD_ID)], forkedFrom: ROLLOUT_ID };
+    const grandchild = { id: GRANDCHILD_ID, records: childReview, forkedFrom: CHILD_ID };
+    const path = codexHome([started(CHILD_ID)], null, child, grandchild);
+    const reviews = reviewsOf([], { rollouts: [path] });
+    expect(reviews.map((r) => [r.place, r.context, r.fresh])).toEqual([
+      [`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fresh subagent", true],
+      [`${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, "fresh subagent", true],
+    ]);
+  });
+
+  it("a child with a forked_from_id under the main session: a fork, not fresh", () => {
+    const child = { id: CHILD_ID, records: childReview, forkedFrom: ROLLOUT_ID };
+    const path = codexHome([started(CHILD_ID)], null, child);
+    const [record] = reviewsOf([{ session_id: ROLLOUT_ID, path }]);
+    expect(record).toMatchObject({ context: "fork", fresh: false, head: HEAD });
+  });
+
+  it("a child with a forked_from_id under a forked caller-named rollout: a fork, not fresh", () => {
+    const child = { id: CHILD_ID, records: childReview, forkedFrom: ROLLOUT_ID };
+    const path = codexHome([started(CHILD_ID)], PARENT_FORK, child);
+    const [record] = reviewsOf([], { rollouts: [path] });
+    expect(record).toMatchObject({ context: "fork", fresh: false });
   });
 });
 

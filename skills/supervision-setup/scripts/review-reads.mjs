@@ -15,24 +15,31 @@
  *     context: "fresh subagent", fresh: true, model: "claude-opus-5-5",
  *     at: "2026-11-08T10:01:00.000Z", skill: "compound-engineering:ce-code-review",
  *     args: "base:<sha>", outcome: "ran",
- *     head: "<sha>", clean: true, base: "<sha>", baseNamed: true }
+ *     head: "<sha>", clean: true, base: "<sha>", baseNamed: true,
+ *     read: { script: "<path>/review-read.mjs", checkout: "<dir>", from: "<commit>" } }
  *
  * The read record is the last triple before the review call in the same
  * transcript file, by the order the calls appear in it; another file's
  * triple never counts, so a reviewer's record is its own. With none before
- * it, `head`, `clean`, `base` and `baseNamed` are null.
+ * it, `head`, `clean`, `base`, `baseNamed` and `read` are null.
  *
  * What counts as the read command, and as its output:
  * - the call's whole command line, trimmed, is one invocation: `node`, or an
  *   absolute path ending in `/node`, or neither; then a path, quoted or not,
- *   whose file name is `review-read.mjs` (by name, since the install folder
- *   varies); then exactly `--checkout <dir>` and `--from <commit>`, once
- *   each, in either order, each value quoted or not. A line holding any of
+ *   whose file name is `review-read.mjs`; then exactly `--checkout <dir>`
+ *   and `--from <commit>`, once each, in either order, each value quoted or
+ *   not. A line holding any of
  *   `;`, `&`, `|`, `<`, `>`, `(`, `)`, a backtick, `$`, a backslash or a line
  *   break is not it: chaining, a pipe, a redirection, a subshell or any
  *   substitution or expansion could change or fake what it prints. So a
  *   value must be literal. A hand-typed `printf` of the same three lines is
  *   another command, and is not it either;
+ * - the script is recognised by its file name alone, since the install folder
+ *   varies: any script so named is accepted here, wherever it sits and
+ *   whatever it does. So the record carries the path as typed, with the
+ *   `--checkout` and `--from` values, as `read: { script, checkout, from }`
+ *   (unquoted; null with no triple), and the gate can require the installed
+ *   one;
  * - on Claude Code, a `Bash` call whose result is not an error
  *   (`is_error: true`, which a non-zero exit sets) and whose outcome is `ran`
  *   (`claudeOutcome`); on Codex, a `CommandExecution` whose shell line is
@@ -55,10 +62,12 @@
  *   one of theirs after its last `:`; with none, every skill call.
  *
  * `clean` is `status` 0. `baseNamed` says whether the call's `args` name the
- * recorded base: as the full 40-character sha, or as a token of 7 or more
- * hex characters, bounded by non-word characters, that the base starts with,
- * in any case. A token naming another commit does not stop a match: the
- * gate checks the base, not every commit the arguments name.
+ * recorded base and nothing that could be another commit. A hex token is 7
+ * to 40 hex characters, in any case, bounded by non-word characters. The
+ * args must hold at least one, and the base must start with every one: the
+ * full sha or a prefix of it, once or more. Any other hex token, a decoy or
+ * a second commit, makes it false, since the reviewer may have diffed from
+ * that one.
  *
  * Context is `transcript-uses.mjs`'s: the main session is never fresh, a
  * Claude Code subagent is fresh only from its sidecar, and a Codex rollout
@@ -139,25 +148,33 @@ function isNode(word) {
   return word === "node" || (word.startsWith("/") && word.endsWith("/node"));
 }
 
-/** Whether a whole shell line is the read command, alone and in its fixed form. */
-export function isReadCommand(line) {
-  if (typeof line !== "string") return false;
+/**
+ * The read command's arguments when a whole shell line is that command, alone
+ * and in its fixed form: `{ script, checkout, from }`, each unquoted; else null.
+ */
+export function readCommandArgs(line) {
+  if (typeof line !== "string") return null;
   const trimmed = line.trim();
-  if (trimmed === "" || NOT_ONE_COMMAND.test(trimmed)) return false;
+  if (trimmed === "" || NOT_ONE_COMMAND.test(trimmed)) return null;
   const all = words(trimmed);
-  if (!all) return false;
+  if (!all) return null;
   const start = isNode(all[0]) ? 1 : 0;
   const script = all[start];
-  if (typeof script !== "string" || script.split("/").pop() !== READ_SCRIPT) return false;
+  if (typeof script !== "string" || script.split("/").pop() !== READ_SCRIPT) return null;
   const flags = all.slice(start + 1);
-  if (flags.length !== READ_FLAGS.length * 2) return false;
-  const seen = new Set();
+  if (flags.length !== READ_FLAGS.length * 2) return null;
+  const values = new Map();
   for (let i = 0; i < flags.length; i += 2) {
     const [flag, value] = [flags[i], flags[i + 1]];
-    if (!READ_FLAGS.includes(flag) || seen.has(flag) || !value) return false;
-    seen.add(flag);
+    if (!READ_FLAGS.includes(flag) || values.has(flag) || !value) return null;
+    values.set(flag, value);
   }
-  return true;
+  return { script, checkout: values.get("--checkout"), from: values.get("--from") };
+}
+
+/** Whether a whole shell line is the read command, alone and in its fixed form. */
+export function isReadCommand(line) {
+  return readCommandArgs(line) !== null;
 }
 
 /** The triple a read command's output gives, from its labelled lines, each exactly once; else null. */
@@ -173,13 +190,15 @@ export function readTriple(text) {
 }
 
 /**
- * Whether a review's arguments name a base: its full sha, or a word-bounded
- * hex token of 7 or more characters that it starts with. Null with no base.
+ * Whether a review's arguments name a base and no other commit: they hold at
+ * least one word-bounded hex token of 7 to 40 characters, and the base starts
+ * with every such token. Null with no base.
  */
 export function namesBase(args, base) {
   if (typeof base !== "string") return null;
   if (typeof args !== "string") return false;
-  return (args.match(HEX_TOKEN) ?? []).some((token) => base.startsWith(token.toLowerCase()));
+  const tokens = args.match(HEX_TOKEN) ?? [];
+  return tokens.length > 0 && tokens.every((token) => base.startsWith(token.toLowerCase()));
 }
 
 /** A skill's name after its plugin prefix: `compound-engineering:ce-code-review` gives `ce-code-review`. */
@@ -187,7 +206,7 @@ function unqualified(name) {
   return name.slice(name.lastIndexOf(":") + 1);
 }
 
-/** One review call's record, carrying the triple before it, or none. */
+/** One review call's record, carrying the triple before it and the read command that gave it, or none. */
 function reviewRecord(call, triple) {
   return {
     ...call,
@@ -195,6 +214,7 @@ function reviewRecord(call, triple) {
     clean: triple ? triple.status === 0 : null,
     base: triple?.base ?? null,
     baseNamed: namesBase(call.args, triple?.base ?? null),
+    read: triple?.read ?? null,
   };
 }
 
@@ -213,9 +233,10 @@ function reviewsIn(recorded, replayed) {
       if (call.id === replayed) continue;
       const input = call.input ?? {};
       const result = results.get(call.id);
-      if (call.name === "Bash" && isReadCommand(input.command) && result && result.is_error !== true) {
+      const args = call.name === "Bash" ? readCommandArgs(input.command) : null;
+      if (args && result && result.is_error !== true) {
         const read = claudeOutcome(call, result) === "ran" ? readTriple(resultText(result.content)) : null;
-        if (read) triple = read;
+        if (read) triple = { ...read, read: args };
       }
       if (call.name === "Skill" && typeof input.skill === "string") {
         const model = record.message?.model;
@@ -231,9 +252,10 @@ function reviewsIn(recorded, replayed) {
     }
     const item = codexItem(record);
     if (item?.type !== "CommandExecution") continue;
-    if (item.status === "completed" && isReadCommand(codexShellLine(item.command))) {
+    const args = item.status === "completed" ? readCommandArgs(codexShellLine(item.command)) : null;
+    if (args) {
       const read = readTriple(commandOutput(item));
-      if (read) triple = read;
+      if (read) triple = { ...read, read: args };
     }
     for (const use of commandUses(item).filter((found) => found.kind === "skill")) {
       const review = { skill: use.name, args: null, model: null, at, outcome: use.outcome };
