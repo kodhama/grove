@@ -101,7 +101,7 @@ const CALL_MARKER =
 const EXIT_CODE = /^Exit code (\d+)/;
 
 /** Where a use was found, as the receipt check names it (KTD3). */
-const FRESH = "fresh subagent";
+export const FRESH = "fresh subagent";
 export const MAIN = "main session";
 const FORK = "fork";
 const NO_SIDECAR = "subagent with no sidecar";
@@ -123,14 +123,14 @@ function parsed(line) {
  * transcript runs to tens of MB. The first record is kept apart: a Codex
  * rollout's own `session_meta` is its first line.
  */
-function records(path) {
+export function records(path) {
   const lines = readFileSync(path, "utf8").split("\n");
   const recorded = lines.filter((line) => CALL_MARKER.test(line)).flatMap(parsed);
   return { recorded, first: parsed(lines[0])[0] ?? null };
 }
 
 /** A Claude Code subagent's sidecar, `agent-<id>.meta.json` beside its transcript, or null. */
-function claudeSidecar(file) {
+export function claudeSidecar(file) {
   const path = file.replace(/\.jsonl$/, ".meta.json");
   if (!existsSync(path)) return null;
   const [sidecar] = parsed(readFileSync(path, "utf8"));
@@ -149,7 +149,7 @@ function isFork(sidecar) {
  * No sidecar, a parent with none, or forks naming each other: not fresh.
  * `sidecar` is the subagent's own, read by the caller; a parent's is read here.
  */
-function claudeContext(file, sidecar, visited = new Set()) {
+export function claudeContext(file, sidecar, visited = new Set()) {
   if (!sidecar) return NO_SIDECAR;
   if (!isFork(sidecar)) return FRESH;
   visited.add(file);
@@ -166,7 +166,7 @@ function claudeContext(file, sidecar, visited = new Set()) {
  * unless it names `forked_from_id`; a fork inherits the context of the
  * thread that started it.
  */
-function codexContext(first, starter) {
+export function codexContext(first, starter) {
   if (first?.type !== "session_meta") return NO_META;
   if (!first.payload?.forked_from_id) return FRESH;
   return starter === FRESH ? FRESH : FORK;
@@ -189,13 +189,13 @@ function claudeUses(call) {
 }
 
 /** The tool calls in one Claude Code transcript record. */
-function claudeToolCalls(record) {
+export function claudeToolCalls(record) {
   const content = record?.type === "assistant" ? record.message?.content : null;
   return Array.isArray(content) ? content.filter((block) => block?.type === "tool_use") : [];
 }
 
 /** Each Claude Code call's `tool_result` in one transcript file, by the call's id. */
-function claudeResults(recorded) {
+export function claudeResults(recorded) {
   const results = new Map();
   for (const record of recorded) {
     const content = record?.type === "user" ? record.message?.content : null;
@@ -208,7 +208,7 @@ function claudeResults(recorded) {
 }
 
 /** A `tool_result`'s text: its content is a string, or an array of text blocks. */
-function resultText(content) {
+export function resultText(content) {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
   return content
@@ -227,7 +227,7 @@ function resultText(content) {
  * starts with that error `failed` too: Claude Code leaves the flag off when
  * it reads the exit as benign.
  */
-function claudeOutcome(call, result) {
+export function claudeOutcome(call, result) {
   if (!result) return "pending";
   const text = call.name === "Bash" ? resultText(result.content) : "";
   // Claude Code clears `is_error` when it reads an exit as benign, as for a
@@ -253,12 +253,12 @@ function claudeOutcome(call, result) {
 }
 
 /** The folder Claude Code keeps a session's subagent transcripts in, beside its transcript. */
-function subagentDir(path) {
+export function subagentDir(path) {
   return join(path.replace(/\.jsonl$/, ""), "subagents");
 }
 
 /** The subagent transcripts in these folders, each folder's sorted by name. */
-function claudeSubagents(dirs) {
+export function claudeSubagents(dirs) {
   return dirs
     .filter((dir) => existsSync(dir))
     .flatMap((dir) =>
@@ -297,7 +297,7 @@ function projectFolders(path, sessionId) {
  * null, since the files cannot be told apart. Its subagents are read from
  * every project folder's `<session id>/subagents/`, its own first.
  */
-function locate(path, sessionId) {
+export function locate(path, sessionId) {
   const folders = projectFolders(path, sessionId);
   if (!folders) return existsSync(path) ? { path, subagentDirs: [subagentDir(path)] } : null;
   let found = path;
@@ -339,12 +339,12 @@ function usesIn(recorded, where, context, replayed = null) {
 }
 
 /** A child transcript's name in a use's place: a Codex rollout by its thread id. */
-function childName(path) {
+export function childName(path) {
   return basename(path, ".jsonl").replace(ROLLOUT_NAME, "$1");
 }
 
 /** Where a use in a subagent transcript was found: `<session id> subagent <name>`. */
-function subagentPlace(sessionId, name) {
+export function subagentPlace(sessionId, name) {
   return `${sessionId} subagent ${name}`;
 }
 
