@@ -87,12 +87,13 @@
  * `session_meta` reads `subagent with no session_meta` and a
  * `forked_from_id` reads `fork`, as for a child, and anything else reads
  * `named rollout not a single exec run`. Its place and session are its
- * thread id. A caller-named rollout already reached through a listed
- * transcript, as its root or as a child, by an earlier caller-named one, as
- * its root or as a child, or named twice, is read once: the first reach
- * wins, so a listed one keeps its listed context, and a child named before
- * the rollout that started it keeps its named context. Paths are
- * compared resolved, through symbolic links.
+ * thread id. A caller-named rollout reached through a listed transcript,
+ * as its root or as a child, is skipped, keeping its listed context; one
+ * that another caller-named rollout reaches as a child is read only in that
+ * one's walk, keeping the context it has there, in whatever order the caller
+ * names them; and one named twice is read once. So the records do not
+ * depend on the order of `rollouts`. Paths are compared resolved, through
+ * symbolic links.
  *
  * A listed transcript that is not found, a caller-named rollout that does
  * not exist, and a Codex child that was started but whose rollout is not
@@ -368,8 +369,8 @@ function namedContext(path, first) {
 /**
  * The review records every listed transcript `{ session_id, path }` reaches,
  * and those of each Codex rollout path in `rollouts`, read as its own
- * reviewer unless a listed transcript or an earlier rollout already reached
- * it. `skills`, when given, keeps only the review calls it names.
+ * reviewer unless a listed transcript or another named rollout reaches it.
+ * `skills`, when given, keeps only the review calls it names.
  * Returns `{ reviews, missing }`; the caller exits 2 when `missing` is not
  * empty. A missing caller-named rollout has `session_id` null.
  */
@@ -388,8 +389,10 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     missing.push(...found.missing);
     for (const file of found.reached) reached.add(realPath(file));
   }
+  const named = [];
   for (const path of rollouts) {
-    if (reached.has(realPath(path))) continue;
+    const real = realPath(path);
+    if (reached.has(real) || named.some((walked) => walked.real === real)) continue;
     let read;
     try {
       read = records(path);
@@ -400,9 +403,14 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     }
     const id = typeof read.first?.payload?.id === "string" ? read.first.payload.id : childName(path);
     const found = walk({ path, subagentDirs: [] }, id, id, namedContext(path, read.first), read, reached);
-    reviews.push(...found.reviews);
-    missing.push(...found.missing);
-    for (const file of found.reached) reached.add(realPath(file));
+    named.push({ real, found, within: new Set(found.reached.map(realPath)) });
+  }
+  // A named rollout another named one reaches is read in that one's walk, whatever the order.
+  const under = (inner, outer) => outer !== inner && outer.within.has(inner.real) && !inner.within.has(outer.real);
+  for (const walked of named) {
+    if (named.some((other) => under(walked, other))) continue;
+    reviews.push(...walked.found.reviews);
+    missing.push(...walked.found.missing);
   }
   if (!skills) return { reviews, missing };
   const wanted = new Set(skills.map(unqualified));

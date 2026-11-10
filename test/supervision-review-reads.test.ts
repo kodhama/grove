@@ -649,14 +649,34 @@ describe("read records from the Codex child threads a rollout started", () => {
     expect(reviews.map((r) => [r.place, r.context])).toEqual([[`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fork"]]);
   });
 
-  it("a caller-named child named before the rollout that started it: read once, the first reach winning", () => {
+  it("a caller-named child and the caller-named rollout that started it: the same records in either order, the parent's context winning", () => {
     const child = { id: CHILD_ID, records: childReview, forkedFrom: ROLLOUT_ID };
     const path = codexHome([started(CHILD_ID)], null, child);
     const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
     const childFirst = reviewsOf([], { rollouts: [childPath, path] });
-    expect(childFirst.map((r) => [r.place, r.context])).toEqual([[CHILD_ID, "fork"]]);
     const parentFirst = reviewsOf([], { rollouts: [path, childPath] });
-    expect(parentFirst.map((r) => [r.place, r.context])).toEqual([[`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fresh subagent"]]);
+    expect(childFirst).toEqual(parentFirst);
+    expect(childFirst.map((r) => [r.place, r.context])).toEqual([[`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fresh subagent"]]);
+  });
+
+  it("a caller-named rollout, its child and its grandchild, named in every order: the same records each time", () => {
+    const child = { id: CHILD_ID, records: [...childReview, started(GRANDCHILD_ID)], forkedFrom: ROLLOUT_ID };
+    const grandchild = { id: GRANDCHILD_ID, records: childReview, forkedFrom: CHILD_ID };
+    const path = codexHome([started(CHILD_ID)], null, child, grandchild);
+    const dayNine = join(dirname(dirname(path)), "09");
+    const childPath = join(dayNine, `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
+    const grandchildPath = join(dayNine, `rollout-2026-11-09T11-00-00-${GRANDCHILD_ID}.jsonl`);
+    const orders = [
+      [path, childPath, grandchildPath],
+      [path, grandchildPath, childPath],
+      [childPath, path, grandchildPath],
+      [childPath, grandchildPath, path],
+      [grandchildPath, path, childPath],
+      [grandchildPath, childPath, path],
+    ];
+    const expected = reviewsOf([], { rollouts: [path] });
+    expect(expected).toHaveLength(2);
+    for (const rollouts of orders) expect(reviewsOf([], { rollouts })).toEqual(expected);
   });
 
   it("a child with a forked_from_id under the main session: a fork, not fresh", () => {
