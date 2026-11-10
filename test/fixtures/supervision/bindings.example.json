@@ -69,7 +69,7 @@
       "table": "story-worker",
       "id": "review",
       "required": false,
-      "suggested": ["code-review", "review"],
+      "suggested": ["ce-code-review", "code-review", "review"],
       "suggested_by": "skill",
       "how_bound": "check",
       "kind": "skill",
@@ -80,16 +80,16 @@
     },
     {
       "table": "story-worker",
-      "id": "review-escalation",
+      "id": "doc-review",
       "required": false,
-      "suggested": ["ce-code-review"],
+      "suggested": ["ce-doc-review"],
       "suggested_by": "skill",
       "how_bound": "check",
       "kind": "skill",
-      "native_id": "compound-engineering:ce-code-review",
+      "native_id": "compound-engineering:ce-doc-review",
       "source": "plugin compound-engineering@compound-engineering-plugin 3.27.0, project scope",
-      "invoke": "Skill tool, skill \"compound-engineering:ce-code-review\"",
-      "evidence": "skill listing: \"- compound-engineering:ce-code-review: Review a named diff or PR for bugs, regressions, tests, and standards.\""
+      "invoke": "Skill tool, skill \"compound-engineering:ce-doc-review\"",
+      "evidence": "skill listing: \"- compound-engineering:ce-doc-review: Review requirements, plans, or specs with role-specific lenses.\""
     },
     {
       "table": "story-worker",

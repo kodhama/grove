@@ -15,7 +15,7 @@
  * for a Codex rollout in `codex-uses.mjs`.
  *
  * Review: an operation the level skill's routing table marks
- * `fresh_context = true` (story-worker's `review` and `review-escalation`,
+ * `fresh_context = true` (story-worker's `review` and `doc-review`,
  * project-lead's `review-before-merge`) counts only a call that ran inside a
  * fresh-context subagent: never one in the author's own session, and never
  * one in a fork of the author's context (`transcript-uses.mjs` says which
@@ -86,7 +86,7 @@
  * Shared performers: where the call that credits an operation also matches
  * another operation's binding, as one pane-tool call matches the four
  * session-restart operations bound to that tool, or one fresh review run
- * matches both `review` and `review-escalation` where they bind one skill,
+ * matches both `review` and `doc-review` where they bind one skill,
  * as on Codex, the line reads
  * `used (shared)` and names the others, since the check cannot tell which
  * operation the call was for. It passes, and the summary counts it apart.

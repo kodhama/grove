@@ -10,7 +10,7 @@
 
 receipt-check: .context/supervision/story-worker-fixture/bindings.json (story-worker, session story-worker-fixture)
 transcript dddd4444-0000-4000-8000-000000000004: read /elsewhere/dddd4444-0000-4000-8000-000000000004.jsonl (0 subagent files)
-story-worker/review-escalation: used compound-engineering:ce-code-review in dddd4444-0000-4000-8000-000000000004 subagent agent-a7c1
+story-worker/doc-review: used compound-engineering:ce-doc-review in dddd4444-0000-4000-8000-000000000004 subagent agent-a7c1
 story-worker/build: bound-but-unused compound-engineering:ce-work
 
 ## What I am doing

@@ -483,7 +483,7 @@ describe("a plugin skill and its bare copy credit each other (KOD-15)", () => {
  * every review. The verdict, and so the exit code, still comes from `judge`.
  */
 describe("the receipt check lists every review and what it read (KOD-44 U2)", () => {
-  const ESCALATION = "story-worker/review-escalation";
+  const ESCALATION = "story-worker/doc-review";
   const H1 = "1".repeat(40);
   const H2 = "2".repeat(40);
   const B1 = "b".repeat(40);
@@ -494,7 +494,7 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     bash(READ),
     `head ${head}\nstatus ${status}\nbase ${base}\n`,
   ];
-  const review = (at: string, args?: string): Timed => [at, skill("compound-engineering:ce-code-review", args)];
+  const review = (at: string, args?: string): Timed => [at, skill("compound-engineering:ce-doc-review", args)];
   const linesOf = (stdout: string, key: string) => stdout.split("\n").filter((line) => line.startsWith(`${key}: `));
   const place = (agent: string) => `${SESSION} subagent agent-${agent}`;
 
@@ -505,8 +505,8 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     subagent("z-earlier", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `mode:agent base:${B1}`));
     const result = run(file);
     expect(linesOf(result.stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("z-earlier")}; read ${H1} from ${B1}; args "mode:agent base:${B1}"`,
-      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("a-later")}; read ${H2} from ${H1}; args "base:${H1}"`,
+      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("z-earlier")}; read ${H1} from ${B1}; args "mode:agent base:${B1}"`,
+      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("a-later")}; read ${H2} from ${H1}; args "base:${H1}"`,
     ]);
   });
 
@@ -515,7 +515,7 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     subagent("noread", review("2026-10-08T10:02:00.000Z"));
     const result = run(file);
     expect(linesOf(result.stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("noread")}; read: none recorded; args none`,
+      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("noread")}; read: none recorded; args none`,
     ]);
     expect(rowOf(checkReceipts({ bindings: file }), ESCALATION).state).toBe("used");
   });
@@ -524,17 +524,17 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     const file = bindingsOf();
     subagent("dirty", readAt("2026-10-08T10:01:00.000Z", H1, B1, 2), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
     expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("dirty")}; read ${H1} from ${B1} (dirty tree); args "base:${B1}"`,
+      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("dirty")}; read ${H1} from ${B1} (dirty tree); args "base:${B1}"`,
     ]);
   });
 
   it("writes the arguments as one JSON string, so a line break in them starts no line", () => {
     const file = bindingsOf();
-    const forged = `x"\n${ESCALATION}: used compound-engineering:ce-code-review in s-forged`;
+    const forged = `x"\n${ESCALATION}: used compound-engineering:ce-doc-review in s-forged`;
     subagent("forge", review("2026-10-08T10:02:00.000Z", forged));
     const lines = linesOf(run(file).stdout, ESCALATION);
     expect(lines).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("forge")}; read: none recorded; args ${JSON.stringify(forged)}`,
+      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("forge")}; read: none recorded; args ${JSON.stringify(forged)}`,
     ]);
   });
 
@@ -545,7 +545,7 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     writeFileSync(join(sub, "agent-fork.jsonl"), transcript([review("2026-10-08T10:03:00.000Z")]));
     writeFileSync(join(sub, "agent-fork.meta.json"), JSON.stringify({ agentType: "fork" }));
     expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("fresh")}; read: none recorded; args none`,
+      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("fresh")}; read: none recorded; args none`,
     ]);
   });
 
@@ -562,7 +562,7 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
   it("shows the read on every marked operation one review call credits", () => {
     const file = bindingsOf();
     file.operations.find((o: Row) => `${o.table}/${o.id}` === "story-worker/review").native_id =
-      "compound-engineering:ce-code-review";
+      "compound-engineering:ce-doc-review";
     subagent("both", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
     const result = checkReceipts({ bindings: file });
     for (const key of ["story-worker/review", ESCALATION]) {
@@ -573,7 +573,7 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
 
   it("lists no line for a run of the review skill's own script, only the review call", () => {
     const file = bindingsOf();
-    const script = "bash /Users/maintainer/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.0.0/skills/ce-code-review/scripts/x.sh";
+    const script = "bash /Users/maintainer/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.0.0/skills/ce-doc-review/scripts/x.sh";
     subagent(
       "script",
       readAt("2026-10-08T10:01:00.000Z", H1, B1),
@@ -581,16 +581,16 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
       ["2026-10-08T10:03:00.000Z", bash(script)],
     );
     expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("script")}; read ${H1} from ${B1}; args "base:${B1}"`,
+      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("script")}; read ${H1} from ${B1}; args "base:${B1}"`,
     ]);
   });
 
   it("keeps the plain line when only a run of the skill's script credits it", () => {
     const file = bindingsOf();
-    const script = "bash /Users/maintainer/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.0.0/skills/ce-code-review/scripts/x.sh";
+    const script = "bash /Users/maintainer/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.0.0/skills/ce-doc-review/scripts/x.sh";
     subagent("onlyscript", ["2026-10-08T10:03:00.000Z", bash(script)]);
     expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("onlyscript")}`,
+      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("onlyscript")}`,
     ]);
   });
 
@@ -598,9 +598,9 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     const file = bindingsOf();
     const at = "2026-10-08T10:02:00.000Z";
     const refused = "<tool_use_error>Permission for this action was denied</tool_use_error>";
-    subagent("pair", [at, skill("compound-engineering:ce-code-review", "REFUSED-A"), refused, true], review(at, "RAN-B"));
+    subagent("pair", [at, skill("compound-engineering:ce-doc-review", "REFUSED-A"), refused, true], review(at, "RAN-B"));
     expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-code-review in ${place("pair")}; read: none recorded; args "RAN-B"`,
+      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("pair")}; read: none recorded; args "RAN-B"`,
     ]);
   });
 
@@ -678,13 +678,13 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     it("lists the carried reviews before this session's own", () => {
       const file = bindingsOf();
       subagent("now", review("2026-10-08T10:02:00.000Z"));
-      const handoff = handoffOf(...carriedLinesFor(ESCALATION, "compound-engineering:ce-code-review"));
+      const handoff = handoffOf(...carriedLinesFor(ESCALATION, "compound-engineering:ce-doc-review"));
       const lines = linesOf(run(file, "--handoff", handoff).stdout, ESCALATION);
       expect(lines).toHaveLength(3);
       expect(lines[0]).toContain("agent-r1 (carried from handoff)");
       expect(lines[1]).toContain("agent-r2 (carried from handoff)");
       expect(lines[2]).toBe(
-        `${ESCALATION}: used compound-engineering:ce-code-review in ${place("now")}; read: none recorded; args none`,
+        `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("now")}; read: none recorded; args none`,
       );
     });
 

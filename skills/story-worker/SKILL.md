@@ -234,10 +234,16 @@ read. Fork only to continue your own work.
 
 ## 5. Review
 
-Every change is reviewed before its pull request opens, sized by scope as the
-repo's review loop says. Invoke the performer bound to `review` for the floor
-pass. When the change is bigger than a small, focused one, also invoke the
-performer bound to `review-escalation`.
+Every change is reviewed before its pull request opens. Invoke the performer
+bound to `review` on every change: it sizes its own depth to the change.
+
+For a change that is docs-only, invoke the performer bound to `doc-review` in
+its place, naming every markdown file the change touches. A change is
+docs-only when every path it changes is a markdown file and none is an agent
+surface: a skill's files, an agent instruction file or a plugin manifest. A
+manifest change that touches only its version is ignored. Once a later commit
+changes any other path, the change is no longer docs-only, and the performer
+bound to `review` reviews it.
 
 - **Someone else reviews.** The reviewer is never your own context. Invoke the
   bound review performer from a subagent you start for it (on Codex, a
@@ -260,7 +266,16 @@ performer bound to `review-escalation`.
   repository, name the range to read, and ask it to quote, from its own
   commands and their output, the command that gave it the diff, the commit it
   was on and the files the diff changes. Commit your work before the review
-  starts, so the range holds all of it. Compare the range in its command, that
+  starts, so the range holds all of it. Have the reviewer run the read command
+  as its first call, alone, never chained with another command:
+  `node "<supervision-setup's folder>/scripts/review-read.mjs" --checkout <dir> --from <commit>`,
+  supervision-setup's folder being the one beside this skill's own, and
+  `<dir>` the story's checkout by its full path. `<commit>` is the base
+  branch's commit for a full review, or the last reviewed head for a
+  re-check. It prints the head, the count of uncommitted paths and the base;
+  the reviewer then tells the review performer to diff from that printed
+  base, by its commit id. A count other than 0 means the tree was not clean:
+  commit, and run the review again. Compare the range in its command, that
   commit and those files with the range you named, the commit you started the
   review on and the files your own diff lists over that range in the story's
   checkout. If any differs or is missing, it read something else: discard its
@@ -363,9 +378,10 @@ for how each of them reviews and re-reviews.
    capture's test; then that one runs once more and ships in that pass's push,
    and the `Docs:` and `Capture:` lines are brought up to date in both places.
    Check that each automated reviewer the repo names actually reviewed the
-   final head, and ask again only as the repo's review loop says: some
-   reviewers re-review every push, some only when asked, and some only for a
-   fix that changes behaviour.
+   final head: some reviewers re-review every push, and some only when asked.
+   Before you hand back, ask each automated reviewer the repo names that has
+   not finished on the final head to review it, as the repo's review loop
+   says to ask, and wait for it with a deadline, as item 1 says.
 6. **What a re-review raises goes to your lead**, not into a second fix pass.
    Repeated passes are where rounds churn. Your lead triages it.
 
@@ -400,6 +416,12 @@ merged.
   again and rerun the check until both of the body's lines read `found`,
   before you hand back. A blocked hand-back leaves `--pr-body` out, and the
   check's output then says the body was not checked.
+- **Ready needs a passing check.** Send `STATUS: ready` only on a receipt
+  check that exits 0, or on one that fails on exactly one line, which the
+  receipt's Exception field pastes and explains, for your lead to accept or
+  send back. With two failing lines or more, or one the receipt does not
+  name, the story is not ready: fix what fails and run the check again, or
+  hand back blocked.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.

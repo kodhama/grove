@@ -145,6 +145,11 @@ plugin dependency.
   built from, which is a plan file in its pull request (the planner's, or the
   worker's own where no planner is bound), the plan unit the story came from,
   or both.
+- **Reviews:** story-worker's `review` binds `ce-code-review` first, then
+  the native single-pass reviewer, and runs on every change. Its `doc-review`
+  binds `ce-doc-review`, in place of `review`, for a docs-only change: every
+  changed path is a markdown file, and none is a skill's file, an agent
+  instruction file or a plugin manifest.
 - **herdr** (CLI): starting and messaging sessions in panes, and the in-place
   restart. **A project lead needs it:** `start-worker` is required and has no
   fallback, so a lead's setup stops without herdr. A worker without it still
