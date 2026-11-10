@@ -91,9 +91,12 @@
  * as its root or as a child, is skipped, keeping its listed context; one
  * that another caller-named rollout reaches as a child is read only in that
  * one's walk, keeping the context it has there, in whatever order the caller
- * names them; and one named twice is read once. So the records do not
- * depend on the order of `rollouts`. Paths are compared resolved, through
- * symbolic links.
+ * names them; and one named twice is read once. So which records come back
+ * does not depend on the order of `rollouts`; their sequence follows it,
+ * after the listed transcripts'. Two named rollouts that reach each other
+ * are both kept, never both dropped, so their records come back twice, as
+ * do a thread's when two kept walks that do not reach each other both
+ * started it. Paths are compared resolved, through symbolic links.
  *
  * A listed transcript that is not found, a caller-named rollout that does
  * not exist, and a Codex child that was started but whose rollout is not

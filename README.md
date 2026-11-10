@@ -237,9 +237,10 @@ uses it yet; later units of that plan do.
   per review call: the head, clean flag and base of the last read before it
   in the same file, whether the call's args name that base (`baseNamed`, by
   hex commit ids only), and whether its context was fresh. A rollout named
-  by path is fresh only as one `codex exec` run. The records do not depend
-  on the order rollouts are named in, and a transcript or rollout that
-  cannot be found is reported as missing, never skipped.
+  by path is fresh only as one `codex exec` run. Which records come back
+  does not depend on the order rollouts are named in (their sequence
+  follows it), and a transcript or rollout that cannot be found is reported
+  as missing, never skipped.
 
 ## Versions
 

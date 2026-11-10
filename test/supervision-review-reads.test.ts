@@ -679,6 +679,27 @@ describe("read records from the Codex child threads a rollout started", () => {
     for (const rollouts of orders) expect(reviewsOf([], { rollouts })).toEqual(expected);
   });
 
+  it("two caller-named rollouts that do not reach each other: the same records in either order, in the order named", () => {
+    const first = codexHome([started(CHILD_ID)], null, { id: CHILD_ID, records: childReview });
+    const second = codexHome([started(GRANDCHILD_ID)], null, { id: GRANDCHILD_ID, records: childReview });
+    const places = (rollouts: string[]) => reviewsOf([], { rollouts }).map((r) => r.place);
+    const one = `${ROLLOUT_ID} subagent ${CHILD_ID}`;
+    const two = `${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`;
+    expect(places([first, second])).toEqual([one, two]);
+    expect(places([second, first])).toEqual([two, one]);
+  });
+
+  it("two caller-named rollouts that reach each other: both kept, never both dropped", () => {
+    const child = { id: CHILD_ID, records: [...childReview, started(ROLLOUT_ID)] };
+    const path = codexHome([started(CHILD_ID)], null, child);
+    const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
+    for (const rollouts of [[path, childPath], [childPath, path]]) {
+      const places = reviewsOf([], { rollouts }).map((r) => r.place);
+      expect(places).toContain(CHILD_ID);
+      expect(places).toContain(`${ROLLOUT_ID} subagent ${CHILD_ID}`);
+    }
+  });
+
   it("a child with a forked_from_id under the main session: a fork, not fresh", () => {
     const child = { id: CHILD_ID, records: childReview, forkedFrom: ROLLOUT_ID };
     const path = codexHome([started(CHILD_ID)], null, child);
