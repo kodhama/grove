@@ -82,12 +82,12 @@ const OUTPUT = /_call_output$/;
 export const ROLLOUT_NAME = /^rollout-.*-(\w{8}-\w{4}-\w{4}-\w{4}-\w{12})$/;
 
 /** The item a Codex `item_completed` record carries, or null. */
-function codexItem(record) {
+export function codexItem(record) {
   return record?.payload?.type === "item_completed" ? record.payload.item : null;
 }
 
 /** The shell line a Codex command ran: `["/bin/zsh", "-lc", "<line>"]` gives the line. */
-function codexShellLine(command) {
+export function codexShellLine(command) {
   if (!Array.isArray(command)) return typeof command === "string" ? command : "";
   return ["-c", "-lc"].includes(command[1]) ? String(command[2] ?? "") : command.join(" ");
 }
@@ -97,7 +97,7 @@ function codexShellLine(command) {
  * empty one is left out, so the newline that joins them never comes first
  * and an error held in `stderr` alone starts the text.
  */
-function commandOutput(item) {
+export function commandOutput(item) {
   return [item.stdout, item.stderr].filter((text) => typeof text === "string" && text !== "").join("\n");
 }
 
@@ -113,7 +113,7 @@ function startsWithOwnError(item) {
  * did not run the line, or not all of it, though it exited 0), so that
  * output and any other status read `failed`.
  */
-function commandUses(item) {
+export function commandUses(item) {
   const outcome = item.status === "completed" && !startsWithOwnError(item) ? "ran" : "failed";
   const reads = (Array.isArray(item.parsed_cmd) ? item.parsed_cmd : [])
     .filter((part) => part?.type === "read" && /\/SKILL\.md$/.test(part.path ?? ""))

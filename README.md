@@ -219,6 +219,29 @@ resume that does is a later unit.
 - **The boot id** is `kern.bootsessionuuid` on macOS and
   `/proc/sys/kernel/random/boot_id` on Linux.
 
+## The review read
+
+**A review records what it read**, so a merge gate can later tell whether
+the last review read a pull request's final head (KOD-44). No skill or check
+uses it yet; later units of that plan do.
+
+- **The read command** is the reviewer's first call, run alone:
+  `node skills/supervision-setup/scripts/review-read.mjs --checkout <dir> --from <commit>`.
+  `<from>` is the base branch for a full review, or the last reviewed head
+  for a re-check. It prints `head <sha>`, `status <n>` (0 is a clean tree)
+  and `base <sha>` (the merge-base of HEAD and `<from>`), all three or none.
+  The reviewer then names that base, by its commit id, to the review
+  performer (`base:<sha>` for `ce-code-review`).
+- **`review-reads.mjs`** reads, from the listed transcripts, their subagents,
+  the Codex rollouts they started and any rollout named by path, one record
+  per review call: the head, clean flag and base of the last read before it
+  in the same file, whether the call's args name that base (`baseNamed`, by
+  hex commit ids only), and whether its context was fresh. A rollout named
+  by path is fresh only as one `codex exec` run. Which records come back
+  does not depend on the order rollouts are named in (their sequence
+  follows it), and a transcript or rollout that cannot be found is reported
+  as missing, never skipped.
+
 ## Versions
 
 **Every PR bumps `version` in both `.claude-plugin/plugin.json` and
