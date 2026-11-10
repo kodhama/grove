@@ -278,8 +278,9 @@ bound to `review` reviews it.
   re-check. It prints the head, the count of uncommitted paths and the base;
   the reviewer then tells a review performer that takes a base to diff from
   that printed base, by its commit id. A count other than 0 means the tree
-  was not clean: commit the story's work and run the review again. Where the
-  paths left are not the story's, change nothing of theirs: send your lead a
+  was not clean, and a review of it backs no pull request: commit the story's
+  work and run the review again. Where the paths left are not the story's,
+  change nothing of theirs and run no review on that tree: send your lead a
   `DECISION`. Compare the range in its command, that
   commit and those files with the range you named, the commit you started the
   review on and the files your own diff lists over that range in the story's
