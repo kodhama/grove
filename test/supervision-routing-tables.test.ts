@@ -551,7 +551,7 @@ describe("GRO-30 · a performer is given the story's checkout", () => {
     );
     // The read command sits between these two halves; "step 5 has the reviewer run the read command" pins it whole.
     expect(review).toContain(
-      "A count other than 0 means the tree was not clean: commit the story's work, remove or ignore what is not the story's, and run the review again. Compare the range in its command, that commit and those files with the range you named, the commit you started the review on and the files your own diff lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path and the range on to each, and to report the same for each; a reviewer it does not report for makes that run a miss. If the second run misses too, send your lead a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
+      "A count other than 0 means the tree was not clean: commit the story's work and run the review again. Where the paths left are not the story's, change nothing of theirs: send your lead a `DECISION`. Compare the range in its command, that commit and those files with the range you named, the commit you started the review on and the files your own diff lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path and the range on to each, and to report the same for each; a reviewer it does not report for makes that run a miss. If the second run misses too, send your lead a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
     );
     expect(review).not.toContain("print the top level and the head");
     // A second miss never lets the story run on to a pull request unreviewed.
@@ -1772,7 +1772,7 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "It prints the head, the count of uncommitted paths and the base; the reviewer then tells a review performer that takes a base to diff from that printed base, by its commit id.",
     );
     expect(text).toContain(
-      "A count other than 0 means the tree was not clean: commit the story's work, remove or ignore what is not the story's, and run the review again.",
+      "A count other than 0 means the tree was not clean: commit the story's work and run the review again. Where the paths left are not the story's, change nothing of theirs: send your lead a `DECISION`.",
     );
     expect(text).toContain("discard its findings and run it again");
     const readAt = text.indexOf("Have the reviewer run the read command");
