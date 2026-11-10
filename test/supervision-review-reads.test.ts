@@ -689,6 +689,14 @@ describe("read records from the Codex child threads a rollout started", () => {
     expect(places([second, first])).toEqual([two, one]);
   });
 
+  it("a listed child and the caller-named rollout that started it: the child is read once, as listed", () => {
+    const child = { id: CHILD_ID, records: childReview };
+    const path = codexHome([started(CHILD_ID)], null, child);
+    const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
+    const reviews = reviewsOf([{ session_id: CHILD_ID, path: childPath }], { rollouts: [path] });
+    expect(reviews.map((r) => [r.place, r.context])).toEqual([[CHILD_ID, "main session"]]);
+  });
+
   it("two caller-named rollouts that reach each other: both kept, never both dropped", () => {
     const child = { id: CHILD_ID, records: [...childReview, started(ROLLOUT_ID)] };
     const path = codexHome([started(CHILD_ID)], null, child);
@@ -768,26 +776,48 @@ describe("the read command against a git checkout", () => {
     expect(result.stdout).toMatch(/^status 1$/m);
   });
 
-  it("a folder that is not a git checkout: non-zero, a reason on stderr, no labelled line", () => {
+  it("an untracked file makes the tree dirty, even where git's config hides untracked files", () => {
+    const { dir } = repo();
+    writeFileSync(join(dir, "c.txt"), "c\n");
+    expect(run("--checkout", dir, "--from", "main").stdout).toMatch(/^status 1$/m);
+    git(dir, "config", "status.showUntrackedFiles", "no");
+    expect(run("--checkout", dir, "--from", "main").stdout).toMatch(/^status 1$/m);
+  });
+
+  it("reads the checkout --checkout names, whatever GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE point at", () => {
+    const { dir, base, head } = repo();
+    const other = repo();
+    const env = {
+      ...process.env,
+      GIT_DIR: join(other.dir, ".git"),
+      GIT_WORK_TREE: other.dir,
+      GIT_INDEX_FILE: join(other.dir, ".git", "index"),
+    };
+    const result = spawnSync(process.execPath, [READ_SCRIPT, "--checkout", dir, "--from", "main"], { encoding: "utf8", env });
+    expect(result.status).toBe(0);
+    expect(readTriple(result.stdout)).toEqual({ head, status: 0, base });
+  });
+
+  it("a folder that is not a git checkout: exit 1, a reason on stderr, no labelled line", () => {
     const dir = tempDir("review-read-plain-");
     const result = run("--checkout", dir, "--from", "main");
-    expect(result.status).not.toBe(0);
+    expect(result.status).toBe(1);
     expect(result.stderr).toMatch(/review-read:/);
     expect(result.stdout).not.toMatch(/^(head|status|base) /m);
   });
 
-  it("a --from that does not resolve to a commit: non-zero, no labelled line", () => {
+  it("a --from that does not resolve to a commit: exit 1, no labelled line", () => {
     const { dir } = repo();
     const result = run("--checkout", dir, "--from", "no-such-branch");
-    expect(result.status).not.toBe(0);
+    expect(result.status).toBe(1);
     expect(result.stderr).toMatch(/review-read:/);
     expect(result.stdout).not.toMatch(/^(head|status|base) /m);
   });
 
-  it("a missing flag: non-zero, no labelled line", () => {
+  it("a missing flag: exit 2, no labelled line", () => {
     const { dir } = repo();
     const result = run("--checkout", dir);
-    expect(result.status).not.toBe(0);
+    expect(result.status).toBe(2);
     expect(result.stderr).toMatch(/review-read:/);
     expect(result.stdout).toBe("");
   });

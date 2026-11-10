@@ -31,9 +31,10 @@
  *   not. A line holding any of
  *   `;`, `&`, `|`, `<`, `>`, `(`, `)`, a backtick, `$`, a backslash or a line
  *   break is not it: chaining, a pipe, a redirection, a subshell or any
- *   substitution or expansion could change or fake what it prints. So a
- *   value must be literal. A hand-typed `printf` of the same three lines is
- *   another command, and is not it either;
+ *   substitution or expansion could change or fake what it prints. A `~`
+ *   or a glob character (`*`, `?`, `[`, `{`) is let through, so a value is
+ *   kept as typed, not as the shell expanded it. A hand-typed `printf` of
+ *   the same three lines is another command, and is not it either;
  * - the script is recognised by its file name alone, since the install folder
  *   varies: any script so named is accepted here, wherever it sits and
  *   whatever it does. So the record carries the path as typed, with the

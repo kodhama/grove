@@ -5,7 +5,7 @@
  *
  *   node review-read.mjs --checkout <dir> --from <commit>
  *   head <full sha of HEAD in <dir>>
- *   status <number of `git status --porcelain` lines; 0 is clean>
+ *   status <number of `git status --porcelain --untracked-files=all` lines; 0 is clean>
  *   base <full sha of the merge-base of HEAD and <from>>
  *
  * In plain words: it prints three labelled lines, always in that order, and
@@ -84,7 +84,8 @@ export function readCheckout(dir, from) {
   if (head.error) return { error: `${dir} is not a git checkout with a HEAD (${head.error})` };
   const commit = git(dir, ["rev-parse", "--verify", "--quiet", `${from}^{commit}`]);
   if (commit.error) return { error: `--from ${from} does not name a commit in ${dir}` };
-  const status = git(dir, ["status", "--porcelain"]);
+  // Untracked files count whatever the reviewer's status.showUntrackedFiles says.
+  const status = git(dir, ["status", "--porcelain", "--untracked-files=all"]);
   if (status.error) return { error: status.error };
   const base = git(dir, ["merge-base", "HEAD", commit.out.trim()]);
   if (base.error) return { error: `no merge-base of HEAD and ${from} (${base.error})` };
