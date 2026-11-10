@@ -340,9 +340,9 @@ describe("MQ-353 · text that only mentions a command", () => {
 describe("MQ-353 · a Codex subagent", () => {
   it("reads the child rollout a SubAgentActivity names, in another date folder", () => {
     const result = checkReceipts({ bindings: reading(ROLLOUT) });
-    const escalation = result.operations.find((o) => o.id === "doc-review");
-    expect(escalation).toMatchObject({ state: "used" });
-    expect(escalation?.where).toContain("subagent 019a0000-0000-7000-8000-0000000c41d0");
+    const docReview = result.operations.find((o) => o.id === "doc-review");
+    expect(docReview).toMatchObject({ state: "used" });
+    expect(docReview?.where).toContain("subagent 019a0000-0000-7000-8000-0000000c41d0");
     expect(result.transcripts[0]).toMatchObject({ status: "read", subagents: 1 });
   });
 });
@@ -1554,9 +1554,9 @@ describe("MQ-377 · a Codex call counts only when it ran", () => {
       expect.objectContaining({ session_id: thread("d4"), status: "missing" }),
     );
     expect(stateOf(result, "story-worker/plan")).toBe("no evidence");
-    const escalation = result.operations.find((o) => o.id === "doc-review");
-    expect(escalation).toMatchObject({ state: "used" });
-    expect(escalation?.where).toContain(`subagent ${thread("c4")}`);
+    const docReview = result.operations.find((o) => o.id === "doc-review");
+    expect(docReview).toMatchObject({ state: "used" });
+    expect(docReview?.where).toContain(`subagent ${thread("c4")}`);
   });
 });
 
@@ -1913,10 +1913,10 @@ describe("MQ-353 · a handoff carrying an earlier result", () => {
       bindings: bindingsReading([AFTER, "claude-after-restart"]),
       handoff: HANDOFF,
     });
-    const escalation = result.operations.find((o) => o.id === "doc-review");
-    expect(escalation).toMatchObject({ state: "used" });
+    const docReview = result.operations.find((o) => o.id === "doc-review");
+    expect(docReview).toMatchObject({ state: "used" });
     // A marked operation carries only from a line whose place names a subagent (MQ-377).
-    expect(escalation?.where).toBe(
+    expect(docReview?.where).toBe(
       "dddd4444-0000-4000-8000-000000000004 subagent agent-a7c1 (carried from handoff)",
     );
     expect(result.handoff).toMatchObject({ path: HANDOFF, merged: 1 });

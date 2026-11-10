@@ -77,7 +77,8 @@ Codex connector and Gemini Code Assist, are the second round:
   is final.** If no review appears once it is ready, comment `/gemini review`.
 - **Codex** reviews on open and when a draft is marked ready, and re-reviews
   only when asked: comment `@codex review` after a fix that changes behavior,
-  a test, config, or what an instruction tells agents to do.
+  a test, config, or what an instruction tells agents to do, and before the
+  hand-back whenever it has not reviewed the final head.
 
 ## Checks that must stay green
 

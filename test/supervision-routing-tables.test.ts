@@ -551,7 +551,7 @@ describe("GRO-30 · a performer is given the story's checkout", () => {
     );
     // The read command sits between these two halves; "step 5 has the reviewer run the read command" pins it whole.
     expect(review).toContain(
-      "A count other than 0 means the tree was not clean: commit, and run the review again. Compare the range in its command, that commit and those files with the range you named, the commit you started the review on and the files your own diff lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path and the range on to each, and to report the same for each; a reviewer it does not report for makes that run a miss. If the second run misses too, send your lead a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
+      "A count other than 0 means the tree was not clean: commit the story's work, remove or ignore what is not the story's, and run the review again. Compare the range in its command, that commit and those files with the range you named, the commit you started the review on and the files your own diff lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path and the range on to each, and to report the same for each; a reviewer it does not report for makes that run a miss. If the second run misses too, send your lead a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
     );
     expect(review).not.toContain("print the top level and the head");
     // A second miss never lets the story run on to a pull request unreviewed.
@@ -1753,6 +1753,9 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "A change is docs-only when every path it changes is a markdown file and none is an agent surface: a skill's files, an agent instruction file or a plugin manifest. A manifest change that touches only its version is ignored.",
     );
     expect(text).toContain(
+      "Have the reviewer run it without stopping for questions, by its invocation token where it has one, and report any edit it makes as a finding and undo it, so the tree stays as the read command recorded it.",
+    );
+    expect(text).toContain(
       "Once a later commit changes any other path, the change is no longer docs-only, and the performer bound to `review` reviews it.",
     );
   });
@@ -1766,9 +1769,11 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "`<commit>` is the base branch's commit for a full review, or the last reviewed head for a re-check.",
     );
     expect(text).toContain(
-      "It prints the head, the count of uncommitted paths and the base; the reviewer then tells the review performer to diff from that printed base, by its commit id.",
+      "It prints the head, the count of uncommitted paths and the base; the reviewer then tells a review performer that takes a base to diff from that printed base, by its commit id.",
     );
-    expect(text).toContain("A count other than 0 means the tree was not clean: commit, and run the review again.");
+    expect(text).toContain(
+      "A count other than 0 means the tree was not clean: commit the story's work, remove or ignore what is not the story's, and run the review again.",
+    );
     expect(text).toContain("discard its findings and run it again");
     const readAt = text.indexOf("Have the reviewer run the read command");
     expect(readAt).toBeGreaterThan(text.indexOf("**Check what it read.**"));
@@ -1789,6 +1794,7 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
     expect(text).toContain(
       "With two failing lines or more, or one the receipt does not name, the story is not ready: fix what fails and run the check again, or hand back blocked.",
     );
+    expect(text).toContain("A check that could not run never exits 0, so a story whose check is unavailable hands back blocked.");
     expect(text).not.toMatch(/\bgh\b|github|curl/i);
   });
 
@@ -1805,7 +1811,7 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
 
   it.each([
     ["step 5", () => step5()],
-    // Step 7 as a whole names `mode:non-interactive`, an invocation token it gives on purpose, so only the new sentence is held here.
+    // Step 7 names `mode:non-interactive` on purpose, earlier in the section, so this holds the section from the new sentence on.
     ["step 7's final-head request", () => step7().match(/Before you hand back, ask each automated reviewer.*/)?.[0] ?? ""],
     ["step 8", () => step8()],
     ["the receipt's Exception field", () => receiptField("Exception")],
@@ -1817,10 +1823,12 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
 
   it("the README and AGENTS.md no longer name review-escalation, and say the full review runs on every change", () => {
     expect(read("README.md")).not.toContain("review-escalation");
+    expect(flat(read("README.md"))).toContain("A manifest change that touches only its version is ignored.");
     const agents = flat(read("AGENTS.md"));
     expect(agents).not.toContain("is the floor");
     expect(agents).toContain("`ce-code-review`");
     expect(agents).toContain("`ce-doc-review`");
     expect(agents).toContain("runs on every change");
+    expect(agents).toContain("and before the hand-back whenever it has not reviewed the final head");
   });
 });

@@ -149,7 +149,8 @@ plugin dependency.
   the native single-pass reviewer, and runs on every change. Its `doc-review`
   binds `ce-doc-review`, in place of `review`, for a docs-only change: every
   changed path is a markdown file, and none is a skill's file, an agent
-  instruction file or a plugin manifest.
+  instruction file or a plugin manifest. A manifest change that touches only
+  its version is ignored.
 - **herdr** (CLI): starting and messaging sessions in panes, and the in-place
   restart. **A project lead needs it:** `start-worker` is required and has no
   fallback, so a lead's setup stops without herdr. A worker without it still

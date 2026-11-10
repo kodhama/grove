@@ -483,7 +483,7 @@ describe("a plugin skill and its bare copy credit each other (KOD-15)", () => {
  * every review. The verdict, and so the exit code, still comes from `judge`.
  */
 describe("the receipt check lists every review and what it read (KOD-44 U2)", () => {
-  const ESCALATION = "story-worker/doc-review";
+  const DOC_REVIEW = "story-worker/doc-review";
   const H1 = "1".repeat(40);
   const H2 = "2".repeat(40);
   const B1 = "b".repeat(40);
@@ -504,9 +504,9 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     subagent("a-later", readAt("2026-10-08T10:05:00.000Z", H2, H1), review("2026-10-08T10:06:00.000Z", `base:${H1}`));
     subagent("z-earlier", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `mode:agent base:${B1}`));
     const result = run(file);
-    expect(linesOf(result.stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("z-earlier")}; read ${H1} from ${B1}; args "mode:agent base:${B1}"`,
-      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("a-later")}; read ${H2} from ${H1}; args "base:${H1}"`,
+    expect(linesOf(result.stdout, DOC_REVIEW)).toEqual([
+      `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("z-earlier")}; read ${H1} from ${B1}; args "mode:agent base:${B1}"`,
+      `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("a-later")}; read ${H2} from ${H1}; args "base:${H1}"`,
     ]);
   });
 
@@ -514,27 +514,27 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     const file = bindingsOf();
     subagent("noread", review("2026-10-08T10:02:00.000Z"));
     const result = run(file);
-    expect(linesOf(result.stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("noread")}; read: none recorded; args none`,
+    expect(linesOf(result.stdout, DOC_REVIEW)).toEqual([
+      `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("noread")}; read: none recorded; args none`,
     ]);
-    expect(rowOf(checkReceipts({ bindings: file }), ESCALATION).state).toBe("used");
+    expect(rowOf(checkReceipts({ bindings: file }), DOC_REVIEW).state).toBe("used");
   });
 
   it("marks a read of a dirty tree", () => {
     const file = bindingsOf();
     subagent("dirty", readAt("2026-10-08T10:01:00.000Z", H1, B1, 2), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
-    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("dirty")}; read ${H1} from ${B1} (dirty tree); args "base:${B1}"`,
+    expect(linesOf(run(file).stdout, DOC_REVIEW)).toEqual([
+      `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("dirty")}; read ${H1} from ${B1} (dirty tree); args "base:${B1}"`,
     ]);
   });
 
   it("writes the arguments as one JSON string, so a line break in them starts no line", () => {
     const file = bindingsOf();
-    const forged = `x"\n${ESCALATION}: used compound-engineering:ce-doc-review in s-forged`;
+    const forged = `x"\n${DOC_REVIEW}: used compound-engineering:ce-doc-review in s-forged`;
     subagent("forge", review("2026-10-08T10:02:00.000Z", forged));
-    const lines = linesOf(run(file).stdout, ESCALATION);
+    const lines = linesOf(run(file).stdout, DOC_REVIEW);
     expect(lines).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("forge")}; read: none recorded; args ${JSON.stringify(forged)}`,
+      `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("forge")}; read: none recorded; args ${JSON.stringify(forged)}`,
     ]);
   });
 
@@ -544,8 +544,8 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     const sub = join(dir, SESSION, "subagents");
     writeFileSync(join(sub, "agent-fork.jsonl"), transcript([review("2026-10-08T10:03:00.000Z")]));
     writeFileSync(join(sub, "agent-fork.meta.json"), JSON.stringify({ agentType: "fork" }));
-    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("fresh")}; read: none recorded; args none`,
+    expect(linesOf(run(file).stdout, DOC_REVIEW)).toEqual([
+      `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("fresh")}; read: none recorded; args none`,
     ]);
   });
 
@@ -565,7 +565,7 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
       "compound-engineering:ce-doc-review";
     subagent("both", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
     const result = checkReceipts({ bindings: file });
-    for (const key of ["story-worker/review", ESCALATION]) {
+    for (const key of ["story-worker/review", DOC_REVIEW]) {
       const row = rowOf(result, key) as Row & { uses?: { detail: string }[] };
       expect(row.uses?.map((use) => use.detail), key).toEqual([`read ${H1} from ${B1}; args "base:${B1}"`]);
     }
@@ -580,8 +580,8 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
       review("2026-10-08T10:02:00.000Z", `base:${B1}`),
       ["2026-10-08T10:03:00.000Z", bash(script)],
     );
-    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("script")}; read ${H1} from ${B1}; args "base:${B1}"`,
+    expect(linesOf(run(file).stdout, DOC_REVIEW)).toEqual([
+      `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("script")}; read ${H1} from ${B1}; args "base:${B1}"`,
     ]);
   });
 
@@ -589,8 +589,8 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     const file = bindingsOf();
     const script = "bash /Users/maintainer/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.0.0/skills/ce-doc-review/scripts/x.sh";
     subagent("onlyscript", ["2026-10-08T10:03:00.000Z", bash(script)]);
-    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("onlyscript")}`,
+    expect(linesOf(run(file).stdout, DOC_REVIEW)).toEqual([
+      `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("onlyscript")}`,
     ]);
   });
 
@@ -599,8 +599,8 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     const at = "2026-10-08T10:02:00.000Z";
     const refused = "<tool_use_error>Permission for this action was denied</tool_use_error>";
     subagent("pair", [at, skill("compound-engineering:ce-doc-review", "REFUSED-A"), refused, true], review(at, "RAN-B"));
-    expect(linesOf(run(file).stdout, ESCALATION)).toEqual([
-      `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("pair")}; read: none recorded; args "RAN-B"`,
+    expect(linesOf(run(file).stdout, DOC_REVIEW)).toEqual([
+      `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("pair")}; read: none recorded; args "RAN-B"`,
     ]);
   });
 
@@ -608,7 +608,7 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     const file = bindingsOf();
     subagent("a-half", review("2026-10-08T10:01:00.500Z", "later"));
     subagent("b-whole", review("2026-10-08T10:01:00Z", "earlier"));
-    expect(linesOf(run(file).stdout, ESCALATION).map((line) => line.split("; args ")[1])).toEqual([
+    expect(linesOf(run(file).stdout, DOC_REVIEW).map((line) => line.split("; args ")[1])).toEqual([
       '"earlier"',
       '"later"',
     ]);
@@ -618,7 +618,7 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     const file = bindingsOf();
     subagent("one", readAt("2026-10-08T10:01:00.000Z", H1, B1), review("2026-10-08T10:02:00.000Z", `base:${B1}`));
     subagent("two", review("2026-10-08T10:04:00.000Z"));
-    const row = rowOf(checkReceipts({ bindings: file }), ESCALATION) as Row & { uses?: unknown[] };
+    const row = rowOf(checkReceipts({ bindings: file }), DOC_REVIEW) as Row & { uses?: unknown[] };
     expect(row.where).toBe(place("one"));
     expect(row.uses).toEqual([
       { where: place("one"), detail: `read ${H1} from ${B1}; args "base:${B1}"` },
@@ -678,13 +678,13 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
     it("lists the carried reviews before this session's own", () => {
       const file = bindingsOf();
       subagent("now", review("2026-10-08T10:02:00.000Z"));
-      const handoff = handoffOf(...carriedLinesFor(ESCALATION, "compound-engineering:ce-doc-review"));
-      const lines = linesOf(run(file, "--handoff", handoff).stdout, ESCALATION);
+      const handoff = handoffOf(...carriedLinesFor(DOC_REVIEW, "compound-engineering:ce-doc-review"));
+      const lines = linesOf(run(file, "--handoff", handoff).stdout, DOC_REVIEW);
       expect(lines).toHaveLength(3);
       expect(lines[0]).toContain("agent-r1 (carried from handoff)");
       expect(lines[1]).toContain("agent-r2 (carried from handoff)");
       expect(lines[2]).toBe(
-        `${ESCALATION}: used compound-engineering:ce-doc-review in ${place("now")}; read: none recorded; args none`,
+        `${DOC_REVIEW}: used compound-engineering:ce-doc-review in ${place("now")}; read: none recorded; args none`,
       );
     });
 
@@ -697,8 +697,8 @@ describe("the receipt check lists every review and what it read (KOD-44 U2)", ()
       const gone = { ...file, transcripts: [{ session_id: SESSION, path: join(dir, "gone.jsonl") }] };
       const second = run(gone, "--handoff", handoffOf(...first.stdout.split("\n")));
       const strip = (line: string) => line.replace(" (carried from handoff)", "");
-      expect(linesOf(second.stdout, ESCALATION).map(strip)).toEqual(linesOf(first.stdout, ESCALATION));
-      expect(linesOf(second.stdout, ESCALATION).every((line) => line.includes("(carried from handoff)"))).toBe(true);
+      expect(linesOf(second.stdout, DOC_REVIEW).map(strip)).toEqual(linesOf(first.stdout, DOC_REVIEW));
+      expect(linesOf(second.stdout, DOC_REVIEW).every((line) => line.includes("(carried from handoff)"))).toBe(true);
     });
   });
 });

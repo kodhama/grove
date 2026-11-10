@@ -61,8 +61,8 @@ Receipt check:   <the check's output, run with --since the Started time and, whe
                   "unavailable: <why it could not run>">
 Exception:       <the one failing receipt-check line, pasted as it printed, why it fails, and why
                   the story is ready all the same, for the lead to accept or send back — or
-                  "none". A check that fails on two lines or more has no exception: the story
-                  is not ready>
+                  "none". A check that fails on two lines or more, or could not run, has no
+                  exception: the story is not ready>
 
 Evidence:        <PR link / head and base SHAs / diff stat>
 Checks:          <each check as its command and result; any required check that did not run,

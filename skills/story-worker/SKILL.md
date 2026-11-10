@@ -238,7 +238,10 @@ Every change is reviewed before its pull request opens. Invoke the performer
 bound to `review` on every change: it sizes its own depth to the change.
 
 For a change that is docs-only, invoke the performer bound to `doc-review` in
-its place, naming every markdown file the change touches. A change is
+its place, naming every markdown file the change touches. Have the reviewer
+run it without stopping for questions, by its invocation token where it has
+one, and report any edit it makes as a finding and undo it, so the tree stays
+as the read command recorded it. A change is
 docs-only when every path it changes is a markdown file and none is an agent
 surface: a skill's files, an agent instruction file or a plugin manifest. A
 manifest change that touches only its version is ignored. Once a later commit
@@ -273,9 +276,10 @@ bound to `review` reviews it.
   `<dir>` the story's checkout by its full path. `<commit>` is the base
   branch's commit for a full review, or the last reviewed head for a
   re-check. It prints the head, the count of uncommitted paths and the base;
-  the reviewer then tells the review performer to diff from that printed
-  base, by its commit id. A count other than 0 means the tree was not clean:
-  commit, and run the review again. Compare the range in its command, that
+  the reviewer then tells a review performer that takes a base to diff from
+  that printed base, by its commit id. A count other than 0 means the tree
+  was not clean: commit the story's work, remove or ignore what is not the
+  story's, and run the review again. Compare the range in its command, that
   commit and those files with the range you named, the commit you started the
   review on and the files your own diff lists over that range in the story's
   checkout. If any differs or is missing, it read something else: discard its
@@ -421,7 +425,8 @@ merged.
   receipt's Exception field pastes and explains, for your lead to accept or
   send back. With two failing lines or more, or one the receipt does not
   name, the story is not ready: fix what fails and run the check again, or
-  hand back blocked.
+  hand back blocked. A check that could not run never exits 0, so a story
+  whose check is unavailable hands back blocked.
 - **Write the receipt** from `references/receipt.md`, filled from observed
   values. When a setup during the story reported "the routing table changed
   since the earlier setup", the receipt's Bindings field says so, with when.

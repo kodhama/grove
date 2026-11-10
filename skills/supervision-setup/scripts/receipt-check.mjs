@@ -87,7 +87,7 @@
  * another operation's binding, as one pane-tool call matches the four
  * session-restart operations bound to that tool, or one fresh review run
  * matches both `review` and `doc-review` where they bind one skill,
- * as on Codex, the line reads
+ * as on a catalog with only one review skill, the line reads
  * `used (shared)` and names the others, since the check cannot tell which
  * operation the call was for. It passes, and the summary counts it apart.
  *
