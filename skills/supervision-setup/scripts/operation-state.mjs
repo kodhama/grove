@@ -102,12 +102,20 @@ export function creditable(use, marked) {
 }
 
 /**
+ * The calls that credit an operation, in the order given: calls of its
+ * performer that ran and are creditable to it under `marked`.
+ */
+export function ranCalls(binding, calls, marked) {
+  return calls.filter((call) => matches(binding, call) && creditable(call, marked) && call.outcome === "ran");
+}
+
+/**
  * The use a handoff carries for an operation, as the use it credits, when it
  * stands: its performer is the one bound, and for a marked operation its place
  * names a subagent: the check writes a marked operation's `used` line only
  * from a fresh-context subagent.
  */
-function carriedUse(binding, carried, marked) {
+export function carriedUse(binding, carried, marked) {
   if (!carried) return null;
   const use = { kind: binding.kind, name: carried.performer, fresh: isSubagentPlace(carried.place) };
   return matches(binding, use) && creditable(use, marked) ? use : null;
@@ -130,7 +138,7 @@ export function judge(binding, context) {
   const marked = context.marked.has(key);
   const calls = context.calls.filter((call) => matches(binding, call));
   const allowed = calls.filter((call) => creditable(call, marked));
-  const ran = allowed.find((call) => call.outcome === "ran");
+  const [ran] = ranCalls(binding, calls, marked);
   if (ran) return { state: "used", where: ran.where, credited: ran };
   const carried = context.carried.get(key);
   const credited = carriedUse(binding, carried, marked);

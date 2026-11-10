@@ -49,6 +49,23 @@
  * - `bound-but-unused`: otherwise.
  * The last two carry the marked operation's note above. `operation-state.mjs`
  * applies these rules.
+ *
+ * Every review (KOD-44): a marked operation that reads `used` prints one used
+ * line per use that could credit it, rather than one for the operation: the
+ * uses a handoff carries for it first, in the handoff's order, since they
+ * come from before the restart and carry no time, then each call that ran in
+ * a fresh-context subagent, in time order, a call with no recorded time
+ * last. Each line ends in what that reviewer read before the call, from
+ * `review-reads.mjs`, and the call's arguments:
+ *
+ *   story-worker/review: used code-review in <session id> subagent agent-a1; read <head> from <base>; args "base:<sha>"
+ *
+ * (`handoff-receipt.mjs` gives the forms). A run of the bound skill's own
+ * script is no review call, so it gets a line, with no read, only where no
+ * review call credits the operation. The operation's state, and so the exit
+ * code, is still the one `judge` gives, from a call that ran ahead of a
+ * carried use, so the operation's `where` need not be its first line. An
+ * operation the table does not mark keeps its one line.
  * It also lists skills whose call ran, among the calls counted (below), that
  * no binding names (used-but-unbound), except the level skill and
  * `supervision-setup`, which produced the bindings.
@@ -141,16 +158,18 @@
  * docs/plans/2026-10-04-0734-feat-receipt-check-credits-calls-that-ran-plan.md,
  * KTD4, KTD6, KTD9, KTD10, U3 and U4; the pull request's body, GRO-21:
  * docs/plans/2026-10-11-gro-21-required-capture-line-plan.md, KTD3, KTD4,
- * KTD8 and U2.
+ * KTD8 and U2; every review and what it read, KOD-44:
+ * docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U2 and KTD10.
  */
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { scopeCalls, sinceTime } from "./call-scope.mjs";
-import { CARRIED, readHandoff } from "./handoff-receipt.mjs";
-import { creditable, hasPerformer, judge, matches, unqualified } from "./operation-state.mjs";
+import { CARRIED, readDetail, readHandoff } from "./handoff-receipt.mjs";
+import { carriedUse, creditable, hasPerformer, judge, matches, ranCalls, unqualified } from "./operation-state.mjs";
 import { LINE_BREAK, readBodyLines } from "./pr-body-lines.mjs";
+import { readReviewReads } from "./review-reads.mjs";
 import { readRoutingTable } from "./routing-table.mjs";
 import { readTranscripts } from "./transcript-uses.mjs";
 
@@ -222,7 +241,7 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
   for (const t of transcripts) if (scoped.scopes.has(t.session_id)) t.scope = scoped.scopes.get(t.session_id);
   // Only a call that ran is a use; a refused or still-pending one is not.
   const uses = scoped.uses.filter((use) => use.outcome === "ran");
-  const carried = handoff ? readHandoff(handoff) : { used: new Map(), covered: new Set() };
+  const carried = handoff ? readHandoff(handoff) : { all: new Map(), covered: new Set() };
   for (const t of transcripts) {
     if (t.status === "missing" && carried.covered.has(t.session_id)) t.status = "covered";
   }
@@ -232,31 +251,40 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
   // listed, so a carried use in one stands only while its session is unread.
   const read = new Set(transcripts.filter((t) => t.status === "read").map((t) => t.session_id));
   const unread = new Set(transcripts.filter((t) => t.status !== "read").map((t) => t.session_id));
-  for (const [key, use] of carried.used) {
-    if (read.has(use.session) && !unread.has(use.child)) carried.used.delete(key);
-  }
+  const stands = (use) => !read.has(use.session) || unread.has(use.child);
+  const standing = new Map(
+    [...carried.all].map(([key, all]) => [key, all.filter(stands)]).filter(([, all]) => all.length > 0),
+  );
   // A carried use has no time to cut, so it counts only for the story its
   // handoff's check was scoped to: one run with another `--since`, or with
   // none where this run has one, carries nothing.
-  const dropped = handoff && !sameInstant(carried.since, since) ? carried.used.size : 0;
-  if (dropped > 0) carried.used.clear();
+  const dropped = handoff && !sameInstant(carried.since, since) ? [...standing.values()].flat().length : 0;
+  if (dropped > 0) standing.clear();
   // Every call, whatever its outcome: `judge` credits only one that ran (`uses`).
   const context = {
     calls: scoped.uses,
     marked: new Set(routing.marked.map((id) => `${routing.skill}/${id}`)),
-    carried: carried.used,
+    // `judge` credits an operation from the first use a handoff carries for it.
+    carried: new Map([...standing].map(([key, all]) => [key, all[0]])),
     notRun: new Set(notRun),
     missing: transcripts.some((transcript) => transcript.status === "missing"),
   };
+  const details = reviewDetails(bindings, context);
   const operations = bindings.operations.map((binding) => {
     const { credited, ...row } = judge(binding, context);
     const shared = credited ? sharedWith(binding, credited, bindings, context.marked) : [];
+    const key = `${binding.table}/${binding.id}`;
+    const uses =
+      row.state === "used" && context.marked.has(key)
+        ? everyUse(binding, context, standing.get(key) ?? [], details, bindings)
+        : null;
     return {
       table: binding.table,
       id: binding.id,
       performer: binding.native_id,
       ...row,
       ...(shared.length > 0 && { shared }),
+      ...(uses && { uses }),
     };
   });
   return {
@@ -268,12 +296,79 @@ export function checkReceipts({ bindings, notRun = [], handoff = null, table = n
     handoff: handoff
       ? {
           path: handoff,
-          merged: operations.filter((row) => row.where?.endsWith(CARRIED)).length,
+          merged: operations.reduce((n, row) => n + carriedCount(row), 0),
           dropped,
           since: carried.since,
         }
       : null,
   };
+}
+
+/** How many carried uses a row shows: each of its listed uses, or the row itself, whose place is carried. */
+function carriedCount(row) {
+  return (row.uses ?? [row]).filter((use) => use.where?.endsWith(CARRIED)).length;
+}
+
+/** A call's key for pairing it with its review record: where, when and which skill. */
+const recordKey = (where, at, name) => `${where}\u0000${at}\u0000${name}`;
+
+/**
+ * Each skill call's review record, as `review-reads.mjs` reads them, by the
+ * call itself, read from only the listed sessions where a call credits a
+ * marked operation, so a session with none is not read twice. Within a key,
+ * calls and records pair in the order they appear, whatever each call's
+ * outcome, so a call that ran never takes a refused call's record; and the
+ * pairing is made once, so every operation one call credits shows the same
+ * record.
+ */
+function reviewDetails(bindings, context) {
+  const marked = bindings.operations.filter((binding) => context.marked.has(`${binding.table}/${binding.id}`));
+  const sessions = new Set(marked.flatMap((binding) => ranCalls(binding, context.calls, true)).map((call) => call.session));
+  const paired = new Map();
+  if (sessions.size === 0) return paired;
+  const listed = bindings.transcripts.filter((t) => sessions.has(t.session_id));
+  const records = Map.groupBy(readReviewReads(listed).reviews, (r) => recordKey(r.place, r.at, r.skill));
+  const calls = context.calls.filter((call) => call.kind === "skill" && sessions.has(call.session));
+  for (const [key, group] of Map.groupBy(calls, (call) => recordKey(call.where, call.at, call.name))) {
+    const found = records.get(key) ?? [];
+    group.forEach((call, i) => paired.set(call, found[i]));
+  }
+  return paired;
+}
+
+/** A call's time as an instant, for ordering; a call with no time, or one that does not read as a time, sorts last. */
+function instantOf(call) {
+  const ms = call.at === null ? Number.NaN : Date.parse(call.at);
+  return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+}
+
+/**
+ * Every use that could credit a marked operation, as `{ where, detail }`,
+ * with `shared` where another operation's binding could take it too: the
+ * carried ones first, in the handoff's order, then each review call that ran
+ * in a fresh-context subagent, by instant, an untimed call last, each with
+ * the detail of its review record (`details`). A run of the bound skill's own
+ * script is not a review call, and is listed, with no detail, only where no
+ * review call credits the operation. Null when nothing is listed.
+ */
+function everyUse(binding, context, carriedUses, details, bindings) {
+  const withShared = (use, credited) => {
+    const shared = sharedWith(binding, credited, bindings, context.marked);
+    return shared.length > 0 ? { ...use, shared } : use;
+  };
+  const carried = carriedUses.flatMap((use) => {
+    const credited = carriedUse(binding, use, true);
+    if (!credited) return [];
+    return [withShared({ where: `${use.place} ${CARRIED}`, detail: use.detail ?? null }, credited)];
+  });
+  // Sorting is stable, so calls at one instant keep their transcript order.
+  const ran = ranCalls(binding, context.calls, true).sort((a, b) => instantOf(a) - instantOf(b));
+  const reviews = ran.filter((call) => call.kind !== "skill-script");
+  const calls = reviews.length > 0
+    ? reviews.map((call) => withShared({ where: call.where, detail: readDetail(details.get(call)) }, call))
+    : ran.map((call) => withShared({ where: call.where, detail: null }, call));
+  const uses = [...carried, ...calls];
+  return uses.length > 0 ? uses : null;
 }
 
 /** Whether two `--since` values, either absent, name one instant; one that does not read as a time matches nothing. */
@@ -285,16 +380,28 @@ function sameInstant(a, b) {
   }
 }
 
+/** A used line: plain or shared, with a review's detail when it has one. */
+function usedLine(name, performer, { where, detail = null, shared }) {
+  const read = detail ? `; ${detail}` : "";
+  return shared
+    ? `${name}: used (shared): ${performer} in ${where}${read}; ` +
+        `also bound to ${shared.join(", ")}; the check cannot tell which ran`
+    : `${name}: used ${performer} in ${where}${read}`;
+}
+
+/** An operation's report lines: one per use listed for a marked one, else one. */
+function operationLines(row) {
+  const name = `${row.table}/${row.id}`;
+  return row.uses ? row.uses.map((use) => usedLine(name, row.performer, use)) : [operationLine(row)];
+}
+
 /** One report line for an operation. */
 function operationLine(row) {
   const name = `${row.table}/${row.id}`;
   const note = row.note ? ` (${row.note})` : "";
   switch (row.state) {
     case "used":
-      return row.shared
-        ? `${name}: used (shared): ${row.performer} in ${row.where}; ` +
-            `also bound to ${row.shared.join(", ")}; the check cannot tell which ran`
-        : `${name}: used ${row.performer} in ${row.where}`;
+      return usedLine(name, row.performer, row);
     case "by fallback":
     case "unavailable":
       return `${name}: ${row.state} (no performer to find)`;
@@ -397,7 +504,7 @@ function formatReport(result, bindings, bindingsPath, body) {
     const why = dropped > 0 ? `, ${dropped} dropped: carried since ${since ?? "none"}, this run's ${result.since ?? "none"}` : "";
     lines.push(`handoff: ${path} (${merged} earlier uses carried${why})`);
   }
-  lines.push(...result.operations.map(operationLine));
+  lines.push(...result.operations.flatMap(operationLines));
   lines.push(...result.unbound.map((u) => `used-but-unbound: ${u.name} in ${u.where}`));
   lines.push(...bodyLines(body, result.table.skill));
   const count = (state) => result.operations.filter((row) => row.state === state).length;
