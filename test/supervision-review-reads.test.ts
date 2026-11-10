@@ -210,7 +210,7 @@ describe("read records from a Claude Code reviewer subagent", () => {
     expect(record).toMatchObject({ context: "fork", fresh: false, head: HEAD, base: BASE });
   });
 
-  it("a subagent with no sidecar: not fresh, as today", () => {
+  it("a subagent with no sidecar: not fresh", () => {
     const bare = { id: "n1", sidecar: null, calls: [read(), review()] };
     const [record] = reviewsOf(session([], bare));
     expect(record).toMatchObject({ context: "subagent with no sidecar", fresh: false, head: HEAD });

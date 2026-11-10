@@ -68,7 +68,8 @@ function gitEnv() {
 
 /** One git command's stdout in `dir`, or an error naming what failed. */
 function git(dir, args) {
-  const run = spawnSync("git", ["-C", dir, ...args], { encoding: "utf8", env: gitEnv() });
+  // A very dirty checkout's porcelain output can pass spawnSync's 1 MiB default.
+  const run = spawnSync("git", ["-C", dir, ...args], { encoding: "utf8", env: gitEnv(), maxBuffer: 64 * 1024 * 1024 });
   if (run.error) return { error: `git did not run: ${run.error.message}` };
   if (run.status !== 0) {
     const reason = String(run.stderr ?? "").trim().split("\n")[0] || `exit ${run.status}`;

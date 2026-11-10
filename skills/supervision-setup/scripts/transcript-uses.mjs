@@ -253,7 +253,7 @@ export function claudeOutcome(call, result) {
 }
 
 /** The folder Claude Code keeps a session's subagent transcripts in, beside its transcript. */
-export function subagentDir(path) {
+function subagentDir(path) {
   return join(path.replace(/\.jsonl$/, ""), "subagents");
 }
 

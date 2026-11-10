@@ -74,7 +74,6 @@
  *
  * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U1 and KTD3.
  */
-import { existsSync } from "node:fs";
 import { codexChildren, codexItem, codexShellLine, commandOutput, commandUses, timeOf } from "./codex-uses.mjs";
 import {
   childName,
@@ -146,7 +145,7 @@ export function isReadCommand(line) {
   const trimmed = line.trim();
   if (trimmed === "" || NOT_ONE_COMMAND.test(trimmed)) return false;
   const all = words(trimmed);
-  if (!all || all.length === 0) return false;
+  if (!all) return false;
   const start = isNode(all[0]) ? 1 : 0;
   const script = all[start];
   if (typeof script !== "string" || script.split("/").pop() !== READ_SCRIPT) return false;
@@ -248,10 +247,12 @@ function reviewsIn(recorded, replayed) {
  * The review records in one root transcript and every transcript under it:
  * its Claude Code subagents and the Codex child rollouts any of them
  * started, each child with the context of the thread that started it.
- * Returns the records and each started child whose rollout was not found.
+ * Returns the records and each started child whose rollout was not found,
+ * once per thread id, as `sessionUses` keeps them. `read` is the root's
+ * records when the caller has already read them.
  */
-function walk({ path, subagentDirs }, sessionId, place, context) {
-  const { recorded, first } = records(path);
+function walk({ path, subagentDirs }, sessionId, place, context, read = records(path)) {
+  const { recorded, first } = read;
   const rootContext = context ?? codexContext(first, null);
   const tag = (where, ctx) => ({ place: where, session: sessionId, context: ctx, fresh: ctx === FRESH });
   const parts = [reviewsIn(recorded, null).map((review) => ({ ...tag(place, rootContext), ...review }))];
@@ -260,7 +261,7 @@ function walk({ path, subagentDirs }, sessionId, place, context) {
     ...claudeSubagents(subagentDirs).map((file) => ({ path: file, claude: true })),
     ...codex.found.map((file) => ({ path: file, starter: rootContext })),
   ];
-  const missing = codex.missing.map((child) => ({ session_id: child.id, path: child.path }));
+  const missing = new Map(codex.missing.map((child) => [child.id, { session_id: child.id, path: child.path }]));
   const seen = new Set([path]);
   for (let i = 0; i < children.length; i += 1) {
     const child = children[i];
@@ -276,9 +277,9 @@ function walk({ path, subagentDirs }, sessionId, place, context) {
     parts.push(found.map((review) => ({ ...tag(where, childContext), ...review })));
     const grandchildren = codexChildren(child.path, childRecords);
     children.push(...grandchildren.found.map((file) => ({ path: file, starter: childContext })));
-    missing.push(...grandchildren.missing.map((lost) => ({ session_id: lost.id, path: lost.path })));
+    for (const lost of grandchildren.missing) missing.set(lost.id, { session_id: lost.id, path: lost.path });
   }
-  return { reviews: parts.flat(), missing };
+  return { reviews: parts.flat(), missing: [...missing.values()] };
 }
 
 /**
@@ -302,13 +303,16 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     missing.push(...found.missing);
   }
   for (const path of rollouts) {
-    if (!existsSync(path)) {
+    let read;
+    try {
+      read = records(path);
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
       missing.push({ session_id: null, path });
       continue;
     }
-    const { first } = records(path);
-    const id = typeof first?.payload?.id === "string" ? first.payload.id : childName(path);
-    const found = walk({ path, subagentDirs: [] }, id, id, null);
+    const id = typeof read.first?.payload?.id === "string" ? read.first.payload.id : childName(path);
+    const found = walk({ path, subagentDirs: [] }, id, id, null, read);
     reviews.push(...found.reviews);
     missing.push(...found.missing);
   }
