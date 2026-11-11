@@ -310,6 +310,9 @@ describe("git sources in temporary repositories", () => {
       "diff.indentHeuristic": "false",
       "diff.suppressBlankEmpty": "true",
       "diff.renameLimit": "1",
+      "merge.renameLimit": "1",
+      "diff.ignoreSubmodules": "all",
+      "diff.submodule": "log",
       "diff.renames": "false",
       "diff.algorithm": "histogram",
       "merge.conflictStyle": "diff3",
@@ -564,7 +567,7 @@ describe("git sources in temporary repositories", () => {
     r.write(newPath, "one\ntwo\nthree\nfour\n");
     const head = r.commit("rename");
     expect(r.sources.numstat(base, head)[0].files).toEqual([{ path: newPath, oldPath, added: 1, deleted: 0 }]);
-    expect(r.sources.nonTestLines(base, head, r.base).total).toBe(0);
+    expect(r.sources.nonTestLines(base, head, r.base).total).toBe(3);
   });
 
   it.each([
@@ -604,6 +607,102 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.nonTestLines(start, merge, start)).toMatchObject({
       total: 200,
       merges: [{ sha: merge, lines: 200 }],
+    });
+  });
+
+  it.each(["src/auth.mjs", "src/auth*.mjs", "src/:auth.mjs"])("counts all 300 old lines moved from %s into tests", (oldPath) => {
+    const r = repo();
+    r.write(oldPath, "code\n".repeat(300));
+    const start = r.commit("source file");
+    mkdirSync(join(r.cwd, "test"));
+    r.git("mv", oldPath, "test/auth.mjs");
+    const head = r.commit("move into tests");
+    expect(r.sources.numstat(start, head)[0].files).toEqual([{
+      path: "test/auth.mjs",
+      oldPath,
+      added: 0,
+      deleted: 0,
+    }]);
+    expect(r.sources.nonTestLines(start, head, start)).toMatchObject({
+      total: 300,
+      commits: [{ sha: head, lines: 300 }],
+    });
+  });
+
+  it("recounts a source-to-test rename in a non-base merge's first-parent diff", () => {
+    const r = repo();
+    r.write("src/auth.mjs", "code\n".repeat(300));
+    const start = r.commit("source file");
+    r.git("checkout", "-b", "side");
+    mkdirSync(join(r.cwd, "test"));
+    r.git("mv", "src/auth.mjs", "test/auth.mjs");
+    r.commit("move into tests");
+    r.git("checkout", "main");
+    r.git("merge", "--no-ff", "side", "-m", "side merge");
+    const merge = r.git("rev-parse", "HEAD");
+    expect(r.sources.nonTestLines(start, merge, start)).toMatchObject({
+      total: 300,
+      merges: [{ sha: merge, lines: 300 }],
+    });
+  });
+
+  it("recounts a source-to-test rename in a base merge's remerge rows", () => {
+    const r = repo();
+    const body = Array.from({ length: 299 }, (_, i) => `line ${i}\n`).join("");
+    r.write("src/auth.mjs", "start\n" + body);
+    r.commit("source file");
+    r.git("checkout", "-b", "feature");
+    r.write("src/auth.mjs", "feature\n" + body);
+    const feature = r.commit("feature");
+    r.git("checkout", "main");
+    r.write("src/auth.mjs", "main\n" + body);
+    const main = r.commit("main");
+    r.git("checkout", "feature");
+    expect(r.gitStatus("merge", "main")).toBe(1);
+    r.git("rm", "src/auth.mjs");
+    r.write("test/auth.mjs", "resolved\n" + body);
+    const merge = r.commit("resolve and move into tests");
+    expect(r.sources.remergeNumstat(merge)).toEqual([{
+      path: "test/auth.mjs",
+      oldPath: "src/auth.mjs",
+      added: 1,
+      deleted: 5,
+    }]);
+    expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
+      total: 304,
+      merges: [{ sha: merge, lines: 304 }],
+    });
+  });
+
+  it("reports a binary old-path recount when source text moves into tests", () => {
+    const r = repo();
+    r.write("src/auth.mjs", "code\n".repeat(300));
+    const start = r.commit("source file");
+    mkdirSync(join(r.cwd, "test"));
+    r.git("mv", "src/auth.mjs", "test/auth.mjs");
+    const head = r.commit("move into tests");
+    expect(r.sources.numstat(start, head)[0].files).toEqual([{
+      path: "test/auth.mjs",
+      oldPath: "src/auth.mjs",
+      added: 0,
+      deleted: 0,
+    }]);
+    /** Run real git except for the old path's binary recount row. */
+    const run = (cmd: string, args: string[], options: Options) => {
+      if (args.includes("--no-renames")) {
+        expect(args.slice(-2)).toEqual(["--", ":(literal)src/auth.mjs"]);
+        return {
+          status: 0,
+          stdout: "-\t-\tsrc/auth.mjs\0",
+          stderr: "",
+        };
+      }
+      return spawnSync(cmd, args, { ...options, encoding: "utf8" });
+    };
+    const sources = createGateSources({ ...config, checkout: r.cwd, run });
+    expect(sources.nonTestLines(start, head, start)).toMatchObject({
+      total: 0,
+      binaryPaths: ["src/auth.mjs"],
     });
   });
 

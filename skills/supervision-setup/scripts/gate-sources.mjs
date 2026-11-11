@@ -227,18 +227,19 @@ function isTestPath(path) {
   return TEST_PATTERN.test(path) || TEST_CLASS_PATTERN.test(path);
 }
 
-/** Whether a row counts toward the non-test total: not binary, and not a test path. */
+/** Whether a non-binary row touches a non-test path on either side. */
 function countsTowardTotal(row) {
   if (row.added === null || row.deleted === null) return false;
-  return !isTestPath(row.path);
+  return !isTestPath(row.path) || (row.oldPath !== null && !isTestPath(row.oldPath));
 }
 
-/** Added plus deleted non-test lines, recounting files moved out of test paths. */
+/** Added plus deleted non-test lines, recounting moves across the test boundary. */
 function nonTestLineCount(files, recount) {
   let total = 0;
   for (const row of files) {
     if (!countsTowardTotal(row)) continue;
-    total += row.oldPath && isTestPath(row.oldPath) ? recount(row) : row.added + row.deleted;
+    const crossesBoundary = row.oldPath && isTestPath(row.oldPath) !== isTestPath(row.path);
+    total += crossesBoundary ? recount(isTestPath(row.path) ? row.oldPath : row.path) : row.added + row.deleted;
   }
   return total;
 }
@@ -403,12 +404,13 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     });
   }
 
-  /** A test-to-source rename's full new-file count from the same diff without renames. */
-  function renamedLineCount(row, args, call) {
+  /** A rename's non-test file count from the same diff without renames, noting binaries. */
+  function renamedLineCount(path, args, call, binaryPaths) {
     const [command, ...rest] = args;
-    const out = git(call, [command, ...DIFF_FLAGS, "--numstat", "-z", "--no-renames", ...rest, "--", `:(literal)${row.path}`]).stdout;
+    const out = git(call, [command, ...DIFF_FLAGS, "--numstat", "-z", "--no-renames", ...rest, "--", `:(literal)${path}`]).stdout;
     const files = [...numstatRecords(out, call)];
-    if (files.length !== 1 || files[0].path !== row.path || files[0].oldPath !== null) fail(call, "invalid renamed file numstat");
+    if (files.length !== 1 || files[0].path !== path || files[0].oldPath !== null) fail(call, "invalid renamed file numstat");
+    if (files[0].added === null) binaryPaths.add(path);
     return nonTestLineCount(files);
   }
 
@@ -534,6 +536,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
      * then it counts its first-parent diff, as all other merges do. `merges`
      * lists those merges and base merges with remerge rows, even tests or binary.
      * A rename from a test path to a non-test path counts the new file in full.
+     * A rename into a test path counts the old non-test file in full.
      */
     nonTestLines(from, to, base) {
       const call = "nonTestLines";
@@ -565,7 +568,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
           if (row.added === null) binaryPaths.add(row.path);
           if ([row.path, row.oldPath].some((path) => path?.split("/").at(-1) === ".gitattributes")) attributesTouched = true;
         }
-        const lines = nonTestLineCount(files, (row) => renamedLineCount(row, diffArgs, call));
+        const lines = nonTestLineCount(files, (path) => renamedLineCount(path, diffArgs, call, binaryPaths));
         if (listMerge) merges.push({ sha: commit.sha, lines });
         commits.push({ sha: commit.sha, lines });
       }
