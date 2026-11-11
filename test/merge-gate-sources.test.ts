@@ -734,6 +734,112 @@ describe("git sources in temporary repositories", () => {
     });
   });
 
+  it.each([
+    ["src/auth.mjs", "test/auth.mjs", 300],
+    ["test/a.test.js", "src/a.js", 200],
+  ])("recounts a binary rename from %s to %s in a commit", (oldPath, newPath, lines) => {
+    const r = repo();
+    const body = "code\n".repeat(lines);
+    r.write(oldPath, body + (oldPath.startsWith("test/") ? "\0" : ""));
+    const start = r.commit("original");
+    mkdirSync(dirname(join(r.cwd, newPath)), { recursive: true });
+    r.git("mv", oldPath, newPath);
+    r.write(newPath, body + (newPath.startsWith("test/") ? "\0" : ""));
+    const head = r.commit("move");
+    expect(r.sources.numstat(start, head)[0].files).toEqual([{
+      path: newPath,
+      oldPath,
+      added: null,
+      deleted: null,
+    }]);
+    expect(r.sources.nonTestLines(start, head, start)).toMatchObject({
+      total: lines,
+      commits: [{ sha: head, lines }],
+      binaryPaths: [newPath],
+    });
+  });
+
+  it.each([
+    ["src/auth.mjs", "test/auth.mjs", 300],
+    ["test/a.test.js", "src/a.js", 200],
+  ])("recounts a binary rename from %s to %s in a non-base merge", (oldPath, newPath, lines) => {
+    const r = repo();
+    const body = "code\n".repeat(lines);
+    r.write(oldPath, body + (oldPath.startsWith("test/") ? "\0" : ""));
+    const start = r.commit("original");
+    r.git("checkout", "-b", "side");
+    mkdirSync(dirname(join(r.cwd, newPath)), { recursive: true });
+    r.git("mv", oldPath, newPath);
+    r.write(newPath, body + (newPath.startsWith("test/") ? "\0" : ""));
+    r.commit("move");
+    r.git("checkout", "main");
+    r.git("merge", "--no-ff", "side", "-m", "side merge");
+    const merge = r.git("rev-parse", "HEAD");
+    expect(r.git("diff", "-M", "--numstat", "-z", start, merge, "--")).toBe(`-\t-\t\0${oldPath}\0${newPath}\0`);
+    expect(r.sources.nonTestLines(start, merge, start)).toMatchObject({
+      total: lines,
+      commits: [{ sha: merge, lines }],
+      merges: [{ sha: merge, lines }],
+      binaryPaths: [newPath],
+    });
+  });
+
+  it.each([
+    ["src/auth.mjs", "test/auth.mjs", 300, 304],
+    ["test/a.test.js", "src/a.js", 200, 200],
+  ])("recounts a binary rename from %s to %s in base remerge rows", (oldPath, newPath, length, lines) => {
+    const r = repo();
+    const body = Array.from({ length: length - 1 }, (_, i) => `line ${i}\n`).join("");
+    const oldNul = oldPath.startsWith("test/") ? "\0" : "";
+    r.write(oldPath, "start\n" + body + oldNul);
+    r.commit("original");
+    r.git("checkout", "-b", "feature");
+    r.write(oldPath, "feature\n" + body + oldNul);
+    const feature = r.commit("feature");
+    r.git("checkout", "main");
+    r.write(oldPath, "main\n" + body + oldNul);
+    const main = r.commit("main");
+    r.git("checkout", "feature");
+    expect(r.gitStatus("merge", "main")).toBe(1);
+    r.git("rm", oldPath);
+    r.write(newPath, "resolved\n" + body + (newPath.startsWith("test/") ? "\0" : ""));
+    const merge = r.commit("resolve and move");
+    expect(r.sources.remergeNumstat(merge)).toEqual([{
+      path: newPath,
+      oldPath,
+      added: null,
+      deleted: null,
+    }]);
+    expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
+      total: lines,
+      commits: [{ sha: merge, lines }],
+      merges: [{ sha: merge, lines }],
+      binaryPaths: [newPath],
+    });
+  });
+
+  it.each([
+    ["src/auth.mjs", "test/auth.mjs"],
+    ["test/auth.mjs", "src/auth.mjs"],
+  ])("reports the non-test recount path for a binary rename from %s to %s", (oldPath, newPath) => {
+    const r = repo();
+    r.write(oldPath, "code\n".repeat(300) + "\0");
+    const start = r.commit("binary original");
+    mkdirSync(dirname(join(r.cwd, newPath)), { recursive: true });
+    r.git("mv", oldPath, newPath);
+    const head = r.commit("binary move");
+    expect(r.sources.numstat(start, head)[0].files).toEqual([{
+      path: newPath,
+      oldPath,
+      added: null,
+      deleted: null,
+    }]);
+    expect(r.sources.nonTestLines(start, head, start)).toMatchObject({
+      total: 0,
+      binaryPaths: newPath.startsWith("test/") ? [newPath, oldPath] : [newPath],
+    });
+  });
+
   it("reports attributesTouched when a rename removes the attributes filename", () => {
     const r = repo();
     r.write("src/.gitattributes", "*.js text\n");

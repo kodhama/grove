@@ -237,9 +237,9 @@ function countsTowardTotal(row) {
 function nonTestLineCount(files, recount) {
   let total = 0;
   for (const row of files) {
-    if (!countsTowardTotal(row)) continue;
     const crossesBoundary = row.oldPath && isTestPath(row.oldPath) !== isTestPath(row.path);
-    total += crossesBoundary ? recount(isTestPath(row.path) ? row.oldPath : row.path) : row.added + row.deleted;
+    if (crossesBoundary) total += recount(isTestPath(row.path) ? row.oldPath : row.path);
+    else if (countsTowardTotal(row)) total += row.added + row.deleted;
   }
   return total;
 }
