@@ -235,7 +235,8 @@ check lists it; later units of that plan build the gate on it.
 
 - **The read command** is the reviewer's first call, run alone:
   `node skills/supervision-setup/scripts/review-read.mjs --checkout <dir> --from <commit>`.
-  `<from>` is the base branch for a full review, or the last reviewed head
+  `<from>` is the base branch as just fetched (the remote-tracking ref, not
+  a local branch that may be stale) for a full review, or the last reviewed head
   for a re-check. It prints `head <sha>`, `status <n>` (0 is a clean tree)
   and `base <sha>` (the merge-base of HEAD and `<from>`), all three or none.
   The reviewer then names that base, by its commit id, to the review
@@ -290,6 +291,13 @@ lets a consuming repo name the commit it pins by its version.
   agent has none until the next resume.
 - **Codex does not restart in place yet** (GRO-3). A Codex session takes the
   new-session path, and a Codex worker hands its restart to its lead.
+- **A Codex reviewer's base is never recorded as named.** A Codex skill use
+  carries no arguments, so `review-reads.mjs` records `args` as null and
+  `baseNamed` as false, and the receipt check prints `args none` for every
+  Codex in-session review. The merge gate the KOD-44 plan describes credits
+  a review by its arguments (the base for a full review, every changed
+  markdown file for a doc review), so it cannot credit a Codex in-session
+  review until a channel for the base is agreed.
 
 ## History
 

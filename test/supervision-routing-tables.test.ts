@@ -1747,7 +1747,7 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "Invoke the performer bound to `review` on every change: it sizes its own depth to the change.",
     );
     expect(text).toContain(
-      "For a change that is docs-only, invoke the performer bound to `doc-review` in its place, naming every markdown file the change touches.",
+      "For a change that is docs-only, invoke the performer bound to `doc-review` in its place, naming every markdown file the change touches, in one call per file where the performer takes one document.",
     );
     expect(text).toContain(
       "A change is docs-only when every path it changes is a markdown file and none is an agent surface: a skill's files, an agent instruction file or a plugin manifest. A manifest change that touches only its version is ignored.",
@@ -1756,7 +1756,7 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "Have the reviewer run it without stopping for questions, by its invocation token where it has one, and report any edit it makes as a finding and undo it, so the tree stays as the read command recorded it.",
     );
     expect(text).toContain(
-      "Once a later commit changes any other path, the change is no longer docs-only, and the performer bound to `review` reviews it.",
+      "Once a later commit changes any other path, the change is no longer docs-only, and the performer bound to `review` reviews the whole change as a full review, with the read command run from the base branch, since the doc review no longer counts for it.",
     );
   });
 
@@ -1766,7 +1766,7 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "Have the reviewer run the read command as its first call, alone, never chained with another command: `node \"<supervision-setup's folder>/scripts/review-read.mjs\" --checkout <dir> --from <commit>`, supervision-setup's folder being the one beside this skill's own, and `<dir>` the story's checkout by its full path.",
     );
     expect(text).toContain(
-      "`<commit>` is the base branch's commit for a full review, or the last reviewed head for a re-check.",
+      "`<commit>` is the base branch's commit as just fetched from the remote, never a local branch that may be stale, for a full review, or the last reviewed head for a re-check.",
     );
     expect(text).toContain(
       "It prints the head, the count of uncommitted paths and the base; the reviewer then tells a review performer that takes a base to diff from that printed base, by its commit id.",
@@ -1790,6 +1790,9 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
     const text = step8();
     expect(text).toContain(
       "**Ready needs a passing check.** Send `STATUS: ready` only on a receipt check that exits 0, or on one that fails on exactly one line, which the receipt's Exception field pastes and explains, for your lead to accept or send back.",
+    );
+    expect(text).toContain(
+      "A failing line is an operation's line whose state is bound-but-unused, attempted-failed or no evidence, a line saying the table or the override changed since setup read it, or a `pr-body` line that does not read `found`; the summary line repeats them and is never counted.",
     );
     expect(text).toContain(
       "With two failing lines or more, or one the receipt does not name, the story is not ready: fix what fails and run the check again, or hand back blocked.",
