@@ -1792,7 +1792,7 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "**Ready needs a passing check.** Send `STATUS: ready` only on a receipt check that exits 0, or on one that fails on exactly one line, which the receipt's Exception field pastes and explains, for your lead to accept or send back.",
     );
     expect(text).toContain(
-      "A failing line is an operation's line whose state is bound-but-unused, attempted-failed or no evidence, a line saying the table or the override changed since setup read it, or a `pr-body` line that does not read `found`; the summary line repeats them and is never counted.",
+      "A failing line is an operation's line whose state is bound-but-unused, attempted-failed or no evidence, a line saying the table or the override changed since setup read it, or a line about a saved body that reads missing, malformed or repeated; the summary line repeats them and is never counted.",
     );
     expect(text).toContain(
       "With two failing lines or more, or one the receipt does not name, the story is not ready: fix what fails and run the check again, or hand back blocked.",

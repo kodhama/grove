@@ -293,11 +293,13 @@ lets a consuming repo name the commit it pins by its version.
   new-session path, and a Codex worker hands its restart to its lead.
 - **A Codex reviewer's base is never recorded as named.** A Codex skill use
   carries no arguments, so `review-reads.mjs` records `args` as null and
-  `baseNamed` as false, and the receipt check prints `args none` for every
-  Codex in-session review. The merge gate the KOD-44 plan describes credits
-  a review by its arguments (the base for a full review, every changed
-  markdown file for a doc review), so it cannot credit a Codex in-session
-  review until a channel for the base is agreed.
+  `baseNamed` as false, and the receipt check prints `args none` for each
+  Codex in-session review it finds. The merge gate the KOD-44 plan describes
+  credits a review by its arguments (the base for a full review, every
+  changed markdown file for a doc review), so as planned it cannot credit a
+  Codex in-session review. KOD-44 U4 closes this per the brief: it credits
+  such a review on its read record alone, under conditions it names and
+  tests.
 
 ## History
 
