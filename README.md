@@ -167,7 +167,9 @@ plugin dependency.
 - **Node 24, or 26 and newer** (`package.json`'s `engines`) runs the receipt
   checker, which uses `node:fs`'s `globSync`. **jq** runs the restart scripts,
   the pane-tool adapter and the context gauge, and the adapter also needs
-  **perl**, to bound each call.
+  **perl**, to bound each call. The merge gate's sources
+  (`skills/supervision-setup/scripts/gate-sources.mjs`) need **git 2.39 or
+  newer** (for `git patch-id --verbatim`) and an authenticated **gh**.
 
 ## The pane-tool adapter
 
