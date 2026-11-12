@@ -278,19 +278,24 @@ condition passes.
 | `--pr <owner/repo#n>` | Required; a positive pull-request number. Owner and repo use letters, digits, `_`, `.`, or `-`. |
 | `--head <sha>` | Required; a full lowercase 40- or 64-character hex commit id. Every commit-specific read uses this head. |
 | `--bindings <path>` | Required at least once; repeatable. Parsed and retained for later review coverage; not opened yet. |
-| `--receipt <path>` | Optional readable story receipt. Its single `Shipped revision:` line must name the pinned head as its first token, a full sha. |
+| `--receipt <path>` | Optional readable story receipt. Its single `Shipped revision:` line must give 7 to 40 hex characters as its first token, a case-insensitive prefix of `--head`. |
 | `--carried <path>` | Optional carried evidence; parsed, not opened yet. |
 | `--codex-rollout <path>` | Optional, repeatable review evidence; parsed, not opened yet. |
 | `--bot <name>` | Optional, repeatable automated reviewer. Names match logins ignoring case and a trailing `[bot]`. |
 | `--bot-unavailable <name>:<reason>` | Optional, repeatable exemption with a non-empty reason on one line; a name cannot also be passed with `--bot`. |
-| `--checkout <dir>` | Optional git checkout; defaults to the working directory. |
+| `--checkout <dir>` | Optional git checkout, also where `gh` runs; defaults to the working directory. |
 | `--help` | Prints usage and exits 0 only when given alone. |
 
 The report prints these lines in order, checking every condition even when
-another fails. GitHub check names, bot names and thread paths are JSON strings.
+another fails. Every printed GitHub or process value uses JSON escaping,
+plus escapes for all remaining Unicode control and line-separator characters,
+including U+2028, U+2029 and U+0085. Check names, bot names and thread paths
+also have surrounding quotes.
 
 - `head: pass ...` or `fail ...`: the pull request is open, its live head
   equals `--head`, and the receipt's shipped revision agrees when given.
+  The receipt is checked even when the live head cannot be read; a mismatch
+  still fails, with the live-read error included on the head line.
 - `ci: pass <n> checks passed on <sha>` or `fail ...`: every check has
   completed with `success`, `neutral`, or `skipped`, and at least one
   concluded `success`. No checks, all-neutral, and all-skipped fail.
@@ -299,15 +304,24 @@ another fails. GitHub check names, bot names and thread paths are JSON strings.
   outdated unresolved threads still block.
 - One `bot "<name>": pass ...`, `fail ...`, or `unavailable <reason>` per
   named bot in argument order, then unnamed reviewing bots by login.
-  A non-empty review on the head, a `+1` reaction strictly after the head's
-  earliest check suite, or a comment line with `Completed` and a whole-word
-  SHA prefix of at least seven hex characters finishes a named bot.
+  Each signal must come from the named bot's `Bot` account: a non-empty
+  review on the head; a `+1` reaction on the pull request itself, strictly
+  after the head's earliest check suite; or a summary row in a top-level pull-request comment.
+  The summary must contain the whole word `Completed` and the head's SHA
+  on the same row: every whole-word hex token of 7 to 40 characters must be
+  a prefix of the head, with at least one token and no other SHA. The row
+  must not contain `Running` or whole-word `not`, ignoring case.
+  Check suites are read only when that bot has a `+1` reaction. A valid
+  summary row still passes if that check-suite read fails.
+  An `unavailable` bot counts as neither failed nor unchecked; its reason
+  is the caller’s word, which the gate does not verify.
   An unnamed bot account that left a review fails. With none named and no
   bot reviews: `bots: pass none named and no other bot reviewed`.
 - `attributes: warn the pull request changes a .gitattributes file, which can change how git reads its lines`
   appears only when the whole pull-request range touches attributes.
   Missing history instead prints `attributes: could not check ...`, asking
-  for a fetch when a commit is missing. A warning does not fail the gate.
+  for a fetch when a commit is missing. If the live head read fails, it prints
+  `attributes: could not check (needs the live base)`. A warning does not fail the gate.
 - `not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings`
   states the gate's scope boundary; it is not counted in the summary.
 - `blocked <sha>: <n> failed, <m> not checked` ends every current
@@ -317,8 +331,9 @@ another fails. GitHub check names, bot names and thread paths are JSON strings.
 **Exit 1 wins when any condition fails.** Otherwise exit 2 means a condition
 could not be checked or remains unchecked. Transport failures print
 `<condition>: could not check (<call>: <reason>)`, including one `bots:`
-line if reviews or reactions could not be read; the other conditions still
-run. A bot's check-suite read failure appears on that bot's line. Bad
+line if reviews could not be read; the other conditions still run. Failed
+reads of comments, reactions, or check suites appear on the affected named
+bot's line, preserving every other bot verdict and any unnamed-bot failures. Bad
 arguments and unreadable receipt files exit 2 before any process runs, with
 `merge-gate: <reason>` and usage on stderr and no stdout. Internal errors
 exit 2 with `merge-gate: internal error: <message>` on stderr. Exit 0 is

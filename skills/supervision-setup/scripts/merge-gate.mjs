@@ -17,12 +17,13 @@ function botKey(name) {
 
 /** A value escaped onto one line, without its surrounding quotes. */
 function escaped(value) {
-  return JSON.stringify(value).slice(1, -1);
+  return JSON.stringify(value).replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`).slice(1, -1);
 }
 
 /** The condition label of one bot's row. */
 function botLabel(name) {
-  return `bot ${JSON.stringify(name)}`;
+  return `bot "${escaped(name)}"`;
 }
 
 /** Named and unavailable bots in argument order, rejecting a name given both ways. */
@@ -81,7 +82,7 @@ function readReceipt(path) {
   }
   const lines = [...body.matchAll(/^[ \t]*Shipped revision:([^\r\n]*)/gm)];
   const revision = lines.length === 1 ? lines[0][1].trim().split(/\s+/)[0] : null;
-  return { revision: SHA.test(revision ?? "") ? revision : null };
+  return { revision: /^[a-f0-9]{7,40}$/i.test(revision ?? "") ? revision.toLowerCase() : null };
 }
 
 /** One condition's verdict and printable explanation. */
@@ -91,7 +92,7 @@ function verdict(condition, state, reason) {
 
 /** A transport failure as a could-not-check verdict naming the failed call. */
 function unchecked(name, error) {
-  return verdict(name, "could not check", `(${error.call}: ${error.reason})`);
+  return verdict(name, "could not check", `(${escaped(error.call)}: ${escaped(error.reason)})`);
 }
 
 /** Run a condition independently, keeping transport failures separate from bugs. */
@@ -104,15 +105,20 @@ function condition(name, check) {
   }
 }
 
+/** The receipt's mismatch with the pinned head, independent of the live read. */
+function receiptMismatch(head, receipt) {
+  if (receipt === null) return null;
+  if (receipt.revision === null) return "the receipt has no single Shipped revision line with a 7 to 40 character hex sha";
+  return head.startsWith(receipt.revision) ? null : `--head ${head} is not the receipt's shipped revision ${escaped(receipt.revision)}`;
+}
+
 /** Compare the pinned head with the live pull request and optional shipped revision. */
 function headCondition(live, head, receipt) {
   const reasons = [];
   if (live.state !== "open") reasons.push(`the pull request is ${escaped(live.state)}`);
-  if (live.sha !== head) reasons.push(`--head ${head} is not the live head ${live.sha}`);
-  if (receipt) {
-    if (receipt.revision === null) reasons.push("the receipt has no single Shipped revision line with a full sha");
-    else if (receipt.revision !== head) reasons.push(`--head ${head} is not the receipt's shipped revision ${receipt.revision}`);
-  }
+  if (live.sha !== head) reasons.push(`--head ${head} is not the live head ${escaped(live.sha)}`);
+  const mismatch = receiptMismatch(head, receipt);
+  if (mismatch) reasons.push(mismatch);
   return reasons.length
     ? verdict("head", "fail", reasons.join("; "))
     : verdict("head", "pass", `${head} is the live head${receipt ? " and the receipt's shipped revision" : ""}`);
@@ -122,7 +128,7 @@ function headCondition(live, head, receipt) {
 function ciCondition(checks, head) {
   if (!checks.length) return verdict("ci", "fail", `no checks reported on ${head}`);
   const failures = checks.flatMap((check) => {
-    const name = JSON.stringify(check.name);
+    const name = `"${escaped(check.name)}"`;
     if (!check.completed) return [`${name} still running`];
     if (check.conclusion === null) return [`${name} completed with no conclusion`];
     return ["success", "neutral", "skipped"].includes(check.conclusion) ? [] : [`${name} ${escaped(check.conclusion)}`];
@@ -138,7 +144,7 @@ function ciCondition(checks, head) {
 function threadCondition(threads) {
   const unresolved = threads.filter((thread) => !thread.isResolved);
   return unresolved.length
-    ? verdict("threads", "fail", `${unresolved.length} unresolved: ${unresolved.map((thread) => JSON.stringify(thread.path)).join(", ")}`)
+    ? verdict("threads", "fail", `${unresolved.length} unresolved: ${unresolved.map((thread) => `"${escaped(thread.path)}"`).join(", ")}`)
     : verdict("threads", "pass", "none unresolved");
 }
 
@@ -157,10 +163,13 @@ function once(read) {
   };
 }
 
-/** Whether one comment line says Completed and names a whole-word prefix of the head. */
+/** Whether one row says Completed, never Running or not, with only head-prefix hex tokens. */
 function completedSummary(body, head) {
-  return body.split(/\r?\n/).some((line) => /\bCompleted\b/.test(line) &&
-    [...line.matchAll(/\b[a-fA-F0-9]{7,64}\b/g)].some(([sha]) => head.startsWith(sha.toLowerCase())));
+  return body.split(new RegExp(`${LINE_BREAK.source}|\\u0085`)).some((line) => {
+    if (!/\bCompleted\b/.test(line) || /Running|\bnot\b/i.test(line)) return false;
+    const tokens = [...line.matchAll(/\b[a-fA-F0-9]{7,40}\b/g)];
+    return tokens.length > 0 && tokens.every(([sha]) => head.startsWith(sha.toLowerCase()));
+  });
 }
 
 /** The latest nonempty review on a different, non-null commit. */
@@ -169,23 +178,30 @@ function earlierReview(reviews, head) {
     .sort((a, b) => (Date.parse(b.submittedAt) || 0) - (Date.parse(a.submittedAt) || 0))[0];
 }
 
+/** Whether a signal belongs to the named bot's Bot account. */
+function isNamedBotAccount(row, name) {
+  return row.type === "Bot" && row.login !== null && botKey(row.login) === botKey(name);
+}
+
 /** Judge a named bot in signal precedence order, reading later signals only as needed. */
 function namedBot(bot, reviews, head, signals) {
   const name = botLabel(bot.name);
-  if (bot.reason !== null) return verdict(name, "unavailable", bot.reason);
-  const matches = (row) => row.login !== null && botKey(row.login) === botKey(bot.name);
+  if (bot.reason !== null) return verdict(name, "unavailable", escaped(bot.reason));
+  const matches = (row) => isNamedBotAccount(row, bot.name);
   const ownReviews = reviews.filter(matches);
   if (ownReviews.some((review) => review.commitId === head && review.body.trim())) {
     return verdict(name, "pass", `finished on ${head} (review)`);
   }
   const reactions = signals.reactions().filter((row) => matches(row) && row.content === "+1");
-  const firstSuite = signals.suite();
+  let firstSuite = null;
+  const suiteRead = condition(name, () => { firstSuite = reactions.length ? signals.suite() : null; return null; });
   if (firstSuite !== null && reactions.some((reaction) => Date.parse(reaction.createdAt) > Date.parse(firstSuite))) {
     return verdict(name, "pass", `finished on ${head} (+1 reaction after the head's first check suite)`);
   }
   if (signals.comments().some((comment) => matches(comment) && completedSummary(comment.body, head))) {
     return verdict(name, "pass", `finished on ${head} (summary row)`);
   }
+  if (suiteRead) return suiteRead;
   const older = earlierReview(ownReviews, head);
   if (older) return verdict(name, "fail", `finished only on ${escaped(older.commitId)}, not on ${head}`);
   if (firstSuite !== null && reactions.length && reactions.every((reaction) => Date.parse(reaction.createdAt) <= Date.parse(firstSuite))) {
@@ -206,8 +222,7 @@ function botConditions(sources, bots, head) {
     try {
       return namedBot(bot, reviews, head, signals);
     } catch (error) {
-      // A botReactions failure, like botReviews, is one `bots` line; firstSuiteAt and comments stay per bot.
-      if (!(error instanceof TransportFailure) || error.call === "botReactions") throw error;
+      if (!(error instanceof TransportFailure)) throw error;
       return unchecked(botLabel(bot.name), error);
     }
   });
@@ -221,10 +236,10 @@ function botConditions(sources, bots, head) {
 function attributesCondition(sources, head, live) {
   if (live === null) return verdict("attributes", "could not check", "(needs the live base)");
   for (const sha of [head, live.baseSha]) {
-    if (!sources.hasCommit(sha)) return verdict("attributes", "could not check", `(the clone lacks ${sha}; fetch it)`);
+    if (!sources.hasCommit(sha)) return verdict("attributes", "could not check", `(the clone lacks ${escaped(sha)}; fetch it)`);
   }
   const base = sources.mergeBase(head, live.baseSha);
-  if (base === null) return verdict("attributes", "could not check", `(no merge-base of ${head} and ${live.baseSha})`);
+  if (base === null) return verdict("attributes", "could not check", `(no merge-base of ${head} and ${escaped(live.baseSha)})`);
   const count = sources.nonTestLines(base, head, live.baseSha);
   return count.attributesTouched
     ? verdict("attributes", "warn", "the pull request changes a .gitattributes file, which can change how git reads its lines")
@@ -241,6 +256,10 @@ function check(sources, options, receipt) {
     live = answer;
     return headCondition(live, head, receipt);
   })];
+  const mismatch = receiptMismatch(head, receipt);
+  if (live === null && mismatch) {
+    rows[0] = verdict("head", "fail", `${mismatch}; ${rows[0].state} ${rows[0].reason}`);
+  }
   rows.push(condition("ci", () => ciCondition(sources.checks(head), head)));
   rows.push(verdict("review coverage", "not checked", "(not built yet)"));
   rows.push(condition("threads", () => threadCondition(sources.threads())));
@@ -274,19 +293,19 @@ export function main(argv, { run = defaultRunner, stdout = process.stdout, stder
     }
     receipt = readReceipt(options.receipt);
   } catch (error) {
-    stderr.write(`merge-gate: ${error.message}\n${USAGE}\n`);
+    stderr.write(`merge-gate: ${escaped(error.message)}\n${USAGE}\n`);
     return 2;
   }
   try {
     const sources = createGateSources({ ...options, run });
     return report(check(sources, options, receipt), options.head, stdout);
   } catch (error) {
-    stderr.write(`merge-gate: internal error: ${error.message}\n`);
+    stderr.write(`merge-gate: internal error: ${escaped(error.message)}\n`);
     return 2;
   }
 }
 
 // Compare real paths: run through a symlink, argv names the link and the URL the file.
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   process.exitCode = main(process.argv.slice(2));
 }
