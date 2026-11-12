@@ -1,0 +1,13 @@
+{
+  "head": { "head": { "sha": "@HEAD@" }, "base": { "ref": "main", "sha": "@BASE@" }, "state": "open" },
+  "checks": [
+    { "name": "tests", "status": "completed", "conclusion": "success" },
+    { "name": "types", "status": "completed", "conclusion": "success" }
+  ],
+  "statuses": [],
+  "threads": [{ "id": "thread1", "isResolved": true, "isOutdated": false, "path": "src/a", "comments": { "nodes": [{ "author": { "login": "reviewer" } }] } }],
+  "reviews": [{ "user": { "login": "Review-Bot[bot]", "type": "Bot" }, "commit_id": "@HEAD@", "body": "Reviewed.", "state": "COMMENTED", "submitted_at": "2026-11-12T12:00:00Z" }],
+  "comments": [],
+  "reactions": [],
+  "suites": [{ "created_at": "2026-11-12T11:00:00Z" }]
+}

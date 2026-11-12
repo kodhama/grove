@@ -264,6 +264,66 @@ check lists it; later units of that plan build the gate on it.
   the operation. A handoff carries every such line, with its read and args.
   The operation's verdict and the exit code are unchanged.
 
+## The merge gate
+
+**The gate checks one pinned pull-request head.** Run
+`node skills/supervision-setup/scripts/merge-gate.mjs --pr <owner/repo#n> --head <sha> --bindings <path>`.
+It reads live pull-request state through `gh` and history from the local
+checkout through git. Review coverage arrives in a later unit: **a
+pull-request check currently never exits 0**, even when every checked
+condition passes.
+
+| Argument | Meaning |
+| --- | --- |
+| `--pr <owner/repo#n>` | Required; a positive pull-request number. Owner and repo use letters, digits, `_`, `.`, or `-`. |
+| `--head <sha>` | Required; a full lowercase 40- or 64-character hex commit id. Every commit-specific read uses this head. |
+| `--bindings <path>` | Required at least once; repeatable. Parsed and retained for later review coverage; not opened yet. |
+| `--receipt <path>` | Optional readable story receipt. Its single `Shipped revision:` line must name the pinned head as its first token, a full sha. |
+| `--carried <path>` | Optional carried evidence; parsed, not opened yet. |
+| `--codex-rollout <path>` | Optional, repeatable review evidence; parsed, not opened yet. |
+| `--bot <name>` | Optional, repeatable automated reviewer. Names match logins ignoring case and a trailing `[bot]`. |
+| `--bot-unavailable <name>:<reason>` | Optional, repeatable exemption with a non-empty reason on one line; a name cannot also be passed with `--bot`. |
+| `--checkout <dir>` | Optional git checkout; defaults to the working directory. |
+| `--help` | Prints usage and exits 0 only when given alone. |
+
+The report prints these lines in order, checking every condition even when
+another fails. GitHub check names, bot names and thread paths are JSON strings.
+
+- `head: pass ...` or `fail ...`: the pull request is open, its live head
+  equals `--head`, and the receipt's shipped revision agrees when given.
+- `ci: pass <n> checks passed on <sha>` or `fail ...`: every check has
+  completed with `success`, `neutral`, or `skipped`, and at least one
+  concluded `success`. No checks, all-neutral, and all-skipped fail.
+- `review coverage: not checked (not built yet)` until review coverage is implemented.
+- `threads: pass none unresolved` or `fail <n> unresolved: ...`;
+  outdated unresolved threads still block.
+- One `bot "<name>": pass ...`, `fail ...`, or `unavailable <reason>` per
+  named bot in argument order, then unnamed reviewing bots by login.
+  A non-empty review on the head, a `+1` reaction strictly after the head's
+  earliest check suite, or a comment line with `Completed` and a whole-word
+  SHA prefix of at least seven hex characters finishes a named bot.
+  An unnamed bot account that left a review fails. With none named and no
+  bot reviews: `bots: pass none named and no other bot reviewed`.
+- `attributes: warn the pull request changes a .gitattributes file, which can change how git reads its lines`
+  appears only when the whole pull-request range touches attributes.
+  Missing history instead prints `attributes: could not check ...`, asking
+  for a fetch when a commit is missing. A warning does not fail the gate.
+- `not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings`
+  states the gate's scope boundary; it is not counted in the summary.
+- `blocked <sha>: <n> failed, <m> not checked` ends every current
+  pull-request check. Once review coverage is implemented, a run that
+  passes every condition can end in `ok <sha>`.
+
+**Exit 1 wins when any condition fails.** Otherwise exit 2 means a condition
+could not be checked or remains unchecked. Transport failures print
+`<condition>: could not check (<call>: <reason>)`, including one `bots:`
+line if reviews or reactions could not be read; the other conditions still
+run. A bot's check-suite read failure appears on that bot's line. Bad
+arguments and unreadable receipt files exit 2 before any process runs, with
+`merge-gate: <reason>` and usage on stderr and no stdout. Internal errors
+exit 2 with `merge-gate: internal error: <message>` on stderr. Exit 0 is
+reserved for all conditions holding; currently only `--help` alone returns it.
+
 ## Versions
 
 **Every PR bumps `version` in both `.claude-plugin/plugin.json` and
