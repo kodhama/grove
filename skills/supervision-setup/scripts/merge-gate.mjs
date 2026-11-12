@@ -4,9 +4,9 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createGateSources, defaultRunner, TransportFailure } from "./gate-sources.mjs";
+import { LINE_BREAK } from "./pr-body-lines.mjs";
 
 const SHA = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
-const LINE_BREAK = /[\r\n\u2028\u2029]/;
 const USAGE = "Usage: merge-gate.mjs --pr <owner/repo#n> --head <sha> --bindings <path> [--bindings <path>...] [--receipt <path>] [--carried <path>] [--codex-rollout <path>...] [--bot <name>...] [--bot-unavailable <name>:<reason>...] [--checkout <dir>] [--help]";
 const SCOPE = "not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings";
 
@@ -15,20 +15,18 @@ function botKey(name) {
   return name.toLowerCase().replace(/\[bot\]$/, "");
 }
 
-/** Parse the final command line, retaining paths whose readers arrive later. */
-function readOptions(argv) {
-  if (argv.length === 1 && argv[0] === "--help") return { help: true };
-  if (argv.includes("--help")) throw new Error("--help must be the sole argument");
-  const text = { type: "string" };
-  const multiple = { ...text, multiple: true };
-  const { values, tokens } = parseArgs({ args: argv, tokens: true, options: {
-    pr: text, head: text, bindings: multiple, receipt: text, carried: text,
-    "codex-rollout": multiple, bot: multiple, "bot-unavailable": multiple, checkout: text,
-  } });
-  const pr = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)#([1-9][0-9]*)$/.exec(values.pr ?? "");
-  if (!pr) throw new Error("--pr <owner/repo#n> is required, with a positive pull-request number");
-  if (!SHA.test(values.head ?? "")) throw new Error("--head must be a full lowercase sha");
-  if (!values.bindings?.length || values.bindings.some((path) => !path)) throw new Error("--bindings <path> is required at least once");
+/** A value escaped onto one line, without its surrounding quotes. */
+function escaped(value) {
+  return JSON.stringify(value).slice(1, -1);
+}
+
+/** The condition label of one bot's row. */
+function botLabel(name) {
+  return `bot ${JSON.stringify(name)}`;
+}
+
+/** Named and unavailable bots in argument order, rejecting a name given both ways. */
+function readBots(tokens) {
   const bots = tokens.filter((token) => token.kind === "option" && ["bot", "bot-unavailable"].includes(token.name)).map((token) => {
     if (token.name === "bot") {
       if (!token.value.trim()) throw new Error("--bot needs a name");
@@ -46,6 +44,24 @@ function readOptions(argv) {
   if (bots.some((bot) => bot.reason !== null && named.has(botKey(bot.name)))) {
     throw new Error("one name cannot be both --bot and --bot-unavailable");
   }
+  return bots;
+}
+
+/** Parse the final command line, retaining paths whose readers arrive later. */
+function readOptions(argv) {
+  if (argv.length === 1 && argv[0] === "--help") return { help: true };
+  if (argv.includes("--help")) throw new Error("--help must be the sole argument");
+  const text = { type: "string" };
+  const multiple = { ...text, multiple: true };
+  const { values, tokens } = parseArgs({ args: argv, tokens: true, options: {
+    pr: text, head: text, bindings: multiple, receipt: text, carried: text,
+    "codex-rollout": multiple, bot: multiple, "bot-unavailable": multiple, checkout: text,
+  } });
+  const pr = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)#([1-9][0-9]*)$/.exec(values.pr ?? "");
+  if (!pr) throw new Error("--pr <owner/repo#n> is required, with a positive pull-request number");
+  if (!SHA.test(values.head ?? "")) throw new Error("--head must be a full lowercase sha");
+  if (!values.bindings?.length || values.bindings.some((path) => !path)) throw new Error("--bindings <path> is required at least once");
+  const bots = readBots(tokens);
   return {
     owner: pr[1], repo: pr[2], number: pr[3], head: values.head,
     bindings: values.bindings, receipt: values.receipt ?? null, carried: values.carried ?? null,
@@ -73,20 +89,25 @@ function verdict(condition, state, reason) {
   return { condition, state, reason };
 }
 
+/** A transport failure as a could-not-check verdict naming the failed call. */
+function unchecked(name, error) {
+  return verdict(name, "could not check", `(${error.call}: ${error.reason})`);
+}
+
 /** Run a condition independently, keeping transport failures separate from bugs. */
 function condition(name, check) {
   try {
     return check();
   } catch (error) {
     if (!(error instanceof TransportFailure)) throw error;
-    return verdict(name, "could not check", `(${error.call}: ${error.reason})`);
+    return unchecked(name, error);
   }
 }
 
 /** Compare the pinned head with the live pull request and optional shipped revision. */
 function headCondition(live, head, receipt) {
   const reasons = [];
-  if (live.state !== "open") reasons.push(`the pull request is ${JSON.stringify(live.state).slice(1, -1)}`);
+  if (live.state !== "open") reasons.push(`the pull request is ${escaped(live.state)}`);
   if (live.sha !== head) reasons.push(`--head ${head} is not the live head ${live.sha}`);
   if (receipt) {
     if (receipt.revision === null) reasons.push("the receipt has no single Shipped revision line with a full sha");
@@ -104,10 +125,10 @@ function ciCondition(checks, head) {
     const name = JSON.stringify(check.name);
     if (!check.completed) return [`${name} still running`];
     if (check.conclusion === null) return [`${name} completed with no conclusion`];
-    return ["success", "neutral", "skipped"].includes(check.conclusion) ? [] : [`${name} ${JSON.stringify(check.conclusion).slice(1, -1)}`];
+    return ["success", "neutral", "skipped"].includes(check.conclusion) ? [] : [`${name} ${escaped(check.conclusion)}`];
   });
   if (failures.length) return verdict("ci", "fail", failures.join(", "));
-  if (!checks.some((check) => check.completed && check.conclusion === "success")) {
+  if (!checks.some((check) => check.conclusion === "success")) {
     return verdict("ci", "fail", `no check concluded success on ${head}`);
   }
   return verdict("ci", "pass", `${checks.length} checks passed on ${head}`);
@@ -150,7 +171,7 @@ function earlierReview(reviews, head) {
 
 /** Judge a named bot in signal precedence order, reading later signals only as needed. */
 function namedBot(bot, reviews, head, signals) {
-  const name = `bot ${JSON.stringify(bot.name)}`;
+  const name = botLabel(bot.name);
   if (bot.reason !== null) return verdict(name, "unavailable", bot.reason);
   const matches = (row) => row.login !== null && botKey(row.login) === botKey(bot.name);
   const ownReviews = reviews.filter(matches);
@@ -166,7 +187,7 @@ function namedBot(bot, reviews, head, signals) {
     return verdict(name, "pass", `finished on ${head} (summary row)`);
   }
   const older = earlierReview(ownReviews, head);
-  if (older) return verdict(name, "fail", `finished only on ${JSON.stringify(older.commitId).slice(1, -1)}, not on ${head}`);
+  if (older) return verdict(name, "fail", `finished only on ${escaped(older.commitId)}, not on ${head}`);
   if (firstSuite !== null && reactions.length && reactions.every((reaction) => Date.parse(reaction.createdAt) <= Date.parse(firstSuite))) {
     return verdict(name, "fail", "its +1 reaction is not dated after the head's first check suite");
   }
@@ -185,13 +206,14 @@ function botConditions(sources, bots, head) {
     try {
       return namedBot(bot, reviews, head, signals);
     } catch (error) {
+      // A botReactions failure, like botReviews, is one `bots` line; firstSuiteAt and comments stay per bot.
       if (!(error instanceof TransportFailure) || error.call === "botReactions") throw error;
-      return verdict(`bot ${JSON.stringify(bot.name)}`, "could not check", `(${error.call}: ${error.reason})`);
+      return unchecked(botLabel(bot.name), error);
     }
   });
   const named = new Set(bots.map((bot) => botKey(bot.name)));
   const unnamed = [...new Set(reviews.filter((review) => review.type === "Bot" && review.login !== null && !named.has(botKey(review.login))).map((review) => review.login))].sort();
-  rows.push(...unnamed.map((login) => verdict(`bot ${JSON.stringify(login)}`, "fail", "left a review but was not named with --bot")));
+  rows.push(...unnamed.map((login) => verdict(botLabel(login), "fail", "left a review but was not named with --bot")));
   return rows.length ? rows : [verdict("bots", "pass", "none named and no other bot reviewed")];
 }
 
