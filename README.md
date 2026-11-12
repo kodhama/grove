@@ -297,9 +297,8 @@ lets a consuming repo name the commit it pins by its version.
   Codex in-session review it finds. The merge gate the KOD-44 plan describes
   credits a review by its arguments (the base for a full review, every
   changed markdown file for a doc review), so as planned it cannot credit a
-  Codex in-session review. KOD-44 U4 closes this per the brief: it credits
-  such a review on its read record alone, under conditions it names and
-  tests.
+  Codex in-session review. Until KOD-44 U4 records a rule for crediting such
+  a review, the gap stands.
 
 ## History
 

@@ -1795,6 +1795,9 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "A failing line is an operation's line whose state is bound-but-unused, attempted-failed or no evidence, a line saying the table or the override changed since setup read it, or a line about a saved body that reads missing, malformed or repeated; the summary line repeats them and is never counted.",
     );
     expect(text).toContain(
+      "Only an operation's line can be the excepted one: a table or override line means you rerun setup and then the check, and a body line means you fix the body and rerun the check.",
+    );
+    expect(text).toContain(
       "With two failing lines or more, or one the receipt does not name, the story is not ready: fix what fails and run the check again, or hand back blocked.",
     );
     expect(text).toContain("A check that could not run never exits 0, so a story whose check is unavailable hands back blocked.");

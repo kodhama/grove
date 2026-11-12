@@ -433,7 +433,9 @@ merged.
   bound-but-unused, attempted-failed or no evidence, a line saying the
   table or the override changed since setup read it, or a line about a
   saved body that reads missing, malformed or repeated; the summary line
-  repeats them and is never counted. With two failing lines or more, or one the receipt does not
+  repeats them and is never counted. Only an operation's line can be the
+  excepted one: a table or override line means you rerun setup and then the
+  check, and a body line means you fix the body and rerun the check. With two failing lines or more, or one the receipt does not
   name, the story is not ready: fix what fails and run the check again, or
   hand back blocked. A check that could not run never exits 0, so a story
   whose check is unavailable hands back blocked.
