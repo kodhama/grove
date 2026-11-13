@@ -304,12 +304,14 @@ also have surrounding quotes.
   outdated unresolved threads still block.
 - One `bot "<name>": pass ...`, `fail ...`, or `unavailable <reason>` per
   named bot in argument order, then unnamed reviewing bots by login.
-  Each signal must come from the named bot's `Bot` account: a non-empty
-  review on the head; a `+1` reaction on the pull request itself, strictly
+  Each signal must come from the named bot's `Bot` account: a review on
+  the head whose body is not blank; a `+1` reaction on the pull request itself, strictly
   after the head's earliest check suite; or a summary row in a top-level pull-request comment.
   The summary must contain the whole word `Completed` and the head's SHA
   on the same row: every whole-word hex token of 7 to 40 characters must be
-  a prefix of the head, with at least one token and no other SHA. The row
+  a prefix of the head, with at least one such token. A longer hex run, such
+  as a 64-character SHA, is not read as a token, so a 64-character head must
+  be named by a prefix of 7 to 40 characters. The row
   must not contain `Running` or whole-word `not`, ignoring case.
   Check suites are read only when that bot has a `+1` reaction. A valid
   summary row still passes if that check-suite read fails.
