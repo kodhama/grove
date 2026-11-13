@@ -32,9 +32,8 @@
  * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U1 and KTD3.
  */
 import { spawnSync } from "node:child_process";
-import { realpathSync } from "node:fs";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
+import { isEntry } from "./entry.mjs";
 
 const USAGE = "Usage: review-read.mjs --checkout <dir> --from <commit>";
 
@@ -111,7 +110,6 @@ export function main(argv) {
   return 0;
 }
 
-// Compare real paths: run through a symlink, argv names the link and the URL the file.
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isEntry(import.meta)) {
   process.exitCode = main(process.argv.slice(2));
 }

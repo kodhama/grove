@@ -521,12 +521,18 @@ describe("the checker runs from a plugin install, with no npm install", () => {
         f.endsWith(".mjs"),
       );
       expect(scripts).toContain("receipt-check.mjs");
-      const imports = scripts.map((f) => `await import("./supervision-setup/scripts/${f}");`);
+      const imports = scripts.filter((f) => f !== "merge-gate.mjs").map((f) => `await import("./supervision-setup/scripts/${f}");`);
       const load = spawnSync(process.execPath, ["--input-type=module", "-e", imports.join("\n")], {
         cwd: dir,
         encoding: "utf8",
       });
+      expect(load.status).toBe(0);
+      expect(load.stdout).toBe("");
       expect(load.stderr).toBe("");
+      const gate = spawnSync(process.execPath, ["supervision-setup/scripts/merge-gate.mjs"], { cwd: dir, encoding: "utf8" });
+      expect(gate.status).toBe(2);
+      expect(gate.stdout).toBe("");
+      expect(gate.stderr).toMatch(/^merge-gate: .*\nUsage: merge-gate\.mjs /);
       const run = spawnSync(process.execPath, ["supervision-setup/scripts/receipt-check.mjs"], {
         cwd: dir,
         encoding: "utf8",

@@ -34,11 +34,82 @@ const threadPage = (nodes: unknown[], more: boolean, cursor: string | null) =>
 const user = { login: "review-bot", type: "Bot" };
 const review = { user, commit_id: "abc", body: "done", state: "COMMENTED", submitted_at: "2026-11-08T12:00:00Z" };
 
+/** One complete GraphQL comment and its edit provenance. */
+function commentNode() {
+  const author = { __typename: "Bot", login: "review-bot" };
+  return { author, body: "summary", createdAt: "then", lastEditedAt: "now", editor: author,
+    userContentEdits: { totalCount: 1, nodes: [{ editor: author }] } };
+}
+
+/** A comments connection, independent of the review-threads connection. */
+function commentPage(nodes: unknown[], more = false, cursor: string | null = null) {
+  return ok({ data: { repository: { pullRequest: { comments: { nodes, pageInfo: { hasNextPage: more, endCursor: cursor } } } } } });
+}
+
 describe("gh sources", () => {
+  it("reads both comment pages and all editor fields through GraphQL", () => {
+    const raw = commentNode();
+    const human = { __typename: "User", login: "human" };
+    const s = stub([commentPage([raw], true, "next"), commentPage([{ ...raw, author: human }])]);
+    const rows = createGateSources({ ...config, run: s.run }).botComments();
+    expect(rows).toEqual([
+      { login: "review-bot", type: "Bot", body: "summary", createdAt: "then", lastEditedAt: "now", editor: { login: "review-bot", type: "Bot" },
+        edits: { totalCount: 1, editors: [{ login: "review-bot", type: "Bot" }] } },
+      { login: "human", type: "User", body: "summary", createdAt: "then", lastEditedAt: "now", editor: { login: "review-bot", type: "Bot" },
+        edits: { totalCount: 1, editors: [{ login: "review-bot", type: "Bot" }] } },
+    ]);
+    expect(s.calls).toHaveLength(2);
+    expect(s.calls[1]?.args).toContain("cursor=next");
+    for (const call of s.calls) {
+      expect(call.args[1]).toBe("graphql");
+      expect(call.args).not.toContain("--paginate");
+      const query = call.args.find((arg) => arg.startsWith("query="))!;
+      for (const field of ["comments(first: 100, after: $cursor)", "author { __typename login }", "body", "createdAt", "lastEditedAt", "editor { __typename login }", "userContentEdits(first: 100)", "totalCount", "pageInfo"]) expect(query).toContain(field);
+    }
+  });
+
+  it.each(["author", "body", "createdAt", "lastEditedAt", "editor", "userContentEdits"])("rejects a comment missing %s", (key) => {
+    const row: Record<string, any> = commentNode(); delete row[key];
+    expect(() => createGateSources({ ...config, run: stub([commentPage([row])]).run }).botComments()).toThrow(new RegExp(`botComments: missing or invalid ${key}`));
+  });
+
+  it.each([undefined, -1, 1.5, "1"])("rejects invalid comment edit count: %j", (totalCount) => {
+    const row = { ...commentNode(), userContentEdits: { totalCount, nodes: [] } };
+    expect(() => createGateSources({ ...config, run: stub([commentPage([row])]).run }).botComments()).toThrow("botComments: missing or invalid totalCount");
+  });
+
+  it.each(["nodes", "edit editor", "actor type", "actor login"])("rejects missing comment edit evidence: %s", (kind) => {
+    const row: Record<string, any> = commentNode();
+    if (kind === "nodes") delete row.userContentEdits.nodes;
+    if (kind === "edit editor") delete row.userContentEdits.nodes[0].editor;
+    if (kind === "actor type") delete row.editor.__typename;
+    if (kind === "actor login") delete row.editor.login;
+    const field = { nodes: "nodes", "edit editor": "editor", "actor type": "type", "actor login": "login" }[kind];
+    expect(() => createGateSources({ ...config, run: stub([commentPage([row])]).run }).botComments()).toThrow(`botComments: missing or invalid ${field}`);
+  });
+
+  it("normalises deleted comment author and editors", () => {
+    const row = { ...commentNode(), author: null, editor: null, userContentEdits: { totalCount: 1, nodes: [{ editor: null }] } };
+    expect(createGateSources({ ...config, run: stub([commentPage([row])]).run }).botComments()[0]).toMatchObject({
+      login: null, type: null, editor: { login: null, type: null }, edits: { totalCount: 1, editors: [{ login: null, type: null }] },
+    });
+  });
+
   it("reads the live head and base", () => {
-    const s = stub([ok({ head: { sha: "abc" }, base: { ref: "main", sha: "base-sha" }, state: "open" })]);
-    expect(createGateSources({ ...config, run: s.run }).head()).toEqual({ sha: "abc", baseRef: "main", baseSha: "base-sha", state: "open" });
+    const s = stub([ok({ head: { sha: "abc" }, base: { ref: "main", sha: "base-sha" }, state: "open", merged_at: null })]);
+    expect(createGateSources({ ...config, run: s.run }).head()).toEqual({ sha: "abc", baseRef: "main", baseSha: "base-sha", state: "open", mergedAt: null });
     expect(s.calls[0]?.args).toEqual(["api", "repos/owner/repo/pulls/44"]);
+  });
+
+  it("reads the merged timestamp", () => {
+    const mergedAt = "2026-11-13T10:00:00Z";
+    const s = stub([ok({ head: { sha: "abc" }, base: { ref: "main", sha: "base-sha" }, state: "closed", merged_at: mergedAt })]);
+    expect(createGateSources({ ...config, run: s.run }).head()).toMatchObject({ mergedAt });
+  });
+
+  it.each([undefined, false, 1, {}])("rejects malformed merged_at: %j", (merged_at) => {
+    const s = stub([ok({ head: { sha: "abc" }, base: { ref: "main", sha: "base-sha" }, state: "closed", merged_at })]);
+    expect(() => createGateSources({ ...config, run: s.run }).head()).toThrow("head: missing or invalid merged_at");
   });
 
   it("reads both thread pages without gh --paginate", () => {
@@ -109,11 +180,6 @@ describe("gh sources", () => {
       expected: { login: user.login, type: user.type, commitId: "abc", body: "done", state: "COMMENTED", submittedAt: review.submitted_at },
     },
     {
-      method: "botComments",
-      raw: { user, body: "summary", created_at: "then", updated_at: "now" },
-      expected: { login: user.login, type: user.type, body: "summary", createdAt: "then", updatedAt: "now" },
-    },
-    {
       method: "botReactions",
       raw: { user, content: "+1", created_at: "then" },
       expected: { login: user.login, type: user.type, content: "+1", createdAt: "then" },
@@ -141,7 +207,6 @@ describe("gh sources", () => {
   });
 
   it.each([
-    ["botComments", { user: null, body: "summary", created_at: "then", updated_at: "now" }],
     ["botReactions", { user: null, content: "+1", created_at: "then" }],
   ])("normalises a deleted account on %s", (method, raw) => {
     const sources = createGateSources({ ...config, run: stub([ok([raw])]).run });
@@ -188,7 +253,7 @@ describe("gh sources", () => {
       ["botReviews", [{ ...review, commit_id: undefined }]],
       ["botReviews", [{ ...review, state: undefined }]],
       ["botReviews", [{ ...review, user: undefined }]],
-      ["botComments", [{ user, body: 3, created_at: "a", updated_at: "b" }]],
+      ["botComments", JSON.parse(commentPage([{ ...commentNode(), body: 3 }]).stdout)],
       ["botReactions", [{ user, content: "+1" }]],
       ["checks", { check_runs: [{ name: "ci", status: "completed" }] }],
       ["firstSuiteAt", { check_suites: [{}] }],
