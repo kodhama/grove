@@ -1,13 +1,13 @@
-/** Check one pinned pull-request head; review coverage is reserved for the next unit. */
+/** Check one pinned pull-request head; review coverage is not built yet. */
 import { readFileSync, statSync } from "node:fs";
 import process from "node:process";
 import { parseArgs } from "node:util";
-import { createGateSources, defaultRunner, TransportFailure } from "./gate-sources.mjs";
+import { createGateSources, defaultRunner, SHA, TransportFailure } from "./gate-sources.mjs";
 import { LINE_BREAK } from "./pr-body-lines.mjs";
 
-const SHA = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
 const USAGE = "Usage: merge-gate.mjs --pr <owner/repo#n> --head <sha> --bindings <path> [--bindings <path>...] [--receipt <path>] [--carried <path>] [--codex-rollout <path>...] [--bot <login>...] [--bot-unavailable <name>:<reason>...] [--checkout <dir>] [--help]";
 const SCOPE = "not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings";
+const SUMMARY_LINE_BREAK = new RegExp(`${LINE_BREAK.source}|\\u0085`);
 
 /** The account key, ignoring case and an optional trailing bot suffix. */
 function botKey(name) {
@@ -165,7 +165,7 @@ function once(read) {
 
 /** Whether one row says Completed, never Running or not, with only head-prefix hex tokens. */
 function completedSummary(body, head) {
-  return body.split(new RegExp(`${LINE_BREAK.source}|\\u0085`)).some((line) => {
+  return body.split(SUMMARY_LINE_BREAK).some((line) => {
     if (!/\bCompleted\b/.test(line) || /Running|\bnot\b/i.test(line)) return false;
     const tokens = [...line.matchAll(/\b[a-fA-F0-9]{7,40}\b/g)];
     return tokens.length > 0 && tokens.every(([sha]) => head.startsWith(sha.toLowerCase()));
@@ -178,9 +178,14 @@ function earlierReview(reviews, head) {
     .sort((a, b) => (Date.parse(b.submittedAt) || 0) - (Date.parse(a.submittedAt) || 0))[0];
 }
 
+/** Whether a signal belongs to a Bot account that still has a login. */
+function isBotAccount(row) {
+  return row.type === "Bot" && row.login !== null;
+}
+
 /** Whether a signal belongs to the named bot's Bot account. */
 function isNamedBotAccount(row, name) {
-  return row.type === "Bot" && row.login !== null && botKey(row.login) === botKey(name);
+  return isBotAccount(row) && botKey(row.login) === botKey(name);
 }
 
 /** Why a completed summary cannot be credited to its author's own Bot account. */
@@ -234,16 +239,9 @@ function botConditions(sources, bots, head) {
     suite: once(() => sources.firstSuiteAt(head)),
     comments: once(() => sources.botComments()),
   };
-  const rows = bots.map((bot) => {
-    try {
-      return namedBot(bot, reviews, head, signals);
-    } catch (error) {
-      if (!(error instanceof TransportFailure)) throw error;
-      return unchecked(botLabel(bot.name), error);
-    }
-  });
+  const rows = bots.map((bot) => condition(botLabel(bot.name), () => namedBot(bot, reviews, head, signals)));
   const named = new Set(bots.map((bot) => botKey(bot.name)));
-  const unnamed = [...new Set(reviews.filter((review) => review.type === "Bot" && review.login !== null && !named.has(botKey(review.login))).map((review) => review.login))].sort();
+  const unnamed = [...new Set(reviews.filter((review) => isBotAccount(review) && !named.has(botKey(review.login))).map((review) => review.login))].sort();
   rows.push(...unnamed.map((login) => verdict(botLabel(login), "fail", "left a review but was not named with --bot")));
   return rows.length ? rows : [verdict("bots", "pass", "none named and no other bot reviewed")];
 }
@@ -289,10 +287,10 @@ function check(sources, options, receipt) {
 /** Print all condition lines and the summary, letting definite failures take precedence. */
 function report(rows, head, stdout) {
   const failed = rows.filter((row) => row.state === "fail").length;
-  const unchecked = rows.filter((row) => ["could not check", "not checked"].includes(row.state)).length;
-  const code = failed ? 1 : unchecked ? 2 : 0;
+  const notChecked = rows.filter((row) => ["could not check", "not checked"].includes(row.state)).length;
+  const code = failed ? 1 : notChecked ? 2 : 0;
   const lines = rows.map((row) => `${row.condition}: ${row.state} ${row.reason}`);
-  lines.push(SCOPE, code === 0 ? `ok ${head}` : `blocked ${head}: ${failed} failed, ${unchecked} not checked`);
+  lines.push(SCOPE, code === 0 ? `ok ${head}` : `blocked ${head}: ${failed} failed, ${notChecked} not checked`);
   stdout.write(lines.join("\n") + "\n");
   return code;
 }

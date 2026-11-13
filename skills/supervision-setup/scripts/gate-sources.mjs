@@ -69,7 +69,7 @@ const GIT_CONFIG = [
 ].flatMap((value) => ["-c", value]);
 const DIFF_FLAGS = ["--no-ext-diff", "--no-textconv", "--no-color", "--ignore-submodules=none", "-M"];
 const GIT_FLOOR = "git 2.39 or newer is required (git patch-id --verbatim)";
-const SHA = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
+export const SHA = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
 // Copied from Compound Engineering 3.27.0,
 // skills/ce-code-review/scripts/review-scope.py: TEST_PATTERN.
 // Its (?-i:...) class-file alternative needs a separate, case-sensitive JS regex.
@@ -388,7 +388,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
   }
 
   /** Every row of a pull-request GraphQL connection, with bounded cursor pagination. */
-  function graphqlPages(call, query, key, normalise) {
+  function graphqlPages(call, query, key, noun, normalise) {
     const out = [];
     let cursor = null;
     for (let page = 1; page <= PAGE_CAP; page++) {
@@ -400,7 +400,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
       const hasNext = field(pageInfo, "hasNextPage", "boolean", call);
       const next = nullableString(pageInfo.endCursor, "endCursor", call);
       if (!hasNext) return out;
-      if (!next || next === cursor) fail(call, `invalid next ${key === "reviewThreads" ? "thread" : "comment"} cursor`);
+      if (!next || next === cursor) fail(call, `invalid next ${noun} cursor`);
       cursor = next;
     }
     fail(call, `reached ${PAGE_CAP}-page cap`);
@@ -514,7 +514,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     },
 
     threads() {
-      return graphqlPages("threads", THREAD_QUERY, "reviewThreads", threadRow);
+      return graphqlPages("threads", THREAD_QUERY, "reviewThreads", "thread", threadRow);
     },
 
     botReviews() {
@@ -529,7 +529,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     },
 
     botComments() {
-      return graphqlPages("botComments", COMMENT_QUERY, "comments", commentRow);
+      return graphqlPages("botComments", COMMENT_QUERY, "comments", "comment", commentRow);
     },
 
     botReactions() {

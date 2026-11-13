@@ -77,12 +77,13 @@ function runner(data: Fixture, failure: string | null = null, failPath: string |
       calls.push(args);
       if (cmd === "git") return failPath === "git" ? { status: 2, stdout: "", stderr: failure } : defaultRunner(cmd, args, options);
       if (cmd !== "gh") throw new Error(`unexpected command ${cmd}`);
-      if (failure && (failPath === null || (failPath.startsWith("repos/") ? args[1] === failPath : (failPath === "botComments" ? args.some((arg) => arg.includes("comments(first: 100, after:")) : args[1]?.includes(failPath))))) return { status: 1, stdout: "", stderr: failure };
+      const commentQuery = args.some((arg) => arg.includes("comments(first: 100, after:"));
+      if (failure && (failPath === null || (failPath.startsWith("repos/") ? args[1] === failPath : (failPath === "botComments" ? commentQuery : args[1]?.includes(failPath))))) return { status: 1, stdout: "", stderr: failure };
       const path = args[1]!;
       let value: unknown;
       if (path === "graphql") {
         const second = args.includes("cursor=next");
-        const key = args.some((arg) => arg.includes("comments(first: 100, after:")) ? "comments" : "reviewThreads";
+        const key = commentQuery ? "comments" : "reviewThreads";
         const rows = key === "comments" ? data.comments : data.threads;
         const split = rows.some((row) => row.page === 2);
         const nodes = rows.filter((row) => (row.page === 2) === second);
@@ -643,8 +644,7 @@ describe("summary editor", () => {
     if (kind === "null editor") row.editor = null;
     if (kind === "null history editor") row.userContentEdits.nodes[0].editor = null;
     if (kind === "100 edits") row.userContentEdits = { totalCount: 100, nodes: Array.from({ length: 100 }, () => ({ editor: bot })) };
-    if (kind === "human history") row.userContentEdits.nodes.push({ editor: human });
-    if (kind === "human history") row.userContentEdits.totalCount = 2;
+    if (kind === "human history") { row.userContentEdits.nodes.push({ editor: human }); row.userContentEdits.totalCount = 2; }
     if (kind === "101 edits") row.userContentEdits = { totalCount: 101, nodes: Array.from({ length: 100 }, () => ({ editor: bot })) };
     if (kind === "short history") row.userContentEdits.totalCount = 2;
     if (kind === "missing lastEditedAt") delete row.lastEditedAt;
