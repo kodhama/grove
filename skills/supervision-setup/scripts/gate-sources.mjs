@@ -69,7 +69,7 @@ const GIT_CONFIG = [
 ].flatMap((value) => ["-c", value]);
 const DIFF_FLAGS = ["--no-ext-diff", "--no-textconv", "--no-color", "--ignore-submodules=none", "-M"];
 const GIT_FLOOR = "git 2.39 or newer is required (git patch-id --verbatim)";
-const SHA = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
+export const SHA = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
 // Copied from Compound Engineering 3.27.0,
 // skills/ce-code-review/scripts/review-scope.py: TEST_PATTERN.
 // Its (?-i:...) class-file alternative needs a separate, case-sensitive JS regex.
@@ -81,6 +81,20 @@ const THREAD_QUERY = `query($owner: String!, $repo: String!, $number: Int!, $cur
     pullRequest(number: $number) {
       reviewThreads(first: 100, after: $cursor) {
         nodes { id isResolved isOutdated path comments(first: 1) { nodes { author { login } } } }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}`;
+
+const COMMENT_QUERY = `query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) {
+      comments(first: 100, after: $cursor) {
+        nodes {
+          author { __typename login } body createdAt lastEditedAt editor { __typename login }
+          userContentEdits(first: 100) { totalCount nodes { editor { __typename login } } }
+        }
         pageInfo { hasNextPage endCursor }
       }
     }
@@ -135,6 +149,28 @@ function account(row, call) {
     login: field(user, "login", "string", call),
     type: field(user, "type", "string", call),
   };
+}
+
+/** The login and type of a GraphQL actor, preserving a deleted account. */
+function actor(value, name, call) {
+  if (value === null) return { login: null, type: null };
+  const row = object(value, name, call);
+  if (typeof row.__typename !== "string") fail(call, "missing or invalid type");
+  return { login: field(row, "login", "string", call), type: row.__typename };
+}
+
+/** One comment's body and complete edit evidence, without judging ownership. */
+function commentRow(row, call) {
+  const author = actor(row?.author, "author", call);
+  const body = field(row, "body", "string", call);
+  const createdAt = field(row, "createdAt", "string", call);
+  const lastEditedAt = nullableString(row.lastEditedAt, "lastEditedAt", call);
+  const editor = actor(row.editor, "editor", call);
+  const edits = object(row.userContentEdits, "userContentEdits", call);
+  const totalCount = field(edits, "totalCount", "number", call);
+  if (!Number.isSafeInteger(totalCount) || totalCount < 0) fail(call, "missing or invalid totalCount");
+  const editors = array(edits.nodes, "nodes", call).map((edit) => actor(edit?.editor, "editor", call));
+  return { ...author, body, createdAt, lastEditedAt, editor, edits: { totalCount, editors } };
 }
 
 /** The process environment without checkout redirects or diff overrides. */
@@ -276,12 +312,12 @@ function threadRow(row, call) {
   };
 }
 
-/** The reviewThreads connection inside one GraphQL page. */
-function threadConnection(response, call) {
+/** The named connection inside one pull-request GraphQL page. */
+function connection(response, key, call) {
   const data = object(response?.data, "data", call);
   const repository = object(data.repository, "repository", call);
   const pullRequest = object(repository.pullRequest, "pullRequest", call);
-  return object(pullRequest.reviewThreads, "reviewThreads", call);
+  return object(pullRequest[key], key, call);
 }
 
 /**
@@ -347,6 +383,25 @@ export function createGateSources({ checkout, owner, repo, number, run = default
       else rows = array(response, "page", call);
       out.push(...rows.map((row) => normalise(row, call)));
       if (rows.length < 100) return out;
+    }
+    fail(call, `reached ${PAGE_CAP}-page cap`);
+  }
+
+  /** Every row of a pull-request GraphQL connection, with bounded cursor pagination. */
+  function graphqlPages(call, query, key, noun, normalise) {
+    const out = [];
+    let cursor = null;
+    for (let page = 1; page <= PAGE_CAP; page++) {
+      const args = ["graphql", "-f", `query=${query}`, "-f", `owner=${owner}`, "-f", `repo=${repo}`, "-F", `number=${number}`];
+      if (cursor !== null) args.push("-f", `cursor=${cursor}`);
+      const result = connection(ghApi(call, args), key, call);
+      for (const row of array(result.nodes, "nodes", call)) out.push(normalise(row, call));
+      const pageInfo = object(result.pageInfo, "pageInfo", call);
+      const hasNext = field(pageInfo, "hasNextPage", "boolean", call);
+      const next = nullableString(pageInfo.endCursor, "endCursor", call);
+      if (!hasNext) return out;
+      if (!next || next === cursor) fail(call, `invalid next ${noun} cursor`);
+      cursor = next;
     }
     fail(call, `reached ${PAGE_CAP}-page cap`);
   }
@@ -429,6 +484,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
         baseRef: field(row.base, "ref", "string", call),
         baseSha: field(row.base, "sha", "string", call),
         state: field(row, "state", "string", call),
+        mergedAt: nullableString(row.merged_at, "merged_at", call),
       };
     },
 
@@ -458,22 +514,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     },
 
     threads() {
-      const call = "threads";
-      const out = [];
-      let cursor = null;
-      for (let page = 1; page <= PAGE_CAP; page++) {
-        const args = ["graphql", "-f", `query=${THREAD_QUERY}`, "-f", `owner=${owner}`, "-f", `repo=${repo}`, "-F", `number=${number}`];
-        if (cursor !== null) args.push("-f", `cursor=${cursor}`);
-        const connection = threadConnection(ghApi(call, args), call);
-        for (const row of array(connection.nodes, "nodes", call)) out.push(threadRow(row, call));
-        const pageInfo = object(connection.pageInfo, "pageInfo", call);
-        const hasNext = field(pageInfo, "hasNextPage", "boolean", call);
-        const next = nullableString(pageInfo.endCursor, "endCursor", call);
-        if (!hasNext) return out;
-        if (!next || next === cursor) fail(call, "invalid next thread cursor");
-        cursor = next;
-      }
-      fail(call, `reached ${PAGE_CAP}-page cap`);
+      return graphqlPages("threads", THREAD_QUERY, "reviewThreads", "thread", threadRow);
     },
 
     botReviews() {
@@ -488,13 +529,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     },
 
     botComments() {
-      const call = "botComments";
-      return pages(call, `issues/${number}/comments`, null, (row) => ({
-        ...account(row, call),
-        body: field(row, "body", "string", call),
-        createdAt: field(row, "created_at", "string", call),
-        updatedAt: field(row, "updated_at", "string", call),
-      }));
+      return graphqlPages("botComments", COMMENT_QUERY, "comments", "comment", commentRow);
     },
 
     botReactions() {

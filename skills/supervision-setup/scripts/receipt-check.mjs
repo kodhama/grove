@@ -161,10 +161,10 @@
  * KTD8 and U2; every review and what it read, KOD-44:
  * docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U2 and KTD10.
  */
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { isEntry } from "./entry.mjs";
 import { scopeCalls, sinceTime } from "./call-scope.mjs";
 import { CARRIED, readDetail, readHandoff } from "./handoff-receipt.mjs";
 import { carriedUse, creditable, hasPerformer, judge, matches, ranCalls, unqualified } from "./operation-state.mjs";
@@ -651,7 +651,6 @@ function main(argv) {
   return changed || unused || lacking ? 1 : 0;
 }
 
-// Compare real paths: run through a symlink, argv names the link and the URL the file.
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isEntry(import.meta)) {
   process.exitCode = main(process.argv.slice(2));
 }

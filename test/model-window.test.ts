@@ -20,7 +20,7 @@
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -260,6 +260,7 @@ describe("the command setup runs", () => {
       mkdirSync(join(root, "scripts"));
       mkdirSync(join(root, "references"));
       copyFileSync(SCRIPT, join(root, "scripts", "model-window.mjs"));
+      copyFileSync(join(dirname(SCRIPT), "entry.mjs"), join(root, "scripts", "entry.mjs"));
       if (table !== null) writeFileSync(join(root, "references", "claude-code-windows.json"), table);
       const run = spawnSync(process.execPath, [join(root, "scripts", "model-window.mjs"), "claude-opus-9"], {
         encoding: "utf8",

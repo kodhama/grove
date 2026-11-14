@@ -1,5 +1,5 @@
 {
-  "head": { "head": { "sha": "@HEAD@" }, "base": { "ref": "main", "sha": "@BASE@" }, "state": "open" },
+  "head": { "head": { "sha": "@HEAD@" }, "base": { "ref": "main", "sha": "@BASE@" }, "state": "open", "merged_at": null },
   "checks": [
     { "name": "tests", "status": "completed", "conclusion": "success" },
     { "name": "types", "status": "completed", "conclusion": "success" }

@@ -3,11 +3,12 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
 import { defaultRunner } from "../skills/supervision-setup/scripts/gate-sources.mjs";
 // @ts-expect-error -- no type declarations for this .mjs script
-import { main } from "../skills/supervision-setup/scripts/merge-gate.mjs";
+import { main } from "../skills/supervision-setup/scripts/merge-gate-checks.mjs";
 
 type Row = Record<string, any>;
 type Fixture = { head: Row; checks: Row[]; statuses: Row[]; threads: Row[]; reviews: Row[]; comments: Row[]; reactions: Row[]; suites: Row[] };
@@ -56,9 +57,20 @@ function fixture(sha = head, base = checkout.base): Fixture {
   return JSON.parse(ALL_HOLD.replaceAll("@HEAD@", sha).replaceAll("@BASE@", base));
 }
 
+/** An unedited GraphQL comment, including deleted and malformed account cases. */
+function comment(body: string, user: Row | null = { login: "review-bot", type: "Bot" }): Row {
+  return { author: user === null ? null : { login: user.login, __typename: user.type }, body, createdAt: "then",
+    lastEditedAt: null, editor: null, userContentEdits: { totalCount: 0, nodes: [] } };
+}
+
 /** The required arguments for a head in a checkout, with bindings that are never opened. */
 function required(sha = head, cwd = checkout.cwd) {
   return ["--pr", "owner/repo#44", "--head", sha, "--bindings", "not-opened.json", "--checkout", cwd];
+}
+
+/** Whether a run read bot comments, which go through the GraphQL comments query. */
+function readsComments(calls: string[][]) {
+  return calls.some((args) => args.some((arg) => arg.includes("comments(first: 100, after:")));
 }
 
 /** Answer by request path, never by call order; git delegates to the real source runner. */
@@ -70,14 +82,17 @@ function runner(data: Fixture, failure: string | null = null, failPath: string |
       calls.push(args);
       if (cmd === "git") return failPath === "git" ? { status: 2, stdout: "", stderr: failure } : defaultRunner(cmd, args, options);
       if (cmd !== "gh") throw new Error(`unexpected command ${cmd}`);
-      if (failure && (failPath === null || (failPath.startsWith("repos/") ? args[1] === failPath : args[1]?.includes(failPath)))) return { status: 1, stdout: "", stderr: failure };
+      const commentQuery = args.some((arg) => arg.includes("comments(first: 100, after:"));
+      if (failure && (failPath === null || (failPath.startsWith("repos/") ? args[1] === failPath : (failPath === "botComments" ? commentQuery : args[1]?.includes(failPath))))) return { status: 1, stdout: "", stderr: failure };
       const path = args[1]!;
       let value: unknown;
       if (path === "graphql") {
         const second = args.includes("cursor=next");
-        const split = data.threads.some((row) => row.page === 2);
-        const nodes = data.threads.filter((row) => (row.page === 2) === second);
-        value = { data: { repository: { pullRequest: { reviewThreads: {
+        const key = commentQuery ? "comments" : "reviewThreads";
+        const rows = key === "comments" ? data.comments : data.threads;
+        const split = rows.some((row) => row.page === 2);
+        const nodes = rows.filter((row) => (row.page === 2) === second);
+        value = { data: { repository: { pullRequest: { [key]: {
           nodes, pageInfo: { hasNextPage: split && !second, endCursor: split && !second ? "next" : null },
         } } } } };
       } else if (path === "repos/owner/repo/pulls/44") value = data.head;
@@ -85,7 +100,6 @@ function runner(data: Fixture, failure: string | null = null, failPath: string |
       else if (path.startsWith(`repos/owner/repo/commits/${sha}/status?`)) value = { statuses: data.statuses };
       else if (path.startsWith(`repos/owner/repo/commits/${sha}/check-suites?`)) value = { check_suites: data.suites };
       else if (/\/reviews\?/.test(path)) value = data.reviews;
-      else if (/\/comments\?/.test(path)) value = data.comments;
       else if (/\/reactions\?/.test(path)) value = data.reactions;
       else throw new Error(`unexpected gh path ${path}`);
       return { status: 0, stdout: JSON.stringify(value), stderr: "" };
@@ -111,7 +125,7 @@ function receipt(body: string) {
 }
 
 describe("merge gate shell", () => {
-  it("G7.1 U4a can never exit 0", async () => {
+  it("incomplete coverage never exits 0", async () => {
     const r = await gate();
     expect(r.code).toBe(2);
     expect(r.stderr).toBe("");
@@ -122,7 +136,8 @@ describe("merge gate shell", () => {
     expect(r.stdout).toContain(`ci: pass 2 checks passed on ${head}`);
     expect(r.stdout).toContain('bot "review-bot": pass');
     expect(r.calls.filter((c) => c[1] === "repos/owner/repo/pulls/44")).toHaveLength(1);
-    expect(r.calls.some((c) => /reactions|comments|check-suites/.test(c[1]!))).toBe(false);
+    expect(r.calls.some((c) => /reactions|check-suites/.test(c[1]!))).toBe(false);
+    expect(readsComments(r.calls)).toBe(false);
   });
 
   it("G7.1 a failing condition plus coverage not checked exits 1", async () => {
@@ -138,7 +153,7 @@ describe("merge gate shell", () => {
     expect(r.code).toBe(2); expect(r.stdout).toBe(""); expect(r.calls).toHaveLength(0);
   });
 
-  it("G7.2 moved live head names both commits and pins other reads", async () => {
+  it("AE4: a moved live head fails the head line", async () => {
     const data = fixture(); data.head.head.sha = OTHER;
     const r = await gate(data);
     expect(r.code).toBe(1);
@@ -199,9 +214,11 @@ describe("merge gate shell", () => {
     expect(r.stdout).toContain("attributes: could not check (needs the live base)");
   });
 
-  it("G7.5 closed pull request fails", async () => {
+  it.each(["closed", "merged"])("pull request state: %s", async (state) => {
     const data = fixture(); data.head.state = "closed";
-    const r = await gate(data); expect(r.code).toBe(1); expect(r.stdout).toContain("head: fail the pull request is closed");
+    data.head.merged_at = state === "merged" ? "2026-11-13T10:00:00Z" : null;
+    const r = await gate(data); expect(r.code).toBe(1); expect(r.stdout).toContain(`head: fail the pull request is ${state}`);
+    if (state === "merged") expect(r.stdout).not.toContain("the pull request is closed");
   });
 
   it.each([
@@ -254,14 +271,30 @@ describe("merge gate shell", () => {
 
   it("G7.8 named bot with no signal fails", async () => {
     const data = fixture(); data.reviews = [];
-    const r = await gate(data); expect(r.code).toBe(1); expect(r.stdout).toContain(`bot "review-bot": fail not finished on ${head}`);
+    const r = await gate(data); expect(r.code).toBe(1); expect(r.stdout).toContain('bot "review-bot": fail no Bot account "review-bot" reviewed, commented or reacted on this pull request');
+  });
+
+  it("bot logins have no connector alias", async () => {
+    const data = fixture(); data.reviews[0]!.user = { login: "chatgpt-codex-connector[bot]", type: "Bot" };
+    const r = await gate(data, [], { argv: [...required(), "--bot", "codex"] });
+    expect(r.stdout).toContain('bot "codex": fail no Bot account "codex" reviewed, commented or reacted on this pull request');
+    expect(r.stdout).toContain('bot "chatgpt-codex-connector[bot]": fail left a review but was not named with --bot');
+    expect(r.code).toBe(1);
+    const named = await gate(data, [], { argv: [...required(), "--bot", "CHATGPT-CODEX-CONNECTOR"] });
+    expect(named.stdout).toContain('bot "CHATGPT-CODEX-CONNECTOR": pass'); expect(named.code).toBe(2);
+  });
+
+  it("usage requests a bot login", async () => {
+    const r = await gate(fixture(), [], { argv: ["--help"] });
+    expect(r.stdout).toContain("[--bot <login>...]");
   });
 
   it("G7.8 unavailable bot prints reason without reading its signals", async () => {
     const data = fixture(); data.reviews = [];
     const r = await gate(data, [], { argv: [...required(), "--bot-unavailable", "review-bot:service down"] });
     expect(r.code).toBe(2); expect(r.stdout).toContain('bot "review-bot": unavailable service down');
-    expect(r.calls.some((c) => /reactions|comments|check-suites/.test(c[1]!))).toBe(false);
+    expect(r.calls.some((c) => /reactions|check-suites/.test(c[1]!))).toBe(false);
+    expect(readsComments(r.calls)).toBe(false);
   });
 
   it("G7.9 latest nonempty earlier review names its commit", async () => {
@@ -282,7 +315,7 @@ describe("merge gate shell", () => {
 
   it("G7.10 unnamed comments and human reviews produce no bot line", async () => {
     const data = fixture(); data.reviews.push({ ...data.reviews[0], user: { login: "human", type: "User" } });
-    data.comments = [{ user: { login: "dependency", type: "Bot" }, body: "hello", created_at: "now", updated_at: "now" }];
+    data.comments = [comment("hello", { login: "dependency", type: "Bot" })];
     const r = await gate(data); expect(r.code).toBe(2); expect(r.stdout).not.toContain('bot "human"'); expect(r.stdout).not.toContain('bot "dependency"');
   });
 
@@ -296,7 +329,6 @@ describe("merge gate shell", () => {
     for (const user of [
       { login: "human", type: "User" },
       { login: "review-bot", type: "User" },
-      { login: "review-bot", type: null },
       null,
       { login: "review-bot[bot]", type: "Bot" },
     ]) {
@@ -304,7 +336,7 @@ describe("merge gate shell", () => {
       const review = { ...data.reviews[0], user }; data.reviews = [];
       if (signal === "review") data.reviews = [review];
       if (signal === "reaction") data.reactions = [{ user, content: "+1", created_at: "2026-11-12T11:00:01Z" }];
-      if (signal === "summary") data.comments = [{ user, body: `Completed ${head.slice(0, 7)}`, created_at: "now", updated_at: "now" }];
+      if (signal === "summary") data.comments = [comment(`Completed ${head.slice(0, 7)}`, user)];
       const r = await gate(data);
       if (user?.type === "Bot") {
         expect(r.stdout).toContain('bot "review-bot": pass');
@@ -314,6 +346,21 @@ describe("merge gate shell", () => {
         expect(r.code).not.toBe(0);
       }
     }
+  });
+
+  it.each(["reaction", "summary", "review"])("null account type is a transport failure: %s", async (signal) => {
+    const data = fixture();
+    const user = { login: "review-bot", type: null };
+    const review = { ...data.reviews[0], user }; data.reviews = [];
+    if (signal === "review") data.reviews = [review];
+    if (signal === "reaction") data.reactions = [{ user, content: "+1", created_at: "2026-11-12T11:00:01Z" }];
+    if (signal === "summary") data.comments = [comment(`Completed ${head.slice(0, 7)}`, user)];
+    const r = await gate(data);
+    const call = { reaction: "botReactions", summary: "botComments", review: "botReviews" }[signal];
+    const label = signal === "review" ? "bots" : 'bot "review-bot"';
+    expect(r.stdout).toContain(`${label}: could not check (${call}: missing or invalid type)`);
+    expect(r.stdout).not.toContain('bot "review-bot": pass');
+    expect(r.code).toBe(2);
   });
 
   it("a bot heart reaction does not finish the named bot", async () => {
@@ -344,7 +391,7 @@ describe("merge gate shell", () => {
     const r = await gate(data); expect(r.code).toBe(passes ? 2 : 1);
     expect(r.stdout).toContain(passes ? "(+1 reaction after the head's first check suite)" : 'bot "review-bot": fail');
     if (kind === "before" || kind === "equal") expect(r.stdout).toContain("its +1 reaction is not dated after the head's first check suite");
-    if (passes) expect(r.calls.some((c) => /\/comments\?/.test(c[1]!))).toBe(false);
+    if (passes) expect(readsComments(r.calls)).toBe(false);
   });
 
   it.each([
@@ -355,7 +402,7 @@ describe("merge gate shell", () => {
     ["not whole word", () => `${head.slice(0, 7)}z`, "Completed", false],
   ] as const)("G7.11 summary row %s", async (_kind, sha, word, passes) => {
     const data = fixture(); data.reviews = [];
-    data.comments = [{ user: { login: "review-bot", type: "Bot" }, body: `Summary\n| ${sha()} | ${word} |`, created_at: "now", updated_at: "now" }];
+    data.comments = [comment(`Summary\n| ${sha()} | ${word} |`)];
     const r = await gate(data); expect(r.code).toBe(passes ? 2 : 1);
     expect(r.stdout).toContain(passes ? "(summary row)" : `fail not finished on ${head}`);
   });
@@ -377,13 +424,13 @@ describe("merge gate shell", () => {
     ["Completed aaaaaaa\u0085Running bbbbbbb", true],
   ] as const)("exact summary row: %j", async (body, passes) => {
     const data = fixture(OTHER); data.reviews = [];
-    data.comments = [{ user: { login: "review-bot", type: "Bot" }, body, created_at: "now", updated_at: "now" }];
+    data.comments = [comment(body)];
     const r = await gate(data, [], { sha: OTHER });
     expect(r.stdout).toContain(passes ? '(summary row)' : `bot "review-bot": fail not finished on ${OTHER}`);
     expect(r.code).toBe(passes ? 2 : 1);
   });
 
-  it("G7.12 authentication failure names every gh condition and never passes", async () => {
+  it("AE5: unauthenticated gh names every call and exits 2", async () => {
     const r = await gate(fixture(), [], { failure: "authentication required\nsecond line" });
     expect(r.code).toBe(2);
     for (const call of ["head", "checks", "threads", "botReviews"]) expect(r.stdout).toContain(`could not check (${call}: authentication required)`);
@@ -393,7 +440,7 @@ describe("merge gate shell", () => {
   it.each([
     ["botReactions", "/reactions?"],
     ["firstSuiteAt", "/check-suites?"],
-    ["botComments", "/comments?"],
+    ["botComments", "botComments"],
   ])("partial bot read failure stays on that bot: %s", async (call, failPath) => {
     const data = fixture();
     const review = data.reviews[0]!;
@@ -424,9 +471,21 @@ describe("merge gate shell", () => {
     expect(r.code).toBe(1);
   });
 
+  it("firstSuiteAt failure outranks an edited summary row", async () => {
+    const data = fixture(); data.reviews = [];
+    data.reactions = [{ user: { login: "review-bot[bot]", type: "Bot" }, content: "+1", created_at: "2026-11-12T11:00:01Z" }];
+    const row: Row = { ...comment(`Completed ${head.slice(0, 7)}`), lastEditedAt: "now", editor: { __typename: "User", login: "maintainer" },
+      userContentEdits: { totalCount: 1, nodes: [{ editor: { __typename: "User", login: "maintainer" } }] } };
+    data.comments = [row];
+    const r = await gate(data, [], { failure: "suites failed", failPath: "/check-suites?" });
+    expect(r.stdout).toContain('bot "review-bot": could not check (firstSuiteAt: suites failed)');
+    expect(r.stdout).not.toContain('bot "review-bot": fail');
+    expect(r.code).toBe(2);
+  });
+
   it("firstSuiteAt failure cannot hide a summary pass without a bot +1", async () => {
     const data = fixture(); data.reviews = [];
-    data.comments = [{ user: { login: "review-bot", type: "Bot" }, body: `Completed ${head.slice(0, 7)}`, created_at: "now", updated_at: "now" }];
+    data.comments = [comment(`Completed ${head.slice(0, 7)}`)];
     const r = await gate(data, [], { failure: "suites failed", failPath: "/check-suites?" });
     expect(r.stdout).toContain('bot "review-bot": pass');
     expect(r.stdout).toContain('(summary row)');
@@ -437,7 +496,7 @@ describe("merge gate shell", () => {
   it("firstSuiteAt failure cannot hide a summary pass with a bot +1", async () => {
     const data = fixture(); data.reviews = [];
     data.reactions = [{ user: { login: "review-bot", type: "Bot" }, content: "+1", created_at: "2026-11-12T11:00:01Z" }];
-    data.comments = [{ user: { login: "review-bot", type: "Bot" }, body: `Completed ${head.slice(0, 7)}`, created_at: "now", updated_at: "now" }];
+    data.comments = [comment(`Completed ${head.slice(0, 7)}`)];
     const r = await gate(data, [], { failure: "suites failed", failPath: "/check-suites?" });
     expect(r.stdout).toContain('bot "review-bot": pass');
     expect(r.stdout).toContain('(summary row)');
@@ -529,5 +588,101 @@ describe("merge gate shell", () => {
     const r = await gate(fixture(), [], { argv: ["--help"] });
     expect(r.code).toBe(0); expect(r.stderr).toBe(""); expect(r.calls).toHaveLength(0);
     for (const name of ["pr", "head", "bindings", "receipt", "carried", "codex-rollout", "bot", "bot-unavailable", "checkout", "help"]) expect(r.stdout).toContain(`--${name}`);
+  });
+});
+
+/** Spawn import and symlink forms without ever reaching a network-capable gate run. */
+describe("entry guards", () => {
+  it.each(["fallback link", "fallback argv link", "missing module", "runtime true", "runtime false"])("entry helper: %s", (kind) => {
+    const cwd = mkdtempSync(join(tmpdir(), "entry-helper-")); dirs.push(cwd);
+    const module = join(cwd, "module.mjs"); writeFileSync(module, "");
+    const link = join(cwd, "link.mjs"); symlinkSync(module, link);
+    const url = pathToFileURL(resolve("skills/supervision-setup/scripts/entry.mjs")).href;
+    const meta = { url: pathToFileURL(kind === "missing module" ? join(cwd, "missing") : link).href,
+      ...(kind.startsWith("runtime") ? { main: kind === "runtime true" } : {}) };
+    const code = `const { isEntry } = await import(${JSON.stringify(url)}); process.argv[1] = ${JSON.stringify(kind === "fallback argv link" ? link : module)}; process.stdout.write(String(isEntry(${JSON.stringify(meta)})));`;
+    const r = spawnSync(process.execPath, ["--input-type=module", "-e", code], { encoding: "utf8" });
+    expect(r.status, r.stderr).toBe(0); expect(r.stderr).toBe("");
+    expect(r.stdout).toBe(String(["fallback link", "fallback argv link", "runtime true"].includes(kind)));
+  });
+
+  it.each(["eval", "wrapper", "wrapper bogus", "missing argv"])("gate import runs on load: %s", (kind) => {
+    const url = pathToFileURL(resolve("skills/supervision-setup/scripts/merge-gate.mjs")).href;
+    const cwd = mkdtempSync(join(tmpdir(), "gate-import-")); dirs.push(cwd);
+    const load = `await import(${JSON.stringify(url)});`;
+    let args = ["--input-type=module", "-e", kind === "missing argv" ? `process.argv[1] = ${JSON.stringify(join(cwd, "missing"))}; ${load}` : load];
+    if (kind.startsWith("wrapper")) {
+      const wrapper = join(cwd, "wrapper.mjs");
+      writeFileSync(wrapper, load);
+      args = [wrapper, ...(kind === "wrapper bogus" ? ["--bogus"] : [])];
+    }
+    const r = spawnSync(process.execPath, args, { encoding: "utf8" });
+    expect(r.status).toBe(2);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toMatch(/^merge-gate: .+\nUsage: merge-gate\.mjs /);
+    expect(r.stderr).not.toContain("ENOENT");
+  });
+
+  it("checks module imports silently without running", () => {
+    const url = pathToFileURL(resolve("skills/supervision-setup/scripts/merge-gate-checks.mjs")).href;
+    const r = spawnSync(process.execPath, ["--input-type=module", "-e", `await import(${JSON.stringify(url)});`], { encoding: "utf8" });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toBe(""); expect(r.stderr).toBe("");
+  });
+
+  it.each(["receipt-check", "review-read", "model-window"])("older entry runs through preserved symlinks: %s", (name) => {
+    const cwd = mkdtempSync(join(tmpdir(), "older-entry-")); dirs.push(cwd);
+    cpSync(resolve("skills/supervision-setup"), join(cwd, "setup"), { recursive: true });
+    symlinkSync(join(cwd, "setup"), join(cwd, "linked"), "dir");
+    const r = spawnSync(process.execPath, ["--preserve-symlinks", "--preserve-symlinks-main", join(cwd, "linked", "scripts", `${name}.mjs`)], { encoding: "utf8" });
+    expect(r.status).toBe(2);
+    expect(r.stdout).toBe("");
+    expect(r.stderr.toLowerCase()).toContain(`usage: ${name}.mjs `);
+  });
+
+  it.each(["receipt-check", "review-read", "model-window"])("older module tolerates missing argv path: %s", (name) => {
+    const cwd = mkdtempSync(join(tmpdir(), "older-import-")); dirs.push(cwd);
+    const url = pathToFileURL(resolve(`skills/supervision-setup/scripts/${name}.mjs`)).href;
+    const code = `process.argv[1] = ${JSON.stringify(join(cwd, "missing"))}; await import(${JSON.stringify(url)});`;
+    const r = spawnSync(process.execPath, ["--input-type=module", "-e", code], { encoding: "utf8" });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toBe(""); expect(r.stderr).toBe("");
+  });
+});
+
+/** Comment provenance cases use the same completed row, changing only edit evidence. */
+describe("summary editor", () => {
+  it.each(["human", "unedited", "bot only", "100 edits", "null editor", "null history editor", "human history", "101 edits", "short history", "missing lastEditedAt", "other bot", "same-login user", "other bot history"])("summary editor: %s", async (kind) => {
+    const data = fixture(); data.reviews = [];
+    const bot = { __typename: "Bot", login: "review-bot[bot]" };
+    const human = { __typename: "User", login: "maintainer\nnext" };
+    const otherBot = { __typename: "Bot", login: "other-bot[bot]" };
+    const sameLoginUser = { __typename: "User", login: "review-bot" };
+    const row: Row = { ...comment(`Completed ${head.slice(0, 7)}`), lastEditedAt: "now", editor: bot,
+      userContentEdits: { totalCount: 1, nodes: [{ editor: bot }] } };
+    if (kind === "human") row.editor = human;
+    if (kind === "unedited") { row.lastEditedAt = null; row.editor = null; row.userContentEdits = { totalCount: 0, nodes: [] }; }
+    if (kind === "null editor") row.editor = null;
+    if (kind === "null history editor") row.userContentEdits.nodes[0].editor = null;
+    if (kind === "100 edits") row.userContentEdits = { totalCount: 100, nodes: Array.from({ length: 100 }, () => ({ editor: bot })) };
+    if (kind === "human history") { row.userContentEdits.nodes.push({ editor: human }); row.userContentEdits.totalCount = 2; }
+    if (kind === "101 edits") row.userContentEdits = { totalCount: 101, nodes: Array.from({ length: 100 }, () => ({ editor: bot })) };
+    if (kind === "short history") row.userContentEdits.totalCount = 2;
+    if (kind === "missing lastEditedAt") delete row.lastEditedAt;
+    if (kind === "other bot") row.editor = otherBot;
+    if (kind === "same-login user") row.editor = sameLoginUser;
+    if (kind === "other bot history") { row.userContentEdits.nodes.push({ editor: otherBot }); row.userContentEdits.totalCount = 2; }
+    data.comments = [row];
+    const r = await gate(data);
+    expect(readsComments(r.calls)).toBe(true);
+    if (["unedited", "bot only", "100 edits"].includes(kind)) {
+      expect(r.stdout).toContain(`bot "review-bot": pass finished on ${head} (summary row)`); expect(r.code).toBe(2);
+    } else if (kind === "missing lastEditedAt") {
+      expect(r.stdout).toContain('bot "review-bot": could not check (botComments: missing or invalid lastEditedAt)'); expect(r.code).toBe(2);
+    } else {
+      const reason = ["101 edits", "short history"].includes(kind) ? "its summary row's edits cannot all be read"
+        : `its summary row was edited by "${kind.startsWith("null") ? "unknown" : kind.startsWith("other bot") ? "other-bot[bot]" : kind === "same-login user" ? "review-bot" : "maintainer\\nnext"}"`;
+      expect(r.stdout).toContain(`bot "review-bot": fail ${reason}`); expect(r.code).toBe(1);
+    }
   });
 });

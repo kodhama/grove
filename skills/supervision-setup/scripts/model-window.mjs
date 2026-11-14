@@ -28,10 +28,11 @@
  * - any other id is unknown. Never match an id by its family: a new model
  *   gets a row once the docs give its window.
  */
-import { readFileSync, realpathSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { isEntry } from "./entry.mjs";
 
 const TABLE_NAME = "claude-code-windows.json";
 const TABLE = join(dirname(fileURLToPath(import.meta.url)), "..", "references", TABLE_NAME);
@@ -122,7 +123,6 @@ function main(args) {
   return found.context_window === null ? 1 : 0;
 }
 
-// Compare real paths: run through a symlink, argv names the link and the URL the file.
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isEntry(import.meta)) {
   process.exitCode = main(process.argv.slice(2));
 }
