@@ -353,10 +353,16 @@ also have surrounding quotes.
   for a fetch when a commit is missing. If the live head read fails, it prints
   `attributes: could not check (needs the live base)`. A warning does not fail the gate.
 - `binary paths: warn counted as text: "<path>", "<path>"` appears when
-  git reports binary rows. Non-test binary paths are re-counted as text;
-  test paths still contribute zero. The count sums each commit's additions
-  and deletions, including a resolved merge's remerge lines, rather than
-  taking the net diff. The warning does not fail the gate.
+  git reports binary rows for non-test paths, and names only those: they
+  are re-counted as text toward the count, the gate's non-test line count.
+  Binary test paths still contribute zero and get their own clause,
+  `test paths, not counted: "<path>"`, after a `; ` when both appear, or
+  alone as `binary paths: warn test paths, not counted: "<path>"`. The count
+  sums each commit's additions and deletions, including a resolved merge's
+  remerge lines, rather than taking the net diff. A pure move between two
+  non-test paths, or two test paths, counts 0, binary or text; a move from
+  a test path to a non-test path counts the whole new file. The warning does
+  not fail the gate.
 - `not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings`
   states the gate's scope boundary; it is not counted in the summary.
 - `blocked <sha>: <n> failed, <m> not checked` ends every current

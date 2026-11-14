@@ -1,8 +1,8 @@
 /** The gate judges real temporary git histories and path-keyed, offline gh answers. */
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
@@ -526,6 +526,23 @@ describe("merge gate shell", () => {
     expect(r.code).toBe(2);
     expect(r.stdout).toContain(`blocked ${sha}: 0 failed, 1 not checked`);
     expect(r.stdout).not.toMatch(/[\u2028\u2029]/);
+  });
+
+  it.each([
+    [["src/a.bin", "test/a.bin"], 'binary paths: warn counted as text: "src/a.bin"; test paths, not counted: "test/a.bin"\n'],
+    [["test/a.bin"], 'binary paths: warn test paths, not counted: "test/a.bin"\n'],
+    [["src/a.bin"], 'binary paths: warn counted as text: "src/a.bin"\n'],
+  ])("G6: the binary warning lists %j with test paths in their own clause", async (paths, line) => {
+    const repo = repository();
+    for (const path of paths) {
+      mkdirSync(join(repo.cwd, dirname(path)), { recursive: true });
+      writeFileSync(join(repo.cwd, path), "\0code\n".repeat(3));
+    }
+    const sha = repo.commit("binary paths");
+    const r = await gate(fixture(sha, repo.base), [], { cwd: repo.cwd, sha });
+    expect(r.stdout).toContain(line);
+    expect(r.stdout.match(/^binary paths:/gm)).toHaveLength(1);
+    expect(r.code).toBe(2);
   });
 
   it("G7.14 missing base commit asks to fetch it", async () => {

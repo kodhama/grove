@@ -259,7 +259,7 @@ function hiddenRemergeConflict(patch, files) {
 }
 
 /** Whether a path matches the reviewer's test patterns. */
-function isTestPath(path) {
+export function isTestPath(path) {
   return TEST_PATTERN.test(path) || TEST_CLASS_PATTERN.test(path);
 }
 
@@ -269,14 +269,18 @@ function countsTowardTotal(row) {
   return !isTestPath(row.path) || (row.oldPath !== null && !isTestPath(row.oldPath));
 }
 
-/** Added plus deleted non-test lines, recounting moves across the test boundary. */
+/**
+ * Added plus deleted non-test lines. A move across the test boundary counts
+ * its non-test side in full; a binary move between non-test paths counts
+ * only its text changes, so a pure move counts 0 as a text one does.
+ */
 function nonTestLineCount(files, recount) {
   let total = 0;
   for (const row of files) {
     const crossesBoundary = row.oldPath && isTestPath(row.oldPath) !== isTestPath(row.path);
     if (crossesBoundary) total += recount(isTestPath(row.path) ? row.oldPath : row.path);
     else if (countsTowardTotal(row)) total += row.added + row.deleted;
-    else if (row.added === null && !isTestPath(row.path)) total += recount(row.path);
+    else if (row.added === null && !isTestPath(row.path)) total += recount(row.path, row.oldPath);
   }
   return total;
 }
@@ -473,16 +477,19 @@ export function createGateSources({ checkout, owner, repo, number, run = default
   }
 
   /**
-   * Recount one non-test path as text, on its own and without renames.
+   * Recount one non-test path as text, on its own and without renames; with
+   * `oldPath`, recount that rename to `path` as one row instead.
    * Git's floor version keeps binary numstat markers with --text; its text patch
    * supplies those counts while the numstat prefix preserves binary-path evidence.
    */
-  function textLineCount(path, args, call, binaryPaths) {
+  function textLineCount(path, args, call, binaryPaths, oldPath = null) {
     const [command, ...rest] = args;
-    const out = git(call, [command, ...DIFF_FLAGS, "--text", "--numstat", "-z", "--patch", "--no-renames", ...rest, "--", `:(literal)${path}`]).stdout;
+    const paths = (oldPath === null ? [path] : [oldPath, path]).map((each) => `:(literal)${each}`);
+    const renames = oldPath === null ? ["--no-renames"] : [];
+    const out = git(call, [command, ...DIFF_FLAGS, "--text", "--numstat", "-z", "--patch", ...renames, ...rest, "--", ...paths]).stdout;
     const boundary = out.indexOf("\0\0");
     const files = [...numstatRecords(boundary < 0 ? out : out.slice(0, boundary + 1), call)];
-    if (files.length !== 1 || files[0].path !== path || files[0].oldPath !== null) fail(call, "invalid renamed file numstat");
+    if (files.length !== 1 || files[0].path !== path || files[0].oldPath !== oldPath) fail(call, "invalid renamed file numstat");
     if (files[0].added !== null) return files[0].added + files[0].deleted;
     binaryPaths.add(path);
     return patchLineCount(boundary < 0 ? "" : out.slice(boundary + 2));
@@ -591,6 +598,8 @@ export function createGateSources({ checkout, owner, repo, number, run = default
      * lists those merges and base merges with remerge rows, even tests or binary.
      * A rename from a test path to a non-test path counts the new file in full.
      * A rename into a test path counts the old non-test file in full.
+     * A rename between two non-test paths, or two test paths, counts only its
+     * changes, binary or text: a pure move counts 0.
      */
     nonTestLines(from, to, base) {
       const call = "nonTestLines";
@@ -623,10 +632,11 @@ export function createGateSources({ checkout, owner, repo, number, run = default
           if ([row.path, row.oldPath].some((path) => path?.split("/").at(-1) === ".gitattributes")) attributesTouched = true;
         }
         const recounted = new Map();
-        /** Recount each path once per commit, even when a binary row also crosses the test boundary. */
-        const recount = (path) => {
-          if (!recounted.has(path)) recounted.set(path, textLineCount(path, diffArgs, call, binaryPaths));
-          return recounted.get(path);
+        /** Recount each path or rename once per commit, even when a binary row also crosses the test boundary. */
+        const recount = (path, oldPath = null) => {
+          const key = JSON.stringify([oldPath, path]);
+          if (!recounted.has(key)) recounted.set(key, textLineCount(path, diffArgs, call, binaryPaths, oldPath));
+          return recounted.get(key);
         };
         const lines = nonTestLineCount(files, recount);
         if (listMerge) merges.push({ sha: commit.sha, lines });

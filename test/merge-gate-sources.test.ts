@@ -732,6 +732,56 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.nonTestLines(start, head, r.base).total).toBe(lines + 14);
   });
 
+  it.each([
+    ["binary", "src/x.js", "src/y.js", 0],
+    ["text", "src/x.js", "src/y.js", 0],
+    ["binary", "test/a.test.js", "src/a.js", 200],
+    ["text", "test/a.test.js", "src/a.js", 200],
+  ])("G6: counts a pure %s move from %s to %s as %i non-test lines", (kind, oldPath, newPath, lines) => {
+    const r = repo();
+    r.write(oldPath, (kind === "binary" ? "\0code\n" : "code\n") + "code\n".repeat(199));
+    const start = r.commit("original");
+    mkdirSync(dirname(join(r.cwd, newPath)), { recursive: true });
+    r.git("mv", oldPath, newPath);
+    const head = r.commit("pure move");
+    const count = kind === "binary" ? null : 0;
+    expect(r.sources.numstat(start, head)[0].files).toEqual([{ path: newPath, oldPath, added: count, deleted: count }]);
+    expect(r.sources.nonTestLines(start, head, start)).toMatchObject({
+      total: lines,
+      commits: [{ sha: head, lines }],
+      binaryPaths: kind === "binary" ? [newPath] : [],
+    });
+  });
+
+  it("G6: counts only the edited lines of a binary move between source paths", () => {
+    const r = repo();
+    const body = "\0code\n" + Array.from({ length: 199 }, (_, i) => `line ${i}\n`).join("");
+    r.write("src/x.js", body);
+    const start = r.commit("original");
+    r.git("mv", "src/x.js", "src/y.js");
+    r.write("src/y.js", body + "added\n");
+    const head = r.commit("edited move");
+    expect(r.sources.numstat(start, head)[0].files).toEqual([{ path: "src/y.js", oldPath: "src/x.js", added: null, deleted: null }]);
+    expect(r.sources.nonTestLines(start, head, start)).toMatchObject({ total: 1, binaryPaths: ["src/y.js"] });
+  });
+
+  it("G6: counts a pure binary move between source paths in a non-base merge as 0", () => {
+    const r = repo();
+    r.write("src/x.js", "\0code\n" + "code\n".repeat(199));
+    const start = r.commit("original");
+    r.git("checkout", "-b", "side");
+    r.git("mv", "src/x.js", "src/y.js");
+    r.commit("pure move");
+    r.git("checkout", "main");
+    r.git("merge", "--no-ff", "side", "-m", "side merge");
+    const merge = r.git("rev-parse", "HEAD");
+    expect(r.sources.nonTestLines(start, merge, start)).toMatchObject({
+      total: 0,
+      merges: [{ sha: merge, lines: 0 }],
+      binaryPaths: ["src/y.js"],
+    });
+  });
+
   it("recounts a test-to-source rename in a non-base merge's first-parent diff", () => {
     const r = repo();
     r.write("test/a.test.js", "code\n".repeat(200));
