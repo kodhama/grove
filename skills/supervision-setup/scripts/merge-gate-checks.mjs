@@ -255,9 +255,10 @@ function attributesCondition(sources, head, live) {
   const base = sources.mergeBase(head, live.baseSha);
   if (base === null) return verdict("attributes", "could not check", `(no merge-base of ${head} and ${escaped(live.baseSha)})`);
   const count = sources.nonTestLines(base, head, live.baseSha);
-  return count.attributesTouched
-    ? verdict("attributes", "warn", "the pull request changes a .gitattributes file, which can change how git reads its lines")
-    : null;
+  const rows = [];
+  if (count.attributesTouched) rows.push(verdict("attributes", "warn", "the pull request changes a .gitattributes file, which can change how git reads its lines"));
+  if (count.binaryPaths.length) rows.push(verdict("binary paths", "warn", `counted as text: ${count.binaryPaths.map((path) => `"${escaped(path)}"`).join(", ")}`));
+  return rows;
 }
 
 /** Evaluate each condition independently, using the same pinned head for every reader. */
@@ -280,7 +281,7 @@ function check(sources, options, receipt) {
   const botRows = condition("bots", () => botConditions(sources, bots, head));
   rows.push(...(Array.isArray(botRows) ? botRows : [botRows]));
   const attributes = condition("attributes", () => attributesCondition(sources, head, live));
-  if (attributes) rows.push(attributes);
+  if (attributes) rows.push(...(Array.isArray(attributes) ? attributes : [attributes]));
   return rows;
 }
 

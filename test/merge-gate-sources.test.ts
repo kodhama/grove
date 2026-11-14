@@ -557,7 +557,7 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.nonTestLines(start, merge, main).total).toBe(22);
   });
 
-  it("skips binary files and all test patterns, with a case-sensitive class suffix", () => {
+  it("counts binary files and skips all test patterns, with a case-sensitive class suffix", () => {
     const r = repo();
     for (const path of ["test/a", "Tests/a", "spec/a", "__tests__/a", "a.test.ts", "a-SPEC.js", "test_a.py", "conftest.py", "FooTest.java", "FooTests.kt", "FooSpec.cs"]) {
       r.write(path, "ignored\n");
@@ -566,22 +566,96 @@ describe("git sources in temporary repositories", () => {
     r.write("src/footest.java", "count\n");
     r.write("src/a", "one\ntwo\n");
     const head = r.commit("mixed");
-    expect(r.sources.nonTestLines(r.base, head, r.base)).toEqual({ total: 3, commits: [{ sha: head, lines: 3 }], merges: [], binaryPaths: ["binary"], attributesTouched: false });
+    expect(r.sources.nonTestLines(r.base, head, r.base)).toEqual({ total: 4, commits: [{ sha: head, lines: 4 }], merges: [], binaryPaths: ["binary"], attributesTouched: false });
     expect(r.sources.numstat(r.base, head)[0].files).toContainEqual({ path: "binary", oldPath: null, added: null, deleted: null });
   });
 
-  it("reports attribute-marked binary text without adding its 300 lines", () => {
+  it("G6: counts 300 attribute-marked source lines as text", () => {
     const r = repo();
-    r.write(".gitattributes", "*.mjs -diff\n");
+    r.write(".gitattributes", "src/*.mjs -diff\n");
     const start = r.commit("attributes");
     r.write("src/a.mjs", "code\n".repeat(300));
     const head = r.commit("binary text");
     expect(r.sources.nonTestLines(start, head, r.base)).toEqual({
-      total: 0,
-      commits: [{ sha: head, lines: 0 }],
+      total: 300,
+      commits: [{ sha: head, lines: 300 }],
       merges: [],
       binaryPaths: ["src/a.mjs"],
       attributesTouched: false,
+    });
+  });
+
+  it("G6: counts 300 source lines with a NUL in the first 8000 bytes", () => {
+    const r = repo();
+    r.write("src/a.mjs", "\0code\n--- source-like\n+++ target-like\n@@ header-like\n" + "code\n".repeat(296));
+    const head = r.commit("nul source");
+    expect(r.sources.nonTestLines(r.base, head, r.base)).toMatchObject({
+      total: 300, commits: [{ sha: head, lines: 300 }], binaryPaths: ["src/a.mjs"],
+    });
+  });
+
+  it("G6: counts a NUL test-to-source rename once", () => {
+    const r = repo();
+    r.write("test/a.mjs", "\0code\n" + "code\n".repeat(299));
+    const start = r.commit("nul test");
+    mkdirSync(join(r.cwd, "src"));
+    r.git("mv", "test/a.mjs", "src/a.mjs");
+    const head = r.commit("move nul source");
+    const calls: string[][] = [];
+    /** Count path-scoped recounts while using the installed floor git. */
+    const run = (cmd: string, args: string[], options: Options) => {
+      calls.push(args);
+      return spawnSync(cmd, args, { ...options, encoding: "utf8" });
+    };
+    const sources = createGateSources({ ...config, checkout: r.cwd, run });
+    expect(sources.nonTestLines(start, head, start)).toMatchObject({
+      total: 300, commits: [{ sha: head, lines: 300 }], binaryPaths: ["src/a.mjs"],
+    });
+    const recounts = calls.filter((args) => args.at(-1) === ":(literal)src/a.mjs");
+    expect(recounts).toHaveLength(1);
+    expect(recounts[0]).toContain("--text");
+  });
+
+  it("G6: excludes binary test files from the count", () => {
+    const r = repo();
+    r.write("test/a.mjs", "\0code\n" + "code\n".repeat(299));
+    const head = r.commit("nul test");
+    expect(r.sources.nonTestLines(r.base, head, r.base)).toMatchObject({
+      total: 0, commits: [{ sha: head, lines: 0 }], binaryPaths: ["test/a.mjs"],
+    });
+  });
+
+  it("G6: counts the per-commit sum 37 rather than the net diff 29", () => {
+    const r = repo();
+    r.write("src/a.mjs", Array.from({ length: 29 }, (_, i) => `line ${i}\n`).join(""));
+    const first = r.commit("29 original lines");
+    r.write("src/a.mjs", "changed 0\nchanged 1\n" + Array.from({ length: 27 }, (_, i) => `line ${i + 2}\n`).join(""));
+    const second = r.commit("replace two lines");
+    r.write("src/a.mjs", Array.from({ length: 29 }, (_, i) => `line ${i}\n`).join(""));
+    const head = r.commit("restore two lines");
+    expect(r.git("diff", "--numstat", r.base, head, "--", "src/a.mjs")).toBe("29\t0\tsrc/a.mjs");
+    expect(r.sources.nonTestLines(r.base, head, r.base)).toMatchObject({
+      total: 37, commits: [{ sha: first, lines: 29 }, { sha: second, lines: 4 }, { sha: head, lines: 4 }],
+    });
+  });
+
+  it("G6: counts a hand-resolved merge's remerge lines", () => {
+    const r = repo();
+    r.write("src/a.mjs", "start\n");
+    r.commit("source");
+    r.git("checkout", "-b", "feature");
+    r.write("src/a.mjs", "feature\n");
+    const feature = r.commit("feature");
+    r.git("checkout", "main");
+    r.write("src/a.mjs", "main\n");
+    const main = r.commit("main");
+    r.git("checkout", "feature");
+    expect(r.gitStatus("merge", "main")).toBe(1);
+    r.write("src/a.mjs", "resolved\n");
+    const merge = r.commit("resolve");
+    expect(r.sources.remergeNumstat(merge)).toEqual([{ path: "src/a.mjs", oldPath: null, added: 1, deleted: 5 }]);
+    expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
+      total: 6, commits: [{ sha: merge, lines: 6 }], merges: [{ sha: merge, lines: 6 }],
     });
   });
 
@@ -594,8 +668,8 @@ describe("git sources in temporary repositories", () => {
     r.git("merge", "--no-ff", "side", "-m", "side merge");
     const merge = r.git("rev-parse", "HEAD");
     expect(r.sources.nonTestLines(r.base, merge, r.base)).toMatchObject({
-      total: 0,
-      merges: [{ sha: merge, lines: 0 }],
+      total: 1,
+      merges: [{ sha: merge, lines: 1 }],
       binaryPaths: ["binary"],
     });
   });
@@ -900,7 +974,7 @@ describe("git sources in temporary repositories", () => {
       deleted: null,
     }]);
     expect(r.sources.nonTestLines(start, head, start)).toMatchObject({
-      total: 0,
+      total: 301,
       binaryPaths: newPath.startsWith("test/") ? [newPath, oldPath] : [newPath],
     });
   });

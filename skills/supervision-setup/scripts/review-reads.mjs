@@ -11,7 +11,8 @@
  * rollout the caller names by path. For each review call it returns one
  * record:
  *
- *   { place: "<session id> subagent agent-a1", session: "<session id>",
+ *   { thread: "<resolved transcript path>",
+ *     place: "<session id> subagent agent-a1", session: "<session id>",
  *     context: "fresh subagent", fresh: true, model: "claude-opus-5-5",
  *     at: "2026-11-08T10:01:00.000Z", skill: "compound-engineering:ce-code-review",
  *     args: "base:<sha>", outcome: "ran",
@@ -19,9 +20,14 @@
  *     read: { script: "<path>/review-read.mjs", checkout: "<dir>", from: "<commit>" } }
  *
  * The read record is the last triple before the review call in the same
- * transcript file, by the order the calls appear in it; another file's
+ * transcript file, by the order their results land in it; another file's
  * triple never counts, so a reviewer's record is its own. With none before
  * it, `head`, `clean`, `base`, `baseNamed` and `read` are null.
+ * A fork starts with no triple and returns no copied review calls. Claude's
+ * own records follow the replayed `Agent` call named by its sidecar's
+ * `toolUseId`. A Codex fork keeps only records at or above its first
+ * `session_meta.payload.subagent_history_start_ordinal`. A missing or invalid
+ * start ordinal, or a record with no valid ordinal, gives no fork records.
  *
  * What counts as the read command, and as its output:
  * - the call's whole command line, trimmed, is one invocation: `node`, or an
@@ -64,7 +70,7 @@
  *
  * `clean` is `status` 0. `baseNamed` says whether the call's `args` name the
  * recorded base and no other commit id. A hex token is 7
- * to 40 hex characters, in any case, bounded by non-word characters. The
+ * or more hex characters, in any case, bounded by non-word characters. The
  * args must hold at least one, and the base must start with every one: the
  * full sha or a prefix of it, once or more. Any other hex token, a decoy or
  * a second commit, makes it false, since the reviewer may have diffed from
@@ -93,11 +99,11 @@
  * that another caller-named rollout reaches as a child is read only in that
  * one's walk, keeping the context it has there, in whatever order the caller
  * names them; and one named twice is read once. So which records come back
- * does not depend on the order of `rollouts`; their sequence follows it,
- * after the listed transcripts'. Two named rollouts that reach each other
- * are both kept, never both dropped, so their records come back twice, as
- * do a thread's when two kept walks that do not reach each other both
- * started it. Paths are compared resolved, through symbolic links.
+ * does not depend on the order of `rollouts`. Records are de-duplicated by
+ * resolved thread path, time, skill and args, then ordered by `Date.parse(at)`.
+ * Equal times keep traversal order. Missing or unparseable times remain
+ * visible after timed records so the gate can reject them as `no time recorded`.
+ * Paths are compared resolved, through symbolic links.
  *
  * A listed transcript that is not found, a caller-named rollout that does
  * not exist, and a Codex child that was started but whose rollout is not
@@ -145,7 +151,7 @@ const NOT_ONE_EXEC = "named rollout not a single exec run";
 /** A rollout line that may record a turn's start; `records` drops such lines, so they are read apart. */
 const TASK_STARTED = /"task_started"/;
 /** A hex token in a review's arguments that may name a commit. */
-const HEX_TOKEN = /\b[0-9a-f]{7,40}\b/gi;
+const HEX_TOKEN = /\b[0-9a-f]{7,}\b/gi;
 
 /**
  * A shell line's words, unquoted: blanks separate them, and single or double
@@ -221,7 +227,7 @@ export function readTriple(text) {
 
 /**
  * Whether a review's arguments name a base and no other commit: they hold at
- * least one word-bounded hex token of 7 to 40 characters, and the base starts
+ * least one word-bounded hex token of at least seven characters, and the base starts
  * with every such token. Null with no base.
  */
 export function namesBase(args, base) {
@@ -248,26 +254,37 @@ function reviewRecord(call, triple) {
   };
 }
 
+/** Only a thread's own records: copied fork history supplies neither calls nor reads. */
+function ownRecords({ recorded, first }, sidecar = null) {
+  if (sidecar?.isFork === true || sidecar?.agentType === "fork") {
+    if (typeof sidecar.toolUseId !== "string") return [];
+    const point = recorded.findIndex((record) => claudeToolCalls(record)
+      .some((call) => call.name === "Agent" && call.id === sidecar.toolUseId));
+    return point < 0 ? [] : recorded.slice(point + 1);
+  }
+  if (first?.type !== "session_meta" || first.payload?.forked_from_id == null) return recorded;
+  const start = first.payload.subagent_history_start_ordinal;
+  if (!Number.isInteger(start) || start < 0 || recorded.some((record) => !Number.isInteger(record.ordinal) || record.ordinal < 0)) return [];
+  return recorded.filter((record) => record.ordinal >= start);
+}
+
 /**
  * The review calls in one transcript file, in order, each with the last
  * triple before it. A Claude Code call is paired with its result in the same
- * file; a fork's replay of its parent's `Agent` call (`replayed`) is skipped.
+ * file. The caller has already removed any copied fork history.
  */
-function reviewsIn(recorded, replayed) {
+function reviewsIn(recorded) {
   const results = claudeResults(recorded);
   const reviews = [];
   let triple = null;
+  const pending = new Map();
   for (const record of recorded) {
     const at = timeOf(record);
     for (const call of claudeToolCalls(record)) {
-      if (call.id === replayed) continue;
       const input = call.input ?? {};
       const result = results.get(call.id);
       const args = call.name === "Bash" ? readCommandArgs(input.command) : null;
-      if (args && result && result.is_error !== true) {
-        const read = claudeOutcome(call, result) === "ran" ? readTriple(resultText(result.content)) : null;
-        if (read) triple = { ...read, read: args };
-      }
+      if (args) pending.set(call.id, { call, args });
       if (call.name === "Skill" && typeof input.skill === "string") {
         const model = record.message?.model;
         const review = {
@@ -279,6 +296,15 @@ function reviewsIn(recorded, replayed) {
         };
         reviews.push(reviewRecord(review, triple));
       }
+    }
+    for (const result of Array.isArray(record.message?.content) ? record.message.content : []) {
+      if (result?.type !== "tool_result") continue;
+      const found = pending.get(result.tool_use_id);
+      if (!found) continue;
+      pending.delete(result.tool_use_id);
+      const read = result.is_error !== true && claudeOutcome(found.call, result) === "ran"
+        ? readTriple(resultText(result.content)) : null;
+      if (read) triple = { ...read, read: found.args };
     }
     const item = codexItem(record);
     if (item?.type !== "CommandExecution") continue;
@@ -307,9 +333,11 @@ function reviewsIn(recorded, replayed) {
  * read again.
  */
 function walk({ path, subagentDirs }, sessionId, place, rootContext, read = records(path), skip = new Set()) {
-  const { recorded } = read;
-  const tag = (where, ctx) => ({ place: where, session: sessionId, context: ctx, fresh: ctx === FRESH });
-  const parts = [reviewsIn(recorded, null).map((review) => ({ ...tag(place, rootContext), ...review }))];
+  const recorded = ownRecords(read);
+  /** One transcript's resolved identity and review context. */
+  const tag = (file, where, ctx) => ({ thread: realPath(file), place: where, session: sessionId, context: ctx, fresh: ctx === FRESH });
+  const rootTag = tag(path, place, rootContext);
+  const parts = [reviewsIn(recorded).map((review) => ({ ...rootTag, ...review }))];
   const codex = codexChildren(path, recorded);
   const children = [
     ...claudeSubagents(subagentDirs).map((file) => ({ path: file, claude: true })),
@@ -321,14 +349,16 @@ function walk({ path, subagentDirs }, sessionId, place, rootContext, read = reco
     const child = children[i];
     if (seen.has(child.path) || skip.has(realPath(child.path))) continue;
     seen.add(child.path);
-    const { recorded: childRecords, first: childFirst } = records(child.path);
+    const childRead = records(child.path);
     const sidecar = child.claude ? claudeSidecar(child.path) : null;
+    const childRecords = ownRecords(childRead, sidecar);
     const childContext = child.claude
       ? claudeContext(child.path, sidecar)
-      : codexContext(childFirst, child.starter);
+      : codexContext(childRead.first, child.starter);
     const where = subagentPlace(sessionId, childName(child.path));
-    const found = reviewsIn(childRecords, sidecar?.toolUseId ?? null);
-    parts.push(found.map((review) => ({ ...tag(where, childContext), ...review })));
+    const found = reviewsIn(childRecords);
+    const childTag = tag(child.path, where, childContext);
+    parts.push(found.map((review) => ({ ...childTag, ...review })));
     const grandchildren = codexChildren(child.path, childRecords);
     children.push(...grandchildren.found.map((file) => ({ path: file, starter: childContext })));
     for (const lost of grandchildren.missing) missing.set(lost.id, { session_id: lost.id, path: lost.path });
@@ -368,6 +398,23 @@ function namedContext(path, first) {
   const context = codexContext(first, null);
   if (context !== FRESH) return context;
   return first.payload?.source === "exec" && taskStarts(path) === 1 ? FRESH : NOT_ONE_EXEC;
+}
+
+/** Parsed review time for ordering; unknown times remain visible, after timed calls. */
+function reviewTime(review) {
+  const time = Date.parse(review.at);
+  return Number.isFinite(time) ? time : Infinity;
+}
+
+/** One record per thread, time, skill and args, ordered by parsed time with stable ties. */
+function uniqueReviews(reviews) {
+  const seen = new Set();
+  return reviews.filter((review) => {
+    const key = JSON.stringify([review.thread, review.at, review.skill, review.args]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => reviewTime(a) - reviewTime(b));
 }
 
 /**
@@ -416,7 +463,8 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     reviews.push(...walked.found.reviews);
     missing.push(...walked.found.missing);
   }
-  if (!skills) return { reviews, missing };
+  const unique = uniqueReviews(reviews);
+  if (!skills) return { reviews: unique, missing };
   const wanted = new Set(skills.map(unqualified));
-  return { reviews: reviews.filter((review) => wanted.has(unqualified(review.skill))), missing };
+  return { reviews: unique.filter((review) => wanted.has(unqualified(review.skill))), missing };
 }

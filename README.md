@@ -245,11 +245,18 @@ check lists it; later units of that plan build the gate on it.
   the Codex rollouts they started and any rollout named by path, one record
   per review call: the head, clean flag and base of the last read before it
   in the same file, whether the call's args name that base (`baseNamed`, by
-  hex commit ids only), and whether its context was fresh. A rollout named
-  by path is fresh only as one `codex exec` run. Which records come back
-  does not depend on the order rollouts are named in (their sequence
-  follows it), and a transcript or rollout that cannot be found is reported
-  as missing, never skipped.
+  hex commit ids only), and whether its context was fresh. The read counts
+  only once its result lands. A fork excludes copied calls and reads:
+  Claude records through the sidecar's replayed `Agent` call, and Codex
+  records below its own metadata's `subagent_history_start_ordinal`.
+  A Codex fork with a missing or invalid start ordinal, or records without
+  valid ordinals, supplies no review evidence. A hex token longer than a
+  full SHA makes `baseNamed` false. Each record carries its resolved
+  transcript path as `thread`; duplicates by thread, time, skill and args
+  are removed, and records sort by parsed time. Unknown times remain visible
+  for the gate's `no time recorded` rejection. A rollout named by path is
+  fresh only as one `codex exec` run. A transcript or rollout that cannot
+  be found is reported as missing, never skipped.
 - **The receipt check lists every review.** For an operation the routing
   table marks `fresh_context`, it prints one `used` line per review that
   could credit it, rather than one per operation: those a handoff carries
@@ -345,6 +352,11 @@ also have surrounding quotes.
   Missing history instead prints `attributes: could not check ...`, asking
   for a fetch when a commit is missing. If the live head read fails, it prints
   `attributes: could not check (needs the live base)`. A warning does not fail the gate.
+- `binary paths: warn counted as text: "<path>", "<path>"` appears when
+  git reports binary rows. Non-test binary paths are re-counted as text;
+  test paths still contribute zero. The count sums each commit's additions
+  and deletions, including a resolved merge's remerge lines, rather than
+  taking the net diff. The warning does not fail the gate.
 - `not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings`
   states the gate's scope boundary; it is not counted in the summary.
 - `blocked <sha>: <n> failed, <m> not checked` ends every current

@@ -516,6 +516,18 @@ describe("merge gate shell", () => {
     expect(r.code).toBe(2); expect(r.stdout).toContain("attributes: warn the pull request changes a .gitattributes file, which can change how git reads its lines");
   });
 
+  it("G6: warns with escaped binary paths without failing", async () => {
+    const repo = repository();
+    const paths = ["first\nforged", "last\"\u2028forged"];
+    for (const path of paths) writeFileSync(join(repo.cwd, path), "\0code\n".repeat(300));
+    const sha = repo.commit("binary paths");
+    const r = await gate(fixture(sha, repo.base), [], { cwd: repo.cwd, sha });
+    expect(r.stdout).toContain('binary paths: warn counted as text: "first\\nforged", "last\\"\\u2028forged"\n');
+    expect(r.code).toBe(2);
+    expect(r.stdout).toContain(`blocked ${sha}: 0 failed, 1 not checked`);
+    expect(r.stdout).not.toMatch(/[\u2028\u2029]/);
+  });
+
   it("G7.14 missing base commit asks to fetch it", async () => {
     const data = fixture(); data.head.base.sha = OTHER;
     const r = await gate(data); expect(r.code).toBe(2); expect(r.stdout).toContain(`attributes: could not check (the clone lacks ${OTHER}; fetch it)`);
