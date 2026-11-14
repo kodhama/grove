@@ -18,12 +18,15 @@
  * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U1 and KTD3.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
 import * as reviewReads from "../skills/supervision-setup/scripts/review-reads.mjs";
+
+// @ts-expect-error -- no type declarations for this .mjs script
+import { parseArgs } from "../skills/supervision-setup/scripts/review-read.mjs";
 
 const READ_SCRIPT = "skills/supervision-setup/scripts/review-read.mjs";
 const SESSION = "4e440000-0000-4000-8000-000000000001";
@@ -40,6 +43,7 @@ const REVIEW = "compound-engineering:ce-code-review";
 const READ_ARGS = { script: INSTALLED, checkout: "/Users/maintainer/work/repo", from: "origin/main" };
 
 type Review = {
+  thread: string;
   place: string;
   session: string;
   context: string;
@@ -123,6 +127,11 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
+/** A fork transcript's replay of the parent's `Agent` call, by its tool use id. */
+function agentReplay(toolUseId: unknown) {
+  return { type: "assistant", message: { content: [{ type: "tool_use", name: "Agent", id: toolUseId, input: {} }] } };
+}
+
 /** A listed session whose main transcript holds `main`, with these subagents beside it. */
 function session(main: Call[], ...subagents: Subagent[]): Listed[] {
   const dir = tempDir("review-reads-");
@@ -131,7 +140,10 @@ function session(main: Call[], ...subagents: Subagent[]): Listed[] {
   const subDir = join(dir, SESSION, "subagents");
   mkdirSync(subDir, { recursive: true });
   for (const sub of subagents) {
-    writeFileSync(join(subDir, `agent-${sub.id}.jsonl`), jsonl(claudeLines(sub.calls, sub.model)));
+    const replay = sub.sidecar?.isFork === true || sub.sidecar?.agentType === "fork"
+      ? [agentReplay(sub.sidecar.toolUseId)]
+      : [];
+    writeFileSync(join(subDir, `agent-${sub.id}.jsonl`), jsonl([...replay, ...claudeLines(sub.calls, sub.model)]));
     if (sub.sidecar) writeFileSync(join(subDir, `agent-${sub.id}.meta.json`), JSON.stringify(sub.sidecar));
   }
   return [{ session_id: SESSION, path }];
@@ -151,9 +163,11 @@ function reviewsOf(listed: Listed[], options = {}) {
 
 describe("read records from a Claude Code reviewer subagent", () => {
   it("a fresh subagent runs the read command, then the review with that base: one record", () => {
-    const reviews = reviewsOf(session([], reviewer(read(), review())));
+    const listed = session([], reviewer(read(), review()));
+    const reviews = reviewsOf(listed);
     expect(reviews).toEqual([
       {
+        thread: realpathSync(join(dirname(listed[0]!.path), SESSION, "subagents", "agent-a1.jsonl")),
         place: `${SESSION} subagent agent-a1`,
         session: SESSION,
         context: "fresh subagent",
@@ -170,6 +184,37 @@ describe("read records from a Claude Code reviewer subagent", () => {
         read: READ_ARGS,
       },
     ]);
+  });
+
+  it.each([
+    ["isFork alone", { isFork: true, toolUseId: "toolu_parent" }],
+    ["agentType fork alone", { agentType: "fork", toolUseId: "toolu_parent" }],
+    ["both markers", FORK_SIDECAR],
+  ])("a Claude fork marked by %s drops copied reviews and starts with no copied read", (_marker, sidecar) => {
+    const listed = session([], reviewer(read(), review()));
+    const folder = join(dirname(listed[0]!.path), SESSION, "subagents");
+    writeFileSync(join(folder, "agent-f1.meta.json"), JSON.stringify({ ...sidecar, parentAgentId: "a1" }));
+    writeFileSync(join(folder, "agent-f1.jsonl"), jsonl([...claudeLines([read(), review()]), agentReplay("toolu_parent"), ...claudeLines([review()])]));
+    const reviews = reviewsOf(listed);
+    expect(reviews).toHaveLength(2);
+    const fork = reviews.filter((record) => record.place.endsWith("agent-f1"));
+    expect(fork).toHaveLength(1);
+    expect(fork[0]).toMatchObject({ fresh: true, head: null, read: null });
+  });
+
+  it("a read result after a Skill call in the same message cannot supply its triple", () => {
+    const listed = session([]);
+    const lines = [
+      { type: "assistant", timestamp: "2026-11-08T10:00:00Z", message: { content: [
+        { ...bash(READ), id: "read" }, { ...skill(REVIEW, BASE), id: "review" },
+      ] } },
+      { type: "user", message: { content: [
+        { type: "tool_result", tool_use_id: "read", content: labelled() },
+        { type: "tool_result", tool_use_id: "review", content: "Launching skill" },
+      ] } },
+    ];
+    writeFileSync(listed[0]!.path, jsonl(lines));
+    expect(reviewsOf(listed)[0]).toMatchObject({ head: null, read: null });
   });
 
   it("two read outputs before one review call: the record takes the later one", () => {
@@ -214,6 +259,40 @@ describe("read records from a Claude Code reviewer subagent", () => {
     const fork = { id: "f1", sidecar: FORK_SIDECAR, calls: [read(), review()] };
     const [record] = reviewsOf(session([], fork));
     expect(record).toMatchObject({ context: "fork", fresh: false, head: HEAD, base: BASE });
+  });
+
+  it("a Claude fork whose sidecar has no toolUseId credits no read or review, even after an Agent replay with no id", () => {
+    const listed = session([]);
+    const folder = join(dirname(listed[0]!.path), SESSION, "subagents");
+    writeFileSync(join(folder, "agent-f1.meta.json"), JSON.stringify({ agentType: "fork", isFork: true }));
+    writeFileSync(join(folder, "agent-f1.jsonl"), jsonl([agentReplay(undefined), ...claudeLines([read(), review()])]));
+    expect(reviewsOf(listed)).toEqual([]);
+  });
+
+  it("a Claude fork whose toolUseId matches no Agent replay credits no read or review", () => {
+    const listed = session([]);
+    const folder = join(dirname(listed[0]!.path), SESSION, "subagents");
+    writeFileSync(join(folder, "agent-f1.meta.json"), JSON.stringify(FORK_SIDECAR));
+    writeFileSync(join(folder, "agent-f1.jsonl"), jsonl([agentReplay("toolu_other"), ...claudeLines([read(), review()])]));
+    expect(reviewsOf(listed)).toEqual([]);
+  });
+
+  it("a tool_result carried by an assistant record supplies no triple", () => {
+    const listed = session([]);
+    const lines = [
+      { type: "assistant", timestamp: "2026-11-08T10:00:00Z", message: { content: [{ ...bash(READ), id: "read" }] } },
+      { type: "assistant", timestamp: "2026-11-08T10:00:01Z", message: { content: [
+        { type: "tool_result", tool_use_id: "read", content: labelled() },
+      ] } },
+      { type: "assistant", timestamp: "2026-11-08T10:00:02Z", message: { content: [{ ...skill(REVIEW, BASE), id: "review" }] } },
+    ];
+    writeFileSync(listed[0]!.path, jsonl(lines));
+    expect(reviewsOf(listed)[0]).toMatchObject({ head: null, read: null });
+  });
+
+  it("a fresh sidecar's toolUseId does not impose a fork cutoff", () => {
+    const sub = { id: "a1", sidecar: { ...FRESH_SIDECAR, toolUseId: "toolu_parent" }, calls: [read(), review()] };
+    expect(reviewsOf(session([], sub))[0]).toMatchObject({ fresh: true, head: HEAD });
   });
 
   it("a subagent with no sidecar: not fresh", () => {
@@ -384,6 +463,10 @@ describe("the labelled lines and the base a review names", () => {
     expect(namesBase(`base:${BASE}`, null)).toBeNull();
   });
 
+  it("a 41-character hex token beside the base makes baseNamed false", () => {
+    expect(namesBase(`base:${BASE} ${"f".repeat(41)}`, BASE)).toBe(false);
+  });
+
   it("is true only when every hex token the arguments hold is a prefix of the base", () => {
     const decoy = "f".repeat(40);
     expect(namesBase(`base:${decoy} also ${BASE.slice(0, 7)}`, BASE)).toBe(false);
@@ -442,9 +525,10 @@ type Run = { source?: unknown; tasks?: number };
 function threadLines(id: string, records: unknown[], forkedFrom: string | null, run: Run) {
   const source = "source" in run ? run.source : "exec";
   const tasks = run.tasks ?? 1;
-  const payload = { id, ...(source !== undefined && { source }), ...(forkedFrom && { forked_from_id: forkedFrom }) };
+  const payload = { id, ...(source !== undefined && { source }), ...(forkedFrom && { forked_from_id: forkedFrom, subagent_history_start_ordinal: 1 }) };
   const starts = Array.from({ length: tasks }, () => TASK_STARTED);
-  return [{ type: "session_meta", payload }, ...starts.slice(0, 1), ...records, ...starts.slice(1)];
+  return [{ type: "session_meta", payload }, ...starts.slice(0, 1), ...records, ...starts.slice(1)]
+    .map((record, ordinal) => ({ ...(record as object), ordinal }));
 }
 
 /** A Codex rollout holding these records, forked from a thread when `forkedFrom` names one. */
@@ -464,12 +548,79 @@ const CODEX_REVIEW = command(
 );
 
 describe("read records from a Codex rollout", () => {
+  it("a Codex fork drops copied reviews and starts with no copied read", () => {
+    const path = rollout([], PARENT_FORK);
+    writeFileSync(path, jsonl([
+      { type: "session_meta", ordinal: 0, payload: { id: ROLLOUT_ID, forked_from_id: PARENT_FORK, subagent_history_start_ordinal: 10 } },
+      { type: "session_meta", ordinal: 0, payload: { id: PARENT_FORK } },
+      { ...TASK_STARTED, ordinal: 2 },
+      { ...command(READ, labelled()), ordinal: 3 },
+      { ...CODEX_REVIEW, ordinal: 4 },
+      { type: "event_msg", ordinal: 10, payload: { type: "thread_settings_applied" } },
+      { ...TASK_STARTED, ordinal: 11 },
+      { ...CODEX_REVIEW, ordinal: 12 },
+    ]));
+    const reviews = reviewsOf([], { rollouts: [path] });
+    expect(reviews).toHaveLength(1);
+    expect(reviews[0]).toMatchObject({ head: null, read: null });
+  });
+
+  it.each([undefined, null, -1, 1.5, "1"])("a fork with invalid start ordinal %j credits no read or review", (start) => {
+    const path = rollout([], PARENT_FORK);
+    writeFileSync(path, jsonl([
+      { type: "session_meta", ordinal: 0, payload: { id: ROLLOUT_ID, forked_from_id: PARENT_FORK, subagent_history_start_ordinal: start } },
+      { ...command(READ, labelled()), ordinal: 1 }, { ...CODEX_REVIEW, ordinal: 2 },
+    ]));
+    expect(reviewsOf([], { rollouts: [path] })).toEqual([]);
+  });
+
+  it("a fork's review at its start ordinal is credited, and one just below it is not", () => {
+    const path = rollout([], PARENT_FORK);
+    writeFileSync(path, jsonl([
+      { type: "session_meta", ordinal: 0, payload: { id: ROLLOUT_ID, forked_from_id: PARENT_FORK, subagent_history_start_ordinal: 5 } },
+      { ...command(READ, labelled()), ordinal: 3 },
+      { ...CODEX_REVIEW, timestamp: "2026-11-08T11:00:04.000Z", ordinal: 4 },
+      { ...CODEX_REVIEW, timestamp: "2026-11-08T11:00:05.000Z", ordinal: 5 },
+    ]));
+    const reviews = reviewsOf([], { rollouts: [path] });
+    expect(reviews.map((r) => r.at)).toEqual(["2026-11-08T11:00:05.000Z"]);
+    expect(reviews[0]).toMatchObject({ head: null, read: null });
+  });
+
+  it("a fork holding a record with a negative ordinal credits no read or review", () => {
+    const path = rollout([], PARENT_FORK);
+    writeFileSync(path, jsonl([
+      { type: "session_meta", ordinal: 0, payload: { id: ROLLOUT_ID, forked_from_id: PARENT_FORK, subagent_history_start_ordinal: 1 } },
+      { ...command(READ, labelled()), ordinal: -1 }, { ...CODEX_REVIEW, ordinal: 2 },
+    ]));
+    expect(reviewsOf([], { rollouts: [path] })).toEqual([]);
+  });
+
+  it("a fork whose records have no ordinal credits no read or review", () => {
+    const path = rollout([], PARENT_FORK);
+    writeFileSync(path, jsonl([
+      { type: "session_meta", payload: { id: ROLLOUT_ID, forked_from_id: PARENT_FORK, subagent_history_start_ordinal: 1 } },
+      command(READ, labelled()), CODEX_REVIEW,
+    ]));
+    expect(reviewsOf([], { rollouts: [path] })).toEqual([]);
+  });
+
+  it("a rollout with no forked_from_id needs neither a start ordinal nor record ordinals", () => {
+    const path = rollout([]);
+    writeFileSync(path, jsonl([
+      { type: "session_meta", payload: { id: ROLLOUT_ID, source: "exec" } },
+      TASK_STARTED, command(READ, labelled()), CODEX_REVIEW,
+    ]));
+    expect(reviewsOf([], { rollouts: [path] })[0]).toMatchObject({ head: HEAD, base: BASE });
+  });
+
   it("a rollout given by the caller with the read command and no forked_from_id: one fresh record", () => {
     const path = rollout([command(READ, labelled()), CODEX_REVIEW]);
     const { reviews, missing } = readReviewReads([], { rollouts: [path] });
     expect(missing).toEqual([]);
     expect(reviews).toEqual([
       {
+        thread: realpathSync(path),
         place: ROLLOUT_ID,
         session: ROLLOUT_ID,
         context: "fresh subagent",
@@ -553,6 +704,8 @@ describe("read records from a Codex rollout", () => {
 
 const CHILD_ID = "01a40000-0000-7000-8000-0000000000c1";
 const GRANDCHILD_ID = "01a40000-0000-7000-8000-0000000000c2";
+/** A second parent rollout, whose id sorts after `ROLLOUT_ID`. */
+const SECOND_ID = "01a40000-0000-7000-8000-0000000000f2";
 const PARENT_FORK = "01a40000-0000-7000-8000-0000000000aa";
 
 /** A `started` activity naming the child thread it started, as a Codex rollout records it. */
@@ -689,6 +842,25 @@ describe("read records from the Codex child threads a rollout started", () => {
     expect(places([second, first])).toEqual([two, one]);
   });
 
+  it("one child started by two listed rollouts of equal freshness: the same record in either order, the JSON-first place", () => {
+    const sessions = join(tempDir("review-reads-codex-home-"), "sessions");
+    const write = (day: string, id: string, records: unknown[], run: Run) => {
+      const folder = join(sessions, "2026", "11", day);
+      mkdirSync(folder, { recursive: true });
+      const path = join(folder, `rollout-2026-11-${day}T11-00-00-${id}.jsonl`);
+      writeFileSync(path, jsonl(threadLines(id, records, null, run)));
+      return path;
+    };
+    const first = { session_id: ROLLOUT_ID, path: write("08", ROLLOUT_ID, [started(CHILD_ID)], {}) };
+    const second = { session_id: SECOND_ID, path: write("08", SECOND_ID, [started(CHILD_ID)], {}) };
+    write("09", CHILD_ID, childReview, CHILD_RUN);
+    const firstListed = reviewsOf([first, second]);
+    const secondListed = reviewsOf([second, first]);
+    expect(firstListed).toEqual(secondListed);
+    expect(firstListed).toHaveLength(1);
+    expect(firstListed[0]).toMatchObject({ place: `${ROLLOUT_ID} subagent ${CHILD_ID}`, session: ROLLOUT_ID, fresh: true, head: HEAD });
+  });
+
   it("a listed child and the caller-named rollout that started it: the child is read once, as listed", () => {
     const child = { id: CHILD_ID, records: childReview };
     const path = codexHome([started(CHILD_ID)], null, child);
@@ -697,15 +869,40 @@ describe("read records from the Codex child threads a rollout started", () => {
     expect(reviews.map((r) => [r.place, r.context])).toEqual([[CHILD_ID, "main session"]]);
   });
 
-  it("two caller-named rollouts that reach each other: both kept, never both dropped", () => {
+  it("two caller-named rollouts that reach each other: one record per call", () => {
     const child = { id: CHILD_ID, records: [...childReview, started(ROLLOUT_ID)] };
     const path = codexHome([started(CHILD_ID)], null, child);
     const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
     for (const rollouts of [[path, childPath], [childPath, path]]) {
-      const places = reviewsOf([], { rollouts }).map((r) => r.place);
-      expect(places).toContain(CHILD_ID);
-      expect(places).toContain(`${ROLLOUT_ID} subagent ${CHILD_ID}`);
+      const reviews = reviewsOf([], { rollouts });
+      expect(reviews).toHaveLength(1);
+      expect(reviews[0]?.thread).toBe(realpathSync(childPath));
     }
+  });
+
+  it("two caller-named rollouts that reach each other: the not-fresh duplicate wins, in either order", () => {
+    const child = { id: CHILD_ID, records: [...childReview, started(ROLLOUT_ID)] };
+    const path = codexHome([started(CHILD_ID)], null, child);
+    const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
+    const parentFirst = reviewsOf([], { rollouts: [path, childPath] });
+    const childFirst = reviewsOf([], { rollouts: [childPath, path] });
+    expect(parentFirst).toEqual(childFirst);
+    expect(parentFirst).toHaveLength(1);
+    expect(parentFirst[0]).toMatchObject({ thread: realpathSync(childPath), context: "named rollout not a single exec run", fresh: false });
+  });
+
+  it.each([
+    ["the main session", true],
+    ["a forked caller-named rollout", false],
+  ])("a fork whose starter chain reaches no fresh thread, under %s: not fresh, down to a grandchild", (_what, listed) => {
+    const child = { id: CHILD_ID, records: [...childReview, started(GRANDCHILD_ID)], forkedFrom: ROLLOUT_ID };
+    const grandchild = { id: GRANDCHILD_ID, records: childReview, forkedFrom: CHILD_ID };
+    const path = codexHome([started(CHILD_ID)], listed ? null : PARENT_FORK, child, grandchild);
+    const reviews = listed ? reviewsOf([{ session_id: ROLLOUT_ID, path }]) : reviewsOf([], { rollouts: [path] });
+    expect(reviews.map((r) => [r.place, r.context, r.fresh])).toEqual([
+      [`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fork", false],
+      [`${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, "fork", false],
+    ]);
   });
 
   it("a child with a forked_from_id under the main session: a fork, not fresh", () => {
@@ -723,11 +920,58 @@ describe("read records from the Codex child threads a rollout started", () => {
   });
 });
 
+describe("review record identity and time", () => {
+  it("each review carries its resolved thread, including through a symlink", () => {
+    const path = rollout([CODEX_REVIEW]);
+    const alias = join(tempDir("review-reads-alias-"), "alias.jsonl");
+    symlinkSync(path, alias);
+    expect(reviewsOf([], { rollouts: [alias] })[0]?.thread).toBe(realpathSync(path));
+  });
+
+  it("orders records by parsed time, even across timestamp offsets and reversed arrays", () => {
+    const later = { ...CODEX_REVIEW, timestamp: "2026-11-08T10:00:00-02:00" };
+    const earlier = { ...CODEX_REVIEW, timestamp: "2026-11-08T11:00:00Z" };
+    const path = rollout([later, earlier]);
+    expect(reviewsOf([], { rollouts: [path] }).map((r) => r.at)).toEqual([earlier.timestamp, later.timestamp]);
+  });
+
+  it("de-duplicates by thread, time, skill and args, retaining differences in each key", () => {
+    const listed = session([]);
+    const calls: Call[] = [review(), review(), review(OTHER), review(BASE, "ce-doc-review"), review()];
+    const lines = claudeLines(calls).map((record, i) => ({
+      ...(record as object), timestamp: i < 8 ? "2026-11-08T10:00:00Z" : "2026-11-08T10:01:00Z",
+    }));
+    writeFileSync(listed[0]!.path, jsonl(lines));
+    expect(reviewsOf([...listed, ...listed])).toHaveLength(4);
+    const second = session([]);
+    writeFileSync(second[0]!.path, jsonl(lines));
+    expect(reviewsOf([...listed, ...second])).toHaveLength(8);
+  });
+
+  it("orders timed records by time, then untimed ones after them in file order", () => {
+    const untimedFirst = { ...CODEX_REVIEW, timestamp: "not a time" };
+    const later = { ...CODEX_REVIEW, timestamp: "2026-11-08T11:00:02Z" };
+    const untimedSecond = { ...CODEX_REVIEW, timestamp: undefined };
+    const earlier = { ...CODEX_REVIEW, timestamp: "2026-11-08T11:00:01Z" };
+    const path = rollout([untimedFirst, later, untimedSecond, earlier]);
+    expect(reviewsOf([], { rollouts: [path] }).map((r) => r.at)).toEqual([earlier.timestamp, later.timestamp, "not a time", null]);
+  });
+
+  it("keeps an unparseable time visible for the gate to reject", () => {
+    const path = rollout([{ ...CODEX_REVIEW, timestamp: "not a time" }]);
+    expect(reviewsOf([], { rollouts: [path] })[0]?.at).toBe("not a time");
+  });
+});
+
 describe("missing transcripts", () => {
   it("a transcript that is listed but missing is reported for the caller to turn into exit 2", () => {
     const path = "/Users/maintainer/.claude/projects/-gone/4e440000-0000-4000-8000-0000000000ff.jsonl";
     const listed = [{ session_id: "4e440000-0000-4000-8000-0000000000ff", path }];
     expect(readReviewReads(listed)).toEqual({ reviews: [], missing: listed });
+  });
+
+  it("a caller-named rollout path that is a folder rethrows EISDIR", () => {
+    expect(() => readReviewReads([], { rollouts: [tempDir("review-reads-folder-")] })).toThrow(expect.objectContaining({ code: "EISDIR" }));
   });
 
   it("a rollout given by the caller that is missing is reported too", () => {
@@ -832,6 +1076,29 @@ describe("the read command against a git checkout", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toMatch(/review-read:/);
     expect(result.stdout).not.toMatch(/^(head|status|base) /m);
+  });
+
+  it.each(["--checkout", "--from"])("parseArgs rejects a repeated %s flag", (flag) => {
+    expect(parseArgs(["--checkout", ".", "--from", "main", flag, "value"])).toEqual({ error: `${flag} given twice` });
+  });
+
+  it.each(["--checkout", "--from"])("parseArgs rejects an empty %s value", (flag) => {
+    expect(parseArgs(flag === "--checkout" ? [flag, "", "--from", "main"] : ["--checkout", ".", flag, ""])).toEqual({ error: `${flag} needs a value` });
+  });
+
+  it("an orphan --from has no merge-base: exit 1 with no labelled line", () => {
+    const { dir } = repo();
+    git(dir, "checkout", "--orphan", "orphan");
+    git(dir, "rm", "-rf", ".");
+    writeFileSync(join(dir, "orphan.txt"), "orphan\n");
+    git(dir, "add", ".");
+    git(dir, "commit", "-q", "-m", "orphan");
+    const orphan = git(dir, "rev-parse", "HEAD");
+    git(dir, "checkout", "feature");
+    const result = run("--checkout", dir, "--from", orphan);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/review-read: no merge-base/);
+    expect(result.stdout).toBe("");
   });
 
   it("a missing flag: exit 2, no labelled line", () => {

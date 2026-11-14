@@ -245,11 +245,27 @@ check lists it; later units of that plan build the gate on it.
   the Codex rollouts they started and any rollout named by path, one record
   per review call: the head, clean flag and base of the last read before it
   in the same file, whether the call's args name that base (`baseNamed`, by
-  hex commit ids only), and whether its context was fresh. A rollout named
-  by path is fresh only as one `codex exec` run. Which records come back
-  does not depend on the order rollouts are named in (their sequence
-  follows it), and a transcript or rollout that cannot be found is reported
-  as missing, never skipped.
+  hex commit ids only), and whether its context was fresh. On Claude Code
+  the read counts only once its `tool_result` lands in a `user` record; on
+  Codex, only once its command execution completes. A fork excludes copied
+  calls and reads. A Claude fork keeps only the records after the replayed
+  `Agent` call its sidecar's `toolUseId` names; a fork sidecar with no
+  `toolUseId`, or one no replayed `Agent` call matches, supplies no review
+  evidence (fail closed). A Codex fork drops records below its own
+  metadata's `subagent_history_start_ordinal`; one with a missing or
+  invalid start ordinal, or any record without a valid ordinal, supplies no
+  review evidence. A hex token longer than a full SHA makes `baseNamed`
+  false. Each record carries its resolved transcript path as `thread`;
+  duplicates by thread, time, skill and args are removed, the not-fresh one
+  surviving when they disagree, and records sort by parsed time. Unknown
+  times remain visible, after the timed records, for the planned coverage
+  check's `no time recorded` rejection, which is not built yet. A Codex fork
+  reached as a child inherits the freshness of the thread that started it.
+  A rollout named by path and read on its own is fresh only as one
+  `codex exec` run, so a named fork read on its own never is. A named fork
+  listed beside its fresh named parent is read inside that parent's walk
+  and inherits its freshness. A transcript or rollout that cannot be found
+  is reported as missing, never skipped.
 - **The receipt check lists every review.** For an operation the routing
   table marks `fresh_context`, it prints one `used` line per review that
   could credit it, rather than one per operation: those a handoff carries
@@ -345,6 +361,26 @@ also have surrounding quotes.
   Missing history instead prints `attributes: could not check ...`, asking
   for a fetch when a commit is missing. If the live head read fails, it prints
   `attributes: could not check (needs the live base)`. A warning does not fail the gate.
+- `binary paths: warn counted as text: "<path>", "<path>"` appears when
+  git reads a non-test path as binary, and names only those: they
+  are re-counted as text toward the count, the gate's non-test line count.
+  No current line prints the count; the planned review coverage reads it.
+  Binary test paths get their own clause, `test paths, not counted: "<path>"`,
+  after a `; ` when both appear, or alone as
+  `binary paths: warn test paths, not counted: "<path>"`. They contribute
+  zero, except a move into a test path (below). The count sums each
+  commit's additions and deletions rather than taking the net diff. A
+  two-parent merge from the base branch counts its remerge lines, unless a
+  conflict in it has no remerge row; any other merge counts its
+  first-parent diff. A pure move between two non-test paths, or two test
+  paths, counts 0, binary or text. A move from a test path to a non-test
+  path counts the whole new file. A move from a non-test
+  path into a test path counts the whole old file. When that move is
+  binary, its new test path shows under `test paths, not counted`, and
+  its old path, re-counted in full, shows under `counted as text`, since
+  git still reads it as binary:
+  `binary paths: warn counted as text: "src/a.bin"; test paths, not counted: "test/a.bin"`.
+  The warning does not fail the gate.
 - `not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings`
   states the gate's scope boundary; it is not counted in the summary.
 - `blocked <sha>: <n> failed, <m> not checked` ends every current

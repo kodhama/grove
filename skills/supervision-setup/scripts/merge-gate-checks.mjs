@@ -2,7 +2,7 @@
 import { readFileSync, statSync } from "node:fs";
 import process from "node:process";
 import { parseArgs } from "node:util";
-import { createGateSources, defaultRunner, SHA, TransportFailure } from "./gate-sources.mjs";
+import { createGateSources, defaultRunner, isTestPath, SHA, TransportFailure } from "./gate-sources.mjs";
 import { LINE_BREAK } from "./pr-body-lines.mjs";
 
 const USAGE = "Usage: merge-gate.mjs --pr <owner/repo#n> --head <sha> --bindings <path> [--bindings <path>...] [--receipt <path>] [--carried <path>] [--codex-rollout <path>...] [--bot <login>...] [--bot-unavailable <name>:<reason>...] [--checkout <dir>] [--help]";
@@ -255,9 +255,22 @@ function attributesCondition(sources, head, live) {
   const base = sources.mergeBase(head, live.baseSha);
   if (base === null) return verdict("attributes", "could not check", `(no merge-base of ${head} and ${escaped(live.baseSha)})`);
   const count = sources.nonTestLines(base, head, live.baseSha);
-  return count.attributesTouched
-    ? verdict("attributes", "warn", "the pull request changes a .gitattributes file, which can change how git reads its lines")
-    : null;
+  const rows = [];
+  if (count.attributesTouched) rows.push(verdict("attributes", "warn", "the pull request changes a .gitattributes file, which can change how git reads its lines"));
+  const binary = binaryClauses(count.binaryPaths);
+  if (binary) rows.push(verdict("binary paths", "warn", binary));
+  return rows;
+}
+
+/** The binary warning: the re-counted non-test paths, then the test paths, which count 0. */
+function binaryClauses(paths) {
+  const quoted = (list) => list.map((path) => `"${escaped(path)}"`).join(", ");
+  const tests = paths.filter(isTestPath);
+  const counted = paths.filter((path) => !isTestPath(path));
+  return [
+    counted.length ? `counted as text: ${quoted(counted)}` : null,
+    tests.length ? `test paths, not counted: ${quoted(tests)}` : null,
+  ].filter(Boolean).join("; ");
 }
 
 /** Evaluate each condition independently, using the same pinned head for every reader. */
@@ -280,7 +293,7 @@ function check(sources, options, receipt) {
   const botRows = condition("bots", () => botConditions(sources, bots, head));
   rows.push(...(Array.isArray(botRows) ? botRows : [botRows]));
   const attributes = condition("attributes", () => attributesCondition(sources, head, live));
-  if (attributes) rows.push(attributes);
+  rows.push(...(Array.isArray(attributes) ? attributes : [attributes]));
   return rows;
 }
 
