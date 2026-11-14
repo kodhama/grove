@@ -186,10 +186,14 @@ describe("read records from a Claude Code reviewer subagent", () => {
     ]);
   });
 
-  it("a Claude fork drops copied reviews and starts with no copied read", () => {
+  it.each([
+    ["isFork alone", { isFork: true, toolUseId: "toolu_parent" }],
+    ["agentType fork alone", { agentType: "fork", toolUseId: "toolu_parent" }],
+    ["both markers", FORK_SIDECAR],
+  ])("a Claude fork marked by %s drops copied reviews and starts with no copied read", (_marker, sidecar) => {
     const listed = session([], reviewer(read(), review()));
     const folder = join(dirname(listed[0]!.path), SESSION, "subagents");
-    writeFileSync(join(folder, "agent-f1.meta.json"), JSON.stringify({ ...FORK_SIDECAR, parentAgentId: "a1" }));
+    writeFileSync(join(folder, "agent-f1.meta.json"), JSON.stringify({ ...sidecar, parentAgentId: "a1" }));
     writeFileSync(join(folder, "agent-f1.jsonl"), jsonl([...claudeLines([read(), review()]), agentReplay("toolu_parent"), ...claudeLines([review()])]));
     const reviews = reviewsOf(listed);
     expect(reviews).toHaveLength(2);
@@ -700,6 +704,8 @@ describe("read records from a Codex rollout", () => {
 
 const CHILD_ID = "01a40000-0000-7000-8000-0000000000c1";
 const GRANDCHILD_ID = "01a40000-0000-7000-8000-0000000000c2";
+/** A second parent rollout, whose id sorts after `ROLLOUT_ID`. */
+const SECOND_ID = "01a40000-0000-7000-8000-0000000000f2";
 const PARENT_FORK = "01a40000-0000-7000-8000-0000000000aa";
 
 /** A `started` activity naming the child thread it started, as a Codex rollout records it. */
@@ -834,6 +840,25 @@ describe("read records from the Codex child threads a rollout started", () => {
     const two = `${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`;
     expect(places([first, second])).toEqual([one, two]);
     expect(places([second, first])).toEqual([two, one]);
+  });
+
+  it("one child started by two listed rollouts of equal freshness: the same record in either order, the JSON-first place", () => {
+    const sessions = join(tempDir("review-reads-codex-home-"), "sessions");
+    const write = (day: string, id: string, records: unknown[], run: Run) => {
+      const folder = join(sessions, "2026", "11", day);
+      mkdirSync(folder, { recursive: true });
+      const path = join(folder, `rollout-2026-11-${day}T11-00-00-${id}.jsonl`);
+      writeFileSync(path, jsonl(threadLines(id, records, null, run)));
+      return path;
+    };
+    const first = { session_id: ROLLOUT_ID, path: write("08", ROLLOUT_ID, [started(CHILD_ID)], {}) };
+    const second = { session_id: SECOND_ID, path: write("08", SECOND_ID, [started(CHILD_ID)], {}) };
+    write("09", CHILD_ID, childReview, CHILD_RUN);
+    const firstListed = reviewsOf([first, second]);
+    const secondListed = reviewsOf([second, first]);
+    expect(firstListed).toEqual(secondListed);
+    expect(firstListed).toHaveLength(1);
+    expect(firstListed[0]).toMatchObject({ place: `${ROLLOUT_ID} subagent ${CHILD_ID}`, session: ROLLOUT_ID, fresh: true, head: HEAD });
   });
 
   it("a listed child and the caller-named rollout that started it: the child is read once, as listed", () => {
