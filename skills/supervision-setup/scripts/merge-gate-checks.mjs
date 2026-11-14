@@ -218,8 +218,8 @@ function namedBot(bot, reviews, head, signals) {
   const summaries = ownComments.filter((comment) => completedSummary(comment.body, head));
   const editFailures = summaries.map((comment) => summaryEditFailure(comment, bot.name));
   if (editFailures.includes(null)) return verdict(name, "pass", `finished on ${head} (summary row)`);
-  if (editFailures.length) return verdict(name, "fail", editFailures[0]);
   if (suiteRead) return suiteRead;
+  if (editFailures.length) return verdict(name, "fail", editFailures[0]);
   const older = earlierReview(ownReviews, head);
   if (older) return verdict(name, "fail", `finished only on ${escaped(older.commitId)}, not on ${head}`);
   if (firstSuite !== null && reactions.length && reactions.every((reaction) => Date.parse(reaction.createdAt) <= Date.parse(firstSuite))) {

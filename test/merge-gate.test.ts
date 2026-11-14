@@ -471,6 +471,18 @@ describe("merge gate shell", () => {
     expect(r.code).toBe(1);
   });
 
+  it("firstSuiteAt failure outranks an edited summary row", async () => {
+    const data = fixture(); data.reviews = [];
+    data.reactions = [{ user: { login: "review-bot[bot]", type: "Bot" }, content: "+1", created_at: "2026-11-12T11:00:01Z" }];
+    const row: Row = { ...comment(`Completed ${head.slice(0, 7)}`), lastEditedAt: "now", editor: { __typename: "User", login: "maintainer" },
+      userContentEdits: { totalCount: 1, nodes: [{ editor: { __typename: "User", login: "maintainer" } }] } };
+    data.comments = [row];
+    const r = await gate(data, [], { failure: "suites failed", failPath: "/check-suites?" });
+    expect(r.stdout).toContain('bot "review-bot": could not check (firstSuiteAt: suites failed)');
+    expect(r.stdout).not.toContain('bot "review-bot": fail');
+    expect(r.code).toBe(2);
+  });
+
   it("firstSuiteAt failure cannot hide a summary pass without a bot +1", async () => {
     const data = fixture(); data.reviews = [];
     data.comments = [comment(`Completed ${head.slice(0, 7)}`)];

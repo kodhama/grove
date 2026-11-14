@@ -273,9 +273,11 @@ checkout through git. Review coverage arrives in a later unit: **a
 pull-request check currently never exits 0**, even when every checked
 condition passes.
 
-`merge-gate.mjs` runs on every load, including when a wrapper imports it.
+`merge-gate.mjs` runs on every load, including when a wrapper imports it:
+it then parses the wrapper's own arguments and sets the wrapper's exit code.
 Import `main` from `merge-gate-checks.mjs` for an injected runner without
-starting the command. The other importable commands use the runtime's entry
+starting the command; `main` returns the exit code and does not set
+`process.exitCode`, so a wrapper must exit with what it returns. The other importable commands use the runtime's entry
 flag or compare the realpaths of both the command and module; a missing
 path is treated as an import.
 
@@ -288,7 +290,7 @@ path is treated as an import.
 | `--carried <path>` | Optional carried evidence; parsed, not opened yet. |
 | `--codex-rollout <path>` | Optional, repeatable review evidence; parsed, not opened yet. |
 | `--bot <login>` | Optional, repeatable automated reviewer. Matches logins ignoring case and a trailing `[bot]`; for example, `--bot chatgpt-codex-connector`. There are no aliases: `--bot codex` does not match that connector. |
-| `--bot-unavailable <name>:<reason>` | Optional, repeatable exemption with a non-empty reason on one line; a name cannot also be passed with `--bot`. |
+| `--bot-unavailable <name>:<reason>` | Optional, repeatable exemption with a non-empty reason on one line. The name is a login, matched as `--bot` matches; it cannot also be passed with `--bot`. |
 | `--checkout <dir>` | Optional git checkout, also where `gh` runs; defaults to the working directory. |
 | `--help` | Prints usage and exits 0 only when given alone. |
 
