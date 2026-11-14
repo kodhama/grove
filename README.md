@@ -330,7 +330,10 @@ also have surrounding quotes.
   unknown editor fails; more than 100 edits or an incomplete history fails
   because its edits cannot all be read. Missing fields print `could not check`.
   Check suites are read only when that bot has a `+1` reaction. A valid
-  summary row still passes if that check-suite read fails.
+  summary row still passes if that check-suite read fails. Otherwise the
+  failed read outranks the bot's other failures, an edited summary row
+  included: the line prints `could not check`, since the `+1` might have
+  passed.
   An `unavailable` bot counts as neither failed nor unchecked; its reason
   is the caller’s word, which the gate does not verify.
   When no matching `Bot` account reviewed, commented or reacted, the bot
