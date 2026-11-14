@@ -281,7 +281,7 @@ function check(sources, options, receipt) {
   const botRows = condition("bots", () => botConditions(sources, bots, head));
   rows.push(...(Array.isArray(botRows) ? botRows : [botRows]));
   const attributes = condition("attributes", () => attributesCondition(sources, head, live));
-  if (attributes) rows.push(...(Array.isArray(attributes) ? attributes : [attributes]));
+  rows.push(...(Array.isArray(attributes) ? attributes : [attributes]));
   return rows;
 }
 

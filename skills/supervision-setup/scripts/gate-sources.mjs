@@ -274,9 +274,9 @@ function nonTestLineCount(files, recount) {
   let total = 0;
   for (const row of files) {
     const crossesBoundary = row.oldPath && isTestPath(row.oldPath) !== isTestPath(row.path);
-    if (crossesBoundary) total += recount(isTestPath(row.path) ? row.oldPath : row.path, true);
+    if (crossesBoundary) total += recount(isTestPath(row.path) ? row.oldPath : row.path);
     else if (countsTowardTotal(row)) total += row.added + row.deleted;
-    else if (row.added === null && !isTestPath(row.path)) total += recount(row.path, false);
+    else if (row.added === null && !isTestPath(row.path)) total += recount(row.path);
   }
   return total;
 }
@@ -473,13 +473,13 @@ export function createGateSources({ checkout, owner, repo, number, run = default
   }
 
   /**
-   * Recount one non-test path as text, disabling renames for a boundary crossing.
+   * Recount one non-test path as text, on its own and without renames.
    * Git's floor version keeps binary numstat markers with --text; its text patch
    * supplies those counts while the numstat prefix preserves binary-path evidence.
    */
-  function renamedLineCount(path, args, call, binaryPaths, rename) {
+  function textLineCount(path, args, call, binaryPaths) {
     const [command, ...rest] = args;
-    const out = git(call, [command, ...DIFF_FLAGS, "--text", "--numstat", "-z", "--patch", ...(rename ? ["--no-renames"] : []), ...rest, "--", `:(literal)${path}`]).stdout;
+    const out = git(call, [command, ...DIFF_FLAGS, "--text", "--numstat", "-z", "--patch", "--no-renames", ...rest, "--", `:(literal)${path}`]).stdout;
     const boundary = out.indexOf("\0\0");
     const files = [...numstatRecords(boundary < 0 ? out : out.slice(0, boundary + 1), call)];
     if (files.length !== 1 || files[0].path !== path || files[0].oldPath !== null) fail(call, "invalid renamed file numstat");
@@ -623,11 +623,10 @@ export function createGateSources({ checkout, owner, repo, number, run = default
           if ([row.path, row.oldPath].some((path) => path?.split("/").at(-1) === ".gitattributes")) attributesTouched = true;
         }
         const recounted = new Map();
-        /** Recount a commit/path once, even when a binary row also crosses the test boundary. */
-        const recount = (path, rename) => {
-          const key = `${commit.sha}\0${path}`;
-          if (!recounted.has(key)) recounted.set(key, renamedLineCount(path, diffArgs, call, binaryPaths, rename));
-          return recounted.get(key);
+        /** Recount each path once per commit, even when a binary row also crosses the test boundary. */
+        const recount = (path) => {
+          if (!recounted.has(path)) recounted.set(path, textLineCount(path, diffArgs, call, binaryPaths));
+          return recounted.get(path);
         };
         const lines = nonTestLineCount(files, recount);
         if (listMerge) merges.push({ sha: commit.sha, lines });

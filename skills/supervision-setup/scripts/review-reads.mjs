@@ -282,7 +282,6 @@ function reviewsIn(recorded) {
     const at = timeOf(record);
     for (const call of claudeToolCalls(record)) {
       const input = call.input ?? {};
-      const result = results.get(call.id);
       const args = call.name === "Bash" ? readCommandArgs(input.command) : null;
       if (args) pending.set(call.id, { call, args });
       if (call.name === "Skill" && typeof input.skill === "string") {
@@ -292,7 +291,7 @@ function reviewsIn(recorded) {
           args: typeof input.args === "string" ? input.args : null,
           model: typeof model === "string" ? model : null,
           at,
-          outcome: claudeOutcome(call, result),
+          outcome: claudeOutcome(call, results.get(call.id)),
         };
         reviews.push(reviewRecord(review, triple));
       }

@@ -127,6 +127,11 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
+/** A fork transcript's replay of the parent's `Agent` call, by its tool use id. */
+function agentReplay(toolUseId: unknown) {
+  return { type: "assistant", message: { content: [{ type: "tool_use", name: "Agent", id: toolUseId, input: {} }] } };
+}
+
 /** A listed session whose main transcript holds `main`, with these subagents beside it. */
 function session(main: Call[], ...subagents: Subagent[]): Listed[] {
   const dir = tempDir("review-reads-");
@@ -136,7 +141,7 @@ function session(main: Call[], ...subagents: Subagent[]): Listed[] {
   mkdirSync(subDir, { recursive: true });
   for (const sub of subagents) {
     const replay = sub.sidecar?.isFork === true || sub.sidecar?.agentType === "fork"
-      ? [{ type: "assistant", message: { content: [{ type: "tool_use", name: "Agent", id: sub.sidecar.toolUseId, input: {} }] } }]
+      ? [agentReplay(sub.sidecar.toolUseId)]
       : [];
     writeFileSync(join(subDir, `agent-${sub.id}.jsonl`), jsonl([...replay, ...claudeLines(sub.calls, sub.model)]));
     if (sub.sidecar) writeFileSync(join(subDir, `agent-${sub.id}.meta.json`), JSON.stringify(sub.sidecar));
@@ -185,8 +190,7 @@ describe("read records from a Claude Code reviewer subagent", () => {
     const listed = session([], reviewer(read(), review()));
     const folder = join(dirname(listed[0]!.path), SESSION, "subagents");
     writeFileSync(join(folder, "agent-f1.meta.json"), JSON.stringify({ ...FORK_SIDECAR, parentAgentId: "a1" }));
-    const replay = { type: "assistant", message: { content: [{ type: "tool_use", name: "Agent", id: "toolu_parent", input: {} }] } };
-    writeFileSync(join(folder, "agent-f1.jsonl"), jsonl([...claudeLines([read(), review()]), replay, ...claudeLines([review()])]));
+    writeFileSync(join(folder, "agent-f1.jsonl"), jsonl([...claudeLines([read(), review()]), agentReplay("toolu_parent"), ...claudeLines([review()])]));
     const reviews = reviewsOf(listed);
     expect(reviews).toHaveLength(2);
     const fork = reviews.filter((record) => record.place.endsWith("agent-f1"));
