@@ -261,9 +261,11 @@ check lists it; later units of that plan build the gate on it.
   times remain visible, after the timed records, for the planned coverage
   check's `no time recorded` rejection, which is not built yet. A Codex fork
   reached as a child inherits the freshness of the thread that started it.
-  A rollout named by path is fresh only as one `codex exec` run, so a named
-  fork never is. A transcript or rollout that cannot be found is reported
-  as missing, never skipped.
+  A rollout named by path and read on its own is fresh only as one
+  `codex exec` run, so a named fork read on its own never is. A named fork
+  listed beside its fresh named parent is read inside that parent's walk
+  and inherits its freshness. A transcript or rollout that cannot be found
+  is reported as missing, never skipped.
 - **The receipt check lists every review.** For an operation the routing
   table marks `fresh_context`, it prints one `used` line per review that
   could credit it, rather than one per operation: those a handoff carries
