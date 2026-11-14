@@ -68,6 +68,11 @@ function required(sha = head, cwd = checkout.cwd) {
   return ["--pr", "owner/repo#44", "--head", sha, "--bindings", "not-opened.json", "--checkout", cwd];
 }
 
+/** Whether a run read bot comments, which go through the GraphQL comments query. */
+function readsComments(calls: string[][]) {
+  return calls.some((args) => args.some((arg) => arg.includes("comments(first: 100, after:")));
+}
+
 /** Answer by request path, never by call order; git delegates to the real source runner. */
 function runner(data: Fixture, failure: string | null = null, failPath: string | null = null, sha = head) {
   const calls: string[][] = [];
@@ -131,7 +136,8 @@ describe("merge gate shell", () => {
     expect(r.stdout).toContain(`ci: pass 2 checks passed on ${head}`);
     expect(r.stdout).toContain('bot "review-bot": pass');
     expect(r.calls.filter((c) => c[1] === "repos/owner/repo/pulls/44")).toHaveLength(1);
-    expect(r.calls.some((c) => /reactions|comments|check-suites/.test(c[1]!))).toBe(false);
+    expect(r.calls.some((c) => /reactions|check-suites/.test(c[1]!))).toBe(false);
+    expect(readsComments(r.calls)).toBe(false);
   });
 
   it("G7.1 a failing condition plus coverage not checked exits 1", async () => {
@@ -287,7 +293,8 @@ describe("merge gate shell", () => {
     const data = fixture(); data.reviews = [];
     const r = await gate(data, [], { argv: [...required(), "--bot-unavailable", "review-bot:service down"] });
     expect(r.code).toBe(2); expect(r.stdout).toContain('bot "review-bot": unavailable service down');
-    expect(r.calls.some((c) => /reactions|comments|check-suites/.test(c[1]!))).toBe(false);
+    expect(r.calls.some((c) => /reactions|check-suites/.test(c[1]!))).toBe(false);
+    expect(readsComments(r.calls)).toBe(false);
   });
 
   it("G7.9 latest nonempty earlier review names its commit", async () => {
@@ -384,7 +391,7 @@ describe("merge gate shell", () => {
     const r = await gate(data); expect(r.code).toBe(passes ? 2 : 1);
     expect(r.stdout).toContain(passes ? "(+1 reaction after the head's first check suite)" : 'bot "review-bot": fail');
     if (kind === "before" || kind === "equal") expect(r.stdout).toContain("its +1 reaction is not dated after the head's first check suite");
-    if (passes) expect(r.calls.some((c) => /\/comments\?/.test(c[1]!))).toBe(false);
+    if (passes) expect(readsComments(r.calls)).toBe(false);
   });
 
   it.each([
@@ -633,10 +640,12 @@ describe("entry guards", () => {
 
 /** Comment provenance cases use the same completed row, changing only edit evidence. */
 describe("summary editor", () => {
-  it.each(["human", "unedited", "bot only", "100 edits", "null editor", "null history editor", "human history", "101 edits", "short history", "missing lastEditedAt"])("summary editor: %s", async (kind) => {
+  it.each(["human", "unedited", "bot only", "100 edits", "null editor", "null history editor", "human history", "101 edits", "short history", "missing lastEditedAt", "other bot", "same-login user", "other bot history"])("summary editor: %s", async (kind) => {
     const data = fixture(); data.reviews = [];
     const bot = { __typename: "Bot", login: "review-bot[bot]" };
     const human = { __typename: "User", login: "maintainer\nnext" };
+    const otherBot = { __typename: "Bot", login: "other-bot[bot]" };
+    const sameLoginUser = { __typename: "User", login: "review-bot" };
     const row: Row = { ...comment(`Completed ${head.slice(0, 7)}`), lastEditedAt: "now", editor: bot,
       userContentEdits: { totalCount: 1, nodes: [{ editor: bot }] } };
     if (kind === "human") row.editor = human;
@@ -648,15 +657,19 @@ describe("summary editor", () => {
     if (kind === "101 edits") row.userContentEdits = { totalCount: 101, nodes: Array.from({ length: 100 }, () => ({ editor: bot })) };
     if (kind === "short history") row.userContentEdits.totalCount = 2;
     if (kind === "missing lastEditedAt") delete row.lastEditedAt;
+    if (kind === "other bot") row.editor = otherBot;
+    if (kind === "same-login user") row.editor = sameLoginUser;
+    if (kind === "other bot history") { row.userContentEdits.nodes.push({ editor: otherBot }); row.userContentEdits.totalCount = 2; }
     data.comments = [row];
     const r = await gate(data);
+    expect(readsComments(r.calls)).toBe(true);
     if (["unedited", "bot only", "100 edits"].includes(kind)) {
       expect(r.stdout).toContain(`bot "review-bot": pass finished on ${head} (summary row)`); expect(r.code).toBe(2);
     } else if (kind === "missing lastEditedAt") {
       expect(r.stdout).toContain('bot "review-bot": could not check (botComments: missing or invalid lastEditedAt)'); expect(r.code).toBe(2);
     } else {
       const reason = ["101 edits", "short history"].includes(kind) ? "its summary row's edits cannot all be read"
-        : `its summary row was edited by "${kind.startsWith("null") ? "unknown" : "maintainer\\nnext"}"`;
+        : `its summary row was edited by "${kind.startsWith("null") ? "unknown" : kind.startsWith("other bot") ? "other-bot[bot]" : kind === "same-login user" ? "review-bot" : "maintainer\\nnext"}"`;
       expect(r.stdout).toContain(`bot "review-bot": fail ${reason}`); expect(r.code).toBe(1);
     }
   });
