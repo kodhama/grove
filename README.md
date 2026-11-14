@@ -362,7 +362,7 @@ also have surrounding quotes.
   for a fetch when a commit is missing. If the live head read fails, it prints
   `attributes: could not check (needs the live base)`. A warning does not fail the gate.
 - `binary paths: warn counted as text: "<path>", "<path>"` appears when
-  git reports binary rows for non-test paths, and names only those: they
+  git reads a non-test path as binary, and names only those: they
   are re-counted as text toward the count, the gate's non-test line count.
   No current line prints the count; the planned review coverage reads it.
   Binary test paths get their own clause, `test paths, not counted: "<path>"`,
@@ -375,9 +375,12 @@ also have surrounding quotes.
   first-parent diff. A pure move between two non-test paths, or two test
   paths, counts 0, binary or text. A move from a test path to a non-test
   path counts the whole new file. A move from a non-test
-  path into a test path counts the whole old file; when that move is binary,
-  its new test path still shows under `test paths, not counted`. The
-  warning does not fail the gate.
+  path into a test path counts the whole old file. When that move is
+  binary, its new test path shows under `test paths, not counted`, and
+  its old path, re-counted in full, shows under `counted as text`, since
+  git still reads it as binary:
+  `binary paths: warn counted as text: "src/a.bin"; test paths, not counted: "test/a.bin"`.
+  The warning does not fail the gate.
 - `not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings`
   states the gate's scope boundary; it is not counted in the summary.
 - `blocked <sha>: <n> failed, <m> not checked` ends every current
