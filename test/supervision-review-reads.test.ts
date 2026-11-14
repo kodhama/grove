@@ -257,6 +257,35 @@ describe("read records from a Claude Code reviewer subagent", () => {
     expect(record).toMatchObject({ context: "fork", fresh: false, head: HEAD, base: BASE });
   });
 
+  it("a Claude fork whose sidecar has no toolUseId credits no read or review, even after an Agent replay with no id", () => {
+    const listed = session([]);
+    const folder = join(dirname(listed[0]!.path), SESSION, "subagents");
+    writeFileSync(join(folder, "agent-f1.meta.json"), JSON.stringify({ agentType: "fork", isFork: true }));
+    writeFileSync(join(folder, "agent-f1.jsonl"), jsonl([agentReplay(undefined), ...claudeLines([read(), review()])]));
+    expect(reviewsOf(listed)).toEqual([]);
+  });
+
+  it("a Claude fork whose toolUseId matches no Agent replay credits no read or review", () => {
+    const listed = session([]);
+    const folder = join(dirname(listed[0]!.path), SESSION, "subagents");
+    writeFileSync(join(folder, "agent-f1.meta.json"), JSON.stringify(FORK_SIDECAR));
+    writeFileSync(join(folder, "agent-f1.jsonl"), jsonl([agentReplay("toolu_other"), ...claudeLines([read(), review()])]));
+    expect(reviewsOf(listed)).toEqual([]);
+  });
+
+  it("a tool_result carried by an assistant record supplies no triple", () => {
+    const listed = session([]);
+    const lines = [
+      { type: "assistant", timestamp: "2026-11-08T10:00:00Z", message: { content: [{ ...bash(READ), id: "read" }] } },
+      { type: "assistant", timestamp: "2026-11-08T10:00:01Z", message: { content: [
+        { type: "tool_result", tool_use_id: "read", content: labelled() },
+      ] } },
+      { type: "assistant", timestamp: "2026-11-08T10:00:02Z", message: { content: [{ ...skill(REVIEW, BASE), id: "review" }] } },
+    ];
+    writeFileSync(listed[0]!.path, jsonl(lines));
+    expect(reviewsOf(listed)[0]).toMatchObject({ head: null, read: null });
+  });
+
   it("a fresh sidecar's toolUseId does not impose a fork cutoff", () => {
     const sub = { id: "a1", sidecar: { ...FRESH_SIDECAR, toolUseId: "toolu_parent" }, calls: [read(), review()] };
     expect(reviewsOf(session([], sub))[0]).toMatchObject({ fresh: true, head: HEAD });
@@ -541,6 +570,28 @@ describe("read records from a Codex rollout", () => {
     expect(reviewsOf([], { rollouts: [path] })).toEqual([]);
   });
 
+  it("a fork's review at its start ordinal is credited, and one just below it is not", () => {
+    const path = rollout([], PARENT_FORK);
+    writeFileSync(path, jsonl([
+      { type: "session_meta", ordinal: 0, payload: { id: ROLLOUT_ID, forked_from_id: PARENT_FORK, subagent_history_start_ordinal: 5 } },
+      { ...command(READ, labelled()), ordinal: 3 },
+      { ...CODEX_REVIEW, timestamp: "2026-11-08T11:00:04.000Z", ordinal: 4 },
+      { ...CODEX_REVIEW, timestamp: "2026-11-08T11:00:05.000Z", ordinal: 5 },
+    ]));
+    const reviews = reviewsOf([], { rollouts: [path] });
+    expect(reviews.map((r) => r.at)).toEqual(["2026-11-08T11:00:05.000Z"]);
+    expect(reviews[0]).toMatchObject({ head: null, read: null });
+  });
+
+  it("a fork holding a record with a negative ordinal credits no read or review", () => {
+    const path = rollout([], PARENT_FORK);
+    writeFileSync(path, jsonl([
+      { type: "session_meta", ordinal: 0, payload: { id: ROLLOUT_ID, forked_from_id: PARENT_FORK, subagent_history_start_ordinal: 1 } },
+      { ...command(READ, labelled()), ordinal: -1 }, { ...CODEX_REVIEW, ordinal: 2 },
+    ]));
+    expect(reviewsOf([], { rollouts: [path] })).toEqual([]);
+  });
+
   it("a fork whose records have no ordinal credits no read or review", () => {
     const path = rollout([], PARENT_FORK);
     writeFileSync(path, jsonl([
@@ -804,6 +855,31 @@ describe("read records from the Codex child threads a rollout started", () => {
     }
   });
 
+  it("two caller-named rollouts that reach each other: the not-fresh duplicate wins, in either order", () => {
+    const child = { id: CHILD_ID, records: [...childReview, started(ROLLOUT_ID)] };
+    const path = codexHome([started(CHILD_ID)], null, child);
+    const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
+    const parentFirst = reviewsOf([], { rollouts: [path, childPath] });
+    const childFirst = reviewsOf([], { rollouts: [childPath, path] });
+    expect(parentFirst).toEqual(childFirst);
+    expect(parentFirst).toHaveLength(1);
+    expect(parentFirst[0]).toMatchObject({ thread: realpathSync(childPath), context: "named rollout not a single exec run", fresh: false });
+  });
+
+  it.each([
+    ["the main session", true],
+    ["a forked caller-named rollout", false],
+  ])("a fork whose starter chain reaches no fresh thread, under %s: not fresh, down to a grandchild", (_what, listed) => {
+    const child = { id: CHILD_ID, records: [...childReview, started(GRANDCHILD_ID)], forkedFrom: ROLLOUT_ID };
+    const grandchild = { id: GRANDCHILD_ID, records: childReview, forkedFrom: CHILD_ID };
+    const path = codexHome([started(CHILD_ID)], listed ? null : PARENT_FORK, child, grandchild);
+    const reviews = listed ? reviewsOf([{ session_id: ROLLOUT_ID, path }]) : reviewsOf([], { rollouts: [path] });
+    expect(reviews.map((r) => [r.place, r.context, r.fresh])).toEqual([
+      [`${ROLLOUT_ID} subagent ${CHILD_ID}`, "fork", false],
+      [`${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, "fork", false],
+    ]);
+  });
+
   it("a child with a forked_from_id under the main session: a fork, not fresh", () => {
     const child = { id: CHILD_ID, records: childReview, forkedFrom: ROLLOUT_ID };
     const path = codexHome([started(CHILD_ID)], null, child);
@@ -845,6 +921,15 @@ describe("review record identity and time", () => {
     const second = session([]);
     writeFileSync(second[0]!.path, jsonl(lines));
     expect(reviewsOf([...listed, ...second])).toHaveLength(8);
+  });
+
+  it("orders timed records by time, then untimed ones after them in file order", () => {
+    const untimedFirst = { ...CODEX_REVIEW, timestamp: "not a time" };
+    const later = { ...CODEX_REVIEW, timestamp: "2026-11-08T11:00:02Z" };
+    const untimedSecond = { ...CODEX_REVIEW, timestamp: undefined };
+    const earlier = { ...CODEX_REVIEW, timestamp: "2026-11-08T11:00:01Z" };
+    const path = rollout([untimedFirst, later, untimedSecond, earlier]);
+    expect(reviewsOf([], { rollouts: [path] }).map((r) => r.at)).toEqual([earlier.timestamp, later.timestamp, "not a time", null]);
   });
 
   it("keeps an unparseable time visible for the gate to reject", () => {

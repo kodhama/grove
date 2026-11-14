@@ -25,8 +25,9 @@
  * it, `head`, `clean`, `base`, `baseNamed` and `read` are null.
  * A fork starts with no triple and returns no copied review calls. Claude's
  * own records follow the replayed `Agent` call named by its sidecar's
- * `toolUseId`. A Codex fork keeps only records at or above its first
- * `session_meta.payload.subagent_history_start_ordinal`. A missing or invalid
+ * `toolUseId`; a fork sidecar with no `toolUseId`, or one no replayed `Agent`
+ * call matches, gives no records. A Codex fork keeps only records at or
+ * above its first `session_meta.payload.subagent_history_start_ordinal`. A missing or invalid
  * start ordinal, or a record with no valid ordinal, gives no fork records.
  *
  * What counts as the read command, and as its output:
@@ -101,8 +102,11 @@
  * names them; and one named twice is read once. So which records come back
  * does not depend on the order of `rollouts`. Records are de-duplicated by
  * resolved thread path, time, skill and args, then ordered by `Date.parse(at)`.
+ * When duplicates disagree, the not-fresh one survives (fail closed), so two
+ * named rollouts that reach each other give the same record in either order.
  * Equal times keep traversal order. Missing or unparseable times remain
- * visible after timed records so the gate can reject them as `no time recorded`.
+ * visible after timed records, for the planned coverage check to reject as
+ * `no time recorded`. A `tool_result` counts only in a `user` record.
  * Paths are compared resolved, through symbolic links.
  *
  * A listed transcript that is not found, a caller-named rollout that does
@@ -296,7 +300,7 @@ function reviewsIn(recorded) {
         reviews.push(reviewRecord(review, triple));
       }
     }
-    for (const result of Array.isArray(record.message?.content) ? record.message.content : []) {
+    for (const result of record.type === "user" && Array.isArray(record.message?.content) ? record.message.content : []) {
       if (result?.type !== "tool_result") continue;
       const found = pending.get(result.tool_use_id);
       if (!found) continue;
@@ -405,15 +409,24 @@ function reviewTime(review) {
   return Number.isFinite(time) ? time : Infinity;
 }
 
+/**
+ * Which of two duplicate records survives, whatever order they came in: a
+ * not-fresh one beats a fresh one (fail closed), and otherwise the one whose
+ * JSON sorts first.
+ */
+function survivor(kept, other) {
+  if (kept.fresh !== other.fresh) return kept.fresh ? other : kept;
+  return JSON.stringify(other) < JSON.stringify(kept) ? other : kept;
+}
+
 /** One record per thread, time, skill and args, ordered by parsed time with stable ties. */
 function uniqueReviews(reviews) {
-  const seen = new Set();
-  return reviews.filter((review) => {
+  const byKey = new Map();
+  for (const review of reviews) {
     const key = JSON.stringify([review.thread, review.at, review.skill, review.args]);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).sort((a, b) => reviewTime(a) - reviewTime(b));
+    byKey.set(key, byKey.has(key) ? survivor(byKey.get(key), review) : review);
+  }
+  return [...byKey.values()].sort((a, b) => reviewTime(a) - reviewTime(b));
 }
 
 /**

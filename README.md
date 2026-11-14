@@ -246,17 +246,23 @@ check lists it; later units of that plan build the gate on it.
   per review call: the head, clean flag and base of the last read before it
   in the same file, whether the call's args name that base (`baseNamed`, by
   hex commit ids only), and whether its context was fresh. The read counts
-  only once its result lands. A fork excludes copied calls and reads:
-  Claude records through the sidecar's replayed `Agent` call, and Codex
-  records below its own metadata's `subagent_history_start_ordinal`.
-  A Codex fork with a missing or invalid start ordinal, or records without
-  valid ordinals, supplies no review evidence. A hex token longer than a
-  full SHA makes `baseNamed` false. Each record carries its resolved
-  transcript path as `thread`; duplicates by thread, time, skill and args
-  are removed, and records sort by parsed time. Unknown times remain visible
-  for the gate's `no time recorded` rejection. A rollout named by path is
-  fresh only as one `codex exec` run. A transcript or rollout that cannot
-  be found is reported as missing, never skipped.
+  only once its result lands in a `user` record. A fork excludes copied
+  calls and reads. A Claude fork keeps only the records after the replayed
+  `Agent` call its sidecar's `toolUseId` names; a fork sidecar with no
+  `toolUseId`, or one no replayed `Agent` call matches, supplies no review
+  evidence (fail closed). A Codex fork drops records below its own
+  metadata's `subagent_history_start_ordinal`; one with a missing or
+  invalid start ordinal, or records without valid ordinals, supplies no
+  review evidence. A hex token longer than a full SHA makes `baseNamed`
+  false. Each record carries its resolved transcript path as `thread`;
+  duplicates by thread, time, skill and args are removed, the not-fresh one
+  surviving when they disagree, and records sort by parsed time. Unknown
+  times remain visible, after the timed records, for the planned coverage
+  check's `no time recorded` rejection, which is not built yet. A Codex fork
+  reached as a child inherits the freshness of the thread that started it.
+  A rollout named by path is fresh only as one `codex exec` run, so a named
+  fork never is. A transcript or rollout that cannot be found is reported
+  as missing, never skipped.
 - **The receipt check lists every review.** For an operation the routing
   table marks `fresh_context`, it prints one `used` line per review that
   could credit it, rather than one per operation: those a handoff carries
