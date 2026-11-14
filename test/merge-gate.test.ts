@@ -1,14 +1,16 @@
 /** The gate judges real temporary git histories and path-keyed, offline gh answers. */
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
-import { defaultRunner } from "../skills/supervision-setup/scripts/gate-sources.mjs";
+import { createGateSources, defaultRunner } from "../skills/supervision-setup/scripts/gate-sources.mjs";
 // @ts-expect-error -- no type declarations for this .mjs script
 import { main } from "../skills/supervision-setup/scripts/merge-gate-checks.mjs";
+// @ts-expect-error -- no type declarations for this .mjs script
+import { reviewCoverage } from "../skills/supervision-setup/scripts/review-coverage.mjs";
 
 type Row = Record<string, any>;
 type Fixture = { head: Row; checks: Row[]; statuses: Row[]; threads: Row[]; reviews: Row[]; comments: Row[]; reactions: Row[]; suites: Row[] };
@@ -63,9 +65,92 @@ function comment(body: string, user: Row | null = { login: "review-bot", type: "
     lastEditedAt: null, editor: null, userContentEdits: { totalCount: 0, nodes: [] } };
 }
 
-/** The required arguments for a head in a checkout, with bindings that are never opened. */
+const REVIEW_SKILL = "compound-engineering:ce-code-review";
+const READ_SCRIPT = resolve("skills/supervision-setup/scripts/review-read.mjs");
+const WORKER_TABLE = resolve("skills/story-worker/routing.toml");
+const LEAD_TABLE = resolve("skills/project-lead/routing.toml");
+const GIT_ENV = { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null" };
+type Listed = { session_id: string; path: string };
+/** One fresh reviewer: its read command's three values, then its review call at minute `minute`. */
+type Reviewer = {
+  head: string; base: string; minute: number; status?: number; args?: string | null; skill?: string;
+  fork?: boolean; script?: string; checkout?: string; timed?: boolean;
+};
+let sessionCount = 0;
+
+/** A disposable folder removed after the suite. */
+function scratch(prefix: string) {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  dirs.push(dir);
+  return dir;
+}
+
+/** A synthetic session id, unique within the run. */
+function nextSession() {
+  sessionCount += 1;
+  return `4e440000-0000-4000-8000-${String(sessionCount).padStart(12, "0")}`;
+}
+
+/**
+ * A listed session whose subagents each run the read command, then the review,
+ * as Claude Code records them. A fork replays its parent's Agent call first.
+ */
+function reviewSession(reviewers: Reviewer[], id = nextSession()): Listed {
+  const dir = scratch("merge-gate-session-");
+  const path = join(dir, `${id}.jsonl`);
+  writeFileSync(path, "");
+  const folder = join(dir, id, "subagents");
+  mkdirSync(folder, { recursive: true });
+  reviewers.forEach((r, i) => {
+    const time = (second: number) => r.timed === false ? {} : { timestamp: `2026-11-14T10:${String(r.minute).padStart(2, "0")}:0${second}.000Z` };
+    const record = (type: string, second: number, content: unknown[]) =>
+      ({ type, sessionId: id, ...time(second), message: { ...(type === "assistant" ? { model: "claude-opus-5-5" } : {}), content } });
+    const line = `node ${r.script ?? READ_SCRIPT} --checkout ${r.checkout ?? "/Users/maintainer/work/repo"} --from ${r.base}`;
+    const input = r.args === null ? { skill: r.skill ?? REVIEW_SKILL } : { skill: r.skill ?? REVIEW_SKILL, args: r.args ?? `base:${r.base}` };
+    const lines = [
+      ...(r.fork ? [{ type: "assistant", message: { content: [{ type: "tool_use", name: "Agent", id: "toolu_parent", input: {} }] } }] : []),
+      record("assistant", 0, [{ type: "tool_use", id: `toolu_${i}_read`, name: "Bash", input: { command: line } }]),
+      record("user", 1, [{ type: "tool_result", tool_use_id: `toolu_${i}_read`, content: `head ${r.head}\nstatus ${r.status ?? 0}\nbase ${r.base}\n`, is_error: false }]),
+      record("assistant", 2, [{ type: "tool_use", id: `toolu_${i}_review`, name: "Skill", input }]),
+      record("user", 3, [{ type: "tool_result", tool_use_id: `toolu_${i}_review`, content: "Launching skill", is_error: false }]),
+    ];
+    writeFileSync(join(folder, `agent-r${i}.jsonl`), lines.map((value) => JSON.stringify(value)).join("\n") + "\n");
+    writeFileSync(join(folder, `agent-r${i}.meta.json`), JSON.stringify(r.fork
+      ? { agentType: "fork", isFork: true, toolUseId: "toolu_parent" }
+      : { agentType: "general-purpose", description: "review" }));
+  });
+  return { session_id: id, path };
+}
+
+/** A worker's or a lead's bindings file listing these transcripts, its review bound to the review skill unless by fallback. */
+function bindingsFile(role: "worker" | "lead", transcripts: Listed[], { fallback = false, table }: { fallback?: boolean; table?: string } = {}) {
+  const skill = role === "lead" ? "project-lead" : "story-worker";
+  const op = (id: string, native: string | null, suggested: string[]) => ({
+    table: skill, id, required: false, suggested, suggested_by: "skill", how_bound: native ? "check" : "fallback",
+    kind: native ? "skill" : "instructions", native_id: native, source: native ? "plugin fixture" : null, invoke: "fixture", evidence: "fixture",
+  });
+  const operations = role === "lead"
+    ? [op("review-before-merge", REVIEW_SKILL, ["ce-code-review"])]
+    : [op("review", fallback ? null : REVIEW_SKILL, ["ce-code-review", "code-review"]), op("doc-review", "compound-engineering:ce-doc-review", ["ce-doc-review"])];
+  const path = join(scratch("merge-gate-bindings-"), "bindings.json");
+  writeFileSync(path, JSON.stringify({ skill, session: "fixture", table: { path: table ?? (role === "lead" ? LEAD_TABLE : WORKER_TABLE) }, transcripts, operations }));
+  return path;
+}
+
+const passing = new Map<string, string>();
+/** A worker's bindings whose one fresh full review read this head from its root commit. */
+function passingBindings(sha: string, cwd: string) {
+  const key = `${cwd}\0${sha}`;
+  if (!passing.has(key)) {
+    const root = spawnSync("/usr/bin/git", ["-C", cwd, "rev-list", "--max-parents=0", sha], { encoding: "utf8", env: GIT_ENV }).stdout.trim();
+    passing.set(key, bindingsFile("worker", [reviewSession([{ head: sha, base: root, minute: 0 }])]));
+  }
+  return passing.get(key)!;
+}
+
+/** The required arguments for a head in a checkout, with a full review of that head. */
 function required(sha = head, cwd = checkout.cwd) {
-  return ["--pr", "owner/repo#44", "--head", sha, "--bindings", "not-opened.json", "--checkout", cwd];
+  return ["--pr", "owner/repo#44", "--head", sha, "--bindings", passingBindings(sha, cwd), "--checkout", cwd];
 }
 
 /** Whether a run read bot comments, which go through the GraphQL comments query. */
@@ -129,7 +214,10 @@ describe("merge gate shell", () => {
     const r = await gate();
     expect(r.code).toBe(2);
     expect(r.stderr).toBe("");
-    expect(r.stdout.split("\n")).toContain("review coverage: not checked (not built yet)");
+    expect(r.stdout.split("\n")).toContain(`review: pass full review read ${head}`);
+    expect(r.stdout.split("\n")).toContain(`coverage: pass ${head}..${head} covered by 0 re-checks; 0 non-test lines since the full review`);
+    expect(r.stdout.split("\n")).toContain("doc review: not checked (not built yet)");
+    expect(r.stdout).not.toContain("review coverage:");
     expect(r.stdout).toContain(`blocked ${head}: 0 failed, 1 not checked\n`);
     expect(r.stdout).not.toMatch(/^ok /m);
     expect(r.stdout).toContain(`head: pass ${head} is the live head`);
@@ -144,7 +232,7 @@ describe("merge gate shell", () => {
     const data = fixture(); data.checks[0]!.conclusion = "failure";
     const r = await gate(data);
     expect(r.code).toBe(1);
-    expect(r.stdout).toContain("review coverage: not checked (not built yet)");
+    expect(r.stdout).toContain("doc review: not checked (not built yet)");
     expect(r.stdout).toContain(`blocked ${head}: 1 failed, 1 not checked`);
   });
 
@@ -591,7 +679,7 @@ describe("merge gate shell", () => {
     expect(r.stdout).not.toMatch(/^ok /m);
     const lines = r.stdout.trimEnd().split(/\r\n?|\n|\u2028|\u2029|\u0085/);
     expect(lines).toEqual(r.stdout.trimEnd().split("\n"));
-    for (const line of lines) expect(line).toMatch(/^(?:head:|ci:|review coverage:|threads:|bot "|bots:|attributes:|not checked:|blocked )/);
+    for (const line of lines) expect(line).toMatch(/^(?:head:|ci:|review:|coverage:|doc review:|threads:|bot "|bots:|attributes:|not checked:|blocked )/);
     expect(r.stdout).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029]/);
     if (kind.endsWith("error")) expect(r.stdout).toContain(`reason\\r${forged}\\u2028${forged}`);
     if (kind === "controls") expect(r.stdout).toContain('x\\u0000\\t\\n\\r\\u001f\\u007f\\u0080\\u009f');
@@ -713,5 +801,382 @@ describe("summary editor", () => {
         : `its summary row was edited by "${kind.startsWith("null") ? "unknown" : kind.startsWith("other bot") ? "other-bot[bot]" : kind === "same-login user" ? "review-bot" : "maintainer\\nnext"}"`;
       expect(r.stdout).toContain(`bot "review-bot": fail ${reason}`); expect(r.code).toBe(1);
     }
+  });
+});
+
+/** Append `n` distinct non-test lines to one file and commit them. */
+function grow(repo: ReturnType<typeof repository>, n: number, file = "src/code.mjs") {
+  const path = join(repo.cwd, file);
+  mkdirSync(dirname(path), { recursive: true });
+  const old = existsSync(path) ? readFileSync(path, "utf8") : "";
+  const start = old.split("\n").length;
+  writeFileSync(path, old + Array.from({ length: n }, (_, i) => `export const line${start + i} = ${start + i};\n`).join(""));
+  return repo.commit(`grow ${file} by ${n}`);
+}
+
+/** Run the gate on a head of its own repository, with these bindings and the base branch at `base`. */
+async function coverageGate(repo: ReturnType<typeof repository>, sha: string, base: string, bindings: string[], extra: string[] = []) {
+  const argv = ["--pr", "owner/repo#44", "--head", sha, ...bindings.flatMap((path) => ["--bindings", path]), "--checkout", repo.cwd, "--bot", "review-bot", ...extra];
+  return gate(fixture(sha, base), [], { argv, sha });
+}
+
+/** One worker's bindings over one session holding these reviewers. */
+function worker(...reviewers: Reviewer[]) {
+  return bindingsFile("worker", [reviewSession(reviewers)]);
+}
+
+/** A handoff whose receipt-check section holds these lines. */
+function handoff(lines: string[]) {
+  const path = join(scratch("merge-gate-handoff-"), "handoff.md");
+  writeFileSync(path, ["# Handoff", "", "## Receipt check", ...lines, "", "## Next", "nothing", ""].join("\n"));
+  return path;
+}
+
+/** A carried review line, as the receipt check prints one for a session it read. */
+function carriedLine(session: string, reviewed: string, base: string, dirty = false) {
+  return `story-worker/review: used ${REVIEW_SKILL} in ${session} subagent agent-r0; read ${reviewed} from ${base}${dirty ? " (dirty tree)" : ""}; args ${JSON.stringify(`base:${base}`)}`;
+}
+
+/**
+ * A rebase before the first push: `reviewed` adds a feature on the old base,
+ * the base branch then moves on another file, and `head` holds the same
+ * feature on the new base, or with one line indented when `indent` is set.
+ */
+function rebased(indent = false) {
+  const repo = repository();
+  repo.git("checkout", "-q", "-b", "topic");
+  writeFileSync(join(repo.cwd, "feature.mjs"), "export const a = 1;\nexport const b = 2;\n");
+  const reviewed = repo.commit("feature");
+  repo.git("checkout", "-q", "main");
+  writeFileSync(join(repo.cwd, "other.txt"), "the base branch moves\n");
+  const moved = repo.commit("base moves");
+  repo.git("checkout", "-q", "-b", "rebased");
+  writeFileSync(join(repo.cwd, "feature.mjs"), `export const a = 1;\n${indent ? " " : ""}export const b = 2;\n`);
+  const sha = repo.commit("feature again");
+  return { repo, reviewed, moved, sha };
+}
+
+describe("review coverage", () => {
+  it("AE1: a full review of an older head with 135 uncovered non-test lines fails", async () => {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 100); const c = grow(repo, 35);
+    const r = await coverageGate(repo, c, repo.base, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toContain(`coverage: fail uncovered commits ${b}, ${c}\n`);
+    expect(r.stdout).toContain("doc review: not checked (not built yet)\n");
+    expect(r.stdout).not.toMatch(/^ok /m);
+  });
+
+  it("AE2: a full review at A and a re-check A..B cover head B", async () => {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const r = await coverageGate(repo, b, repo.base, [worker({ head: a, base: repo.base, minute: 1 }, { head: b, base: a, minute: 2 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toContain(`coverage: pass ${a}..${b} covered by 1 re-checks; 20 non-test lines since the full review\n`);
+    expect(r.stdout).toContain("doc review: not checked (not built yet)\n");
+    expect(r.stdout).toContain(`blocked ${b}: 0 failed, 1 not checked\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("AE3: 160 non-test lines after the full review need a full review again", async () => {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 160);
+    const r = await coverageGate(repo, b, repo.base, [worker({ head: a, base: repo.base, minute: 1 }, { head: b, base: a, minute: 2 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`coverage: fail 160 non-test lines since the full review at ${a}, 150 or more: a full review must come again\n`);
+  });
+
+  it("uncovered commits and too many lines share one coverage line", async () => {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 160);
+    const r = await coverageGate(repo, b, repo.base, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toContain(`coverage: fail uncovered commits ${b}; 160 non-test lines since the full review at ${a}, 150 or more: a full review must come again\n`);
+  });
+
+  it.each([
+    ["only in a fork", { fork: true }, "not fresh"],
+    ["over a dirty tree", { status: 2 }, "dirty tree"],
+  ])("a review that ran %s fails R3", async (_what, change, reason) => {
+    const repo = repository();
+    const a = grow(repo, 10);
+    const r = await coverageGate(repo, a, repo.base, [worker({ head: a, base: repo.base, minute: 1, ...change })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: ${reason})\n`);
+    expect(r.stdout).toContain("coverage: fail no full review to start from\n");
+  });
+
+  it("re-checks A..B and C..D leave B..C uncovered, naming its commits", async () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5); const c = grow(repo, 5); const d = grow(repo, 5);
+    const r = await coverageGate(repo, d, repo.base, [worker(
+      { head: a, base: repo.base, minute: 1 }, { head: b, base: a, minute: 2 }, { head: d, base: c, minute: 3 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`coverage: fail uncovered commits ${c}, ${d}\n`);
+  });
+
+  it("overlapping re-checks pass", async () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5); const c = grow(repo, 5); const d = grow(repo, 5);
+    const r = await coverageGate(repo, d, repo.base, [worker(
+      { head: a, base: repo.base, minute: 1 }, { head: c, base: a, minute: 2 }, { head: d, base: b, minute: 3 })]);
+    expect(r.stdout).toContain(`coverage: pass ${a}..${d} covered by 2 re-checks; 15 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("a re-check whose args name A, while its read recorded the merge-base, credits nothing", async () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5);
+    const r = await coverageGate(repo, b, repo.base, [worker(
+      { head: a, base: repo.base, minute: 1 }, { head: b, base: repo.base, args: `base:${a}`, minute: 2 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toContain(`coverage: fail uncovered commits ${b}\n`);
+  });
+
+  it("a clean base merge after the full review passes, counting 0 lines", async () => {
+    const repo = repository();
+    repo.git("checkout", "-q", "-b", "topic");
+    const a = grow(repo, 5);
+    repo.git("checkout", "-q", "main");
+    writeFileSync(join(repo.cwd, "other.txt"), "base moves\n");
+    const moved = repo.commit("base moves");
+    repo.git("checkout", "-q", "topic");
+    repo.git("merge", "-q", "--no-ff", "-m", "merge base", "main");
+    const merge = repo.git("rev-parse", "HEAD");
+    const r = await coverageGate(repo, merge, moved, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toContain(`coverage: pass ${a}..${merge} covered by 0 re-checks; 0 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("the lead's review-before-merge of the final head passes R3 on its own", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const lead = bindingsFile("lead", [reviewSession([{ head: a, base: repo.base, minute: 1 }])]);
+    const r = await coverageGate(repo, a, repo.base, [worker(), lead]);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toContain(`coverage: pass ${a}..${a} covered by 0 re-checks; 0 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("a lead record whose head is not an ancestor of the head does not count, even with an equal patch-id", async () => {
+    const { repo, reviewed, moved, sha } = rebased();
+    const lead = bindingsFile("lead", [reviewSession([{ head: reviewed, base: repo.base, minute: 1 }])]);
+    const r = await coverageGate(repo, sha, moved, [worker(), lead]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${sha} (1 review calls, none credited: not on the head's history)\n`);
+  });
+
+  it("a rebase before the push with an equal patch-id is credited", async () => {
+    const { repo, reviewed, moved, sha } = rebased();
+    const r = await coverageGate(repo, sha, moved, [worker({ head: reviewed, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${sha} (patch-id match of ${reviewed})\n`);
+    expect(r.stdout).toContain(`coverage: pass ${sha}..${sha} covered by 0 re-checks; 0 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("a rebase that differs only in indentation is not credited", async () => {
+    const { repo, reviewed, moved, sha } = rebased(true);
+    const r = await coverageGate(repo, sha, moved, [worker({ head: reviewed, base: repo.base, minute: 1 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${sha} (1 review calls, none credited: not on the head's history)\n`);
+  });
+
+  it("a reviewed commit absent from the clone fails, saying so", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const absent = "b".repeat(40);
+    const r = await coverageGate(repo, a, repo.base, [worker({ head: absent, base: repo.base, minute: 1 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: reviewed commit ${absent} is not in the clone)\n`);
+  });
+
+  it("review bound by fallback fails R3, saying so", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const bindings = bindingsFile("worker", [reviewSession([{ head: a, base: repo.base, minute: 1 }])], { fallback: true });
+    const r = await coverageGate(repo, a, repo.base, [bindings]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: bound by fallback)\n`);
+  });
+
+  it("a --codex-rollout run from the merge-base, with no other review, fails R3", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const day = join(scratch("merge-gate-codex-"), "sessions", "2026", "11", "14");
+    mkdirSync(day, { recursive: true });
+    const id = "01a40000-0000-7000-8000-0000000000f1";
+    const item = (line: string, stdout: string, skill?: string) => ({ type: "event_msg", timestamp: "2026-11-14T11:00:00.000Z", payload: { type: "item_completed", item: {
+      type: "CommandExecution", id: `cmd-${skill ?? "read"}`, command: ["/bin/zsh", "-lc", line],
+      parsed_cmd: [skill ? { type: "read", cmd: line, name: "SKILL.md", path: `/Users/maintainer/.codex/skills/${skill}/SKILL.md` } : { type: "unknown", cmd: line }],
+      status: "completed", exit_code: 0, stdout, stderr: "" } } });
+    const records = [
+      { type: "session_meta", payload: { id, source: "exec" } },
+      { type: "event_msg", timestamp: "2026-11-14T11:00:00.000Z", payload: { type: "task_started" } },
+      item(`node ${READ_SCRIPT} --checkout /Users/maintainer/work/repo --from ${repo.base}`, `head ${a}\nstatus 0\nbase ${repo.base}\n`),
+      item("sed -n '1,200p' /Users/maintainer/.codex/skills/ce-code-review/SKILL.md", "---\nname: ce-code-review\n---\n", "ce-code-review"),
+    ].map((record, ordinal) => ({ ...record, ordinal }));
+    const rollout = join(day, `rollout-2026-11-14T11-00-00-${id}.jsonl`);
+    writeFileSync(rollout, records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+    const r = await coverageGate(repo, a, repo.base, [worker()], ["--codex-rollout", rollout]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: base not named)\n`);
+  });
+
+  it("a read by a review-read.mjs copied elsewhere fails", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const copy = join(scratch("merge-gate-copy-"), "review-read.mjs");
+    cpSync(READ_SCRIPT, copy);
+    const r = await coverageGate(repo, a, repo.base, [worker({ head: a, base: repo.base, minute: 1, script: copy })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: read by another script)\n`);
+  });
+
+  it("the read script beside a bindings file's table is trusted, and a relative script resolves against the read's checkout", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const install = scratch("merge-gate-install-");
+    cpSync(resolve("skills/supervision-setup"), join(install, "skills", "supervision-setup"), { recursive: true });
+    const table = join(install, "skills", "story-worker", "routing.toml");
+    const besideTable = join(install, "skills", "supervision-setup", "scripts", "review-read.mjs");
+    const listed = reviewSession([{ head: a, base: repo.base, minute: 1, script: besideTable }]);
+    const first = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [listed], { table })]);
+    expect(first.stdout).toContain(`review: pass full review read ${a}\n`);
+    const relative = worker({ head: a, base: repo.base, minute: 1, script: "scripts/review-read.mjs", checkout: resolve("skills/supervision-setup") });
+    const second = await coverageGate(repo, a, repo.base, [relative]);
+    expect(second.stdout).toContain(`review: pass full review read ${a}\n`);
+  });
+
+  it("a listed transcript that is not found cannot be checked", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const path = join(scratch("merge-gate-gone-"), "gone.jsonl");
+    const r = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [{ session_id: nextSession(), path }])]);
+    expect(r.code).toBe(2);
+    expect(r.stdout).toContain(`review: could not check (${path} not found)\n`);
+    expect(r.stdout).toContain(`coverage: could not check (${path} not found)\n`);
+  });
+
+  it.each([
+    ["a missing file", null],
+    ["a file that is not JSON", "not json"],
+    ["another skill's bindings", JSON.stringify({ skill: "supervision-setup", transcripts: [], operations: [] })],
+  ])("--bindings naming %s exits 2 before any process", async (_what, body) => {
+    const path = join(scratch("merge-gate-bad-"), "bindings.json");
+    if (body !== null) writeFileSync(path, body);
+    const r = await gate(fixture(), [], { argv: ["--pr", "owner/repo#44", "--head", head, "--bindings", path, "--checkout", checkout.cwd] });
+    expect(r.code).toBe(2);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toContain(`merge-gate: --bindings ${path} is not a worker's or a lead's bindings file\n`);
+    expect(r.calls).toHaveLength(0);
+  });
+
+  it("D6 open point: a re-check whose head is only on a merged side branch sits at the merge and covers an unreviewed mainline commit", async () => {
+    const repo = repository();
+    repo.git("checkout", "-q", "-b", "topic");
+    const full = grow(repo, 5);
+    repo.git("checkout", "-q", "-b", "side");
+    const side = grow(repo, 5, "src/side.mjs");
+    repo.git("checkout", "-q", "topic");
+    const mainline = grow(repo, 5, "src/mainline.mjs");
+    repo.git("merge", "-q", "--no-ff", "-m", "merge side", "side");
+    const merge = repo.git("rev-parse", "HEAD");
+    const r = await coverageGate(repo, merge, repo.base, [worker(
+      { head: full, base: repo.base, minute: 1 }, { head: side, base: full, minute: 2 })]);
+    // The re-check reviewed full..side only, yet the frontier moves to the merge past `mainline`.
+    expect(mainline).not.toBe(side);
+    expect(r.stdout).toContain(`coverage: pass ${full}..${merge} covered by 1 re-checks; 10 non-test lines since the full review\n`);
+  });
+});
+
+describe("carried evidence", () => {
+  /** A worker whose transcript is gone, a handoff carrying its full review of A, and B on top. */
+  function carriedCase({ dirty = false, local = false } = {}) {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const session = nextSession();
+    const listed = local ? reviewSession([], session) : { session_id: session, path: join(scratch("merge-gate-away-"), `${session}.jsonl`) };
+    const carried = handoff([`transcript ${session}: read 4 calls`, carriedLine(session, a, repo.base, dirty)]);
+    return { repo, a, b, workerBindings: bindingsFile("worker", [listed]), carried };
+  }
+
+  it("AE6: carried worker evidence passes only beside the lead's own review of the head", async () => {
+    const { repo, a, b, workerBindings, carried } = carriedCase();
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const r = await coverageGate(repo, b, repo.base, [workerBindings, lead], ["--carried", carried]);
+    expect(r.stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    expect(r.stdout).toContain(`coverage: carried ${a}..${b} covered by 1 re-checks; 20 non-test lines since the full review (carried; the lead reviewed ${b})\n`);
+    expect(r.stdout).toContain(`blocked ${b}: 0 failed, 1 not checked\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("AE6: carried worker evidence without the lead's own review of the head fails R3", async () => {
+    const { repo, b, workerBindings, carried } = carriedCase();
+    const lead = bindingsFile("lead", [reviewSession([])]);
+    const r = await coverageGate(repo, b, repo.base, [workerBindings, lead], ["--carried", carried]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail carried evidence needs the lead's own review of ${b}\n`);
+  });
+
+  it("carried lines are ignored when the local transcript can be read", async () => {
+    const { repo, a, b, workerBindings, carried } = carriedCase({ local: true });
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const r = await coverageGate(repo, b, repo.base, [workerBindings, lead], ["--carried", carried]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (1 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  it("a carried dirty read credits nothing", async () => {
+    const { repo, a, b, workerBindings, carried } = carriedCase({ dirty: true });
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const r = await coverageGate(repo, b, repo.base, [workerBindings, lead], ["--carried", carried]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: dirty tree, a re-check, not a full review)\n`);
+  });
+
+  it("a missing transcript that no carried line covers cannot be checked", async () => {
+    const { repo, b, workerBindings } = carriedCase();
+    const r = await coverageGate(repo, b, repo.base, [workerBindings], ["--carried", handoff(["transcript someone-else: read 1 calls"])]);
+    expect(r.code).toBe(2);
+    expect(r.stdout).toMatch(/^review: could not check \(.+ not found\)$/m);
+  });
+});
+
+describe("review coverage decisions over records", () => {
+  /** A creditable record of a fresh full or re-check review, before any change. */
+  function record(change: Row): Row {
+    return { thread: "/Users/maintainer/t.jsonl", fresh: true, outcome: "ran", clean: true, baseNamed: true,
+      skill: REVIEW_SKILL, args: null, read: null, role: "worker", op: "review", binding: "bound", trusted: true,
+      rollout: false, carried: false, ...change };
+  }
+
+  it("records out of array order are judged by time", () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const later = record({ head: a, base: repo.base, clean: false, at: "2026-11-14T10:02:00.000Z" });
+    const earlier = record({ head: a, base: repo.base, fresh: false, at: "2026-11-14T10:01:00.000Z" });
+    const decision = reviewCoverage([later, earlier], sources, { head: a, baseSha: repo.base, merge: repo.base });
+    expect(decision.start).toBeNull();
+    expect(decision.reasons).toEqual(["not fresh", "dirty tree"]);
+  });
+
+  it("a record whose time does not parse is not credited", () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const decision = reviewCoverage([record({ head: a, base: repo.base, at: null })], sources, { head: a, baseSha: repo.base, merge: repo.base });
+    expect(decision.reasons).toEqual(["no time recorded"]);
+  });
+
+  it("a --codex-rollout run that names its base is still only a re-check", () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const decision = reviewCoverage([record({ head: a, base: repo.base, rollout: true, at: "2026-11-14T10:01:00.000Z" })], sources, { head: a, baseSha: repo.base, merge: repo.base });
+    expect(decision.start).toBeNull();
+    expect(decision.reasons).toEqual(["a re-check, not a full review"]);
   });
 });
