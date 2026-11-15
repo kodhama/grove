@@ -1763,7 +1763,10 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
   it("step 5 has the reviewer run the read command first, alone, and diff from the base it printed (KTD3)", () => {
     const text = step5();
     expect(text).toContain(
-      "Have the reviewer run the read command as its first call, alone, never chained with another command: `node \"<supervision-setup's folder>/scripts/review-read.mjs\" --checkout <dir> --from <commit>`, supervision-setup's folder being the one beside this skill's own, and `<dir>` the story's checkout by its full path.",
+      "Have the reviewer run the read command as its first call, alone, never chained with another command: `node \"<supervision-setup's folder>/scripts/review-read.mjs\" --checkout <dir> --from <commit>`, supervision-setup's folder being the one beside this skill's own, named by its full path, and `<dir>` the story's checkout by its full path.",
+    );
+    expect(text).toContain(
+      "A read whose script is named by a relative path counts for nothing at merge.",
     );
     expect(text).toContain(
       "`<commit>` is the base branch's commit as just fetched from the remote, never a local branch that may be stale, for a full review, or the last reviewed head for a re-check.",

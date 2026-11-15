@@ -1,6 +1,6 @@
 /** The gate judges real temporary git histories and path-keyed, offline gh answers. */
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -892,6 +892,19 @@ describe("review coverage", () => {
     expect(r.stdout).toContain(`coverage: fail 160 non-test lines since the full review at ${a}, 150 or more: a full review must come again\n`);
   });
 
+  it("exactly 150 non-test lines after the full review need a full review again; 149 do not", async () => {
+    const at = async (n: number) => {
+      const repo = repository();
+      const a = grow(repo, 10); const b = grow(repo, n);
+      return { a, b, r: await coverageGate(repo, b, repo.base, [worker({ head: a, base: repo.base, minute: 1 }, { head: b, base: a, minute: 2 })]) };
+    };
+    const limit = await at(150);
+    expect(limit.r.code).toBe(1);
+    expect(limit.r.stdout).toContain(`coverage: fail 150 non-test lines since the full review at ${limit.a}, 150 or more: a full review must come again\n`);
+    const below = await at(149);
+    expect(below.r.stdout).toContain(`coverage: pass ${below.a}..${below.b} covered by 1 re-checks; 149 non-test lines since the full review\n`);
+  });
+
   it("uncovered commits and too many lines share one coverage line", async () => {
     const repo = repository();
     const a = grow(repo, 10); const b = grow(repo, 160);
@@ -977,6 +990,25 @@ describe("review coverage", () => {
     expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
     expect(r.stdout).toContain(`coverage: pass ${a}..${merge} covered by 0 re-checks; 0 non-test lines since the full review\n`);
     expect(r.code).toBe(2);
+  });
+
+  it("a base merge whose conflict was resolved is not a clean merge and needs a re-check", async () => {
+    const repo = repository();
+    repo.git("checkout", "-q", "-b", "topic");
+    writeFileSync(join(repo.cwd, "seed"), "base\ntopic\n");
+    const a = repo.commit("topic edits seed");
+    repo.git("checkout", "-q", "main");
+    writeFileSync(join(repo.cwd, "seed"), "base\nmain\n");
+    const moved = repo.commit("base edits seed");
+    repo.git("checkout", "-q", "topic");
+    expect(() => repo.git("merge", "-q", "--no-ff", "-m", "merge base", "main")).toThrow();
+    writeFileSync(join(repo.cwd, "seed"), "base\ntopic\nmain\n");
+    const merge = repo.commit("merge base, resolved");
+    expect(repo.git("rev-list", "--parents", "-n", "1", merge).split(" ")).toHaveLength(3);
+    const r = await coverageGate(repo, merge, moved, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${merge}$`, "m"));
+    expect(r.code).toBe(1);
   });
 
   it("the lead's review-before-merge of the final head passes R3 on its own", async () => {
@@ -1105,7 +1137,11 @@ describe("review coverage", () => {
     expect(first.stdout).toContain(`review: pass full review read ${a}\n`);
     // Node runs a relative script from the process's working directory, which the record does not
     // hold; resolving it against --checkout would judge a script that may not be the one that ran.
-    const relative = worker({ head: a, base: repo.base, minute: 1, script: "scripts/review-read.mjs", checkout: resolve("skills/supervision-setup") });
+    // This relative path does resolve, from the test's working directory, to the gate's own trusted
+    // copy, so only the relative-path guard can fail it.
+    const script = "skills/supervision-setup/scripts/review-read.mjs";
+    expect(realpathSync(script)).toBe(realpathSync(READ_SCRIPT));
+    const relative = worker({ head: a, base: repo.base, minute: 1, script, checkout: resolve("skills/supervision-setup") });
     const second = await coverageGate(repo, a, repo.base, [relative]);
     expect(second.code).toBe(1);
     expect(second.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: read by another script)\n`);
@@ -1232,6 +1268,16 @@ describe("review coverage", () => {
     expect(r.code).toBe(1);
     expect(r.stdout).toContain(`review: fail no creditable full review of ${merge} (1 review calls, none credited: only on a merged side branch)\n`);
   });
+
+  it("two full reviews at one chain place: the later call is the start", async () => {
+    const { repo, side, equal, merge } = patchEqualSide();
+    const sideLater = await coverageGate(repo, merge, repo.base, [worker(
+      { head: equal, base: repo.base, minute: 1 }, { head: side, base: repo.base, minute: 2 })]);
+    expect(sideLater.stdout).toContain(`review: pass full review read ${equal} (patch-id match of ${side})\n`);
+    const equalLater = await coverageGate(repo, merge, repo.base, [worker(
+      { head: side, base: repo.base, minute: 1 }, { head: equal, base: repo.base, minute: 2 })]);
+    expect(equalLater.stdout).toContain(`review: pass full review read ${equal}\n`);
+  });
 });
 
 describe("carried evidence", () => {
@@ -1322,6 +1368,31 @@ describe("carried evidence", () => {
     expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: dirty tree, a re-check, not a full review)\n`);
   });
 
+  it("a carried line whose args do not name its base credits nothing", async () => {
+    const { repo, a, b, workerBindings } = carriedCase();
+    const session = JSON.parse(readFileSync(workerBindings, "utf8")).transcripts[0].session_id;
+    const line = carriedLine(session, a, repo.base).replace(JSON.stringify(`base:${repo.base}`), JSON.stringify(`base:${a}`));
+    const carried = handoff([`transcript ${session}: read 4 calls`, line]);
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const r = await coverageGate(repo, b, repo.base, [workerBindings, lead], ["--carried", carried]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: base not named, a re-check, not a full review)\n`);
+  });
+
+  it("a carried re-check can be a coverage link beside the lead's own review of the head", async () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5); const c = grow(repo, 5);
+    const session = nextSession();
+    const away = { session_id: session, path: join(scratch("merge-gate-away-"), `${session}.jsonl`) };
+    const workerBindings = bindingsFile("worker", [reviewSession([{ head: a, base: repo.base, minute: 1 }]), away]);
+    const carried = handoff([`transcript ${session}: read 4 calls`, carriedLine(session, b, a)]);
+    const lead = bindingsFile("lead", [reviewSession([{ head: c, base: b, minute: 5 }])]);
+    const r = await coverageGate(repo, c, repo.base, [workerBindings, lead], ["--carried", carried]);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toContain(`coverage: carried ${a}..${c} covered by 2 re-checks; 10 non-test lines since the full review (carried; the lead reviewed ${c})\n`);
+    expect(r.code).toBe(2);
+  });
+
   it("a missing transcript that no carried line covers cannot be checked", async () => {
     const { repo, b, workerBindings } = carriedCase();
     const r = await coverageGate(repo, b, repo.base, [workerBindings], ["--carried", handoff(["transcript someone-else: read 1 calls"])]);
@@ -1387,7 +1458,7 @@ describe("review coverage decisions over records", () => {
     expect(decision.carriedNeedsLead).toBe(true);
   });
 
-  it("G7(ii): a worker's re-check off the head's history gets no patch-id credit", () => {
+  it("G7's no-patch-id clause: a worker's re-check off the head's history gets no patch-id credit", () => {
     // Two commits reviewed on the old base, then the same two rebased onto the moved base.
     const repo = repository();
     repo.git("checkout", "-q", "-b", "topic");

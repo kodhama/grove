@@ -275,11 +275,12 @@ it.
   starts, so the range holds all of it. Have the reviewer run the read command
   as its first call, alone, never chained with another command:
   `node "<supervision-setup's folder>/scripts/review-read.mjs" --checkout <dir> --from <commit>`,
-  supervision-setup's folder being the one beside this skill's own, and
-  `<dir>` the story's checkout by its full path. `<commit>` is the base
-  branch's commit as just fetched from the remote, never a local branch
-  that may be stale, for a full review, or the last reviewed head for a
-  re-check. It prints the head, the count of uncommitted paths and the base;
+  supervision-setup's folder being the one beside this skill's own, named
+  by its full path, and `<dir>` the story's checkout by its full path. A
+  read whose script is named by a relative path counts for nothing at merge.
+  `<commit>` is the base branch's commit as just fetched from the remote,
+  never a local branch that may be stale, for a full review, or the last
+  reviewed head for a re-check. It prints the head, the count of uncommitted paths and the base;
   the reviewer then tells a review performer that takes a base to diff from
   that printed base, by its commit id. A count other than 0 means the tree
   was not clean, and a review of it backs no pull request: commit the story's
