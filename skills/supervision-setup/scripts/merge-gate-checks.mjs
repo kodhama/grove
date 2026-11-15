@@ -226,7 +226,7 @@ function reviewEvidence(files, rollouts, carried) {
       if (seen.has(key) || !match) continue;
       seen.add(key);
       records.push({ ...review, ...match, role: file.role, carried: false,
-        rollout: rolloutThreads.has(review.thread), trusted: isTrusted(review.read, trusted) });
+        rollout: rolloutThreads.has(review.thread) || found.rollouts.includes(review.session), trusted: isTrusted(review.read, trusted) });
     }
   }
   const covered = new Set(missing.map((entry) => entry.session_id).filter((id) => id !== null && carried?.covered.has(id)));

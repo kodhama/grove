@@ -31,6 +31,7 @@
 /** At this many non-test lines since the full review, a full review must come again. */
 export const LINE_LIMIT = 150;
 const NOT_ON_HISTORY = "not on the head's history";
+const SIDE_BRANCH = "only on a merged side branch";
 const RECHECK_ONLY = "a re-check, not a full review";
 const CARRIED_ALONE = "carried without the lead's own review";
 
@@ -89,13 +90,15 @@ function chainReader(sources, { head, baseSha, merge }) {
     }
     return null;
   };
-  return { chain, ancestor, shaAt, placeOf, patchPlace, head, baseSha };
+  return { chain, ancestor, shaAt, placeOf, patchPlace, head, baseSha, merge };
 }
 
 /**
  * Where a record sits on the chain and whether it is a full review, or why it
  * cannot sit anywhere. A full review off the head's history sits where its
- * patch-id matches; a re-check, or any record of the lead's, never does.
+ * patch-id matches. A re-check sits only at its own head on the chain, or,
+ * when its head is only on a merged side branch, at the chain commit with
+ * the same cumulative patch-id (D6). A lead's record never gets patch-id credit.
  */
 function placed(record, reader, sources) {
   for (const sha of [record.head, record.base]) {
@@ -103,7 +106,14 @@ function placed(record, reader, sources) {
   }
   const own = sources.mergeBase(record.head, reader.baseSha);
   const full = own !== null && record.base === own && !record.rollout;
-  if (reader.ancestor(record.head, reader.head)) return { full, place: reader.placeOf(record.head) };
+  if (reader.ancestor(record.head, reader.head)) {
+    const place = reader.placeOf(record.head);
+    if (full || place < 0 || reader.shaAt(place) === record.head) return { full, place };
+    if (record.role === "lead") return { reason: SIDE_BRANCH };
+    const patchId = sources.patchId(reader.merge, record.head);
+    const equal = patchId === null ? null : reader.patchPlace(patchId);
+    return equal === null ? { reason: SIDE_BRANCH } : { full, place: equal };
+  }
   if (!full || record.role === "lead") return { reason: NOT_ON_HISTORY };
   const patchId = sources.patchId(own, record.head);
   const place = patchId === null ? null : reader.patchPlace(patchId);

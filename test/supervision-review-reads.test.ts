@@ -65,7 +65,7 @@ interface ReviewReadsModule {
   readReviewReads(
     listed: Listed[],
     options?: { skills?: string[] | null; rollouts?: string[] },
-  ): { reviews: Review[]; missing: { session_id: string; path: string }[] };
+  ): { reviews: Review[]; missing: { session_id: string; path: string }[]; rollouts: string[] };
   isReadCommand(line: string): boolean;
   readCommandArgs(line: string): ReadArgs | null;
   readTriple(text: string): { head: string; status: number; base: string } | null;
@@ -794,6 +794,20 @@ describe("read records from the Codex child threads a rollout started", () => {
     ]);
   });
 
+  it("a caller-named rollout read as its own reviewer is listed in `rollouts`, and its walked child's record carries its id as session", () => {
+    const path = codexHome([started(CHILD_ID)], null, { id: CHILD_ID, records: childReview });
+    const found = readReviewReads([], { rollouts: [path] });
+    expect(found.rollouts).toEqual([ROLLOUT_ID]);
+    expect(found.reviews.map((r) => [r.session, r.place])).toEqual([[ROLLOUT_ID, `${ROLLOUT_ID} subagent ${CHILD_ID}`]]);
+    expect(found.reviews[0]!.thread).not.toBe(realpathSync(path));
+  });
+
+  it("a caller-named rollout a listed transcript reaches is not listed in `rollouts`", () => {
+    const path = codexHome([started(CHILD_ID)], null, { id: CHILD_ID, records: childReview });
+    const childPath = join(dirname(dirname(path)), "09", `rollout-2026-11-09T11-00-00-${CHILD_ID}.jsonl`);
+    expect(readReviewReads([{ session_id: ROLLOUT_ID, path }], { rollouts: [childPath] }).rollouts).toEqual([]);
+  });
+
   it("a caller-named rollout already reached as a listed rollout's child: skipped, keeping the child's context", () => {
     const child = { id: CHILD_ID, records: childReview, forkedFrom: ROLLOUT_ID };
     const path = codexHome([started(CHILD_ID)], null, child);
@@ -967,7 +981,7 @@ describe("missing transcripts", () => {
   it("a transcript that is listed but missing is reported for the caller to turn into exit 2", () => {
     const path = "/Users/maintainer/.claude/projects/-gone/4e440000-0000-4000-8000-0000000000ff.jsonl";
     const listed = [{ session_id: "4e440000-0000-4000-8000-0000000000ff", path }];
-    expect(readReviewReads(listed)).toEqual({ reviews: [], missing: listed });
+    expect(readReviewReads(listed)).toEqual({ reviews: [], missing: listed, rollouts: [] });
   });
 
   it("a caller-named rollout path that is a folder rethrows EISDIR", () => {

@@ -75,6 +75,10 @@ type Listed = { session_id: string; path: string };
 type Reviewer = {
   head: string; base: string; minute: number; status?: number; args?: string | null; skill?: string;
   fork?: boolean; script?: string; checkout?: string; timed?: boolean;
+  /** For a fork: the index of the reviewer in the same session it forked from, else it forked from the main session. */
+  parent?: number;
+  /** For a fork: the sidecar to write in place of the default fork sidecar. */
+  sidecar?: Row;
 };
 let sessionCount = 0;
 
@@ -115,8 +119,9 @@ function reviewSession(reviewers: Reviewer[], id = nextSession()): Listed {
       record("user", 3, [{ type: "tool_result", tool_use_id: `toolu_${i}_review`, content: "Launching skill", is_error: false }]),
     ];
     writeFileSync(join(folder, `agent-r${i}.jsonl`), lines.map((value) => JSON.stringify(value)).join("\n") + "\n");
+    const forked = { agentType: "fork", isFork: true, toolUseId: "toolu_parent", ...(r.parent === undefined ? {} : { parentAgentId: `r${r.parent}` }) };
     writeFileSync(join(folder, `agent-r${i}.meta.json`), JSON.stringify(r.fork
-      ? { agentType: "fork", isFork: true, toolUseId: "toolu_parent" }
+      ? r.sidecar ?? forked
       : { agentType: "general-purpose", description: "review" }));
   });
   return { session_id: id, path };
@@ -895,7 +900,9 @@ describe("review coverage", () => {
   });
 
   it.each([
-    ["only in a fork", { fork: true }, "not fresh"],
+    ["only in a fork of the main session", { fork: true }, "not fresh"],
+    ["only in a fork whose sidecar says isFork alone", { fork: true, sidecar: { isFork: true, toolUseId: "toolu_parent" } }, "not fresh"],
+    ["only in a fork whose sidecar says agentType fork alone", { fork: true, sidecar: { agentType: "fork", toolUseId: "toolu_parent" } }, "not fresh"],
     ["over a dirty tree", { status: 2 }, "dirty tree"],
   ])("a review that ran %s fails R3", async (_what, change, reason) => {
     const repo = repository();
@@ -904,6 +911,28 @@ describe("review coverage", () => {
     expect(r.code).toBe(1);
     expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: ${reason})\n`);
     expect(r.stdout).toContain("coverage: fail no full review to start from\n");
+  });
+
+  it("a review that ran only in a fork of a non-fresh thread fails R3", async () => {
+    const repo = repository();
+    const a = grow(repo, 10);
+    const r = await coverageGate(repo, a, repo.base, [worker(
+      { head: a, base: repo.base, minute: 1, fork: true }, { head: a, base: repo.base, minute: 2, fork: true, parent: 0 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (2 review calls, none credited: not fresh)\n`);
+  });
+
+  it("a fork of a fresh reviewer satisfies R3 as that reviewer would", async () => {
+    const repo = repository();
+    const a = grow(repo, 10);
+    const reviewer = { head: a, base: repo.base, minute: 2 };
+    // The fresh parent's own read was dirty, so only its fork's clean read can pass R3.
+    const parent = { head: a, base: repo.base, minute: 1, status: 2 };
+    const asFork = await coverageGate(repo, a, repo.base, [worker(parent, { ...reviewer, fork: true, parent: 0 })]);
+    const asReviewer = await coverageGate(repo, a, repo.base, [worker(parent, reviewer)]);
+    expect(asFork.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(asFork.stdout).toBe(asReviewer.stdout);
+    expect(asFork.code).toBe(asReviewer.code);
   });
 
   it("re-checks A..B and C..D leave B..C uncovered, naming its commits", async () => {
@@ -1073,7 +1102,8 @@ describe("review coverage", () => {
     expect(r.calls).toHaveLength(0);
   });
 
-  it("D6 open point: a re-check whose head is only on a merged side branch sits at the merge and covers an unreviewed mainline commit", async () => {
+  /** A full review's head, a side branch off it, a mainline commit, and the side branch merged back (D6). */
+  function sideBranch() {
     const repo = repository();
     repo.git("checkout", "-q", "-b", "topic");
     const full = grow(repo, 5);
@@ -1082,12 +1112,58 @@ describe("review coverage", () => {
     repo.git("checkout", "-q", "topic");
     const mainline = grow(repo, 5, "src/mainline.mjs");
     repo.git("merge", "-q", "--no-ff", "-m", "merge side", "side");
-    const merge = repo.git("rev-parse", "HEAD");
+    return { repo, full, side, mainline, merge: repo.git("rev-parse", "HEAD") };
+  }
+
+  it("D6: a re-check whose head is only on a merged side branch does not cover the unreviewed mainline commit", async () => {
+    const { repo, full, side, mainline, merge } = sideBranch();
     const r = await coverageGate(repo, merge, repo.base, [worker(
       { head: full, base: repo.base, minute: 1 }, { head: side, base: full, minute: 2 })]);
-    // The re-check reviewed full..side only, yet the frontier moves to the merge past `mainline`.
-    expect(mainline).not.toBe(side);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: pass full review read ${full}\n`);
+    expect(r.stdout).toContain(`coverage: fail uncovered commits ${mainline}, ${merge}\n`);
+  });
+
+  it("D6: a re-check of the merge itself covers it, beside the side branch's own re-check", async () => {
+    const { repo, full, side, merge } = sideBranch();
+    const r = await coverageGate(repo, merge, repo.base, [worker(
+      { head: full, base: repo.base, minute: 1 }, { head: side, base: full, minute: 2 }, { head: merge, base: full, minute: 3 })]);
     expect(r.stdout).toContain(`coverage: pass ${full}..${merge} covered by 1 re-checks; 10 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
+  /**
+   * A side branch whose head has the same tree as a mainline commit: the
+   * side branch and the topic each add one identical file, then merge.
+   */
+  function patchEqualSide() {
+    const repo = repository();
+    repo.git("checkout", "-q", "-b", "topic");
+    const full = grow(repo, 5);
+    repo.git("checkout", "-q", "-b", "side");
+    writeFileSync(join(repo.cwd, "src", "same.mjs"), "export const same = 1;\n");
+    const side = repo.commit("same change on the side");
+    repo.git("checkout", "-q", "topic");
+    writeFileSync(join(repo.cwd, "src", "same.mjs"), "export const same = 1;\n");
+    const equal = repo.commit("same change on the topic");
+    repo.git("merge", "-q", "--no-ff", "-m", "merge side", "side");
+    return { repo, full, side, equal, merge: repo.git("rev-parse", "HEAD") };
+  }
+
+  it("D6: a worker's side-branch re-check patch-equal to a chain commit sits at that commit", async () => {
+    const { repo, full, side, equal, merge } = patchEqualSide();
+    const r = await coverageGate(repo, merge, repo.base, [worker(
+      { head: full, base: repo.base, minute: 1 }, { head: side, base: full, minute: 2 }, { head: merge, base: equal, minute: 3 })]);
+    expect(r.stdout).toContain(`coverage: pass ${full}..${merge} covered by 2 re-checks; 1 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("G7: a lead's side-branch re-check gets no patch-id credit", async () => {
+    const { repo, full, side, equal, merge } = patchEqualSide();
+    const lead = bindingsFile("lead", [reviewSession([{ head: side, base: full, minute: 2 }, { head: merge, base: equal, minute: 3 }])]);
+    const r = await coverageGate(repo, merge, repo.base, [worker({ head: full, base: repo.base, minute: 1 }), lead]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`coverage: fail uncovered commits ${equal}, ${merge}\n`);
   });
 });
 

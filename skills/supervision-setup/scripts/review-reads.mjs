@@ -434,8 +434,11 @@ function uniqueReviews(reviews) {
  * and those of each Codex rollout path in `rollouts`, read as its own
  * reviewer unless a listed transcript or another named rollout reaches it.
  * `skills`, when given, keeps only the review calls it names.
- * Returns `{ reviews, missing }`; the caller exits 2 when `missing` is not
- * empty. A missing caller-named rollout has `session_id` null.
+ * Returns `{ reviews, missing, rollouts }`; the caller exits 2 when `missing`
+ * is not empty. A missing caller-named rollout has `session_id` null.
+ * `rollouts` lists the id of each caller-named rollout read as its own
+ * reviewer: every record its walk reaches, its children's included, carries
+ * that id as `session`. One a listed transcript reaches is not in it.
  */
 export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   const reviews = [];
@@ -466,7 +469,7 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     }
     const id = typeof read.first?.payload?.id === "string" ? read.first.payload.id : childName(path);
     const found = walk({ path, subagentDirs: [] }, id, id, namedContext(path, read.first), read, reached);
-    named.push({ real, found, within: new Set(found.reached.map(realPath)) });
+    named.push({ id, real, found, within: new Set(found.reached.map(realPath)) });
   }
   // A named rollout another named one reaches is read in that one's walk, whatever the order.
   const under = (inner, outer) => outer !== inner && outer.within.has(inner.real) && !inner.within.has(outer.real);
@@ -476,7 +479,8 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     missing.push(...walked.found.missing);
   }
   const unique = uniqueReviews(reviews);
-  if (!skills) return { reviews: unique, missing };
+  const ids = named.map((walked) => walked.id);
+  if (!skills) return { reviews: unique, missing, rollouts: ids };
   const wanted = new Set(skills.map(unqualified));
-  return { reviews: unique.filter((review) => wanted.has(unqualified(review.skill))), missing };
+  return { reviews: unique.filter((review) => wanted.has(unqualified(review.skill))), missing, rollouts: ids };
 }
