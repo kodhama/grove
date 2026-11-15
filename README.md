@@ -337,18 +337,18 @@ also have surrounding quotes.
   `supervision-setup` folder beside a bindings file's table, compared by
   realpath. A record is a full review when its base is the merge-base of its
   own head with the base branch and it is not a `--codex-rollout` run;
-  otherwise it is a re-check. A full review sits at the first chain commit
-  that contains its head. A re-check sits only at its own head on the
-  chain, or, when its head is only on a merged side branch, at the chain
-  commit whose cumulative `git patch-id --verbatim` from the merge-base
-  matches its head's; otherwise it covers nothing.
-  A full review whose head is not on the head's history, as after a rebase
-  before the first push, sits where its `git patch-id --verbatim` matches
-  the cumulative diff of a chain commit, and the line adds
-  `(patch-id match of <sha>)`; indentation changes do not match, a
-  re-check off the head's history or any lead's record never gets
-  patch-id credit, and a reviewed commit missing from the clone fails,
-  saying so. A record from a `--codex-rollout` run, or from a thread
+  otherwise it is a re-check. A full review or a re-check sits only at its
+  own head on the chain, or, for a worker's record whose head is only on a
+  merged side branch, at the chain commit whose cumulative
+  `git patch-id --verbatim` from the merge-base matches its head's;
+  otherwise it covers nothing (`only on a merged side branch`).
+  A worker's full review whose head is not on the head's history, as after
+  a rebase before the first push, sits where its `git patch-id --verbatim`
+  matches the cumulative diff of a chain commit. A full review placed by
+  patch-id adds `(patch-id match of <sha>)` to the line; indentation
+  changes do not match, a re-check off the head's history or any lead's
+  record never gets patch-id credit, and a reviewed commit missing from the
+  clone fails, saying so. A record from a `--codex-rollout` run, or from a thread
   that run started, is a re-check. With no full review the line is
   `fail no creditable full review of <head> (<n> review calls, none credited: <reason>, ...)`.
   A doc review is not credited yet.

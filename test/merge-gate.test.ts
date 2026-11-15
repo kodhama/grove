@@ -1165,6 +1165,40 @@ describe("review coverage", () => {
     expect(r.code).toBe(1);
     expect(r.stdout).toContain(`coverage: fail uncovered commits ${equal}, ${merge}\n`);
   });
+
+  it("D6: a worker's full review whose head is only on a merged side branch credits nothing", async () => {
+    const { repo, side, merge } = sideBranch();
+    const r = await coverageGate(repo, merge, repo.base, [worker({ head: side, base: repo.base, minute: 1 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${merge} (1 review calls, none credited: only on a merged side branch)\n`);
+    expect(r.stdout).toContain("coverage: fail no full review to start from\n");
+  });
+
+  it("D6: a side-branch full review, then a mainline re-check of the merge, passes from the mainline full review", async () => {
+    const { repo, full, side, merge } = sideBranch();
+    const r = await coverageGate(repo, merge, repo.base, [worker(
+      { head: full, base: repo.base, minute: 1 }, { head: side, base: repo.base, minute: 2 }, { head: merge, base: full, minute: 3 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${full}\n`);
+    expect(r.stdout).toContain(`coverage: pass ${full}..${merge} covered by 1 re-checks; 10 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("D6: a worker's side-branch full review patch-equal to a chain commit sits at that commit", async () => {
+    const { repo, side, equal, merge } = patchEqualSide();
+    const r = await coverageGate(repo, merge, repo.base, [worker(
+      { head: side, base: repo.base, minute: 1 }, { head: merge, base: equal, minute: 2 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${equal} (patch-id match of ${side})\n`);
+    expect(r.stdout).toContain(`coverage: pass ${equal}..${merge} covered by 1 re-checks; 0 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("G7: a lead's side-branch full review gets no patch-id credit", async () => {
+    const { repo, side, merge } = patchEqualSide();
+    const lead = bindingsFile("lead", [reviewSession([{ head: side, base: repo.base, minute: 1 }])]);
+    const r = await coverageGate(repo, merge, repo.base, [worker(), lead]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${merge} (1 review calls, none credited: only on a merged side branch)\n`);
+  });
 });
 
 describe("carried evidence", () => {

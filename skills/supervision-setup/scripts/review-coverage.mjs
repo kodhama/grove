@@ -95,10 +95,12 @@ function chainReader(sources, { head, baseSha, merge }) {
 
 /**
  * Where a record sits on the chain and whether it is a full review, or why it
- * cannot sit anywhere. A full review off the head's history sits where its
- * patch-id matches. A re-check sits only at its own head on the chain, or,
- * when its head is only on a merged side branch, at the chain commit with
- * the same cumulative patch-id (D6). A lead's record never gets patch-id credit.
+ * cannot sit anywhere (G7). A full review or a re-check sits only at its own
+ * head on the chain, or, for a worker's record whose head is only on a merged
+ * side branch, at the chain commit with the same cumulative patch-id (D6). A
+ * worker's full review off the head's history sits where its patch-id
+ * matches (KTD7); a re-check there sits nowhere. A lead's record never gets
+ * patch-id credit.
  */
 function placed(record, reader, sources) {
   for (const sha of [record.head, record.base]) {
@@ -108,11 +110,11 @@ function placed(record, reader, sources) {
   const full = own !== null && record.base === own && !record.rollout;
   if (reader.ancestor(record.head, reader.head)) {
     const place = reader.placeOf(record.head);
-    if (full || place < 0 || reader.shaAt(place) === record.head) return { full, place };
+    if (place < 0 || reader.shaAt(place) === record.head) return { full, place };
     if (record.role === "lead") return { reason: SIDE_BRANCH };
     const patchId = sources.patchId(reader.merge, record.head);
     const equal = patchId === null ? null : reader.patchPlace(patchId);
-    return equal === null ? { reason: SIDE_BRANCH } : { full, place: equal };
+    return equal === null ? { reason: SIDE_BRANCH } : { full, place: equal, patchOf: record.head };
   }
   if (!full || record.role === "lead") return { reason: NOT_ON_HISTORY };
   const patchId = sources.patchId(own, record.head);
