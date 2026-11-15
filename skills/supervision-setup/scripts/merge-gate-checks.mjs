@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createGateSources, defaultRunner, isTestPath, SHA, TransportFailure } from "./gate-sources.mjs";
 import { readHandoff } from "./handoff-receipt.mjs";
-import { unqualified } from "./operation-state.mjs";
+import { matches, unqualified } from "./operation-state.mjs";
 import { LINE_BREAK } from "./pr-body-lines.mjs";
 import { LINE_LIMIT, reviewCoverage } from "./review-coverage.mjs";
 import { namesBase, readReviewReads, reviewKey } from "./review-reads.mjs";
@@ -146,11 +146,13 @@ function isBound(op) {
 
 /**
  * The review operation a performer name matches in one file: a bound one by
- * its native id, else a by-fallback one by a suggested name; null for none.
+ * its native id, as `matches` reads a skill call (a namespaced name must be
+ * the binding's own; only a bare one matches unqualified), else a
+ * by-fallback one by a suggested name; null for none.
  */
 function bindingFor(name, file) {
   const wanted = unqualified(name);
-  const bound = file.operations.find((op) => isBound(op) && unqualified(op.native_id) === wanted);
+  const bound = file.operations.find((op) => isBound(op) && matches({ kind: "skill", native_id: op.native_id }, { kind: "skill", name }));
   if (bound) return { op: bound.id, binding: "bound" };
   const fallback = file.operations.find((op) => op.how_bound === "fallback"
     && (op.suggested ?? []).some((suggested) => typeof suggested === "string" && unqualified(suggested) === wanted));
@@ -176,27 +178,32 @@ function trustedScripts(files) {
   return new Set([own, ...beside].map(realOrNull).filter(Boolean));
 }
 
-/** Whether a record's read script, a relative one resolved against its read's checkout, is trusted. */
+/**
+ * Whether a record's read script is trusted. A relative path never is: Node
+ * resolves it against the process's working directory, which the read
+ * record does not hold, not against `--checkout`.
+ */
 function isTrusted(read, trusted) {
-  if (typeof read?.script !== "string") return false;
-  const path = isAbsolute(read.script) ? read.script : resolve(read.checkout ?? "", read.script);
-  const real = realOrNull(path);
+  if (typeof read?.script !== "string" || !isAbsolute(read.script)) return false;
+  const real = realOrNull(read.script);
   return real !== null && trusted.has(real);
 }
 
 /**
  * The records carried for missing transcripts the handoff covers: a worker's
- * review lines that carry what they read, with their arguments.
+ * review lines that carry what they read, with their arguments, each matched
+ * only against the bindings of the worker whose transcripts list its session.
  */
 function carriedRecords(carried, covered, files) {
   if (carried === null) return [];
   const workers = files.filter((file) => file.role === "worker");
+  const owners = (session) => workers.filter((file) => file.transcripts.some((listed) => listed?.session_id === session));
   return [...carried.all].flatMap(([key, uses]) => {
     if (!CARRIED_OPERATIONS.includes(key.slice(key.indexOf("/") + 1))) return [];
     return uses.flatMap((use) => {
       const detail = CARRIED_DETAIL.exec(use.detail ?? "");
       const standsFor = covered.has(use.session) || (use.child !== null && covered.has(use.child));
-      const match = workers.map((file) => bindingFor(use.performer, file)).find(Boolean);
+      const match = owners(use.session).map((file) => bindingFor(use.performer, file)).find(Boolean);
       if (!detail || !standsFor || !match) return [];
       const args = detail[4].startsWith('"') ? JSON.parse(detail[4]) : null;
       return [{ carried: true, thread: null, at: null, skill: use.performer, args, head: detail[1], base: detail[2],

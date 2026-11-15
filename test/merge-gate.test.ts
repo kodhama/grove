@@ -1030,6 +1030,36 @@ describe("review coverage", () => {
     expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: bound by fallback)\n`);
   });
 
+  it("a review under another plugin's same-named skill is not credited; a bare name still matches", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const other = await coverageGate(repo, a, repo.base, [worker({ head: a, base: repo.base, minute: 1, skill: "other-plugin:ce-code-review" })]);
+    expect(other.code).toBe(1);
+    expect(other.stdout).toContain(`review: fail no creditable full review of ${a} (0 review calls, none credited)\n`);
+    const bare = await coverageGate(repo, a, repo.base, [worker({ head: a, base: repo.base, minute: 1, skill: "ce-code-review" })]);
+    expect(bare.stdout).toContain(`review: pass full review read ${a}\n`);
+  });
+
+  it("a doc-review record is not credited as R3's full review, saying so", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const r = await coverageGate(repo, a, repo.base, [worker({ head: a, base: repo.base, minute: 1, skill: "compound-engineering:ce-doc-review" })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: doc review not judged yet)\n`);
+  });
+
+  it("ruling 1: a full review placed at the merge-base reads nothing and credits nothing", async () => {
+    // M is a second base commit, so a re-check can read from an ancestor of M and reach the head.
+    const repo = repository();
+    const merge = grow(repo, 5, "src/base.mjs");
+    const a = grow(repo, 5);
+    const r = await coverageGate(repo, a, merge, [worker(
+      { head: merge, base: merge, minute: 1 }, { head: a, base: repo.base, minute: 2 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (2 review calls, none credited: reads nothing, a re-check, not a full review)\n`);
+    expect(r.stdout).toContain("coverage: fail no full review to start from\n");
+  });
+
   it("a --codex-rollout run from the merge-base, with no other review, fails R3", async () => {
     const repo = repository();
     const a = grow(repo, 5);
@@ -1063,7 +1093,7 @@ describe("review coverage", () => {
     expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: read by another script)\n`);
   });
 
-  it("the read script beside a bindings file's table is trusted, and a relative script resolves against the read's checkout", async () => {
+  it("the read script beside a bindings file's table is trusted, and a relative script path is never trusted", async () => {
     const repo = repository();
     const a = grow(repo, 5);
     const install = scratch("merge-gate-install-");
@@ -1073,9 +1103,12 @@ describe("review coverage", () => {
     const listed = reviewSession([{ head: a, base: repo.base, minute: 1, script: besideTable }]);
     const first = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [listed], { table })]);
     expect(first.stdout).toContain(`review: pass full review read ${a}\n`);
+    // Node runs a relative script from the process's working directory, which the record does not
+    // hold; resolving it against --checkout would judge a script that may not be the one that ran.
     const relative = worker({ head: a, base: repo.base, minute: 1, script: "scripts/review-read.mjs", checkout: resolve("skills/supervision-setup") });
     const second = await coverageGate(repo, a, repo.base, [relative]);
-    expect(second.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(second.code).toBe(1);
+    expect(second.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: read by another script)\n`);
   });
 
   it("a listed transcript that is not found cannot be checked", async () => {
@@ -1203,14 +1236,57 @@ describe("review coverage", () => {
 
 describe("carried evidence", () => {
   /** A worker whose transcript is gone, a handoff carrying its full review of A, and B on top. */
-  function carriedCase({ dirty = false, local = false } = {}) {
+  function carriedCase({ dirty = false, local = false, fallback = false } = {}) {
     const repo = repository();
     const a = grow(repo, 10); const b = grow(repo, 20);
     const session = nextSession();
     const listed = local ? reviewSession([], session) : { session_id: session, path: join(scratch("merge-gate-away-"), `${session}.jsonl`) };
     const carried = handoff([`transcript ${session}: read 4 calls`, carriedLine(session, a, repo.base, dirty)]);
-    return { repo, a, b, workerBindings: bindingsFile("worker", [listed]), carried };
+    return { repo, a, b, workerBindings: bindingsFile("worker", [listed], { fallback }), carried };
   }
+
+  it("a carried line is not credited by another worker's binding", async () => {
+    const unbound = carriedCase({ fallback: true });
+    const other = worker();
+    const lead = bindingsFile("lead", [reviewSession([{ head: unbound.b, base: unbound.a, minute: 5 }])]);
+    const r = await coverageGate(unbound.repo, unbound.b, unbound.repo.base, [other, unbound.workerBindings, lead], ["--carried", unbound.carried]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${unbound.b} (2 review calls, none credited: bound by fallback, a re-check, not a full review)\n`);
+  });
+
+  it("a carried line is credited by its own worker's binding, whatever another worker binds", async () => {
+    const own = carriedCase();
+    const fallbackOther = bindingsFile("worker", [reviewSession([])], { fallback: true });
+    const ownLead = bindingsFile("lead", [reviewSession([{ head: own.b, base: own.a, minute: 5 }])]);
+    const credited = await coverageGate(own.repo, own.b, own.repo.base, [fallbackOther, own.workerBindings, ownLead], ["--carried", own.carried]);
+    expect(credited.stdout).toContain(`review: carried full review read ${own.a} (carried; the lead reviewed ${own.b})\n`);
+  });
+
+  it("ruling 2: an empty lead re-check of the head does not unlock carried evidence", async () => {
+    const { repo, b, workerBindings, carried } = carriedCase();
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: b, minute: 5 }])]);
+    const r = await coverageGate(repo, b, repo.base, [workerBindings, lead], ["--carried", carried]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail carried evidence needs the lead's own review of ${b}\n`);
+  });
+
+  it("a carried line placed in a missing Codex child stands for that child's transcript", async () => {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const id = "01a40000-0000-7000-8000-0000000000e1";
+    const child = "01a40000-0000-7000-8000-0000000000e2";
+    const day = join(scratch("merge-gate-codex-"), "sessions", "2026", "11", "14");
+    mkdirSync(day, { recursive: true });
+    const rollout = join(day, `rollout-2026-11-14T11-00-00-${id}.jsonl`);
+    const started = { type: "event_msg", timestamp: "2026-11-14T11:00:00.000Z", payload: { type: "item_completed",
+      item: { type: "SubAgentActivity", id: "call_e2", kind: "started", agent_thread_id: child } } };
+    writeFileSync(rollout, [{ type: "session_meta", payload: { id, source: "exec" } }, started]
+      .map((record, ordinal) => JSON.stringify({ ...record, ordinal })).join("\n") + "\n");
+    const line = `story-worker/review: used ${REVIEW_SKILL} in ${id} subagent ${child}; read ${a} from ${repo.base}; args ${JSON.stringify(`base:${repo.base}`)}`;
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const r = await coverageGate(repo, b, repo.base, [bindingsFile("worker", [{ session_id: id, path: rollout }]), lead], ["--carried", handoff([line])]);
+    expect(r.stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+  });
 
   it("AE6: carried worker evidence passes only beside the lead's own review of the head", async () => {
     const { repo, a, b, workerBindings, carried } = carriedCase();
@@ -1279,6 +1355,61 @@ describe("review coverage decisions over records", () => {
     const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
     const decision = reviewCoverage([record({ head: a, base: repo.base, at: null })], sources, { head: a, baseSha: repo.base, merge: repo.base });
     expect(decision.reasons).toEqual(["no time recorded"]);
+  });
+
+  it("a record whose call did not run is not credited", () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const decision = reviewCoverage([record({ head: a, base: repo.base, outcome: "failed", at: "2026-11-14T10:01:00.000Z" })], sources, { head: a, baseSha: repo.base, merge: repo.base });
+    expect(decision.start).toBeNull();
+    expect(decision.reasons).toEqual(["did not run"]);
+  });
+
+  it("a doc-review record is not credited as a full review", () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const decision = reviewCoverage([record({ head: a, base: repo.base, op: "doc-review", at: "2026-11-14T10:01:00.000Z" })], sources, { head: a, baseSha: repo.base, merge: repo.base });
+    expect(decision.start).toBeNull();
+    expect(decision.reasons).toEqual(["doc review not judged yet"]);
+  });
+
+  it("a lead record of an older head does not unlock carried evidence", () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5); const c = grow(repo, 5);
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const carried = record({ head: a, base: repo.base, carried: true, fresh: undefined, at: null, trusted: false });
+    const lead = record({ head: b, base: a, role: "lead", op: "review-before-merge", at: "2026-11-14T10:01:00.000Z" });
+    const decision = reviewCoverage([carried, lead], sources, { head: c, baseSha: repo.base, merge: repo.base });
+    expect(decision.leadReviewed).toBe(false);
+    expect(decision.start).toBeNull();
+    expect(decision.carriedNeedsLead).toBe(true);
+  });
+
+  it("G7(ii): a worker's re-check off the head's history gets no patch-id credit", () => {
+    // Two commits reviewed on the old base, then the same two rebased onto the moved base.
+    const repo = repository();
+    repo.git("checkout", "-q", "-b", "topic");
+    writeFileSync(join(repo.cwd, "one.mjs"), "export const one = 1;\n");
+    repo.commit("one");
+    writeFileSync(join(repo.cwd, "two.mjs"), "export const two = 2;\n");
+    const reviewed = repo.commit("two");
+    repo.git("checkout", "-q", "main");
+    writeFileSync(join(repo.cwd, "other.txt"), "the base branch moves\n");
+    const moved = repo.commit("base moves");
+    repo.git("checkout", "-q", "-b", "rebased");
+    writeFileSync(join(repo.cwd, "one.mjs"), "export const one = 1;\n");
+    const first = repo.commit("one again");
+    writeFileSync(join(repo.cwd, "two.mjs"), "export const two = 2;\n");
+    const second = repo.commit("two again");
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const full = record({ head: first, base: moved, at: "2026-11-14T10:01:00.000Z" });
+    const recheck = record({ head: reviewed, base: first, at: "2026-11-14T10:02:00.000Z" });
+    const decision = reviewCoverage([full, recheck], sources, { head: second, baseSha: moved, merge: moved });
+    expect(decision.start).toMatchObject({ sha: first });
+    expect(decision.reasons).toEqual(["not on the head's history"]);
+    expect(decision.uncovered).toEqual([second]);
   });
 
   it("a --codex-rollout run that names its base is still only a re-check", () => {

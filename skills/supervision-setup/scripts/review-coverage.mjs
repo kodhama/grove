@@ -33,6 +33,7 @@ export const LINE_LIMIT = 150;
 const NOT_ON_HISTORY = "not on the head's history";
 const SIDE_BRANCH = "only on a merged side branch";
 const RECHECK_ONLY = "a re-check, not a full review";
+const READS_NOTHING = "reads nothing";
 const CARRIED_ALONE = "carried without the lead's own review";
 
 /** Why a record cannot be credited, judged without git; null when nothing stops it. */
@@ -110,7 +111,9 @@ function placed(record, reader, sources) {
   const full = own !== null && record.base === own && !record.rollout;
   if (reader.ancestor(record.head, reader.head)) {
     const place = reader.placeOf(record.head);
-    if (place < 0 || reader.shaAt(place) === record.head) return { full, place };
+    // A full review at the merge-base read the empty range M..M (lead ruling 1).
+    if (place < 0) return full ? { reason: READS_NOTHING } : { full, place };
+    if (reader.shaAt(place) === record.head) return { full, place };
     if (record.role === "lead") return { reason: SIDE_BRANCH };
     const patchId = sources.patchId(reader.merge, record.head);
     const equal = patchId === null ? null : reader.patchPlace(patchId);
@@ -183,8 +186,9 @@ export function reviewCoverage(records, sources, { head, baseSha, merge }) {
   const reader = chainReader(sources, { head, baseSha, merge });
   const judged = judgeRecords(records, reader, sources);
   const credited = judged.filter((entry) => entry.place !== undefined);
+  // The lead's own record must have read a non-empty range at the head (lead ruling 2).
   const leadReviewed = credited.some((entry) => entry.record.role === "lead" && !entry.record.carried
-    && !entry.record.rollout && entry.record.head === head);
+    && !entry.record.rollout && entry.record.head === head && entry.record.base !== head);
   const usable = credited.filter((entry) => !entry.record.carried || leadReviewed);
   const start = startOf(usable);
   const decision = {
