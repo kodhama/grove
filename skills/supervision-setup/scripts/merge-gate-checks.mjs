@@ -6,9 +6,10 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createGateSources, defaultRunner, isTestPath, SHA, TransportFailure } from "./gate-sources.mjs";
 import { readHandoff } from "./handoff-receipt.mjs";
+import { unqualified } from "./operation-state.mjs";
 import { LINE_BREAK } from "./pr-body-lines.mjs";
 import { LINE_LIMIT, reviewCoverage } from "./review-coverage.mjs";
-import { namesBase, readReviewReads } from "./review-reads.mjs";
+import { namesBase, readReviewReads, reviewKey } from "./review-reads.mjs";
 
 const USAGE = "Usage: merge-gate.mjs --pr <owner/repo#n> --head <sha> --bindings <path> [--bindings <path>...] [--receipt <path>] [--carried <path>] [--codex-rollout <path>...] [--bot <login>...] [--bot-unavailable <name>:<reason>...] [--checkout <dir>] [--help]";
 const SCOPE = "not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings";
@@ -138,9 +139,9 @@ function readCarried(path) {
   }
 }
 
-/** A skill's name after its plugin prefix. */
-function unqualified(name) {
-  return name.slice(name.lastIndexOf(":") + 1);
+/** Whether an operation is bound to a named performer: neither by fallback nor unavailable. */
+function isBound(op) {
+  return op.how_bound !== "fallback" && op.how_bound !== "unavailable" && typeof op.native_id === "string";
 }
 
 /**
@@ -149,8 +150,7 @@ function unqualified(name) {
  */
 function bindingFor(name, file) {
   const wanted = unqualified(name);
-  const bound = file.operations.find((op) => op.how_bound !== "fallback" && op.how_bound !== "unavailable"
-    && typeof op.native_id === "string" && unqualified(op.native_id) === wanted);
+  const bound = file.operations.find((op) => isBound(op) && unqualified(op.native_id) === wanted);
   if (bound) return { op: bound.id, binding: "bound" };
   const fallback = file.operations.find((op) => op.how_bound === "fallback"
     && (op.suggested ?? []).some((suggested) => typeof suggested === "string" && unqualified(suggested) === wanted));
@@ -161,7 +161,7 @@ function bindingFor(name, file) {
 function reviewSkills(file) {
   return file.operations.flatMap((op) => {
     if (op.how_bound === "fallback") return (op.suggested ?? []).filter((name) => typeof name === "string");
-    return op.how_bound !== "unavailable" && typeof op.native_id === "string" ? [op.native_id] : [];
+    return isBound(op) ? [op.native_id] : [];
   });
 }
 
@@ -221,7 +221,7 @@ function reviewEvidence(files, rollouts, carried) {
     const found = readReviewReads(file.transcripts, { skills: reviewSkills(file), rollouts });
     missing.push(...found.missing);
     for (const review of found.reviews) {
-      const key = JSON.stringify([review.thread, review.at, review.skill, review.args]);
+      const key = reviewKey(review);
       const match = bindingFor(review.skill, file);
       if (seen.has(key) || !match) continue;
       seen.add(key);
@@ -239,9 +239,14 @@ function verdict(condition, state, reason) {
   return { condition, state, reason };
 }
 
+/** Why a transport failure stopped a check, naming the failed call. */
+function transportReason(error) {
+  return `(${escaped(error.call)}: ${escaped(error.reason)})`;
+}
+
 /** A transport failure as a could-not-check verdict naming the failed call. */
 function unchecked(name, error) {
-  return verdict(name, "could not check", `(${escaped(error.call)}: ${escaped(error.reason)})`);
+  return verdict(name, "could not check", transportReason(error));
 }
 
 /** Run a condition independently, keeping transport failures separate from bugs. */
@@ -449,7 +454,7 @@ function coverageConditions(sources, options, live, evidence) {
     return [reviewRow(decision, options.head), coverageRow(decision, options.head)];
   } catch (error) {
     if (!(error instanceof TransportFailure)) throw error;
-    return both(unchecked("review", error).reason);
+    return both(transportReason(error));
   }
 }
 

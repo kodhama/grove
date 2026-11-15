@@ -105,7 +105,7 @@
  * When duplicates disagree, the not-fresh one survives (fail closed), so two
  * named rollouts that reach each other give the same record in either order.
  * Equal times keep traversal order. Missing or unparseable times remain
- * visible after timed records, for the planned coverage check to reject as
+ * visible after timed records, for the coverage check to reject as
  * `no time recorded`. A `tool_result` counts only in a `user` record.
  * Paths are compared resolved, through symbolic links.
  *
@@ -419,11 +419,16 @@ function survivor(kept, other) {
   return JSON.stringify(other) < JSON.stringify(kept) ? other : kept;
 }
 
+/** The identity two review records share when they are the same call: thread, time, skill and args. */
+export function reviewKey(review) {
+  return JSON.stringify([review.thread, review.at, review.skill, review.args]);
+}
+
 /** One record per thread, time, skill and args, ordered by parsed time with stable ties. */
 function uniqueReviews(reviews) {
   const byKey = new Map();
   for (const review of reviews) {
-    const key = JSON.stringify([review.thread, review.at, review.skill, review.args]);
+    const key = reviewKey(review);
     byKey.set(key, byKey.has(key) ? survivor(byKey.get(key), review) : review);
   }
   return [...byKey.values()].sort((a, b) => reviewTime(a) - reviewTime(b));
@@ -480,7 +485,7 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   }
   const unique = uniqueReviews(reviews);
   const ids = named.map((walked) => walked.id);
-  if (!skills) return { reviews: unique, missing, rollouts: ids };
-  const wanted = new Set(skills.map(unqualified));
-  return { reviews: unique.filter((review) => wanted.has(unqualified(review.skill))), missing, rollouts: ids };
+  const wanted = skills && new Set(skills.map(unqualified));
+  const kept = wanted ? unique.filter((review) => wanted.has(unqualified(review.skill))) : unique;
+  return { reviews: kept, missing, rollouts: ids };
 }
