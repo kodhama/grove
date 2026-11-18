@@ -339,8 +339,10 @@ also have surrounding quotes.
   performer is not bound by fallback, and its read command was a trusted
   `review-read.mjs`: the gate's own copy, or the one in the
   `supervision-setup` folder beside the skill folder that holds a bindings
-  file's table, compared by realpath, so a plugin update that removes the
-  folder an earlier read ran from makes that read fail this check. A relative script path is never trusted (`read by another
+  file's table, compared by realpath. A seeded restart re-reads the table
+  beside the skill the session loaded, so after any plugin update that moves
+  the bound table to a new versioned folder, an earlier read that ran the old
+  version's script fails this check, even while the old folder still exists. A relative script path is never trusted (`read by another
   script`): Node runs it from the reviewer's working directory, which the
   record does not hold, so run the read command by absolute path. This
   catches a read script run from an unexpected location, not an edited copy

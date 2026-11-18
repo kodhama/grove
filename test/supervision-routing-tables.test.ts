@@ -547,11 +547,11 @@ describe("GRO-30 · a performer is given the story's checkout", () => {
     const whole = section(read(WORKER), "5. Review");
     const review = flat(whole);
     expect(review).toContain(
-      "- **Check what it read.** In the request that starts a reviewer that reads a repository, name the range to read, and ask it to quote, from its own commands and their output, the command that gave it the diff, the commit it was on and the files the diff changes. Commit your work before the review starts, so the range holds all of it.",
+      "- **Check what it read.** In the request that starts a reviewer that reads a repository, name the range to read, and ask it to quote, from its own commands and their output, the read command it ran, the command that gave it the diff, the commit it was on and the files the diff changes. Commit your work before the review starts, so the range holds all of it.",
     );
     // The read command sits between these two halves; "step 5 has the reviewer run the read command" pins it whole.
     expect(review).toContain(
-      "A count other than 0 means the tree was not clean, and a review of it backs no pull request: commit the story's work and run the review again. Where the paths left are not the story's, change nothing of theirs and run no review on that tree: send your lead a `DECISION`. Compare the range and the script's path in its command, that commit and those files with the range you named, the full path you gave the script, the commit you started the review on and the files your own diff lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path and the range on to each, and to report the same for each; a reviewer it does not report for makes that run a miss. If the second run misses too, send your lead a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
+      "A count other than 0 means the tree was not clean, and a review of it backs no pull request: commit the story's work and run the review again. Where the paths left are not the story's, change nothing of theirs and run no review on that tree: send your lead a `DECISION`. Compare the script's path in its read command with the full path you gave the script, the range in its diff command with the range you named, that commit with the commit you started the review on, and those files with the files your own diff lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its findings and run it again. Tell a performer that starts reviewers of its own to pass the checkout's full path and the range on to each, and to report for each the range in its diff command, the commit it was on and the files the diff changes, since those reviewers run no read command; a reviewer it does not report for makes that run a miss. If the second run misses too, send your lead a `DECISION`: no pull request opens or becomes ready on that review, and only work that does not depend on it goes on.",
     );
     expect(review).not.toContain("print the top level and the head");
     // A second miss never lets the story run on to a pull request unreviewed.
@@ -1778,7 +1778,7 @@ describe("KOD-44 U5 · story-worker's review rows and what a reviewer records", 
       "A count other than 0 means the tree was not clean, and a review of it backs no pull request: commit the story's work and run the review again. Where the paths left are not the story's, change nothing of theirs and run no review on that tree: send your lead a `DECISION`.",
     );
     expect(text).toContain(
-      "Compare the range and the script's path in its command, that commit and those files with the range you named, the full path you gave the script, the commit you started the review on and the files your own diff lists over that range in the story's checkout.",
+      "Compare the script's path in its read command with the full path you gave the script, the range in its diff command with the range you named, that commit with the commit you started the review on, and those files with the files your own diff lists over that range in the story's checkout.",
     );
     expect(text).toContain("discard its findings and run it again");
     const readAt = text.indexOf("Have the reviewer run the read command");
