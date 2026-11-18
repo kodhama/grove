@@ -1393,6 +1393,21 @@ describe("carried evidence", () => {
     expect(r.code).toBe(2);
   });
 
+  it("a carried re-check is not a coverage link without the lead's own review of the head", async () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5);
+    const session = nextSession();
+    const away = { session_id: session, path: join(scratch("merge-gate-away-"), `${session}.jsonl`) };
+    const workerBindings = bindingsFile("worker", [reviewSession([{ head: a, base: repo.base, minute: 1 }]), away]);
+    const carried = handoff([`transcript ${session}: read 4 calls`, carriedLine(session, b, a)]);
+    const lead = bindingsFile("lead", [reviewSession([])]);
+    const r = await coverageGate(repo, b, repo.base, [workerBindings, lead], ["--carried", carried]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).not.toMatch(/^coverage: .* covered by 1 re-checks/m);
+    expect(r.stdout).toContain(`coverage: fail uncovered commits ${b}\n`);
+  });
+
   it("a missing transcript that no carried line covers cannot be checked", async () => {
     const { repo, b, workerBindings } = carriedCase();
     const r = await coverageGate(repo, b, repo.base, [workerBindings], ["--carried", handoff(["transcript someone-else: read 1 calls"])]);

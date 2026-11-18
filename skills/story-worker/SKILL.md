@@ -286,10 +286,10 @@ it.
   was not clean, and a review of it backs no pull request: commit the story's
   work and run the review again. Where the paths left are not the story's,
   change nothing of theirs and run no review on that tree: send your lead a
-  `DECISION`. Compare the range in its command, that
-  commit and those files with the range you named, the commit you started the
-  review on and the files your own diff lists over that range in the story's
-  checkout. If any differs or is missing, it read something else: discard its
+  `DECISION`. Compare the range and the script's path in its command, that
+  commit and those files with the range you named, the full path you gave the
+  script, the commit you started the review on and the files your own diff
+  lists over that range in the story's checkout. If any differs or is missing, it read something else: discard its
   findings and run it again. Tell a performer that starts reviewers of its own
   to pass the checkout's full path and the range on to each, and to report the
   same for each; a reviewer it does not report for makes that run a miss. If
