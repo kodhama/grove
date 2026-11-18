@@ -1,13 +1,25 @@
-/** Check one pinned pull-request head; review coverage is not built yet. */
-import { readFileSync, statSync } from "node:fs";
+/** Check one pinned pull-request head; the doc-review condition is not built yet. */
+import { realpathSync, readFileSync, statSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createGateSources, defaultRunner, isTestPath, SHA, TransportFailure } from "./gate-sources.mjs";
+import { readHandoff } from "./handoff-receipt.mjs";
+import { matches, unqualified } from "./operation-state.mjs";
 import { LINE_BREAK } from "./pr-body-lines.mjs";
+import { LINE_LIMIT, reviewCoverage } from "./review-coverage.mjs";
+import { namesBase, readReviewReads, reviewKey } from "./review-reads.mjs";
 
 const USAGE = "Usage: merge-gate.mjs --pr <owner/repo#n> --head <sha> --bindings <path> [--bindings <path>...] [--receipt <path>] [--carried <path>] [--codex-rollout <path>...] [--bot <login>...] [--bot-unavailable <name>:<reason>...] [--checkout <dir>] [--help]";
 const SCOPE = "not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings";
 const SUMMARY_LINE_BREAK = new RegExp(`${LINE_BREAK.source}|\\u0085`);
+/** The operations whose performers review, by the level skill whose bindings bind them. */
+const REVIEW_OPERATIONS = { "story-worker": ["review", "doc-review"], "project-lead": ["review-before-merge"] };
+/** The operations a carried handoff line may stand for: a worker's reviews. */
+const CARRIED_OPERATIONS = REVIEW_OPERATIONS["story-worker"];
+/** A carried review line's detail: what it read, then its arguments as one JSON string, none or unknown. */
+const CARRIED_DETAIL = /^read ([0-9a-f]{40}) from ([0-9a-f]{40})( \(dirty tree\))?; args (none|unknown|"(?:[^"\\]|\\.)*")$/;
 
 /** The account key, ignoring case and an optional trailing bot suffix. */
 function botKey(name) {
@@ -84,14 +96,164 @@ function readReceipt(path) {
   return { revision: /^[a-f0-9]{7,40}$/i.test(revision ?? "") ? revision.toLowerCase() : null };
 }
 
+/** A path through symbolic links, or null when it cannot be resolved. */
+function realOrNull(path) {
+  try {
+    return realpathSync(path);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read each bindings file before any process runs: a worker's or a lead's,
+ * with its transcripts, its review operations and its table path, a relative
+ * one resolved against the checkout.
+ */
+function readBindingsFiles(paths, checkout) {
+  return paths.map((path) => {
+    let bindings;
+    try {
+      bindings = JSON.parse(readFileSync(path, "utf8"));
+    } catch {
+      bindings = null;
+    }
+    const ops = REVIEW_OPERATIONS[bindings?.skill];
+    if (!ops || !Array.isArray(bindings.transcripts) || !Array.isArray(bindings.operations)) {
+      throw new Error(`--bindings ${path} is not a worker's or a lead's bindings file`);
+    }
+    const table = typeof bindings.table?.path === "string" ? resolve(checkout, bindings.table.path) : null;
+    const operations = ops.flatMap((id) => bindings.operations.filter((op) => op?.table === bindings.skill && op.id === id));
+    return { role: bindings.skill === "project-lead" ? "lead" : "worker", transcripts: bindings.transcripts, operations, table };
+  });
+}
+
+/** Read the carried handoff before any process runs; null without one. */
+function readCarried(path) {
+  if (path === null) return null;
+  try {
+    if (!statSync(path).isFile()) throw new Error("not a file");
+    return readHandoff(path);
+  } catch {
+    throw new Error("--carried must name a readable file");
+  }
+}
+
+/** Whether an operation is bound to a named performer: neither by fallback nor unavailable. */
+function isBound(op) {
+  return op.how_bound !== "fallback" && op.how_bound !== "unavailable" && typeof op.native_id === "string";
+}
+
+/**
+ * The review operation a performer name matches in one file: a bound one by
+ * its native id, as `matches` reads a skill call (a namespaced name must be
+ * the binding's own; only a bare one matches unqualified), else a
+ * by-fallback one by a suggested name; null for none.
+ */
+function bindingFor(name, file) {
+  const wanted = unqualified(name);
+  const bound = file.operations.find((op) => isBound(op) && matches({ kind: "skill", native_id: op.native_id }, { kind: "skill", name }));
+  if (bound) return { op: bound.id, binding: "bound" };
+  const fallback = file.operations.find((op) => op.how_bound === "fallback"
+    && (op.suggested ?? []).some((suggested) => typeof suggested === "string" && unqualified(suggested) === wanted));
+  return fallback ? { op: fallback.id, binding: "fallback" } : null;
+}
+
+/** The skill names whose calls one file's transcripts are read for: bound performers and fallbacks' suggestions. */
+function reviewSkills(file) {
+  return file.operations.flatMap((op) => {
+    if (op.how_bound === "fallback") return (op.suggested ?? []).filter((name) => typeof name === "string");
+    return isBound(op) ? [op.native_id] : [];
+  });
+}
+
+/**
+ * The trusted read scripts, by realpath: the gate's own sibling and the copy
+ * in the supervision-setup folder beside each bindings file's table.
+ */
+function trustedScripts(files) {
+  const own = join(dirname(fileURLToPath(import.meta.url)), "review-read.mjs");
+  const beside = files.filter((file) => file.table !== null)
+    .map((file) => join(dirname(dirname(file.table)), "supervision-setup", "scripts", "review-read.mjs"));
+  return new Set([own, ...beside].map(realOrNull).filter(Boolean));
+}
+
+/**
+ * Whether a record's read script is trusted. A relative path never is: Node
+ * resolves it against the process's working directory, which the read
+ * record does not hold, not against `--checkout`.
+ */
+function isTrusted(read, trusted) {
+  if (typeof read?.script !== "string" || !isAbsolute(read.script)) return false;
+  const real = realOrNull(read.script);
+  return real !== null && trusted.has(real);
+}
+
+/**
+ * The records carried for missing transcripts the handoff covers: a worker's
+ * review lines that carry what they read, with their arguments, each matched
+ * only against the bindings of the worker whose transcripts list its session.
+ */
+function carriedRecords(carried, covered, files) {
+  if (carried === null) return [];
+  const workers = files.filter((file) => file.role === "worker");
+  const owners = (session) => workers.filter((file) => file.transcripts.some((listed) => listed?.session_id === session));
+  return [...carried.all].flatMap(([key, uses]) => {
+    if (!CARRIED_OPERATIONS.includes(key.slice(key.indexOf("/") + 1))) return [];
+    return uses.flatMap((use) => {
+      const detail = CARRIED_DETAIL.exec(use.detail ?? "");
+      const standsFor = covered.has(use.session) || (use.child !== null && covered.has(use.child));
+      const match = owners(use.session).map((file) => bindingFor(use.performer, file)).find(Boolean);
+      if (!detail || !standsFor || !match) return [];
+      const args = detail[4].startsWith('"') ? JSON.parse(detail[4]) : null;
+      return [{ carried: true, thread: null, at: null, skill: use.performer, args, head: detail[1], base: detail[2],
+        clean: !detail[3], baseNamed: namesBase(args, detail[2]), role: "worker", rollout: false, trusted: false, ...match }];
+    });
+  });
+}
+
+/**
+ * Every review record the bindings files' transcripts and the named rollouts
+ * hold, tagged for the coverage decision and de-duplicated by thread, time,
+ * skill and arguments, plus carried records; `missing` lists transcripts not
+ * found that no carried section covers.
+ */
+function reviewEvidence(files, rollouts, carried) {
+  const trusted = trustedScripts(files);
+  const rolloutThreads = new Set(rollouts.map(realOrNull).filter(Boolean));
+  const seen = new Set();
+  const records = [];
+  const missing = [];
+  for (const file of files) {
+    const found = readReviewReads(file.transcripts, { skills: reviewSkills(file), rollouts });
+    missing.push(...found.missing);
+    for (const review of found.reviews) {
+      const key = reviewKey(review);
+      const match = bindingFor(review.skill, file);
+      if (seen.has(key) || !match) continue;
+      seen.add(key);
+      records.push({ ...review, ...match, role: file.role, carried: false,
+        rollout: rolloutThreads.has(review.thread) || found.rollouts.includes(review.session), trusted: isTrusted(review.read, trusted) });
+    }
+  }
+  const covered = new Set(missing.map((entry) => entry.session_id).filter((id) => id !== null && carried?.covered.has(id)));
+  const uncovered = missing.filter((entry) => !covered.has(entry.session_id));
+  return { records: [...records, ...carriedRecords(carried, covered, files)], missing: uncovered };
+}
+
 /** One condition's verdict and printable explanation. */
 function verdict(condition, state, reason) {
   return { condition, state, reason };
 }
 
+/** Why a transport failure stopped a check, naming the failed call. */
+function transportReason(error) {
+  return `(${escaped(error.call)}: ${escaped(error.reason)})`;
+}
+
 /** A transport failure as a could-not-check verdict naming the failed call. */
 function unchecked(name, error) {
-  return verdict(name, "could not check", `(${escaped(error.call)}: ${escaped(error.reason)})`);
+  return verdict(name, "could not check", transportReason(error));
 }
 
 /** Run a condition independently, keeping transport failures separate from bugs. */
@@ -246,14 +408,68 @@ function botConditions(sources, bots, head) {
   return rows.length ? rows : [verdict("bots", "pass", "none named and no other bot reviewed")];
 }
 
+/** The pull request's merge-base, or why it cannot be read: no live base, missing history or none. */
+function pullRange(sources, head, live) {
+  if (live === null) return { reason: "(needs the live base)" };
+  for (const sha of [head, live.baseSha]) {
+    if (!sources.hasCommit(sha)) return { reason: `(the clone lacks ${escaped(sha)}; fetch it)` };
+  }
+  const merge = sources.mergeBase(head, live.baseSha);
+  return merge === null ? { reason: `(no merge-base of ${head} and ${escaped(live.baseSha)})` } : { merge };
+}
+
+/** The suffix a verdict that rests on carried evidence ends with. */
+function carriedNote(head) {
+  return ` (carried; the lead reviewed ${head})`;
+}
+
+/** The full-review line from a coverage decision. */
+function reviewRow(decision, head) {
+  const { start } = decision;
+  if (start === null) {
+    if (decision.carriedNeedsLead) return verdict("review", "fail", `carried evidence needs the lead's own review of ${head}`);
+    const reasons = decision.reasons.length ? `: ${decision.reasons.map(escaped).join(", ")}` : "";
+    return verdict("review", "fail", `no creditable full review of ${head} (${decision.calls} review calls, none credited${reasons})`);
+  }
+  const patch = start.patchOf ? ` (patch-id match of ${escaped(start.patchOf)})` : "";
+  return verdict("review", start.carried ? "carried" : "pass", `full review read ${escaped(start.sha)}${patch}${start.carried ? carriedNote(head) : ""}`);
+}
+
+/** The coverage line from a coverage decision. */
+function coverageRow(decision, head) {
+  const { start } = decision;
+  if (start === null) return verdict("coverage", "fail", "no full review to start from");
+  const failures = [];
+  if (decision.uncovered.length) failures.push(`uncovered commits ${decision.uncovered.map(escaped).join(", ")}`);
+  if (decision.lines >= LINE_LIMIT) {
+    failures.push(`${decision.lines} non-test lines since the full review at ${escaped(start.sha)}, ${LINE_LIMIT} or more: a full review must come again`);
+  }
+  if (failures.length) return verdict("coverage", "fail", failures.join("; "));
+  const reason = `${escaped(start.sha)}..${head} covered by ${decision.links} re-checks; ${decision.lines} non-test lines since the full review`;
+  return verdict("coverage", decision.carriedUsed ? "carried" : "pass", `${reason}${decision.carriedUsed ? carriedNote(head) : ""}`);
+}
+
+/** The review and coverage lines, both could-not-check when evidence or history cannot be read. */
+function coverageConditions(sources, options, live, evidence) {
+  const both = (reason) => ["review", "coverage"].map((name) => verdict(name, "could not check", reason));
+  try {
+    const range = pullRange(sources, options.head, live);
+    if (range.reason) return both(range.reason);
+    const { records, missing } = evidence();
+    if (missing.length) return both(`(${missing.map((entry) => `${escaped(entry.path)} not found`).join(", ")})`);
+    const decision = reviewCoverage(records, sources, { head: options.head, baseSha: live.baseSha, merge: range.merge });
+    return [reviewRow(decision, options.head), coverageRow(decision, options.head)];
+  } catch (error) {
+    if (!(error instanceof TransportFailure)) throw error;
+    return both(transportReason(error));
+  }
+}
+
 /** Warn about attributes over the whole pull-request range, requesting missing history. */
 function attributesCondition(sources, head, live) {
-  if (live === null) return verdict("attributes", "could not check", "(needs the live base)");
-  for (const sha of [head, live.baseSha]) {
-    if (!sources.hasCommit(sha)) return verdict("attributes", "could not check", `(the clone lacks ${escaped(sha)}; fetch it)`);
-  }
-  const base = sources.mergeBase(head, live.baseSha);
-  if (base === null) return verdict("attributes", "could not check", `(no merge-base of ${head} and ${escaped(live.baseSha)})`);
+  const range = pullRange(sources, head, live);
+  if (range.reason) return verdict("attributes", "could not check", range.reason);
+  const base = range.merge;
   const count = sources.nonTestLines(base, head, live.baseSha);
   const rows = [];
   if (count.attributesTouched) rows.push(verdict("attributes", "warn", "the pull request changes a .gitattributes file, which can change how git reads its lines"));
@@ -274,7 +490,7 @@ function binaryClauses(paths) {
 }
 
 /** Evaluate each condition independently, using the same pinned head for every reader. */
-function check(sources, options, receipt) {
+function check(sources, options, receipt, evidence) {
   const { head, bots } = options;
   let live = null;
   const rows = [condition("head", () => {
@@ -288,7 +504,8 @@ function check(sources, options, receipt) {
     rows[0] = verdict("head", "fail", `${mismatch}; ${rows[0].state} ${rows[0].reason}`);
   }
   rows.push(condition("ci", () => ciCondition(sources.checks(head), head)));
-  rows.push(verdict("review coverage", "not checked", "(not built yet)"));
+  rows.push(...coverageConditions(sources, options, live, evidence));
+  rows.push(verdict("doc review", "not checked", "(not built yet)"));
   rows.push(condition("threads", () => threadCondition(sources.threads())));
   const botRows = condition("bots", () => botConditions(sources, bots, head));
   rows.push(...(Array.isArray(botRows) ? botRows : [botRows]));
@@ -312,6 +529,8 @@ function report(rows, head, stdout) {
 export function main(argv, { run = defaultRunner, stdout = process.stdout, stderr = process.stderr } = {}) {
   let options;
   let receipt;
+  let files;
+  let carried;
   try {
     options = readOptions(argv);
     if (options.help) {
@@ -319,13 +538,16 @@ export function main(argv, { run = defaultRunner, stdout = process.stdout, stder
       return 0;
     }
     receipt = readReceipt(options.receipt);
+    files = readBindingsFiles(options.bindings, options.checkout);
+    carried = readCarried(options.carried);
   } catch (error) {
     stderr.write(`merge-gate: ${escaped(error.message)}\n${USAGE}\n`);
     return 2;
   }
   try {
     const sources = createGateSources({ ...options, run });
-    return report(check(sources, options, receipt), options.head, stdout);
+    const evidence = () => reviewEvidence(files, options.codexRollouts, carried);
+    return report(check(sources, options, receipt, evidence), options.head, stdout);
   } catch (error) {
     stderr.write(`merge-gate: internal error: ${escaped(error.message)}\n`);
     return 2;

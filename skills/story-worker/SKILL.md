@@ -270,28 +270,33 @@ it.
   directive.
 - **Check what it read.** In the request that starts a reviewer that reads a
   repository, name the range to read, and ask it to quote, from its own
-  commands and their output, the command that gave it the diff, the commit it
-  was on and the files the diff changes. Commit your work before the review
-  starts, so the range holds all of it. Have the reviewer run the read command
-  as its first call, alone, never chained with another command:
+  commands and their output, the read command it ran, the command that gave
+  it the diff, the commit it was on and the files the diff changes. Commit
+  your work before the review starts, so the range holds all of it. Have the
+  reviewer run the read command as its first call, alone, never chained with
+  another command:
   `node "<supervision-setup's folder>/scripts/review-read.mjs" --checkout <dir> --from <commit>`,
-  supervision-setup's folder being the one beside this skill's own, and
-  `<dir>` the story's checkout by its full path. `<commit>` is the base
-  branch's commit as just fetched from the remote, never a local branch
-  that may be stale, for a full review, or the last reviewed head for a
-  re-check. It prints the head, the count of uncommitted paths and the base;
+  supervision-setup's folder being the one beside this skill's own, named
+  by its full path, and `<dir>` the story's checkout by its full path. A
+  read whose script is named by a relative path counts for nothing at merge.
+  `<commit>` is the base branch's commit as just fetched from the remote,
+  never a local branch that may be stale, for a full review, or the last
+  reviewed head for a re-check. It prints the head, the count of uncommitted paths and the base;
   the reviewer then tells a review performer that takes a base to diff from
   that printed base, by its commit id. A count other than 0 means the tree
   was not clean, and a review of it backs no pull request: commit the story's
   work and run the review again. Where the paths left are not the story's,
   change nothing of theirs and run no review on that tree: send your lead a
-  `DECISION`. Compare the range in its command, that
-  commit and those files with the range you named, the commit you started the
-  review on and the files your own diff lists over that range in the story's
+  `DECISION`. Compare the script's path in its read command with the full
+  path you gave the script, the range in its diff command with the range you
+  named, that commit with the commit you started the review on, and those
+  files with the files your own diff lists over that range in the story's
   checkout. If any differs or is missing, it read something else: discard its
   findings and run it again. Tell a performer that starts reviewers of its own
-  to pass the checkout's full path and the range on to each, and to report the
-  same for each; a reviewer it does not report for makes that run a miss. If
+  to pass the checkout's full path and the range on to each, and to report for
+  each the range in its diff command, the commit it was on and the files the
+  diff changes, since those reviewers run no read command; a reviewer it does
+  not report for makes that run a miss. If
   the second run misses too, send your lead a `DECISION`: no pull request opens
   or becomes ready on that review, and only work that does not depend on it
   goes on.

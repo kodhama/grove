@@ -234,7 +234,9 @@ the last review read a pull request's final head (KOD-44). The receipt
 check lists it; later units of that plan build the gate on it.
 
 - **The read command** is the reviewer's first call, run alone:
-  `node skills/supervision-setup/scripts/review-read.mjs --checkout <dir> --from <commit>`.
+  `node <supervision-setup folder>/scripts/review-read.mjs --checkout <dir> --from <commit>`,
+  with the script's absolute path (the merge gate trusts no relative one,
+  and it treats a `~` path as relative: the record keeps the path as typed).
   `<from>` is the base branch as just fetched (the remote-tracking ref, not
   a local branch that may be stale) for a full review, or the last reviewed head
   for a re-check. It prints `head <sha>`, `status <n>` (0 is a clean tree)
@@ -258,8 +260,8 @@ check lists it; later units of that plan build the gate on it.
   false. Each record carries its resolved transcript path as `thread`;
   duplicates by thread, time, skill and args are removed, the not-fresh one
   surviving when they disagree, and records sort by parsed time. Unknown
-  times remain visible, after the timed records, for the planned coverage
-  check's `no time recorded` rejection, which is not built yet. A Codex fork
+  times remain visible, after the timed records, and the merge gate credits
+  none of them (`no time recorded`). A Codex fork
   reached as a child inherits the freshness of the thread that started it.
   A rollout named by path and read on its own is fresh only as one
   `codex exec` run, so a named fork read on its own never is. A named fork
@@ -284,10 +286,10 @@ check lists it; later units of that plan build the gate on it.
 
 **The gate checks one pinned pull-request head.** Run
 `node skills/supervision-setup/scripts/merge-gate.mjs --pr <owner/repo#n> --head <sha> --bindings <path>`.
-It reads live pull-request state through `gh` and history from the local
-checkout through git. Review coverage arrives in a later unit: **a
-pull-request check currently never exits 0**, even when every checked
-condition passes.
+It reads live pull-request state through `gh`, history from the local
+checkout through git, and the reviewers' transcripts the bindings files
+list. The doc-review condition arrives in a later unit: **a pull-request
+check currently never exits 0**, even when every checked condition passes.
 
 `merge-gate.mjs` runs on every load, including when a wrapper imports it:
 it then parses the wrapper's own arguments and sets the wrapper's exit code.
@@ -301,10 +303,10 @@ path is treated as an import.
 | --- | --- |
 | `--pr <owner/repo#n>` | Required; a positive pull-request number. Owner and repo use letters, digits, `_`, `.`, or `-`. |
 | `--head <sha>` | Required; a full lowercase 40- or 64-character hex commit id. Every commit-specific read uses this head. |
-| `--bindings <path>` | Required at least once; repeatable. Parsed and retained for later review coverage; not opened yet. |
+| `--bindings <path>` | Required at least once; repeatable: the worker's, any taken-over worker's, and the lead's own. Each is read as JSON before any process runs; a file that cannot be read, or whose `skill` is neither `story-worker` nor `project-lead`, exits 2 with `merge-gate: --bindings <path> is not a worker's or a lead's bindings file`. |
 | `--receipt <path>` | Optional readable story receipt. Its single `Shipped revision:` line must give 7 to 40 hex characters as its first token, a case-insensitive prefix of `--head`. |
-| `--carried <path>` | Optional carried evidence; parsed, not opened yet. |
-| `--codex-rollout <path>` | Optional, repeatable review evidence; parsed, not opened yet. |
+| `--carried <path>` | Optional handoff whose `## Receipt check` section carries a worker's review lines, read before any process runs. |
+| `--codex-rollout <path>` | Optional, repeatable Codex CLI rollout holding a review. The rule is that such a run, and every thread it started however the gate reaches it, is only ever a re-check: enforced today for the run's own thread and the threads it started, except the threads of a run that a listed transcript reaches, which a later unit tags. No local Codex record is credited yet: each fails `base not named`. |
 | `--bot <login>` | Optional, repeatable automated reviewer. Matches logins ignoring case and a trailing `[bot]`; for example, `--bot chatgpt-codex-connector`. There are no aliases: `--bot codex` does not match that connector. |
 | `--bot-unavailable <name>:<reason>` | Optional, repeatable exemption with a non-empty reason on one line. The name is a login, matched as `--bot` matches; it cannot also be passed with `--bot`. |
 | `--checkout <dir>` | Optional git checkout, also where `gh` runs; defaults to the working directory. |
@@ -325,7 +327,84 @@ also have surrounding quotes.
 - `ci: pass <n> checks passed on <sha>` or `fail ...`: every check has
   completed with `success`, `neutral`, or `skipped`, and at least one
   concluded `success`. No checks, all-neutral, and all-skipped fail.
-- `review coverage: not checked (not built yet)` until review coverage is implemented.
+- `review: pass full review read <sha>` or `fail ...`: a full review read
+  the head or an earlier commit on its first-parent chain. A review record
+  is one call to a performer bound to `review` or `doc-review` in a
+  worker's bindings, or to `review-before-merge` in a lead's, with the read
+  command's `head`, `status` and `base` before it in the same transcript. A
+  namespaced call must name the bound performer exactly, so another
+  plugin's same-named skill is not it; only a bare name, as a Codex skill
+  read gives, matches the binding's unqualified name. It counts only when its reviewer was fresh, the call ran, the tree was clean,
+  the call's arguments name the recorded base, its time parses, its
+  performer is not bound by fallback, and its read command was a trusted
+  `review-read.mjs`: the gate's own copy, or the one in the
+  `supervision-setup` folder beside the skill folder that holds a bindings
+  file's table, compared by realpath. A seeded restart re-reads the table
+  beside the skill the session loaded, so after any plugin update that moves
+  the bound table to a new versioned folder, an earlier read that ran the old
+  version's script fails this check, even while the old folder still exists. A relative script path is never trusted (`read by another
+  script`): Node runs it from the reviewer's working directory, which the
+  record does not hold, so run the read command by absolute path. This
+  catches a read script run from an unexpected location, not an edited copy
+  at a trusted location, and not a forged read: a transcript can be forged. A record is a full review when its base is the merge-base of its
+  own head with the base branch and it is not a `--codex-rollout` run;
+  otherwise it is a re-check.
+  Where a record sits on the first-parent chain from the merge-base `M`,
+  checked in this order: a reviewed head or base missing from the clone
+  gives `reviewed commit <sha> is not in the clone`; a full review whose
+  head is `M` or before it reads nothing and credits nothing
+  (`reads nothing`), and a re-check there sits at `M`, where it moves
+  nothing; then a record sits at its own head when that is a chain commit;
+  for a worker's record whose head is an ancestor of the final head but
+  neither on the chain nor `M` or before it (a merged side branch), at the
+  first chain commit whose cumulative `git patch-id --verbatim` from `M`
+  equals its head's; for a worker's full review whose head is off the
+  head's history, as after a rebase before the first push, at the first
+  chain commit whose cumulative patch-id from `M` equals the review's own
+  from its merge-base. A re-check off the head's history and any lead's
+  record never get patch-id credit. Otherwise a record credits nothing: an
+  ancestor head with no patch match, or a lead's there, gives `only on a
+  merged side branch`; a head off the history with no match, a re-check
+  there, or a lead's there gives `not on the head's history`. A full
+  review placed by patch-id adds `(patch-id match of <sha>)` to the line;
+  indentation changes do not match. Every record from a `--codex-rollout`
+  run, or from any thread that run started, is a re-check, even when a
+  listed transcript reaches the run. The gate marks the run's own thread and
+  the threads it started, except the threads of a run that a listed
+  transcript reaches, which a later unit marks. No local Codex record is
+  credited yet, since each fails `base not named`.
+  With no full review the line is
+  `fail no creditable full review of <head> (<n> review calls, none credited: <reason>, ...)`.
+  A doc review is not credited yet.
+- `coverage: pass <start>..<head> covered by <k> re-checks; <n> non-test lines since the full review`
+  or `fail ...`: from the full review furthest along the chain, ties going
+  to the later call, each re-check whose base is
+  the covered point or an ancestor of it moves the covered point to its
+  place; overlaps are fine, and a clean merge from the base branch needs no
+  re-check. It fails with `uncovered commits <sha>, ...`, or with
+  `<n> non-test lines since the full review at <start>, 150 or more: a full review must come again`,
+  on one line when both apply, or with `no full review to start from`.
+  A listed transcript that is not found prints
+  `could not check (<path> not found)` on both lines.
+- Carried evidence: a missing transcript that the `--carried` handoff's
+  section covers is replaced by that section's worker review lines carrying
+  `read <head> from <base>`; one marked `(dirty tree)` credits nothing, and
+  carried lines are ignored when the transcript can be read. A carried
+  line is matched only against the bindings of the worker whose transcripts
+  list its session. A carried record has no freshness, outcome, time or read
+  script to judge, so those checks are skipped; it must still name its base
+  in its args, from a clean tree, with a bound performer. It counts only
+  beside the lead's own creditable `review-before-merge` record that read a
+  non-empty range ending at the head; then a line resting on it prints
+  `carried`, ending `(carried; the lead reviewed <head>)`, which counts as
+  neither failed nor unchecked. When no full review is credited, no such
+  lead record exists and a carried full review would otherwise start the
+  chain, the review line reads
+  `fail carried evidence needs the lead's own review of <head>`; in every
+  other case without a start it reads `fail no creditable full review ...`
+  as above, where a carried record that would otherwise count gives
+  `carried without the lead's own review`.
+- `doc review: not checked (not built yet)` until the doc-review condition is implemented.
 - `threads: pass none unresolved` or `fail <n> unresolved: ...`;
   outdated unresolved threads still block.
 - One `bot "<name>": pass ...`, `fail ...`, or `unavailable <reason>` per
@@ -364,7 +443,9 @@ also have surrounding quotes.
 - `binary paths: warn counted as text: "<path>", "<path>"` appears when
   git reads a non-test path as binary, and names only those: they
   are re-counted as text toward the count, the gate's non-test line count.
-  No current line prints the count; the planned review coverage reads it.
+  This warning names binary paths over the whole pull request, from the
+  merge-base on, while the `coverage:` line's count runs from the full
+  review's start: the two cover different ranges.
   Binary test paths get their own clause, `test paths, not counted: "<path>"`,
   after a `; ` when both appear, or alone as
   `binary paths: warn test paths, not counted: "<path>"`. They contribute
@@ -384,8 +465,8 @@ also have surrounding quotes.
 - `not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings`
   states the gate's scope boundary; it is not counted in the summary.
 - `blocked <sha>: <n> failed, <m> not checked` ends every current
-  pull-request check. Once review coverage is implemented, a run that
-  passes every condition can end in `ok <sha>`.
+  pull-request check. Once the doc-review condition is implemented, a run
+  that passes every condition can end in `ok <sha>`.
 
 **Exit 1 wins when any condition fails.** Otherwise exit 2 means a condition
 could not be checked or remains unchecked. Transport failures print
@@ -393,7 +474,7 @@ could not be checked or remains unchecked. Transport failures print
 line if reviews could not be read; the other conditions still run. Failed
 reads of comments, reactions, or check suites appear on the affected named
 bot's line, preserving every other bot verdict and any unnamed-bot failures. Bad
-arguments and unreadable receipt files exit 2 before any process runs, with
+arguments and unreadable receipt, bindings or carried files exit 2 before any process runs, with
 `merge-gate: <reason>` and usage on stderr and no stdout. Internal errors
 exit 2 with `merge-gate: internal error: <message>` on stderr. Exit 0 is
 reserved for all conditions holding; currently only `--help` alone returns it.
@@ -425,6 +506,11 @@ lets a consuming repo name the commit it pins by its version.
   agent has none until the next resume.
 - **Codex does not restart in place yet** (GRO-3). A Codex session takes the
   new-session path, and a Codex worker hands its restart to its lead.
+- **A re-check may start before the covered point.** The merge gate lets a
+  re-check's base be any ancestor of the covered point, so coverage can pass
+  over content no reviewed diff showed: a file added, deleted before the
+  full review, then added again shows in no diff. A later unit makes the
+  base the covered point exactly.
 - **A Codex reviewer's base is never recorded as named.** A Codex skill use
   carries no arguments, so `review-reads.mjs` records `args` as null and
   `baseNamed` as false, and the receipt check prints `args none` for each

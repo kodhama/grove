@@ -105,7 +105,7 @@
  * When duplicates disagree, the not-fresh one survives (fail closed), so two
  * named rollouts that reach each other give the same record in either order.
  * Equal times keep traversal order. Missing or unparseable times remain
- * visible after timed records, for the planned coverage check to reject as
+ * visible after timed records, for the coverage check to reject as
  * `no time recorded`. A `tool_result` counts only in a `user` record.
  * Paths are compared resolved, through symbolic links.
  *
@@ -419,11 +419,16 @@ function survivor(kept, other) {
   return JSON.stringify(other) < JSON.stringify(kept) ? other : kept;
 }
 
+/** The identity two review records share when they are the same call: thread, time, skill and args. */
+export function reviewKey(review) {
+  return JSON.stringify([review.thread, review.at, review.skill, review.args]);
+}
+
 /** One record per thread, time, skill and args, ordered by parsed time with stable ties. */
 function uniqueReviews(reviews) {
   const byKey = new Map();
   for (const review of reviews) {
-    const key = JSON.stringify([review.thread, review.at, review.skill, review.args]);
+    const key = reviewKey(review);
     byKey.set(key, byKey.has(key) ? survivor(byKey.get(key), review) : review);
   }
   return [...byKey.values()].sort((a, b) => reviewTime(a) - reviewTime(b));
@@ -434,8 +439,11 @@ function uniqueReviews(reviews) {
  * and those of each Codex rollout path in `rollouts`, read as its own
  * reviewer unless a listed transcript or another named rollout reaches it.
  * `skills`, when given, keeps only the review calls it names.
- * Returns `{ reviews, missing }`; the caller exits 2 when `missing` is not
- * empty. A missing caller-named rollout has `session_id` null.
+ * Returns `{ reviews, missing, rollouts }`; the caller exits 2 when `missing`
+ * is not empty. A missing caller-named rollout has `session_id` null.
+ * `rollouts` lists the id of each caller-named rollout read as its own
+ * reviewer: every record its walk reaches, its children's included, carries
+ * that id as `session`. One a listed transcript reaches is not in it.
  */
 export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   const reviews = [];
@@ -466,7 +474,7 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     }
     const id = typeof read.first?.payload?.id === "string" ? read.first.payload.id : childName(path);
     const found = walk({ path, subagentDirs: [] }, id, id, namedContext(path, read.first), read, reached);
-    named.push({ real, found, within: new Set(found.reached.map(realPath)) });
+    named.push({ id, real, found, within: new Set(found.reached.map(realPath)) });
   }
   // A named rollout another named one reaches is read in that one's walk, whatever the order.
   const under = (inner, outer) => outer !== inner && outer.within.has(inner.real) && !inner.within.has(outer.real);
@@ -476,7 +484,8 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     missing.push(...walked.found.missing);
   }
   const unique = uniqueReviews(reviews);
-  if (!skills) return { reviews: unique, missing };
-  const wanted = new Set(skills.map(unqualified));
-  return { reviews: unique.filter((review) => wanted.has(unqualified(review.skill))), missing };
+  const ids = named.map((walked) => walked.id);
+  const wanted = skills && new Set(skills.map(unqualified));
+  const kept = wanted ? unique.filter((review) => wanted.has(unqualified(review.skill))) : unique;
+  return { reviews: kept, missing, rollouts: ids };
 }
