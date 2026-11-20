@@ -377,11 +377,17 @@ also have surrounding quotes.
   `fail no creditable full review of <head> (<n> review calls, none credited: <reason>, ...)`.
   A doc review is not credited yet.
 - `coverage: pass <start>..<head> covered by <k> re-checks; <n> non-test lines since the full review`
-  or `fail ...`: from the full review furthest along the chain, ties going
-  to the later call, each re-check whose base is
-  the covered point or an ancestor of it moves the covered point to its
-  place; overlaps are fine, and a clean merge from the base branch needs no
-  re-check. It fails with `uncovered commits <sha>, ...`, or with
+  or `fail ...`: a full review's place is reached, a clean merge from the
+  base branch right after a reached place is reached, and a re-check's
+  place is reached when its base has the same tree as a reached place
+  before it; a base that is only an ancestor of one links nothing.
+  `<start>` is the furthest full review from which the head is reached,
+  ties going to the later call, and the review line names it too, so it
+  can be earlier than the latest full review; `<k>` is the fewest re-checks
+  on a path, preferring one with no carried link, and `<n>` counts from
+  `<start>`. With no such full review, the line judges the furthest one and
+  the commits after its furthest reached place. It fails with
+  `uncovered commits <sha>, ...`, or with
   `<n> non-test lines since the full review at <start>, 150 or more: a full review must come again`,
   on one line when both apply, or with `no full review to start from`.
   A listed transcript that is not found prints
@@ -506,11 +512,6 @@ lets a consuming repo name the commit it pins by its version.
   agent has none until the next resume.
 - **Codex does not restart in place yet** (GRO-3). A Codex session takes the
   new-session path, and a Codex worker hands its restart to its lead.
-- **A re-check may start before the covered point.** The merge gate lets a
-  re-check's base be any ancestor of the covered point, so coverage can pass
-  over content no reviewed diff showed: a file added, deleted before the
-  full review, then added again shows in no diff. A later unit makes the
-  base the covered point exactly.
 - **A Codex reviewer's base is never recorded as named.** A Codex skill use
   carries no arguments, so `review-reads.mjs` records `args` as null and
   `baseNamed` as false, and the receipt check prints `args none` for each
