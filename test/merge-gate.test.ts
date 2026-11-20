@@ -1046,18 +1046,8 @@ describe("review coverage", () => {
 
   /** Item 7k's rebase onto a moved base: the full review at `reviewed` forked at the root, places at `c` by patch-id; `d` follows. */
   function movedBase() {
-    const repo = repository();
-    repo.git("checkout", "-q", "-b", "topic");
-    writeFileSync(join(repo.cwd, "feature.mjs"), "export const a = 1;\n");
-    const reviewed = repo.commit("feature");
-    repo.git("checkout", "-q", "main");
-    writeFileSync(join(repo.cwd, "other.txt"), "the base branch moves\n");
-    const moved = repo.commit("base moves");
-    repo.git("checkout", "-q", "-b", "rebased");
-    writeFileSync(join(repo.cwd, "feature.mjs"), "export const a = 1;\n");
-    const c = repo.commit("feature again");
-    const d = grow(repo, 5);
-    return { repo, reviewed, moved, c, d };
+    const { repo, reviewed, moved, sha: c } = rebased();
+    return { repo, reviewed, moved, c, d: grow(repo, 5) };
   }
 
   it("item 7k: after a rebase onto a moved base, a re-check from the old fork point links nothing", async () => {

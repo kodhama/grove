@@ -171,9 +171,8 @@ function reachFrom(start, rechecks, reader, listed) {
     const path = best.get(place);
     if (!path) continue;
     if (place + 1 < chain.length && cleanMerge(chain[place + 1], reader, listed)) offer(place + 1, path);
-    const tree = reader.treeOf(reader.shaAt(place));
     for (const judged of rechecks) {
-      if (judged.place <= place || reader.treeOf(judged.record.base) !== tree) continue;
+      if (judged.place <= place || reader.treeOf(judged.record.base) !== reader.treeOf(reader.shaAt(place))) continue;
       offer(judged.place, { carried: path.carried + (judged.record.carried ? 1 : 0), links: path.links + 1 });
     }
   }
@@ -233,14 +232,13 @@ export function reviewCoverage(records, sources, { head, baseSha, merge }) {
   const listed = new Set(count.merges.map((row) => row.sha));
   const { start, path, uncovered } = cover(starts, usable.filter((entry) => !entry.full), reader, listed);
   const carried = start.record.carried === true;
-  // The line count runs from the printed start: the commits after its place.
-  const after = new Set(reader.chain.slice(start.place + 1).map((commit) => commit.sha));
+  // The line count runs from the printed start; `count.commits` holds the chain's commits, in order.
   return {
     ...decision,
     start: { sha: reader.shaAt(start.place), patchOf: start.patchOf ?? null, carried },
     links: path.links,
     carriedUsed: carried || path.carried > 0,
     uncovered,
-    lines: count.commits.filter((commit) => after.has(commit.sha)).reduce((sum, commit) => sum + commit.lines, 0),
+    lines: count.commits.slice(start.place + 1).reduce((sum, commit) => sum + commit.lines, 0),
   };
 }
