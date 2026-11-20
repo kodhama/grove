@@ -12,9 +12,9 @@
  * From gh: head, checks, firstSuiteAt, threads, botReviews, botComments and
  * botReactions. Each is a single `gh api` request per page, and the module
  * paginates itself, up to 50 pages.
- * From git: hasCommit, isAncestor, mergeBase, firstParentChain, numstat,
- * remergeNumstat, nonTestLines and patchId. A defined negative answer, such
- * as a missing commit or no merge-base, is a value, not a failure.
+ * From git: hasCommit, isAncestor, treeOf, mergeBase, firstParentChain,
+ * numstat, remergeNumstat, nonTestLines and patchId. A defined negative
+ * answer, such as a missing commit or no merge-base, is a value, not a failure.
  *
  * run(cmd, args, { cwd, input, env, encoding }) returns spawnSync's result shape. The
  * default runner bounds each argv-only call, never a shell, to 30 seconds and
@@ -573,6 +573,15 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     },
 
     isAncestor,
+
+    /** A commit's tree id; two commits with equal content have equal trees. */
+    treeOf(sha) {
+      const call = "treeOf";
+      revisions(call, sha);
+      const tree = git(call, ["rev-parse", "--verify", "--quiet", `${sha}^{tree}`]).stdout.trim();
+      if (!SHA.test(tree)) fail(call, "invalid tree answer");
+      return tree;
+    },
 
     mergeBase(a, b) {
       const call = "mergeBase";

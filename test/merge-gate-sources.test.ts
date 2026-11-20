@@ -331,6 +331,20 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.mergeBase(one, other)).toBeNull();
   });
 
+  it("treeOf answers a commit's tree, equal for commits with equal content", () => {
+    const r = repo();
+    r.write("src/a", "a\n");
+    const one = r.commit("one");
+    r.write("src/a", "a\nb\n");
+    const two = r.commit("two");
+    r.write("src/a", "a\n");
+    const three = r.commit("three");
+    expect(r.sources.treeOf(one)).toBe(r.git("rev-parse", `${one}^{tree}`));
+    expect(r.sources.treeOf(three)).toBe(r.sources.treeOf(one));
+    expect(r.sources.treeOf(two)).not.toBe(r.sources.treeOf(one));
+    expect(() => r.sources.treeOf("f".repeat(40))).toThrow(TransportFailure);
+  });
+
   it("pins git config and attributes across a rename and resolved merge", () => {
     const r = repo();
     r.write(".gitattributes", "*.txt diff=lossy\n");
@@ -1108,6 +1122,7 @@ describe("git runner contract", () => {
     ["remergeNumstat", ["merge"]],
     ["nonTestLines", ["from", "to", "base"]],
     ["patchId", ["base", "head"]],
+    ["treeOf", ["sha"]],
     ["checks", ["sha"]],
     ["firstSuiteAt", ["sha"]],
   ])("refuses invalid revisions before running %s", (method, names) => {
@@ -1240,6 +1255,11 @@ describe("git runner contract", () => {
   it("rejects mergeBase exit 1 with stdout", () => {
     const run = () => ({ status: 1, stdout: "a".repeat(40), stderr: "" });
     expect(() => createGateSources({ ...config, run }).mergeBase("a", "b")).toThrow(new TransportFailure("mergeBase", "invalid merge-base answer"));
+  });
+
+  it("rejects a treeOf exit 0 whose answer is not a SHA", () => {
+    const run = () => ({ status: 0, stdout: "not a tree\n", stderr: "" });
+    expect(() => createGateSources({ ...config, run }).treeOf("a")).toThrow(new TransportFailure("treeOf", "invalid tree answer"));
   });
 
   it.each([
