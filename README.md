@@ -353,7 +353,7 @@ also have surrounding quotes.
   checked in this order: a reviewed head or base missing from the clone
   gives `reviewed commit <sha> is not in the clone`; a full review whose
   head is `M` or before it reads nothing and credits nothing
-  (`reads nothing`), and a re-check there sits at `M`, where it moves
+  (`reads nothing`), and a re-check there sits at `M`, where it links
   nothing; then a record sits at its own head when that is a chain commit;
   for a worker's record whose head is an ancestor of the final head but
   neither on the chain nor `M` or before it (a merged side branch), at the
@@ -383,10 +383,11 @@ also have surrounding quotes.
   before it; a base that is only an ancestor of one links nothing.
   `<start>` is the furthest full review from which the head is reached,
   ties going to the later call, and the review line names it too, so it
-  can be earlier than the latest full review; `<k>` is the fewest re-checks
-  on a path, preferring one with no carried link, and `<n>` counts from
-  `<start>`. With no such full review, the line judges the furthest one and
-  the commits after its furthest reached place. It fails with
+  can be earlier than the latest full review; `<k>` counts the re-checks on
+  the path with the fewest carried links, then the fewest re-checks, and
+  `<n>` counts from `<start>`. With no such full review, the line judges the
+  furthest one and the commits after its furthest reached place, clean base
+  merges left out. It fails with
   `uncovered commits <sha>, ...`, or with
   `<n> non-test lines since the full review at <start>, 150 or more: a full review must come again`,
   on one line when both apply, or with `no full review to start from`.
@@ -520,6 +521,14 @@ lets a consuming repo name the commit it pins by its version.
   changed markdown file for a doc review), so as planned it cannot credit a
   Codex in-session review. Until KOD-44 U4 records a rule for crediting such
   a review, the gap stands.
+- **A re-check after a rebase onto a moved base links nothing.** Run from
+  the last reviewed head, it records the old fork point as its base, so
+  coverage fails closed with `uncovered commits`. Re-check from the chain
+  commit the full review was placed at, or run a new full review. The
+  skill-text fix is GRO-77.
+- **Patch-id placement ignores where a change sits** (F9), so a side-branch
+  or rebased record can still place on a commit that makes the same edit in
+  the wrong place. It closes in S4a-3.
 
 ## History
 

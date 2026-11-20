@@ -1123,6 +1123,46 @@ describe("review coverage", () => {
     expect(r.code).toBe(2);
   });
 
+  /** A full review's commit `a` on a topic branch, `then` more topic commits ending at `last`, the base moving, and a clean `--no-ff` base merge `m`. */
+  function topicThenBaseMerge(then: number) {
+    const repo = repository();
+    repo.git("checkout", "-q", "-b", "topic");
+    const a = grow(repo, 5);
+    let last = a;
+    for (let i = 0; i < then; i += 1) last = grow(repo, 5);
+    repo.git("checkout", "-q", "main");
+    writeFileSync(join(repo.cwd, "other.txt"), "base moves\n");
+    const moved = repo.commit("base moves");
+    repo.git("checkout", "-q", "topic");
+    repo.git("merge", "-q", "--no-ff", "-m", "merge base", "main");
+    return { repo, a, last, moved, m: repo.git("rev-parse", "HEAD") };
+  }
+
+  it("pin: a clean base merge after an unreached commit is not stepped over", async () => {
+    const { repo, a, last: b, moved, m } = topicThenBaseMerge(1);
+    const r = await coverageGate(repo, m, moved, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${b}$`, "m"));
+    expect(r.code).toBe(1);
+  });
+
+  it("pin: a clean base merge right after a re-check's place is reached, and a re-check from it links", async () => {
+    const { repo, a, last: c, moved, m } = topicThenBaseMerge(2);
+    const d = grow(repo, 5);
+    const r = await coverageGate(repo, d, moved, [worker({ head: a, base: repo.base, minute: 1 },
+      { head: c, base: a, minute: 2 }, { head: d, base: m, minute: 3 })]);
+    expect(r.stdout).toContain(`coverage: pass ${a}..${d} covered by 2 re-checks; 15 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("pin: the path with the fewest re-checks wins: A..C over A..B and B..C", async () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5); const c = grow(repo, 5);
+    const r = await coverageGate(repo, c, repo.base, [worker({ head: a, base: repo.base, minute: 1 },
+      { head: b, base: a, minute: 2 }, { head: c, base: b, minute: 3 }, { head: c, base: a, minute: 4 })]);
+    expect(r.stdout).toContain(`coverage: pass ${a}..${c} covered by 1 re-checks; 10 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
   it("a base merge whose conflict was resolved is not a clean merge and needs a re-check", async () => {
     const repo = repository();
     repo.git("checkout", "-q", "-b", "topic");
@@ -1521,6 +1561,21 @@ describe("carried evidence", () => {
     const r = await coverageGate(repo, c, repo.base, [workerBindings, lead], ["--carried", carried]);
     expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
     expect(r.stdout).toContain(`coverage: carried ${a}..${c} covered by 2 re-checks; 10 non-test lines since the full review (carried; the lead reviewed ${c})\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("pin: a path with no carried link beats a shorter carried one", async () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5); const c = grow(repo, 5);
+    const session = nextSession();
+    const away = { session_id: session, path: join(scratch("merge-gate-away-"), `${session}.jsonl`) };
+    const workerBindings = bindingsFile("worker", [reviewSession([
+      { head: a, base: repo.base, minute: 1 }, { head: b, base: a, minute: 2 }, { head: c, base: b, minute: 3 }]), away]);
+    const carried = handoff([`transcript ${session}: read 4 calls`, carriedLine(session, c, a)]);
+    const lead = bindingsFile("lead", [reviewSession([{ head: c, base: b, minute: 5 }])]);
+    const r = await coverageGate(repo, c, repo.base, [workerBindings, lead], ["--carried", carried]);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toMatch(new RegExp(`^coverage: pass ${a}\\.\\.${c} covered by 2 re-checks; 10 non-test lines since the full review$`, "m"));
     expect(r.code).toBe(2);
   });
 

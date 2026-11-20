@@ -1257,6 +1257,11 @@ describe("git runner contract", () => {
     expect(() => createGateSources({ ...config, run }).mergeBase("a", "b")).toThrow(new TransportFailure("mergeBase", "invalid merge-base answer"));
   });
 
+  it("rejects a treeOf exit 0 whose answer is not a SHA", () => {
+    const run = () => ({ status: 0, stdout: "not a tree\n", stderr: "" });
+    expect(() => createGateSources({ ...config, run }).treeOf("a")).toThrow(new TransportFailure("treeOf", "invalid tree answer"));
+  });
+
   it.each([
     ["remerge CONFLICT (content): Merge conflict in unknown\n"],
     ["diff --git a/known b/known\nremerge CONFLICT (content): Merge conflict in known\ndiff --git a/hidden b/hidden\nremerge CONFLICT (content): Merge conflict in hidden\n"],
