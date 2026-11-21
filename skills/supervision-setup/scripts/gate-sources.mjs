@@ -12,8 +12,8 @@
  * From gh: head, checks, firstSuiteAt, threads, botReviews, botComments and
  * botReactions. Each is a single `gh api` request per page, and the module
  * paginates itself, up to 50 pages.
- * From git: hasCommit, isAncestor, treeOf, mergeBase, firstParentChain,
- * numstat, remergeNumstat, nonTestLines and patchId. A defined negative
+ * From git: hasCommit, isAncestor, treeOf, mergeBase, mergeBases, mergeTree,
+ * firstParentChain, numstat, remergeNumstat, nonTestLines and patchId. A defined negative
  * answer, such as a missing commit or no merge-base, is a value, not a failure.
  *
  * run(cmd, args, { cwd, input, env, encoding }) returns spawnSync's result shape. The
@@ -24,7 +24,8 @@
  *
  * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U3;
  * KTD1 (one runner), KTD5 (line counts), KTD7 (verbatim patch IDs),
- * KTD8 (check-suite time), KTD9 (transport failures).
+ * KTD8 (check-suite time), KTD9 (transport failures);
+ * docs/plans/2026-11-19-kod-44-u4b-s4-plan.md, KTD2 (merge-tree).
  */
 import { spawnSync } from "node:child_process";
 import process from "node:process";
@@ -591,6 +592,27 @@ export function createGateSources({ checkout, owner, repo, number, run = default
       const sha = result.stdout.trim();
       if (result.status !== 0 || !SHA.test(sha)) fail(call, "invalid merge-base answer");
       return sha;
+    },
+
+    /** Every merge base of two commits; none for unrelated history. */
+    mergeBases(a, b) {
+      const call = "mergeBases";
+      revisions(call, a, b);
+      const result = git(call, ["merge-base", "--all", a, b], { allowed: [1] });
+      const out = result.stdout.trim();
+      const shas = out === "" ? [] : out.split("\n");
+      if ((result.status === 1 && shas.length > 0) || !shas.every((sha) => SHA.test(sha))) fail(call, "invalid merge-base answer");
+      return shas;
+    },
+
+    /** The tree a merge of two commits writes; null when it conflicts, a resolution to one side included. */
+    mergeTree(a, b) {
+      const call = "mergeTree";
+      revisions(call, a, b);
+      const result = git(call, ["merge-tree", "--write-tree", a, b], { allowed: [1] });
+      const tree = result.stdout.split("\n")[0];
+      if (!SHA.test(tree)) fail(call, "invalid merge-tree answer");
+      return result.status === 0 ? tree : null;
     },
 
     firstParentChain,

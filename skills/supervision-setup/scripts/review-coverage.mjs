@@ -27,7 +27,8 @@
  *
  * Plan: docs/plans/2026-11-13-kod-44-u4b-gaps.md, G7 and G8;
  * docs/plans/2026-11-08-kod-44-merge-gate-plan.md, KTD4 to KTD8 and KTD11;
- * docs/plans/2026-11-19-kod-44-u4b-s4-plan.md, KTD1 (reachability over exact bases).
+ * docs/plans/2026-11-19-kod-44-u4b-s4-plan.md, KTD1 (reachability over exact bases)
+ * and KTD3 (clean merges by merge-tree).
  */
 
 /** At this many non-test lines since the full review, a full review must come again. */
@@ -77,6 +78,19 @@ function chainReader(sources, { head, baseSha, merge }) {
     if (!trees.has(sha)) trees.set(sha, sources.treeOf(sha));
     return trees.get(sha);
   };
+  const cleans = new Map();
+  /**
+   * Whether a chain commit is a clean merge from the base branch, which needs
+   * no re-check (KTD3), cached: two parents, the second an ancestor of the
+   * base, one merge base, and re-merging the parents writes its own tree.
+   */
+  const clean = ({ sha, parents: [first, second, ...more] }) => {
+    if (!cleans.has(sha)) {
+      cleans.set(sha, second !== undefined && more.length === 0 && ancestor(second, baseSha)
+        && sources.mergeBases(first, second).length === 1 && sources.mergeTree(first, second) === treeOf(sha));
+    }
+    return cleans.get(sha);
+  };
   /** The commit at a chain place; -1 is the merge-base itself. */
   const shaAt = (place) => place < 0 ? merge : chain[place].sha;
   /** The first chain place whose commit contains `sha`, which must be an ancestor of the head. */
@@ -99,7 +113,7 @@ function chainReader(sources, { head, baseSha, merge }) {
     }
     return null;
   };
-  return { chain, ancestor, treeOf, shaAt, placeOf, patchPlace, head, baseSha, merge };
+  return { chain, ancestor, treeOf, clean, shaAt, placeOf, patchPlace, head, baseSha, merge };
 }
 
 /**
@@ -148,11 +162,6 @@ function startsOf(usable) {
     .map(({ judged }) => judged);
 }
 
-/** Whether a chain commit is a clean merge from the base branch, which needs no re-check. */
-function cleanMerge(commit, reader, listed) {
-  return commit.parents.length === 2 && !listed.has(commit.sha) && reader.ancestor(commit.parents[1], reader.baseSha);
-}
-
 /**
  * The places reached from one full review (KTD1): its own place; a clean base
  * merge right after a reached place; and a re-check's place when some reached
@@ -160,7 +169,7 @@ function cleanMerge(commit, reader, listed) {
  * depends only on its two trees. Each reached place keeps its best path:
  * fewest carried links, then fewest re-checks.
  */
-function reachFrom(start, rechecks, reader, listed) {
+function reachFrom(start, rechecks, reader) {
   const { chain } = reader;
   const best = new Map([[start.place, { carried: 0, links: 0 }]]);
   const offer = (place, path) => {
@@ -170,26 +179,25 @@ function reachFrom(start, rechecks, reader, listed) {
   for (let place = start.place; place < chain.length; place += 1) {
     const path = best.get(place);
     if (!path) continue;
-    if (place + 1 < chain.length && cleanMerge(chain[place + 1], reader, listed)) offer(place + 1, path);
+    if (place + 1 < chain.length && reader.clean(chain[place + 1])) offer(place + 1, path);
     for (const judged of rechecks) {
       if (judged.place <= place || reader.treeOf(judged.record.base) !== reader.treeOf(reader.shaAt(place))) continue;
       offer(judged.place, { carried: path.carried + (judged.record.carried ? 1 : 0), links: path.links + 1 });
     }
   }
   const furthest = Math.max(...best.keys());
-  const uncovered = chain.slice(furthest + 1).filter((commit) => !cleanMerge(commit, reader, listed)).map((commit) => commit.sha);
+  const uncovered = chain.slice(furthest + 1).filter((commit) => !reader.clean(commit)).map((commit) => commit.sha);
   return { start, path: best.get(furthest), uncovered };
 }
 
 /**
  * The furthest full review from which the head is reached, with its best
- * path; with none, the furthest full review and its uncovered tail. Every
- * start judges merges against one `listed` set, from the merge-base's range.
+ * path; with none, the furthest full review and its uncovered tail.
  */
-function cover(starts, rechecks, reader, listed) {
+function cover(starts, rechecks, reader) {
   let first = null;
   for (const start of starts) {
-    const reach = reachFrom(start, rechecks, reader, listed);
+    const reach = reachFrom(start, rechecks, reader);
     if (reach.uncovered.length === 0) return reach;
     first ??= reach;
   }
@@ -229,8 +237,7 @@ export function reviewCoverage(records, sources, { head, baseSha, merge }) {
   };
   if (starts.length === 0) return decision;
   const count = sources.nonTestLines(merge, head, baseSha);
-  const listed = new Set(count.merges.map((row) => row.sha));
-  const { start, path, uncovered } = cover(starts, usable.filter((entry) => !entry.full), reader, listed);
+  const { start, path, uncovered } = cover(starts, usable.filter((entry) => !entry.full), reader);
   const carried = start.record.carried === true;
   // The line count runs from the printed start; `count.commits` holds the chain's commits, in order.
   return {

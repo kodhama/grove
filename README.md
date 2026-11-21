@@ -378,7 +378,8 @@ also have surrounding quotes.
   A doc review is not credited yet.
 - `coverage: pass <start>..<head> covered by <k> re-checks; <n> non-test lines since the full review`
   or `fail ...`: a full review's place is reached, a clean merge from the
-  base branch right after a reached place is reached, and a re-check's
+  base branch right after a reached place is reached (two parents, one merge
+  base, re-merging to its own tree; an octopus never is), and a re-check's
   place is reached when its base has the same tree as a reached place
   before it; a base that is only an ancestor of one links nothing.
   `<start>` is the furthest full review from which the head is reached,

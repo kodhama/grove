@@ -861,8 +861,38 @@ function rebased(indent = false) {
   return { repo, reviewed, moved, sha };
 }
 
+/**
+ * A criss-cross base merge: base lines L1 and L2 from the fork point, joined
+ * on the base, then base commit L3 edits `g`. The topic's commit `a` edits
+ * `f`; the topic then merges L1, then L2, each with one merge base, and `m`
+ * merges L3, whose parents have two merge bases, L1 and L2.
+ */
+function crissCross() {
+  const repo = repository();
+  repo.git("checkout", "-q", "-b", "topic");
+  writeFileSync(join(repo.cwd, "f"), "topic\n");
+  const a = repo.commit("topic edits f");
+  repo.git("checkout", "-q", "-b", "l1", repo.base);
+  writeFileSync(join(repo.cwd, "l1"), "l1\n");
+  const l1 = repo.commit("L1");
+  repo.git("checkout", "-q", "-b", "l2", repo.base);
+  writeFileSync(join(repo.cwd, "l2"), "l2\n");
+  const l2 = repo.commit("L2");
+  repo.git("checkout", "-q", "-B", "main", l1);
+  repo.git("merge", "-q", "--no-ff", "-m", "join L1 and L2", "l2");
+  writeFileSync(join(repo.cwd, "g"), "L3\n");
+  const l3 = repo.commit("L3");
+  repo.git("checkout", "-q", "topic");
+  repo.git("merge", "-q", "--no-ff", "-m", "merge L1", "l1");
+  repo.git("merge", "-q", "--no-ff", "-m", "merge L2", "l2");
+  repo.git("merge", "-q", "--no-ff", "-m", "merge L3", "main");
+  const m = repo.git("rev-parse", "HEAD");
+  expect(repo.git("merge-base", "--all", `${m}^1`, `${m}^2`).split("\n").sort()).toEqual([l1, l2].sort());
+  return { repo, a, l3, m };
+}
+
 describe("review coverage", () => {
-  it("AE1: a full review of an older head with 135 uncovered non-test lines fails", async () => {
+  it("AE1:a full review of an older head with 135 uncovered non-test lines fails", async () => {
     const repo = repository();
     const a = grow(repo, 10); const b = grow(repo, 100); const c = grow(repo, 35);
     const r = await coverageGate(repo, c, repo.base, [worker({ head: a, base: repo.base, minute: 1 })]);
@@ -1179,6 +1209,48 @@ describe("review coverage", () => {
     const r = await coverageGate(repo, merge, moved, [worker({ head: a, base: repo.base, minute: 1 })]);
     expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
     expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${merge}$`, "m"));
+    expect(r.code).toBe(1);
+  });
+
+  it("a criss-cross base merge that re-merges clean is not stepped over: its parents have two merge bases", async () => {
+    const { repo, a, l3, m } = crissCross();
+    const r = await coverageGate(repo, m, l3, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${m}$`, "m"));
+    expect(r.code).toBe(1);
+  });
+
+  it("pin: a base merge whose re-merge differs from its tree, with no conflict, is not stepped over", async () => {
+    const { repo, a, moved, m } = topicThenBaseMerge(0);
+    writeFileSync(join(repo.cwd, "k"), "only in the merge\n");
+    repo.git("add", "k");
+    repo.git("commit", "-q", "--amend", "--no-edit");
+    const evil = repo.git("rev-parse", "HEAD");
+    expect(evil).not.toBe(m);
+    const r = await coverageGate(repo, evil, moved, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${evil}$`, "m"));
+    expect(r.code).toBe(1);
+  });
+
+  it("pin: an octopus merge of base commits is never stepped over", async () => {
+    const repo = repository();
+    repo.git("checkout", "-q", "-b", "topic");
+    const a = grow(repo, 5);
+    repo.git("checkout", "-q", "-b", "one", repo.base);
+    writeFileSync(join(repo.cwd, "one"), "one\n");
+    const one = repo.commit("one");
+    repo.git("checkout", "-q", "-b", "two", repo.base);
+    writeFileSync(join(repo.cwd, "two"), "two\n");
+    const two = repo.commit("two");
+    repo.git("checkout", "-q", "-B", "main", one);
+    repo.git("merge", "-q", "--no-ff", "-m", "join", "two");
+    const joined = repo.git("rev-parse", "HEAD");
+    repo.git("checkout", "-q", "topic");
+    repo.git("merge", "-q", "-m", "octopus", one, two);
+    const octopus = repo.git("rev-parse", "HEAD");
+    expect(repo.git("rev-list", "--parents", "-n", "1", octopus).split(" ")).toHaveLength(4);
+    const r = await coverageGate(repo, octopus, joined, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${octopus}$`, "m"));
     expect(r.code).toBe(1);
   });
 
