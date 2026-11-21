@@ -1298,6 +1298,115 @@ describe("review coverage", () => {
     expect(r.stdout).toContain(`review: fail no creditable full review of ${sha} (1 review calls, none credited: not on the head's history)\n`);
   });
 
+  const lines = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i + 1}\n`).join("");
+  const BLOCK = lines("b", 7);
+  /** The hunk header and verbatim patch-id of one diff. */
+  function hunk(repo: ReturnType<typeof repository>, from: string, to: string) {
+    const diff = repo.git("diff", from, to);
+    const id = spawnSync("/usr/bin/git", ["-C", repo.cwd, "patch-id", "--verbatim"], { input: diff + "\n", encoding: "utf8", env: GIT_ENV }).stdout;
+    return { header: /^@@ (\S+ \S+) @@/m.exec(diff)?.[1], id: id.split(" ")[0] };
+  }
+
+  /**
+   * The O10 upstream shift (KTD5): `f` holds a seven-line block at lines 6-12;
+   * the review edits its middle line 9; upstream inserts five lines and a copy
+   * of the block at the top, so the original sits at 18-24, and with `upstreamEdit`
+   * also edits the original's middle line. `edit` makes the head's one chain
+   * commit edit that line of the moved file.
+   */
+  function shifted(edit: number, upstreamEdit = false) {
+    const repo = repository();
+    writeFileSync(join(repo.cwd, "f"), lines("a", 5) + BLOCK + lines("c", 3));
+    const start = repo.commit("block");
+    repo.git("checkout", "-q", "-b", "topic");
+    writeFileSync(join(repo.cwd, "f"), lines("a", 5) + BLOCK.replace("b4\n", "B4\n") + lines("c", 3));
+    const reviewed = repo.commit("review's edit");
+    repo.git("checkout", "-q", "main");
+    const original = upstreamEdit ? BLOCK.replace("b4\n", "U4\n") : BLOCK;
+    writeFileSync(join(repo.cwd, "f"), lines("n", 5) + BLOCK + lines("a", 5) + original + lines("c", 3));
+    const moved = repo.commit("upstream shift");
+    repo.git("checkout", "-q", "-b", "head");
+    const file = readFileSync(join(repo.cwd, "f"), "utf8").split("\n");
+    file[edit - 1] = "B4";
+    writeFileSync(join(repo.cwd, "f"), file.join("\n"));
+    const sha = repo.commit("chain edit");
+    return { repo, start, reviewed, moved, sha };
+  }
+
+  it("F9: a chain edit of the moved block's copy, equal patch-id and hunk header, is refused", async () => {
+    const { repo, start, reviewed, moved, sha } = shifted(9);
+    expect(hunk(repo, moved, sha)).toEqual(hunk(repo, start, reviewed));
+    expect(hunk(repo, moved, sha).header).toBe("-6,7 +6,7");
+    const r = await coverageGate(repo, sha, moved, [worker({ head: reviewed, base: start, minute: 1 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${sha} (1 review calls, none credited: not on the head's history)\n`);
+  });
+
+  it("pin, F9: the review's edit at its moved place is the correct rebase and is credited", async () => {
+    const { repo, start, reviewed, moved, sha } = shifted(21);
+    expect(hunk(repo, moved, sha)).toEqual({ header: "-18,7 +18,7", id: hunk(repo, start, reviewed).id });
+    const r = await coverageGate(repo, sha, moved, [worker({ head: reviewed, base: start, minute: 1 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${sha} (patch-id match of ${reviewed})\n`);
+    expect(r.code).toBe(2);
+  });
+
+  it("F10: a replay that conflicts places nothing, though the chain edit has the review's patch-id", async () => {
+    const { repo, start, reviewed, moved, sha } = shifted(9, true);
+    expect(hunk(repo, moved, sha).id).toBe(hunk(repo, start, reviewed).id);
+    expect(spawnSync("/usr/bin/git", ["-C", repo.cwd, "merge-tree", "--write-tree", moved, reviewed], { env: GIT_ENV }).status).toBe(1);
+    const r = await coverageGate(repo, sha, moved, [worker({ head: reviewed, base: start, minute: 1 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${sha} (1 review calls, none credited: not on the head's history)\n`);
+  });
+
+  it("F9: a rebased review whose fork point is one of two merge bases with M places nothing", async () => {
+    const repo = repository();
+    writeFileSync(join(repo.cwd, "x"), "x\n");
+    const x = repo.commit("X");
+    repo.git("checkout", "-q", "-b", "y", repo.base);
+    writeFileSync(join(repo.cwd, "x"), "x\n");
+    const y = repo.commit("Y, the same tree as X");
+    repo.git("checkout", "-q", "-b", "topic");
+    repo.git("merge", "-q", "--no-ff", "-m", "merge X", "main");
+    writeFileSync(join(repo.cwd, "feature.mjs"), "export const a = 1;\n");
+    const reviewed = repo.commit("feature");
+    repo.git("checkout", "-q", "main");
+    repo.git("merge", "-q", "--no-ff", "-m", "merge Y", "y");
+    const moved = repo.git("rev-parse", "HEAD");
+    repo.git("checkout", "-q", "-b", "head");
+    writeFileSync(join(repo.cwd, "feature.mjs"), "export const a = 1;\n");
+    const sha = repo.commit("feature again");
+    expect(repo.git("merge-base", "--all", moved, reviewed).split("\n").sort()).toEqual([x, y].sort());
+    expect(repo.git("merge-tree", "--write-tree", moved, reviewed)).toBe(repo.git("rev-parse", `${sha}^{tree}`));
+    const own = repo.git("merge-base", reviewed, moved);
+    const r = await coverageGate(repo, sha, moved, [worker({ head: reviewed, base: own, minute: 1 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${sha} (1 review calls, none credited: not on the head's history)\n`);
+  });
+
+  it("F9, the sibling reproduction: a side-branch edit of line 5 does not place on a chain edit of line 14", async () => {
+    const repo = repository();
+    const sibling = (line: number) => {
+      const file = ["h", ...lines("s", 7).trim().split("\n"), "m1", "m2", ...lines("s", 7).trim().split("\n"), "t"];
+      if (line > 0) file[line - 1] = "S4";
+      writeFileSync(join(repo.cwd, "f"), file.join("\n") + "\n");
+    };
+    sibling(0);
+    const start = repo.commit("two equal blocks");
+    repo.git("checkout", "-q", "-b", "side");
+    sibling(5);
+    const side = repo.commit("edit line 5");
+    repo.git("checkout", "-q", "-b", "topic", start);
+    sibling(14);
+    const c = repo.commit("edit line 14");
+    repo.git("merge", "-q", "--no-ff", "-m", "merge side", "side");
+    const merge = repo.git("rev-parse", "HEAD");
+    expect(hunk(repo, start, c).id).toBe(hunk(repo, start, side).id);
+    const r = await coverageGate(repo, merge, start, [worker({ head: side, base: start, minute: 1 })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${merge} (1 review calls, none credited: only on a merged side branch)\n`);
+  });
+
   it("a reviewed commit absent from the clone fails, saying so", async () => {
     const repo = repository();
     const a = grow(repo, 5);

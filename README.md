@@ -358,10 +358,12 @@ also have surrounding quotes.
   for a worker's record whose head is an ancestor of the final head but
   neither on the chain nor `M` or before it (a merged side branch), at the
   first chain commit whose cumulative `git patch-id --verbatim` from `M`
-  equals its head's; for a worker's full review whose head is off the
-  head's history, as after a rebase before the first push, at the first
-  chain commit whose cumulative patch-id from `M` equals the review's own
-  from its merge-base. A re-check off the head's history and any lead's
+  equals its head's and whose tree is its head's; for a worker's full review
+  whose head is off the head's history, as after a rebase before the first
+  push, at the first chain commit whose cumulative patch-id from `M` equals
+  the review's own from its merge-base and whose tree is `git merge-tree` of
+  `M` and its head, that merge-base being their only one; a conflict places
+  nothing. A re-check off the head's history and any lead's
   record never get patch-id credit. Otherwise a record credits nothing: an
   ancestor head with no patch match, or a lead's there, gives `only on a
   merged side branch`; a head off the history with no match, a re-check
@@ -538,9 +540,6 @@ lets a consuming repo name the commit it pins by its version.
   coverage fails closed with `uncovered commits`. Re-check from the chain
   commit the full review was placed at, or run a new full review. The
   skill-text fix is GRO-77.
-- **Patch-id placement ignores where a change sits** (KOD-44 F9), so a
-  side-branch or rebased record can still place on a commit that makes the
-  same edit in the wrong place. It closes in KOD-44's S4a-3.
 - **A squash or cherry-pick of base content newer than `M`** (the head's
   merge base with the base branch) **is pull-request content** for carried
   evidence, since it is a non-merge commit; older base content is in the
