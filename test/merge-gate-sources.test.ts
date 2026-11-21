@@ -536,7 +536,7 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.firstParentChain(feature, merge)).toEqual([{ sha: merge, parents: [feature, main] }]);
     expect(r.sources.remergeNumstat(merge)).toEqual([]);
     expect(r.sources.nonTestLines(r.base, merge, main).attributesTouched).toBe(false);
-    expect(r.sources.nonTestLines(r.base, merge, main)).toEqual({ total: 2, commits: [{ sha: feature, lines: 2 }, { sha: merge, lines: 0 }], merges: [], binaryPaths: [], attributesTouched: false });
+    expect(r.sources.nonTestLines(r.base, merge, main)).toEqual({ total: 2, commits: [{ sha: feature, lines: 2 }, { sha: merge, lines: 0 }], binaryPaths: [], attributesTouched: false });
   });
 
   it("counts an octopus of base ancestors without asking for remerge-diff", () => {
@@ -563,7 +563,7 @@ describe("git sources in temporary repositories", () => {
     const sources = createGateSources({ ...config, checkout: r.cwd, run });
     expect(sources.nonTestLines(feature, merge, base)).toMatchObject({
       total: 2,
-      merges: [{ sha: merge, lines: 2 }],
+      commits: expect.arrayContaining([{ sha: merge, lines: 2 }]),
     });
     expect(calls.some((args) => args.includes("--remerge-diff"))).toBe(false);
   });
@@ -580,13 +580,12 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.nonTestLines(r.base, merge, r.base)).toEqual({
       total: 100,
       commits: [{ sha: merge, lines: 100 }],
-      merges: [{ sha: merge, lines: 100 }],
       binaryPaths: [],
       attributesTouched: false,
     });
   });
 
-  it.each(["conflict", "test/conflict", "src/é\tname", "src/a b/name"])("counts a resolution and records a merge touching %s", (path) => {
+  it.each(["conflict", "test/conflict", "src/é\tname", "src/a b/name"])("counts a resolution in a merge touching %s", (path) => {
     const r = repo();
     r.write(path, "start\n");
     const start = r.commit("start");
@@ -602,7 +601,7 @@ describe("git sources in temporary repositories", () => {
     const merge = r.commit("resolve");
     expect(r.sources.remergeNumstat(merge)).toEqual([{ path, oldPath: null, added: 1, deleted: 5 }]);
     const isTest = path.startsWith("test/");
-    expect(r.sources.nonTestLines(start, merge, main)).toMatchObject({ total: isTest ? 0 : 8, merges: [{ sha: merge, lines: isTest ? 0 : 6 }] });
+    expect(r.sources.nonTestLines(start, merge, main)).toMatchObject({ total: isTest ? 0 : 8, commits: expect.arrayContaining([{ sha: merge, lines: isTest ? 0 : 6 }]) });
   });
 
   it("counts a base merge whose binary-driver conflict has no remerge row", () => {
@@ -625,7 +624,7 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.remergeNumstat(merge)).toEqual([]);
     expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
       total: 20,
-      merges: [{ sha: merge, lines: 20 }],
+      commits: expect.arrayContaining([{ sha: merge, lines: 20 }]),
     });
     expect(r.sources.nonTestLines(start, merge, main).total).toBe(22);
   });
@@ -639,7 +638,7 @@ describe("git sources in temporary repositories", () => {
     r.write("src/footest.java", "count\n");
     r.write("src/a", "one\ntwo\n");
     const head = r.commit("mixed");
-    expect(r.sources.nonTestLines(r.base, head, r.base)).toEqual({ total: 4, commits: [{ sha: head, lines: 4 }], merges: [], binaryPaths: ["binary"], attributesTouched: false });
+    expect(r.sources.nonTestLines(r.base, head, r.base)).toEqual({ total: 4, commits: [{ sha: head, lines: 4 }], binaryPaths: ["binary"], attributesTouched: false });
     expect(r.sources.numstat(r.base, head)[0].files).toContainEqual({ path: "binary", oldPath: null, added: null, deleted: null });
   });
 
@@ -652,7 +651,6 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.nonTestLines(start, head, r.base)).toEqual({
       total: 300,
       commits: [{ sha: head, lines: 300 }],
-      merges: [],
       binaryPaths: ["src/a.mjs"],
       attributesTouched: false,
     });
@@ -728,7 +726,7 @@ describe("git sources in temporary repositories", () => {
     const merge = r.commit("resolve");
     expect(r.sources.remergeNumstat(merge)).toEqual([{ path: "src/a.mjs", oldPath: null, added: 1, deleted: 5 }]);
     expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
-      total: 6, commits: [{ sha: merge, lines: 6 }], merges: [{ sha: merge, lines: 6 }],
+      total: 6, commits: [{ sha: merge, lines: 6 }],
     });
   });
 
@@ -742,7 +740,7 @@ describe("git sources in temporary repositories", () => {
     const merge = r.git("rev-parse", "HEAD");
     expect(r.sources.nonTestLines(r.base, merge, r.base)).toMatchObject({
       total: 1,
-      merges: [{ sha: merge, lines: 1 }],
+      commits: expect.arrayContaining([{ sha: merge, lines: 1 }]),
       binaryPaths: ["binary"],
     });
   });
@@ -850,7 +848,7 @@ describe("git sources in temporary repositories", () => {
     const merge = r.git("rev-parse", "HEAD");
     expect(r.sources.nonTestLines(start, merge, start)).toMatchObject({
       total: 0,
-      merges: [{ sha: merge, lines: 0 }],
+      commits: expect.arrayContaining([{ sha: merge, lines: 0 }]),
       binaryPaths: ["src/y.js"],
     });
   });
@@ -868,7 +866,7 @@ describe("git sources in temporary repositories", () => {
     const merge = r.git("rev-parse", "HEAD");
     expect(r.sources.nonTestLines(start, merge, start)).toMatchObject({
       total: 200,
-      merges: [{ sha: merge, lines: 200 }],
+      commits: expect.arrayContaining([{ sha: merge, lines: 200 }]),
     });
   });
 
@@ -904,7 +902,7 @@ describe("git sources in temporary repositories", () => {
     const merge = r.git("rev-parse", "HEAD");
     expect(r.sources.nonTestLines(start, merge, start)).toMatchObject({
       total: 300,
-      merges: [{ sha: merge, lines: 300 }],
+      commits: expect.arrayContaining([{ sha: merge, lines: 300 }]),
     });
   });
 
@@ -932,7 +930,7 @@ describe("git sources in temporary repositories", () => {
     }]);
     expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
       total: 304,
-      merges: [{ sha: merge, lines: 304 }],
+      commits: expect.arrayContaining([{ sha: merge, lines: 304 }]),
     });
   });
 
@@ -992,7 +990,7 @@ describe("git sources in temporary repositories", () => {
     }]);
     expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
       total: 200,
-      merges: [{ sha: merge, lines: 200 }],
+      commits: expect.arrayContaining([{ sha: merge, lines: 200 }]),
     });
   });
 
@@ -1041,7 +1039,6 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.nonTestLines(start, merge, start)).toMatchObject({
       total: lines,
       commits: [{ sha: merge, lines }],
-      merges: [{ sha: merge, lines }],
       binaryPaths: [newPath],
     });
   });
@@ -1075,7 +1072,6 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.nonTestLines(feature, merge, main)).toMatchObject({
       total: lines,
       commits: [{ sha: merge, lines }],
-      merges: [{ sha: merge, lines }],
       binaryPaths: [newPath],
     });
   });
@@ -1370,7 +1366,7 @@ describe("git runner contract", () => {
     };
     expect(createGateSources({ ...config, run }).nonTestLines(parent, sha, base)).toMatchObject({
       total: 7,
-      merges: [{ sha, lines: 7 }],
+      commits: expect.arrayContaining([{ sha, lines: 7 }]),
     });
   });
 

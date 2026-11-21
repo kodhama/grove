@@ -13,8 +13,8 @@
  * A record's tags, beside review-reads' fields: `role` (`worker` or `lead`),
  * `op` (the operation its performer is bound to), `binding` (`bound`, or
  * `fallback` when it matched only a by-fallback operation's suggested name),
- * `trusted` (its read script is a trusted copy), `rollout` (it came from a
- * `--codex-rollout` path) and `carried` (it came from a handoff, so it has no
+ * `trusted` (its read script is a trusted copy), `rollout` (its thread is a
+ * `--codex-rollout` run or under one) and `carried` (it came from a handoff, so it has no
  * time, freshness or read script to judge, and counts only beside the lead's
  * own review of the head).
  *
@@ -28,7 +28,8 @@
  * Plan: docs/plans/2026-11-13-kod-44-u4b-gaps.md, G7 and G8;
  * docs/plans/2026-11-08-kod-44-merge-gate-plan.md, KTD4 to KTD8 and KTD11;
  * docs/plans/2026-11-19-kod-44-u4b-s4-plan.md, KTD1 (reachability over exact bases),
- * KTD3 (clean merges by merge-tree) and KTD4 (N7, what the lead's record read).
+ * KTD3 (clean merges by merge-tree), KTD4 (N7, what the lead's record read)
+ * and KTD5 (F9, placement by patch-id and the replayed tree).
  */
 
 /** At this many non-test lines since the full review, a full review must come again. */
@@ -105,11 +106,11 @@ function chainReader(sources, { head, baseSha, merge }) {
     }
     return low;
   };
-  /** The first chain place whose cumulative diff from the merge-base has this patch-id, or null. */
-  const patchPlace = (patchId) => {
+  /** The first chain place whose cumulative diff from the merge-base has this patch-id and whose tree is `tree`, or null (KTD5). */
+  const patchPlace = (patchId, tree) => {
     for (let place = 0; place < chain.length; place += 1) {
       if (!patchIds.has(place)) patchIds.set(place, sources.patchId(merge, chain[place].sha));
-      if (patchIds.get(place) === patchId) return place;
+      if (patchIds.get(place) === patchId && treeOf(chain[place].sha) === tree) return place;
     }
     return null;
   };
@@ -120,10 +121,12 @@ function chainReader(sources, { head, baseSha, merge }) {
  * Where a record sits on the chain and whether it is a full review, or why it
  * cannot sit anywhere (G7). A full review or a re-check sits only at its own
  * head on the chain, or, for a worker's record whose head is only on a merged
- * side branch, at the chain commit with the same cumulative patch-id (D6). A
- * worker's full review off the head's history sits where its patch-id
- * matches (KTD7); a re-check there sits nowhere. A lead's record never gets
- * patch-id credit.
+ * side branch, at the chain commit with the same cumulative patch-id and its
+ * head's tree (D6). A worker's full review off the head's history sits where
+ * its patch-id matches and the tree is its change re-merged onto the
+ * merge-base, its own merge-base being the only one (KTD7; KTD5, the same
+ * change at the same place); a re-check there sits nowhere. A lead's record
+ * never gets patch-id credit.
  */
 function placed(record, reader, sources) {
   for (const sha of [record.head, record.base]) {
@@ -138,12 +141,13 @@ function placed(record, reader, sources) {
     if (reader.shaAt(place) === record.head) return { full, place };
     if (record.role === "lead") return { reason: SIDE_BRANCH };
     const patchId = sources.patchId(reader.merge, record.head);
-    const equal = patchId === null ? null : reader.patchPlace(patchId);
+    const equal = patchId === null ? null : reader.patchPlace(patchId, reader.treeOf(record.head));
     return equal === null ? { reason: SIDE_BRANCH } : { full, place: equal, patchOf: record.head };
   }
   if (!full || record.role === "lead") return { reason: NOT_ON_HISTORY };
   const patchId = sources.patchId(own, record.head);
-  const place = patchId === null ? null : reader.patchPlace(patchId);
+  const replay = patchId === null || String(sources.mergeBases(reader.merge, record.head)) !== own ? null : sources.mergeTree(reader.merge, record.head);
+  const place = replay === null ? null : reader.patchPlace(patchId, replay);
   return place === null ? { reason: NOT_ON_HISTORY } : { full, place, patchOf: record.head };
 }
 

@@ -630,12 +630,11 @@ export function createGateSources({ checkout, owner, repo, number, run = default
 
     /**
      * Non-test lines from `from` to `to` (KTD5): {total, commits:[{sha, lines}],
-     * merges:[{sha, lines}], binaryPaths, attributesTouched}, oldest first.
+     * binaryPaths, attributesTouched}, oldest first.
      * attributesTouched reports a .gitattributes path (old or new) in the rows
      * read for the count, including test and binary rows. A two-parent merge
      * from base counts its remerge rows, unless a conflict notice lacks a row;
-     * then it counts its first-parent diff, as all other merges do. `merges`
-     * lists those merges and base merges with remerge rows, even tests or binary.
+     * then it counts its first-parent diff, as all other merges do.
      * A rename from a test path to a non-test path counts the new file in full.
      * A rename into a test path counts the old non-test file in full.
      * A rename between two non-test paths, or two test paths, counts only its
@@ -646,13 +645,11 @@ export function createGateSources({ checkout, owner, repo, number, run = default
       revisions(call, from, to, base);
       const stats = new Map(numstat(from, to, call).map((commit) => [commit.sha, commit.files]));
       const commits = [];
-      const merges = [];
       const binaryPaths = new Set();
       let attributesTouched = false;
       for (const commit of firstParentChain(from, to, call)) {
         let files;
         let diffArgs;
-        let listMerge = false;
         if (commit.parents.length >= 2) {
           let fromBase = commit.parents.length === 2 && isAncestor(commit.parents[1], base, call);
           files = fromBase ? remergeNumstat(commit.sha, call) : diffNumstat(commit.parents[0], commit.sha, call);
@@ -661,7 +658,6 @@ export function createGateSources({ checkout, owner, repo, number, run = default
             files = diffNumstat(commit.parents[0], commit.sha, call);
           }
           diffArgs = fromBase ? ["show", "--remerge-diff", "--format=", commit.sha] : ["diff", commit.parents[0], commit.sha];
-          listMerge = !fromBase || files.length > 0;
         } else {
           if (!stats.has(commit.sha)) fail(call, `missing numstat for ${commit.sha}`);
           files = stats.get(commit.sha);
@@ -679,13 +675,11 @@ export function createGateSources({ checkout, owner, repo, number, run = default
           return recounted.get(key);
         };
         const lines = nonTestLineCount(files, recount);
-        if (listMerge) merges.push({ sha: commit.sha, lines });
         commits.push({ sha: commit.sha, lines });
       }
       return {
         total: commits.reduce((sum, commit) => sum + commit.lines, 0),
         commits,
-        merges,
         binaryPaths: [...binaryPaths],
         attributesTouched,
       };
