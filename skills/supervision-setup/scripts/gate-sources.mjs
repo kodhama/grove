@@ -609,16 +609,18 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     changedPaths(from, to) {
       const call = "changedPaths";
       revisions(call, from, to);
-      return git(call, ["diff", ...DIFF_FLAGS, "--no-renames", "--name-only", "-z", from, to, "--"]).stdout.split("\0").filter(Boolean);
+      const out = git(call, ["diff", ...DIFF_FLAGS, "--no-renames", "--name-only", "-z", from, to, "--"]).stdout;
+      if (out !== "" && !out.endsWith("\0")) fail(call, "unterminated diff output");
+      return out.split("\0").filter(Boolean);
     },
 
-    /** The tree a merge of two commits writes; null when it conflicts, a resolution to one side included. */
+    /** The tree a merge of two commits writes, its one line on a clean merge; null when it conflicts, a resolution to one side included. */
     mergeTree(a, b) {
       const call = "mergeTree";
       revisions(call, a, b);
       const result = git(call, ["merge-tree", "--write-tree", a, b], { allowed: [1] });
-      const tree = result.stdout.split("\n")[0];
-      if (!SHA.test(tree)) fail(call, "invalid merge-tree answer");
+      const [tree, ...rest] = result.stdout.split("\n");
+      if (!SHA.test(tree) || (result.status === 0 && rest.join("") !== "")) fail(call, "invalid merge-tree answer");
       return result.status === 0 ? tree : null;
     },
 

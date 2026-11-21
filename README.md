@@ -403,12 +403,16 @@ also have surrounding quotes.
   script to judge, so those checks are skipped; it must still name its base
   in its args, from a clean tree, with a bound performer. It counts only
   beside the lead's own creditable `review-before-merge` record ending at
-  the head that read pull-request content: its base is an ancestor of the
-  head, and after the latest chain commit with its base's tree, a non-merge
-  commit or a side-branch merge changed a path that the head holds
-  differently and the base left alone (that commit re-merged with the
-  head's merge-base, each pair with one merge base). A merge from the base
-  is never content; an octopus with a parent off the base reads none. Then
+  the head that read pull-request content. Its base is an ancestor of the
+  head with another tree. The anchor `a` is the latest chain commit, or `M`
+  itself, whose tree is that base's tree; `M` is the head's merge base with
+  the base branch. The head and the base branch, and `a` and `M`, must each
+  have exactly one merge base. Content is read per run: the net change of
+  the non-merge commits and side-branch merges between merges from the base
+  branch, which are never content. Some run must change a path that the
+  head holds differently from `a` and that `a` re-merged with `M` leaves as
+  `a` has it. No anchor, a conflicting re-merge, or an octopus with a parent
+  off the base branch unlocks nothing for the whole record. Then
   a line resting on it prints
   `carried`, ending `(carried; the lead reviewed <head>)`, which counts as
   neither failed nor unchecked. When no full review is credited, no such
@@ -536,9 +540,12 @@ lets a consuming repo name the commit it pins by its version.
 - **Patch-id placement ignores where a change sits** (KOD-44 F9), so a
   side-branch or rebased record can still place on a commit that makes the
   same edit in the wrong place. It closes in KOD-44's S4a-3.
-- **A squash or cherry-pick of base content is pull-request content** for
-  carried evidence, since it is a non-merge commit. The lead's own review
-  is the remedy.
+- **A squash or cherry-pick of base content newer than `M`** (the head's
+  merge base with the base branch) **is pull-request content** for carried
+  evidence, since it is a non-merge commit; older base content is in the
+  anchor re-merged with `M`. So a lead re-check that reads only
+  the copied commit unlocks it. The remedy is the lead's own full review at
+  the head, which credits coverage with no carried link.
 
 ## History
 

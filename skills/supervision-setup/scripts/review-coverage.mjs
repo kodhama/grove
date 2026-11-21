@@ -222,7 +222,7 @@ function readContent(record, reader, sources) {
   let anchor = chain.length - 1;
   while (anchor >= 0 && reader.treeOf(chain[anchor].sha) !== tree) anchor -= 1;
   const a = reader.shaAt(anchor);
-  if (reader.treeOf(a) !== tree || sources.mergeBases(head, baseSha).length !== 1 || sources.mergeBases(a, merge).length !== 1) return false;
+  if (reader.treeOf(a) !== tree || String(sources.mergeBases(head, baseSha)) !== merge || sources.mergeBases(a, merge).length !== 1) return false;
   const runs = [];
   let open = false;
   for (const commit of chain.slice(anchor + 1)) {

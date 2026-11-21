@@ -1334,6 +1334,26 @@ describe("git runner contract", () => {
     expect(() => createGateSources({ ...config, run }).mergeBases("a", "b")).toThrow(new TransportFailure("mergeBases", "invalid merge-base answer"));
   });
 
+  it("rejects mergeBases exit 1 with stdout", () => {
+    const run = () => ({ status: 1, stdout: `${"a".repeat(40)}\n`, stderr: "" });
+    expect(() => createGateSources({ ...config, run }).mergeBases("a", "b")).toThrow(new TransportFailure("mergeBases", "invalid merge-base answer"));
+  });
+
+  it("rejects a mergeTree exit 0 holding more than its tree line", () => {
+    const run = () => ({ status: 0, stdout: `${"a".repeat(40)}\nAuto-merging g\n`, stderr: "" });
+    expect(() => createGateSources({ ...config, run }).mergeTree("a", "b")).toThrow(new TransportFailure("mergeTree", "invalid merge-tree answer"));
+  });
+
+  it("answers null for a mergeTree exit 1 whose first line is a tree, whatever follows", () => {
+    const run = () => ({ status: 1, stdout: `${"a".repeat(40)}\n\nCONFLICT (content): Merge conflict in g\n`, stderr: "" });
+    expect(createGateSources({ ...config, run }).mergeTree("a", "b")).toBeNull();
+  });
+
+  it("rejects a non-empty changedPaths answer that does not end in NUL", () => {
+    const run = () => ({ status: 0, stdout: "src/a\0src/b", stderr: "" });
+    expect(() => createGateSources({ ...config, run }).changedPaths("a", "b")).toThrow(new TransportFailure("changedPaths", "unterminated diff output"));
+  });
+
   it.each([
     ["remerge CONFLICT (content): Merge conflict in unknown\n"],
     ["diff --git a/known b/known\nremerge CONFLICT (content): Merge conflict in known\ndiff --git a/hidden b/hidden\nremerge CONFLICT (content): Merge conflict in hidden\n"],
