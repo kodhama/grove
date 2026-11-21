@@ -18,9 +18,9 @@
  * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U1 and KTD3.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
 import * as reviewReads from "../skills/supervision-setup/scripts/review-reads.mjs";
@@ -951,6 +951,16 @@ describe("rollout descent: every thread under a caller-named rollout is tagged (
     symlinkSync(childAt(path, CHILD_ID), alias);
     const [record] = reviewsOf([{ session_id: ROLLOUT_ID, path }], { rollouts: [alias] });
     expect(record).toMatchObject({ place: `${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, rollout: true });
+  });
+
+  it("a named rollout under a Codex home's sessions/ that links to a target outside it: its child beside the link is tagged", () => {
+    const path = codexHome([started(CHILD_ID)], null, { id: CHILD_ID, records: childReview });
+    const target = join(tempDir("review-reads-outside-"), "elsewhere", "2026", "11", "08", basename(path));
+    mkdirSync(dirname(target), { recursive: true });
+    renameSync(path, target);
+    symlinkSync(target, path);
+    const [record] = reviewsOf([], { rollouts: [path] });
+    expect(record).toMatchObject({ place: `${ROLLOUT_ID} subagent ${CHILD_ID}`, rollout: true });
   });
 
   it("a named rollout's child listed directly as a transcript is tagged", () => {

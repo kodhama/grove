@@ -454,7 +454,9 @@ function threadsUnder(path) {
       continue;
     }
     threads.push(realPath(file));
-    queue.push(...codexChildren(realPath(file), ownRecords(read)).found);
+    const own = ownRecords(read);
+    // The given path finds children beside a link; the real path, those beside its target.
+    queue.push(...codexChildren(file, own).found, ...codexChildren(realPath(file), own).found);
   }
   return threads;
 }
