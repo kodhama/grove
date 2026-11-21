@@ -1350,6 +1350,19 @@ describe("review coverage", () => {
     expect(r.code).toBe(2);
   });
 
+  it("pin, F9: an earlier place with the review's patch-id but another tree is passed over for a later place where both match", async () => {
+    const { repo, start, reviewed, moved, sha: wrong } = shifted(9);
+    const file = readFileSync(join(repo.cwd, "f"), "utf8").split("\n");
+    [file[8], file[20]] = ["b4", "B4"];
+    writeFileSync(join(repo.cwd, "f"), file.join("\n"));
+    const sha = repo.commit("move the edit to its rebased place");
+    expect(hunk(repo, moved, wrong).id).toBe(hunk(repo, start, reviewed).id);
+    expect(hunk(repo, moved, sha)).toEqual({ header: "-18,7 +18,7", id: hunk(repo, start, reviewed).id });
+    const r = await coverageGate(repo, sha, moved, [worker({ head: reviewed, base: start, minute: 1 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${sha} (patch-id match of ${reviewed})\n`);
+    expect(r.code).toBe(2);
+  });
+
   it("F10: a replay that conflicts places nothing, though the chain edit has the review's patch-id", async () => {
     const { repo, start, reviewed, moved, sha } = shifted(9, true);
     expect(hunk(repo, moved, sha).id).toBe(hunk(repo, start, reviewed).id);

@@ -454,7 +454,7 @@ function threadsUnder(path) {
       continue;
     }
     threads.push(realPath(file));
-    queue.push(...codexChildren(file, ownRecords(read)).found);
+    queue.push(...codexChildren(realPath(file), ownRecords(read)).found);
   }
   return threads;
 }

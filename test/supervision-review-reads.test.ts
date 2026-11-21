@@ -934,10 +934,22 @@ describe("read records from the Codex child threads a rollout started", () => {
 const childAt = (root: string, id: string) => join(dirname(dirname(root)), "09", `rollout-2026-11-09T11-00-00-${id}.jsonl`);
 
 describe("rollout descent: every thread under a caller-named rollout is tagged (KTD6)", () => {
-  it("a listed transcript reaches a named rollout whose child holds a review: the child's record is tagged", () => {
+  it("a listed transcript reaches a named rollout whose child holds a review: the child's record is tagged, the parent's is not", () => {
+    const named = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
+    const path = codexHome([started(CHILD_ID), ...childReview], null, named, { id: GRANDCHILD_ID, records: childReview });
+    const reviews = reviewsOf([{ session_id: ROLLOUT_ID, path }], { rollouts: [childAt(path, CHILD_ID)] });
+    expect(reviews.map((r) => [r.place, r.rollout])).toEqual([
+      [ROLLOUT_ID, false],
+      [`${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, true],
+    ]);
+  });
+
+  it("a named rollout given through a symlink, whose real path a listed transcript reaches: its child's record is tagged", () => {
     const named = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
     const path = codexHome([started(CHILD_ID)], null, named, { id: GRANDCHILD_ID, records: childReview });
-    const [record] = reviewsOf([{ session_id: ROLLOUT_ID, path }], { rollouts: [childAt(path, CHILD_ID)] });
+    const alias = join(tempDir("review-reads-alias-"), "alias.jsonl");
+    symlinkSync(childAt(path, CHILD_ID), alias);
+    const [record] = reviewsOf([{ session_id: ROLLOUT_ID, path }], { rollouts: [alias] });
     expect(record).toMatchObject({ place: `${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, rollout: true });
   });
 

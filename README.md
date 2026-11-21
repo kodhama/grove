@@ -347,8 +347,8 @@ also have surrounding quotes.
   record does not hold, so run the read command by absolute path. This
   catches a read script run from an unexpected location, not an edited copy
   at a trusted location, and not a forged read: a transcript can be forged. A record is a full review when its base is the merge-base of its
-  own head with the base branch and it is not a `--codex-rollout` run;
-  otherwise it is a re-check.
+  own head with the base branch and it is not from a `--codex-rollout` run
+  or a thread under one; otherwise it is a re-check.
   Where a record sits on the first-parent chain from the merge-base `M`,
   checked in this order: a reviewed head or base missing from the clone
   gives `reviewed commit <sha> is not in the clone`; a full review whose
@@ -365,8 +365,9 @@ also have surrounding quotes.
   `M` and its head, that merge-base being their only one; a conflict places
   nothing. A re-check off the head's history and any lead's
   record never get patch-id credit. Otherwise a record credits nothing: an
-  ancestor head with no patch match, or a lead's there, gives `only on a
-  merged side branch`; a head off the history with no match, a re-check
+  ancestor head with no placing match (patch-id and tree), or a lead's
+  there, gives `only on a merged side branch`; a head off the history with
+  no placing match, a re-check
   there, or a lead's there gives `not on the head's history`. A full
   review placed by patch-id adds `(patch-id match of <sha>)` to the line;
   indentation changes do not match. Every record from a `--codex-rollout`
