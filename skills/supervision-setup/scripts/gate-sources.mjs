@@ -609,8 +609,7 @@ export function createGateSources({ checkout, owner, repo, number, run = default
     changedPaths(from, to) {
       const call = "changedPaths";
       revisions(call, from, to);
-      const flags = DIFF_FLAGS.filter((flag) => flag !== "-M");
-      return git(call, ["diff", ...flags, "--no-renames", "--name-only", "-z", from, to, "--"]).stdout.split("\0").filter(Boolean);
+      return git(call, ["diff", ...DIFF_FLAGS, "--no-renames", "--name-only", "-z", from, to, "--"]).stdout.split("\0").filter(Boolean);
     },
 
     /** The tree a merge of two commits writes; null when it conflicts, a resolution to one side included. */

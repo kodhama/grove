@@ -227,16 +227,16 @@ function readContent(record, reader, sources) {
   let open = false;
   for (const commit of chain.slice(anchor + 1)) {
     const others = commit.parents.slice(1);
-    const base = others.every((parent) => reader.ancestor(parent, baseSha));
-    if (others.length > 1 && !base) return false;
-    if (others.length > 0 && base) open = false;
+    const fromBase = others.every((parent) => reader.ancestor(parent, baseSha));
+    if (others.length > 1 && !fromBase) return false;
+    if (others.length > 0 && fromBase) open = false;
     else if (open) runs.at(-1).to = commit.sha;
     else {
       runs.push({ from: commit.parents[0], to: commit.sha });
       open = true;
     }
   }
-  const q = sources.mergeTree(a, merge);
+  const q = runs.length > 0 ? sources.mergeTree(a, merge) : null;
   if (q === null) return false;
   const upstream = new Set(sources.changedPaths(tree, q));
   const changed = new Set(sources.changedPaths(tree, reader.treeOf(head)));

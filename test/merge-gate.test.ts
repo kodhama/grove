@@ -893,7 +893,7 @@ function crissCross() {
 }
 
 describe("review coverage", () => {
-  it("AE1:a full review of an older head with 135 uncovered non-test lines fails", async () => {
+  it("AE1: a full review of an older head with 135 uncovered non-test lines fails", async () => {
     const repo = repository();
     const a = grow(repo, 10); const b = grow(repo, 100); const c = grow(repo, 35);
     const r = await coverageGate(repo, c, repo.base, [worker({ head: a, base: repo.base, minute: 1 })]);
