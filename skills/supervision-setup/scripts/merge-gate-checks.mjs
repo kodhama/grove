@@ -220,7 +220,6 @@ function carriedRecords(carried, covered, files) {
  */
 function reviewEvidence(files, rollouts, carried) {
   const trusted = trustedScripts(files);
-  const rolloutThreads = new Set(rollouts.map(realOrNull).filter(Boolean));
   const seen = new Set();
   const records = [];
   const missing = [];
@@ -232,8 +231,7 @@ function reviewEvidence(files, rollouts, carried) {
       const match = bindingFor(review.skill, file);
       if (seen.has(key) || !match) continue;
       seen.add(key);
-      records.push({ ...review, ...match, role: file.role, carried: false,
-        rollout: rolloutThreads.has(review.thread) || found.rollouts.includes(review.session), trusted: isTrusted(review.read, trusted) });
+      records.push({ ...review, ...match, role: file.role, carried: false, trusted: isTrusted(review.read, trusted) });
     }
   }
   const covered = new Set(missing.map((entry) => entry.session_id).filter((id) => id !== null && carried?.covered.has(id)));

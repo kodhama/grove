@@ -13,8 +13,8 @@
  * A record's tags, beside review-reads' fields: `role` (`worker` or `lead`),
  * `op` (the operation its performer is bound to), `binding` (`bound`, or
  * `fallback` when it matched only a by-fallback operation's suggested name),
- * `trusted` (its read script is a trusted copy), `rollout` (it came from a
- * `--codex-rollout` path) and `carried` (it came from a handoff, so it has no
+ * `trusted` (its read script is a trusted copy), `rollout` (its thread is a
+ * `--codex-rollout` run or under one) and `carried` (it came from a handoff, so it has no
  * time, freshness or read script to judge, and counts only beside the lead's
  * own review of the head).
  *

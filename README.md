@@ -306,7 +306,7 @@ path is treated as an import.
 | `--bindings <path>` | Required at least once; repeatable: the worker's, any taken-over worker's, and the lead's own. Each is read as JSON before any process runs; a file that cannot be read, or whose `skill` is neither `story-worker` nor `project-lead`, exits 2 with `merge-gate: --bindings <path> is not a worker's or a lead's bindings file`. |
 | `--receipt <path>` | Optional readable story receipt. Its single `Shipped revision:` line must give 7 to 40 hex characters as its first token, a case-insensitive prefix of `--head`. |
 | `--carried <path>` | Optional handoff whose `## Receipt check` section carries a worker's review lines, read before any process runs. |
-| `--codex-rollout <path>` | Optional, repeatable Codex CLI rollout holding a review. The rule is that such a run, and every thread it started however the gate reaches it, is only ever a re-check: enforced today for the run's own thread and the threads it started, except the threads of a run that a listed transcript reaches, which a later unit tags. No local Codex record is credited yet: each fails `base not named`. |
+| `--codex-rollout <path>` | Optional, repeatable Codex CLI rollout holding a review. Such a run, and every thread under it however the gate reaches it, is only ever a re-check. No local Codex record is credited yet: each fails `base not named`. |
 | `--bot <login>` | Optional, repeatable automated reviewer. Matches logins ignoring case and a trailing `[bot]`; for example, `--bot chatgpt-codex-connector`. There are no aliases: `--bot codex` does not match that connector. |
 | `--bot-unavailable <name>:<reason>` | Optional, repeatable exemption with a non-empty reason on one line. The name is a login, matched as `--bot` matches; it cannot also be passed with `--bot`. |
 | `--checkout <dir>` | Optional git checkout, also where `gh` runs; defaults to the working directory. |
@@ -370,11 +370,9 @@ also have surrounding quotes.
   there, or a lead's there gives `not on the head's history`. A full
   review placed by patch-id adds `(patch-id match of <sha>)` to the line;
   indentation changes do not match. Every record from a `--codex-rollout`
-  run, or from any thread that run started, is a re-check, even when a
-  listed transcript reaches the run. The gate marks the run's own thread and
-  the threads it started, except the threads of a run that a listed
-  transcript reaches, which a later unit marks. No local Codex record is
-  credited yet, since each fails `base not named`.
+  run, or from any thread under it, is a re-check, however the gate reaches
+  that thread. No local Codex record is credited yet, since each fails
+  `base not named`.
   With no full review the line is
   `fail no creditable full review of <head> (<n> review calls, none credited: <reason>, ...)`.
   A doc review is not credited yet.
