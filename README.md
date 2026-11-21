@@ -403,16 +403,17 @@ also have surrounding quotes.
   script to judge, so those checks are skipped; it must still name its base
   in its args, from a clean tree, with a bound performer. It counts only
   beside the lead's own creditable `review-before-merge` record ending at
-  the head that read pull-request content. Its base is an ancestor of the
-  head with another tree. The anchor `a` is the latest chain commit, or `M`
-  itself, whose tree is that base's tree; `M` is the head's merge base with
-  the base branch. The head and the base branch, and `a` and `M`, must each
-  have exactly one merge base. Content is read per run: the net change of
-  the non-merge commits and side-branch merges between merges from the base
-  branch, which are never content. Some run must change a path that the
-  head holds differently from `a` and that `a` re-merged with `M` leaves as
-  `a` has it. No anchor, a conflicting re-merge, or an octopus with a parent
-  off the base branch unlocks nothing for the whole record. Then
+  the head that read pull-request content. That lead record's base is an
+  ancestor of the head with another tree. The anchor `a` is the latest chain
+  commit, or `M` itself, whose tree is the lead record's base's tree; `M` is
+  the head's merge base with the base branch. The head and the base branch,
+  and `a` and `M`, must each have exactly one merge base. Content after `a`
+  is read per run: the net change of the non-merge commits and side-branch
+  merges between merges from the base branch, which are never content. Some
+  run must change a path that the head holds differently from `a` and that
+  `a` re-merged with `M` leaves as `a` has it. No anchor, a conflicting
+  re-merge, or an octopus after `a` with a non-first parent off the base
+  branch unlocks nothing for the whole record. Then
   a line resting on it prints
   `carried`, ending `(carried; the lead reviewed <head>)`, which counts as
   neither failed nor unchecked. When no full review is credited, no such
