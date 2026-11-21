@@ -1,6 +1,6 @@
 /** Gate sources use stubbed gh responses and disposable, offline git repositories. */
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -343,6 +343,65 @@ describe("git sources in temporary repositories", () => {
     expect(r.sources.treeOf(three)).toBe(r.sources.treeOf(one));
     expect(r.sources.treeOf(two)).not.toBe(r.sources.treeOf(one));
     expect(() => r.sources.treeOf("f".repeat(40))).toThrow(TransportFailure);
+  });
+
+  /** A criss-cross: base lines L1 and L2 from the fork point, joined on the base, then L3; the topic merges L1, then L2, then the base at L3. */
+  function crissCross() {
+    const r = repo();
+    r.git("checkout", "-q", "-b", "l1");
+    r.write("l1", "l1\n");
+    const l1 = r.commit("L1");
+    r.git("checkout", "-q", "-b", "l2", r.base);
+    r.write("l2", "l2\n");
+    const l2 = r.commit("L2");
+    r.git("checkout", "-q", "-B", "main", l1);
+    r.git("merge", "-q", "--no-ff", "-m", "join", "l2");
+    r.write("g", "L3\n");
+    const l3 = r.commit("L3");
+    r.git("checkout", "-q", "-b", "topic", r.base);
+    r.git("merge", "-q", "--no-ff", "-m", "merge L1", "l1");
+    r.git("merge", "-q", "--no-ff", "-m", "merge L2", "l2");
+    r.git("merge", "-q", "--no-ff", "-m", "merge L3", "main");
+    return { r, l1, l2, l3, m: r.git("rev-parse", "HEAD") };
+  }
+
+  it("mergeTree answers a clean merge's tree, null for a conflict and null for a merge -X ours resolved", () => {
+    const { r, m } = crissCross();
+    expect(r.sources.mergeTree(`${m}^1`, `${m}^2`)).toBe(r.sources.treeOf(m));
+    r.git("checkout", "-q", "-b", "pr", r.base);
+    r.write("seed", "pr\n");
+    const pr = r.commit("pr edits seed");
+    r.git("checkout", "-q", "-b", "upstream", r.base);
+    r.write("seed", "upstream\n");
+    const upstream = r.commit("upstream edits seed");
+    expect(r.sources.mergeTree(pr, upstream)).toBeNull();
+    r.git("checkout", "-q", "pr");
+    r.git("merge", "-q", "--no-ff", "-X", "ours", "-m", "ours", "upstream");
+    expect(r.sources.mergeTree(pr, upstream)).toBeNull();
+    expect(() => r.sources.mergeTree(r.base, "f".repeat(40))).toThrow(/^mergeTree:/);
+  });
+
+  it("changedPaths lists each path whose blob or mode differs, both sides of a rename, between commits or trees", () => {
+    const r = repo();
+    r.write("src/a", "a\n");
+    r.write("src/b", "b\n");
+    const one = r.commit("one");
+    r.git("mv", "src/a", "src/c");
+    chmodSync(join(r.cwd, "src/b"), 0o755);
+    const two = r.commit("two");
+    expect(r.sources.changedPaths(one, two).sort()).toEqual(["src/a", "src/b", "src/c"]);
+    expect(r.sources.changedPaths(r.sources.treeOf(one), r.sources.treeOf(two)).sort()).toEqual(["src/a", "src/b", "src/c"]);
+    expect(r.sources.changedPaths(one, one)).toEqual([]);
+  });
+
+  it("mergeBases lists every merge base: two for a criss-cross, one on a line, none for unrelated history", () => {
+    const { r, l1, l2, l3, m } = crissCross();
+    expect(r.sources.mergeBases(`${m}^1`, `${m}^2`).sort()).toEqual([l1, l2].sort());
+    expect(r.sources.mergeBases(m, l3)).toEqual([l3]);
+    r.git("checkout", "-q", "--orphan", "unrelated");
+    r.git("rm", "-rfq", ".");
+    r.write("other", "other\n");
+    expect(r.sources.mergeBases(m, r.commit("unrelated"))).toEqual([]);
   });
 
   it("pins git config and attributes across a rename and resolved merge", () => {
@@ -1123,6 +1182,9 @@ describe("git runner contract", () => {
     ["nonTestLines", ["from", "to", "base"]],
     ["patchId", ["base", "head"]],
     ["treeOf", ["sha"]],
+    ["mergeTree", ["a", "b"]],
+    ["mergeBases", ["a", "b"]],
+    ["changedPaths", ["from", "to"]],
     ["checks", ["sha"]],
     ["firstSuiteAt", ["sha"]],
   ])("refuses invalid revisions before running %s", (method, names) => {
@@ -1260,6 +1322,36 @@ describe("git runner contract", () => {
   it("rejects a treeOf exit 0 whose answer is not a SHA", () => {
     const run = () => ({ status: 0, stdout: "not a tree\n", stderr: "" });
     expect(() => createGateSources({ ...config, run }).treeOf("a")).toThrow(new TransportFailure("treeOf", "invalid tree answer"));
+  });
+
+  it.each([0, 1])("rejects a mergeTree exit %i whose first line is not a tree", (status) => {
+    const run = () => ({ status, stdout: "CONFLICT (content): Merge conflict in g\n", stderr: "" });
+    expect(() => createGateSources({ ...config, run }).mergeTree("a", "b")).toThrow(new TransportFailure("mergeTree", "invalid merge-tree answer"));
+  });
+
+  it("rejects a mergeBases answer holding a line that is not a SHA", () => {
+    const run = () => ({ status: 0, stdout: `${"a".repeat(40)}\nnot a sha\n`, stderr: "" });
+    expect(() => createGateSources({ ...config, run }).mergeBases("a", "b")).toThrow(new TransportFailure("mergeBases", "invalid merge-base answer"));
+  });
+
+  it("rejects mergeBases exit 1 with stdout", () => {
+    const run = () => ({ status: 1, stdout: `${"a".repeat(40)}\n`, stderr: "" });
+    expect(() => createGateSources({ ...config, run }).mergeBases("a", "b")).toThrow(new TransportFailure("mergeBases", "invalid merge-base answer"));
+  });
+
+  it("rejects a mergeTree exit 0 holding more than its tree line", () => {
+    const run = () => ({ status: 0, stdout: `${"a".repeat(40)}\nAuto-merging g\n`, stderr: "" });
+    expect(() => createGateSources({ ...config, run }).mergeTree("a", "b")).toThrow(new TransportFailure("mergeTree", "invalid merge-tree answer"));
+  });
+
+  it("answers null for a mergeTree exit 1 whose first line is a tree, whatever follows", () => {
+    const run = () => ({ status: 1, stdout: `${"a".repeat(40)}\n\nCONFLICT (content): Merge conflict in g\n`, stderr: "" });
+    expect(createGateSources({ ...config, run }).mergeTree("a", "b")).toBeNull();
+  });
+
+  it("rejects a non-empty changedPaths answer that does not end in NUL", () => {
+    const run = () => ({ status: 0, stdout: "src/a\0src/b", stderr: "" });
+    expect(() => createGateSources({ ...config, run }).changedPaths("a", "b")).toThrow(new TransportFailure("changedPaths", "unterminated diff output"));
   });
 
   it.each([

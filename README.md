@@ -378,7 +378,8 @@ also have surrounding quotes.
   A doc review is not credited yet.
 - `coverage: pass <start>..<head> covered by <k> re-checks; <n> non-test lines since the full review`
   or `fail ...`: a full review's place is reached, a clean merge from the
-  base branch right after a reached place is reached, and a re-check's
+  base branch right after a reached place is reached (two parents, one merge
+  base, re-merging to its own tree; an octopus never is), and a re-check's
   place is reached when its base has the same tree as a reached place
   before it; a base that is only an ancestor of one links nothing.
   `<start>` is the furthest full review from which the head is reached,
@@ -401,8 +402,18 @@ also have surrounding quotes.
   list its session. A carried record has no freshness, outcome, time or read
   script to judge, so those checks are skipped; it must still name its base
   in its args, from a clean tree, with a bound performer. It counts only
-  beside the lead's own creditable `review-before-merge` record that read a
-  non-empty range ending at the head; then a line resting on it prints
+  beside the lead's own creditable `review-before-merge` record ending at
+  the head that read pull-request content. Its base is an ancestor of the
+  head with another tree. The anchor `a` is the latest chain commit, or `M`
+  itself, whose tree is that base's tree; `M` is the head's merge base with
+  the base branch. The head and the base branch, and `a` and `M`, must each
+  have exactly one merge base. Content is read per run: the net change of
+  the non-merge commits and side-branch merges between merges from the base
+  branch, which are never content. Some run must change a path that the
+  head holds differently from `a` and that `a` re-merged with `M` leaves as
+  `a` has it. No anchor, a conflicting re-merge, or an octopus with a parent
+  off the base branch unlocks nothing for the whole record. Then
+  a line resting on it prints
   `carried`, ending `(carried; the lead reviewed <head>)`, which counts as
   neither failed nor unchecked. When no full review is credited, no such
   lead record exists and a carried full review would otherwise start the
@@ -526,9 +537,15 @@ lets a consuming repo name the commit it pins by its version.
   coverage fails closed with `uncovered commits`. Re-check from the chain
   commit the full review was placed at, or run a new full review. The
   skill-text fix is GRO-77.
-- **Patch-id placement ignores where a change sits** (F9), so a side-branch
-  or rebased record can still place on a commit that makes the same edit in
-  the wrong place. It closes in S4a-3.
+- **Patch-id placement ignores where a change sits** (KOD-44 F9), so a
+  side-branch or rebased record can still place on a commit that makes the
+  same edit in the wrong place. It closes in KOD-44's S4a-3.
+- **A squash or cherry-pick of base content newer than `M`** (the head's
+  merge base with the base branch) **is pull-request content** for carried
+  evidence, since it is a non-merge commit; older base content is in the
+  anchor re-merged with `M`. So a lead re-check that reads only
+  the copied commit unlocks it. The remedy is the lead's own full review at
+  the head, which credits coverage with no carried link.
 
 ## History
 

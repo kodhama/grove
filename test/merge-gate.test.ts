@@ -1,5 +1,6 @@
 /** The gate judges real temporary git histories and path-keyed, offline gh answers. */
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -861,6 +862,36 @@ function rebased(indent = false) {
   return { repo, reviewed, moved, sha };
 }
 
+/**
+ * A criss-cross base merge: base lines L1 and L2 from the fork point, joined
+ * on the base, then base commit L3 edits `g`. The topic's commit `a` edits
+ * `f`; the topic then merges L1, then L2, each with one merge base, and `m`
+ * merges L3, whose parents have two merge bases, L1 and L2.
+ */
+function crissCross() {
+  const repo = repository();
+  repo.git("checkout", "-q", "-b", "topic");
+  writeFileSync(join(repo.cwd, "f"), "topic\n");
+  const a = repo.commit("topic edits f");
+  repo.git("checkout", "-q", "-b", "l1", repo.base);
+  writeFileSync(join(repo.cwd, "l1"), "l1\n");
+  const l1 = repo.commit("L1");
+  repo.git("checkout", "-q", "-b", "l2", repo.base);
+  writeFileSync(join(repo.cwd, "l2"), "l2\n");
+  const l2 = repo.commit("L2");
+  repo.git("checkout", "-q", "-B", "main", l1);
+  repo.git("merge", "-q", "--no-ff", "-m", "join L1 and L2", "l2");
+  writeFileSync(join(repo.cwd, "g"), "L3\n");
+  const l3 = repo.commit("L3");
+  repo.git("checkout", "-q", "topic");
+  repo.git("merge", "-q", "--no-ff", "-m", "merge L1", "l1");
+  repo.git("merge", "-q", "--no-ff", "-m", "merge L2", "l2");
+  repo.git("merge", "-q", "--no-ff", "-m", "merge L3", "main");
+  const m = repo.git("rev-parse", "HEAD");
+  expect(repo.git("merge-base", "--all", `${m}^1`, `${m}^2`).split("\n").sort()).toEqual([l1, l2].sort());
+  return { repo, a, l3, m };
+}
+
 describe("review coverage", () => {
   it("AE1: a full review of an older head with 135 uncovered non-test lines fails", async () => {
     const repo = repository();
@@ -1076,8 +1107,8 @@ describe("review coverage", () => {
     expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: reviewed commit ${absent} is not in the clone)\n`);
   });
 
-  it("every start judges merges by one listed set: a base merge with remerge rows before a later full review is not stepped over", async () => {
-    // Chain A, x, B, C, D: x resolves a conflict, so it has remerge rows; listed from C's range alone would omit it.
+  it("every start judges merges by merge-tree: a conflict-resolved base merge before a later full review is not stepped over", async () => {
+    // Chain A, x, B, C, D: x resolves a conflict, so re-merging its parents conflicts and it is no clean merge from any start.
     const repo = repository();
     repo.git("checkout", "-q", "-b", "topic");
     writeFileSync(join(repo.cwd, "seed"), "base\ntopic\n");
@@ -1163,6 +1194,16 @@ describe("review coverage", () => {
     expect(r.code).toBe(2);
   });
 
+  it("pin: the path with the fewest re-checks wins when a longer one reaches the head first: A..D, D..E over A..B, B..C, C..E", async () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5); const c = grow(repo, 5); const d = grow(repo, 5); const e = grow(repo, 5);
+    const r = await coverageGate(repo, e, repo.base, [worker({ head: a, base: repo.base, minute: 1 },
+      { head: b, base: a, minute: 2 }, { head: c, base: b, minute: 3 }, { head: e, base: c, minute: 4 },
+      { head: d, base: a, minute: 5 }, { head: e, base: d, minute: 6 })]);
+    expect(r.stdout).toContain(`coverage: pass ${a}..${e} covered by 2 re-checks; 20 non-test lines since the full review\n`);
+    expect(r.code).toBe(2);
+  });
+
   it("a base merge whose conflict was resolved is not a clean merge and needs a re-check", async () => {
     const repo = repository();
     repo.git("checkout", "-q", "-b", "topic");
@@ -1179,6 +1220,48 @@ describe("review coverage", () => {
     const r = await coverageGate(repo, merge, moved, [worker({ head: a, base: repo.base, minute: 1 })]);
     expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
     expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${merge}$`, "m"));
+    expect(r.code).toBe(1);
+  });
+
+  it("a criss-cross base merge that re-merges clean is not stepped over: its parents have two merge bases", async () => {
+    const { repo, a, l3, m } = crissCross();
+    const r = await coverageGate(repo, m, l3, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toContain(`review: pass full review read ${a}\n`);
+    expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${m}$`, "m"));
+    expect(r.code).toBe(1);
+  });
+
+  it("pin: a base merge whose re-merge differs from its tree, with no conflict, is not stepped over", async () => {
+    const { repo, a, moved, m } = topicThenBaseMerge(0);
+    writeFileSync(join(repo.cwd, "k"), "only in the merge\n");
+    repo.git("add", "k");
+    repo.git("commit", "-q", "--amend", "--no-edit");
+    const evil = repo.git("rev-parse", "HEAD");
+    expect(evil).not.toBe(m);
+    const r = await coverageGate(repo, evil, moved, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${evil}$`, "m"));
+    expect(r.code).toBe(1);
+  });
+
+  it("pin: an octopus merge of base commits is never stepped over", async () => {
+    const repo = repository();
+    repo.git("checkout", "-q", "-b", "topic");
+    const a = grow(repo, 5);
+    repo.git("checkout", "-q", "-b", "one", repo.base);
+    writeFileSync(join(repo.cwd, "one"), "one\n");
+    const one = repo.commit("one");
+    repo.git("checkout", "-q", "-b", "two", repo.base);
+    writeFileSync(join(repo.cwd, "two"), "two\n");
+    const two = repo.commit("two");
+    repo.git("checkout", "-q", "-B", "main", one);
+    repo.git("merge", "-q", "--no-ff", "-m", "join", "two");
+    const joined = repo.git("rev-parse", "HEAD");
+    repo.git("checkout", "-q", "topic");
+    repo.git("merge", "-q", "-m", "octopus", one, two);
+    const octopus = repo.git("rev-parse", "HEAD");
+    expect(repo.git("rev-list", "--parents", "-n", "1", octopus).split(" ")).toHaveLength(4);
+    const r = await coverageGate(repo, octopus, joined, [worker({ head: a, base: repo.base, minute: 1 })]);
+    expect(r.stdout).toMatch(new RegExp(`^coverage: fail uncovered commits ${octopus}$`, "m"));
     expect(r.code).toBe(1);
   });
 
@@ -1600,6 +1683,429 @@ describe("carried evidence", () => {
     expect(r.code).toBe(2);
     expect(r.stdout).toMatch(/^review: could not check \(.+ not found\)$/m);
   });
+
+  it("pin: a carried re-check with no full review and no lead gives the carried-alone reason", async () => {
+    const repo = repository();
+    const a = grow(repo, 5); const b = grow(repo, 5);
+    const session = nextSession();
+    const away = { session_id: session, path: join(scratch("merge-gate-away-"), `${session}.jsonl`) };
+    const carried = handoff([`transcript ${session}: read 4 calls`, carriedLine(session, b, a)]);
+    const r = await coverageGate(repo, b, repo.base, [bindingsFile("worker", [away]), bindingsFile("lead", [reviewSession([])])], ["--carried", carried]);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (1 review calls, none credited: carried without the lead's own review)\n`);
+    expect(r.code).toBe(1);
+  });
+
+  it("pin: --carried naming a missing path exits 2 with usage", async () => {
+    const { repo, b, workerBindings } = carriedCase();
+    const r = await coverageGate(repo, b, repo.base, [workerBindings], ["--carried", join(scratch("merge-gate-none-"), "gone.md")]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/^merge-gate: --carried must name a readable file\nUsage: merge-gate\.mjs /);
+    expect(r.stdout).toBe("");
+  });
+
+  it("pin: a hand-edited carried line whose args break JSON.parse exits 2 as an internal error", async () => {
+    const { repo, a, b, workerBindings } = carriedCase();
+    const session = JSON.parse(readFileSync(workerBindings, "utf8")).transcripts[0].session_id;
+    const line = carriedLine(session, a, repo.base).replace(/; args .*$/, String.raw`; args "base:\q"`);
+    const r = await coverageGate(repo, b, repo.base, [workerBindings], ["--carried", handoff([`transcript ${session}: read 4 calls`, line])]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/^merge-gate: internal error: /);
+  });
+
+  it("pin: a review line the receipt check prints is carried by the gate as printed", async () => {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const session = reviewSession([{ head: a, base: repo.base, minute: 1 }]);
+    const bindings = bindingsFile("worker", [session]);
+    const setup = JSON.parse(readFileSync(bindings, "utf8"));
+    const sha256 = createHash("sha256").update(readFileSync(WORKER_TABLE)).digest("hex");
+    writeFileSync(bindings, JSON.stringify({ ...setup, complete: true, table: { ...setup.table, sha256 } }));
+    const printed = spawnSync(process.execPath, [resolve("skills/supervision-setup/scripts/receipt-check.mjs"), "--bindings", bindings], { encoding: "utf8" });
+    const line = printed.stdout.split("\n").find((each) => each.startsWith("story-worker/review: used "));
+    expect(line).toContain(`; read ${a} from ${repo.base}; args ${JSON.stringify(`base:${repo.base}`)}`);
+    const away = { session_id: session.session_id, path: join(scratch("merge-gate-away-"), `${session.session_id}.jsonl`) };
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const r = await coverageGate(repo, b, repo.base, [bindingsFile("worker", [away]), lead], ["--carried", handoff([`transcript ${session.session_id}: read 4 calls`, line!])]);
+    expect(r.stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+  });
+});
+
+describe("carried evidence over the lead's range (N7)", () => {
+  type Repo = ReturnType<typeof repository>;
+  const failLine = (sha: string) => `review: fail carried evidence needs the lead's own review of ${sha}\n`;
+  const carriedPass = (reviewed: string, sha: string) => `review: carried full review read ${reviewed} (carried; the lead reviewed ${sha})\n`;
+
+  /** Write these files into the work tree. */
+  function put(repo: Repo, files: Record<string, string>) {
+    for (const [file, body] of Object.entries(files)) writeFileSync(join(repo.cwd, file), body);
+  }
+
+  /** A repository whose base branch first commits `files`, then a topic branch whose commit `x` edits `pr`. */
+  function start(files: Record<string, string> = {}) {
+    const repo = repository();
+    if (Object.keys(files).length) {
+      put(repo, files);
+      repo.commit("base files");
+    }
+    repo.git("checkout", "-q", "-b", "topic");
+    put(repo, { pr: "x\n" });
+    return { repo, x: repo.commit("x") };
+  }
+
+  /** One commit on the base branch writing `files`, back on the topic after. */
+  function onBase(repo: Repo, files: Record<string, string>) {
+    repo.git("checkout", "-q", "main");
+    put(repo, files);
+    const sha = repo.commit("base moves");
+    repo.git("checkout", "-q", "topic");
+    return sha;
+  }
+
+  /** A `--no-ff` merge of `ref` into the checked-out branch. */
+  function merge(repo: Repo, ref: string, message = `merge ${ref}`) {
+    repo.git("merge", "-q", "--no-ff", "-m", message, ref);
+    return repo.git("rev-parse", "HEAD");
+  }
+
+  /** A topic commit writing `files`. */
+  function edit(repo: Repo, files: Record<string, string>, message = "edit") {
+    put(repo, files);
+    return repo.commit(message);
+  }
+
+  /** The gate at `sha`, the base branch at `baseSha`: a worker's carried full review of `reviewed`, and the lead's re-check `leadBase..sha`. */
+  async function leadGate(repo: Repo, reviewed: string, leadBase: string, sha: string, baseSha = repo.git("rev-parse", "main")) {
+    const session = nextSession();
+    const away = { session_id: session, path: join(scratch("merge-gate-away-"), `${session}.jsonl`) };
+    const line = carriedLine(session, reviewed, repo.git("merge-base", reviewed, baseSha));
+    const lead = bindingsFile("lead", [reviewSession([{ head: sha, base: leadBase, minute: 5 }])]);
+    return coverageGate(repo, sha, baseSha, [bindingsFile("worker", [away]), lead], ["--carried", handoff([`transcript ${session}: read 4 calls`, line])]);
+  }
+
+  it("the reproduction: a clean base merge at the head unlocks nothing over head^..head", async () => {
+    const { repo, x } = start();
+    onBase(repo, { g: "g\n" });
+    const m = merge(repo, "main");
+    const r = await leadGate(repo, x, x, m);
+    expect(r.stdout).toContain(failLine(m));
+    expect(r.code).toBe(1);
+  });
+
+  it("an empty commit, then a clean base merge, unlock nothing", async () => {
+    const { repo, x } = start();
+    repo.git("commit", "-q", "--allow-empty", "-m", "empty");
+    onBase(repo, { g: "g\n" });
+    const m = merge(repo, "main");
+    expect((await leadGate(repo, x, x, m)).stdout).toContain(failLine(m));
+  });
+
+  it("a commit and its revert, then a clean base merge, unlock nothing", async () => {
+    const { repo, x } = start();
+    edit(repo, { pr: "changed\n" });
+    edit(repo, { pr: "x\n" }, "revert");
+    onBase(repo, { g: "g\n" });
+    const m = merge(repo, "main");
+    expect((await leadGate(repo, x, x, m)).stdout).toContain(failLine(m));
+  });
+
+  it("a commit, a clean base merge, then its revert, unlock nothing", async () => {
+    const { repo, x } = start();
+    edit(repo, { pr: "changed\n" });
+    onBase(repo, { g: "g\n" });
+    merge(repo, "main");
+    const revert = edit(repo, { pr: "x\n" }, "revert");
+    expect((await leadGate(repo, x, x, revert)).stdout).toContain(failLine(revert));
+  });
+
+  it("pin: a clean merge of a PR side branch with content unlocks", async () => {
+    const { repo, x } = start();
+    repo.git("checkout", "-q", "-b", "side");
+    edit(repo, { h: "side\n" });
+    repo.git("checkout", "-q", "topic");
+    const s = merge(repo, "side");
+    expect((await leadGate(repo, x, x, s)).stdout).toContain(carriedPass(x, s));
+  });
+
+  it("a clean base merge, then a clean side-branch merge whose side nets to nothing, unlock nothing", async () => {
+    const { repo, x } = start();
+    onBase(repo, { g: "g\n" });
+    merge(repo, "main");
+    repo.git("checkout", "-q", "-b", "side");
+    edit(repo, { h: "side\n" });
+    repo.git("rm", "-q", "h");
+    repo.git("commit", "-q", "-m", "drop h");
+    repo.git("checkout", "-q", "topic");
+    const s = merge(repo, "side");
+    expect(repo.git("rev-parse", `${s}^{tree}`)).toBe(repo.git("rev-parse", `${s}^1^{tree}`));
+    expect((await leadGate(repo, x, x, s)).stdout).toContain(failLine(s));
+  });
+
+  it("pin: a content commit and a clean base merge touching another path unlock", async () => {
+    const { repo, x } = start();
+    edit(repo, { pr: "changed\n" });
+    onBase(repo, { g: "g\n" });
+    const m = merge(repo, "main");
+    expect((await leadGate(repo, x, x, m)).stdout).toContain(carriedPass(x, m));
+  });
+
+  it("the 11-15 tree check: a lead re-check of an empty commit, or of a commit restoring an earlier tree, unlocks nothing", async () => {
+    const empty = start();
+    empty.repo.git("commit", "-q", "--allow-empty", "-m", "empty");
+    const e = empty.repo.git("rev-parse", "HEAD");
+    expect((await leadGate(empty.repo, empty.x, empty.x, e)).stdout).toContain(failLine(e));
+    const restored = start();
+    edit(restored.repo, { pr: "changed\n" });
+    const back = edit(restored.repo, { pr: "x\n" }, "revert");
+    expect((await leadGate(restored.repo, restored.x, restored.x, back)).stdout).toContain(failLine(back));
+  });
+
+  it("a lead base at a merged side head, then a clean base merge, unlock nothing", async () => {
+    const { repo, x } = start();
+    repo.git("checkout", "-q", "-b", "side");
+    const s1 = edit(repo, { h: "side\n" });
+    repo.git("checkout", "-q", "topic");
+    const s = merge(repo, "side");
+    expect(repo.git("rev-parse", `${s}^{tree}`)).toBe(repo.git("rev-parse", `${s1}^{tree}`));
+    onBase(repo, { g: "g\n" });
+    const m = merge(repo, "main");
+    expect((await leadGate(repo, x, s1, m)).stdout).toContain(failLine(m));
+  });
+
+  it("an upstream edit equal to the PR's, then reverted, unlocks nothing", async () => {
+    const { repo, x } = start({ f: "A\n" });
+    edit(repo, { f: "B\n" });
+    onBase(repo, { f: "B\n", g: "g\n" });
+    merge(repo, "main");
+    const revert = edit(repo, { f: "A\n" }, "revert");
+    expect((await leadGate(repo, x, x, revert)).stdout).toContain(failLine(revert));
+  });
+
+  it("the same-file variant: upstream's A to B and x to y, the PR's A to B reverted, unlock nothing", async () => {
+    const filler = Array.from({ length: 8 }, (_, i) => `keep ${i}\n`).join("");
+    const { repo, x } = start({ f: `A\n${filler}x\n` });
+    edit(repo, { f: `B\n${filler}x\n` });
+    onBase(repo, { f: `B\n${filler}y\n` });
+    merge(repo, "main");
+    const revert = edit(repo, { f: `A\n${filler}y\n` }, "revert");
+    expect((await leadGate(repo, x, x, revert)).stdout).toContain(failLine(revert));
+  });
+
+  it("the one-run upstream restore: a PR commit restoring what a clean base merge changed unlocks nothing", async () => {
+    const { repo, x } = start({ f: "A\n" });
+    onBase(repo, { f: "B\n", g: "g\n" });
+    merge(repo, "main");
+    const restore = edit(repo, { f: "A\n" }, "restore");
+    expect((await leadGate(repo, x, x, restore)).stdout).toContain(failLine(restore));
+  });
+
+  /** An octopus at the topic's tip with these base parents, built by commit-tree so no redundant parent is dropped. */
+  function octopus(repo: Repo, parents: string[]) {
+    const tip = repo.git("rev-parse", "HEAD");
+    const tree = repo.git("merge-tree", "--write-tree", tip, parents.at(-1)!);
+    const sha = repo.git("commit-tree", tree, "-m", "octopus", ...[tip, ...parents].flatMap((parent) => ["-p", parent]));
+    repo.git("reset", "-q", "--hard", sha);
+    expect(repo.git("rev-list", "--parents", "-n", "1", sha).split(" ")).toHaveLength(parents.length + 2);
+    return sha;
+  }
+
+  it("F6: a three-parent base-only octopus is a base merge: no PR content, nothing unlocks", async () => {
+    const { repo, x } = start();
+    const one = onBase(repo, { g: "g\n" });
+    const two = onBase(repo, { g2: "g2\n" });
+    const o = octopus(repo, [one, two]);
+    expect((await leadGate(repo, x, x, o)).stdout).toContain(failLine(o));
+  });
+
+  it("pin, F6's control: a PR commit, then a three-parent base-only octopus, unlock through the commit", async () => {
+    const { repo, x } = start();
+    edit(repo, { f2: "pr\n" });
+    const one = onBase(repo, { g: "g\n" });
+    const two = onBase(repo, { g2: "g2\n" });
+    const o = octopus(repo, [one, two]);
+    expect((await leadGate(repo, x, x, o)).stdout).toContain(carriedPass(x, o));
+  });
+
+  /** A base whose lines L1 and L2 fork from its tip and are joined on it; the topic's PR commit, then a porcelain octopus of L1 and L2. */
+  function incomparableOctopus() {
+    const { repo, x } = start();
+    const fork = repo.git("rev-parse", "main");
+    edit(repo, { f2: "pr\n" });
+    repo.git("checkout", "-q", "-b", "l1", fork);
+    const l1 = edit(repo, { l1: "l1\n" }, "L1");
+    repo.git("checkout", "-q", "-b", "l2", fork);
+    const l2 = edit(repo, { l2: "l2\n" }, "L2");
+    repo.git("checkout", "-q", "-B", "main", l1);
+    const joined = merge(repo, "l2", "join");
+    repo.git("checkout", "-q", "topic");
+    repo.git("merge", "-q", "-m", "octopus", "l1", "l2");
+    const o = repo.git("rev-parse", "HEAD");
+    expect(repo.git("rev-list", "--parents", "-n", "1", o).split(" ")).toHaveLength(4);
+    return { repo, x, o, joined };
+  }
+
+  it("pin, O11-B: an octopus with incomparable base parents is a refused base merge; a PR commit still unlocks once the head has one merge base with the base", async () => {
+    const { repo, x, joined } = incomparableOctopus();
+    const m = merge(repo, "main");
+    // The fixture's base tip is J (`joined`), so this is the gate's own `merge-base --all <head> <live base>` call.
+    expect(repo.git("merge-base", "--all", m, joined)).toBe(joined);
+    expect((await leadGate(repo, x, x, m, joined)).stdout).toContain(carriedPass(x, m));
+  });
+
+  it("an octopus with incomparable base parents at the head gives the head two merge bases with the base: nothing unlocks", async () => {
+    const { repo, x, o, joined } = incomparableOctopus();
+    expect(repo.git("merge-base", "--all", o, joined).split("\n")).toHaveLength(2);
+    expect((await leadGate(repo, x, x, o, joined)).stdout).toContain(failLine(o));
+  });
+
+  it("a criss-cross base merge is refused: no PR content, nothing unlocks", async () => {
+    const { repo, a, l3, m } = crissCross();
+    expect((await leadGate(repo, a, repo.git("rev-parse", `${m}^1`), m, l3)).stdout).toContain(failLine(m));
+  });
+
+  it("an anchor with two merge bases against the head's merge base unlocks nothing, even beside a PR commit", async () => {
+    const { repo, a, l3, m } = crissCross();
+    const c2 = edit(repo, { f2: "pr\n" });
+    expect(repo.git("merge-base", "--all", c2, l3)).toBe(l3);
+    expect(repo.git("merge-base", "--all", `${m}^1`, l3).split("\n")).toHaveLength(2);
+    expect((await leadGate(repo, a, repo.git("rev-parse", `${m}^1`), c2, l3)).stdout).toContain(failLine(c2));
+  });
+
+  it("a conflict-to-ours base merge is refused: its base-side path is no witness", async () => {
+    const { repo } = start({ g: "g\n", h: "h\n" });
+    const c1 = edit(repo, { g: "pr\n" });
+    onBase(repo, { g: "base\n", h: "base\n" });
+    repo.git("merge", "-q", "--no-ff", "-X", "ours", "-m", "merge base, ours", "main");
+    const m = repo.git("rev-parse", "HEAD");
+    expect(readFileSync(join(repo.cwd, "g"), "utf8")).toBe("pr\n");
+    expect(readFileSync(join(repo.cwd, "h"), "utf8")).toBe("base\n");
+    expect((await leadGate(repo, c1, c1, m)).stdout).toContain(failLine(m));
+  });
+
+  /** A PR commit `c1` on `g`, then a base merge `m` that conflicts at `g`, resolved by hand, plus `extra` written in the resolution. */
+  function handResolved(extra: Record<string, string> = {}) {
+    const { repo, x } = start({ g: "g\n", h: "h\n" });
+    const c1 = edit(repo, { g: "pr\n" });
+    onBase(repo, { g: "base\n", h: "base\n" });
+    expect(() => repo.git("merge", "-q", "--no-ff", "-m", "merge base", "main")).toThrow();
+    put(repo, { g: "pr\nbase\n", ...extra });
+    return { repo, x, c1, m: repo.commit("merge base, resolved") };
+  }
+
+  it("pin: a refused base merge beside a later PR commit unlocks through the commit only", async () => {
+    const { repo, x } = handResolved();
+    const c2 = edit(repo, { f: "pr\n" });
+    expect((await leadGate(repo, x, x, c2)).stdout).toContain(carriedPass(x, c2));
+  });
+
+  it("a PR commit, then a refused base merge at the head, unlock nothing: the merge's base-side path is no witness", async () => {
+    const { repo, x, m } = handResolved();
+    expect((await leadGate(repo, x, x, m)).stdout).toContain(failLine(m));
+  });
+
+  it("an anchor that conflicts with the base unlocks nothing, even beside a later PR commit", async () => {
+    const { repo, c1 } = handResolved();
+    const c2 = edit(repo, { f: "pr\n" });
+    expect(() => repo.git("merge-tree", "--write-tree", c1, "main")).toThrow();
+    expect((await leadGate(repo, c1, c1, c2)).stdout).toContain(failLine(c2));
+  });
+
+  it("a lead base off the head's history unlocks nothing, even with a chain place's tree", async () => {
+    const { repo, x } = start();
+    const c = edit(repo, { f2: "pr\n" });
+    const copy = repo.git("commit-tree", repo.git("rev-parse", `${x}^{tree}`), "-p", repo.base, "-m", "x elsewhere");
+    expect(() => repo.git("merge-base", "--is-ancestor", copy, c)).toThrow();
+    expect((await leadGate(repo, x, copy, c)).stdout).toContain(failLine(c));
+  });
+
+  it("a refused base merge is not PR content: a path its hand resolution alone edits is no witness", async () => {
+    const { repo, x, m } = handResolved({ k: "only in the resolution\n" });
+    // Anchored at x, before c1 (KTD4's walk-through 4), so Q re-merges clean and the runs are judged.
+    expect(() => repo.git("merge-tree", "--write-tree", x, "main")).not.toThrow();
+    expect((await leadGate(repo, x, x, m)).stdout).toContain(failLine(m));
+  });
+
+  it("ruling 3: an octopus with a parent off the base unlocks nothing, even beside a PR commit", async () => {
+    const { repo, x } = start();
+    edit(repo, { f: "pr\n" });
+    const one = onBase(repo, { g: "g\n" });
+    repo.git("checkout", "-q", "-b", "side", x);
+    const off = edit(repo, { h: "side\n" });
+    repo.git("checkout", "-q", "topic");
+    repo.git("merge", "-q", "-m", "octopus", one, off);
+    const o = repo.git("rev-parse", "HEAD");
+    expect(repo.git("rev-list", "--parents", "-n", "1", o).split(" ")).toHaveLength(4);
+    expect(() => repo.git("merge-base", "--is-ancestor", off, "main")).toThrow();
+    expect((await leadGate(repo, x, x, o)).stdout).toContain(failLine(o));
+  });
+
+  it("pin: the anchor is the latest chain place with the lead base's tree, so Q re-merges past the base merge before it", async () => {
+    const { repo, x } = start({ f: "A\n" });
+    onBase(repo, { f: "B\n" });
+    merge(repo, "main");
+    const back = edit(repo, { f: "A\n" }, "restore");
+    expect(repo.git("rev-parse", `${back}^{tree}`)).toBe(repo.git("rev-parse", `${x}^{tree}`));
+    const c = edit(repo, { f: "C\n" });
+    expect((await leadGate(repo, x, x, c)).stdout).toContain(carriedPass(x, c));
+  });
+
+  it("no anchor: a lead base whose tree neither M nor any chain place has unlocks nothing, even beside PR content", async () => {
+    const { repo, x } = start();
+    repo.git("checkout", "-q", "-b", "side");
+    const s1 = edit(repo, { h: "side\n" });
+    edit(repo, { h2: "side\n" });
+    repo.git("checkout", "-q", "topic");
+    const s = merge(repo, "side");
+    const places = [repo.git("merge-base", s, "main"), ...repo.git("rev-list", "--first-parent", `main..${s}`).split("\n")];
+    expect(places.map((sha) => repo.git("rev-parse", `${sha}^{tree}`))).not.toContain(repo.git("rev-parse", `${s1}^{tree}`));
+    expect((await leadGate(repo, x, s1, s)).stdout).toContain(failLine(s));
+  });
+
+  /** After PR commit x, a clean base merge m1 of base commit B1 adding `g`, then the base branch writes `next`: m1 re-merges with M over B1. */
+  function pastBaseMerge(next: Record<string, string>) {
+    const { repo, x } = start({ f: "A\n" });
+    const b1 = onBase(repo, { g: "g\n" });
+    const m1 = merge(repo, "main");
+    onBase(repo, next);
+    expect(repo.git("merge-base", "--all", m1, "main")).toBe(b1);
+    return { repo, x, m1 };
+  }
+
+  it("pin: an anchor past a clean base merge re-merges with M over a real merge base; a PR change then unlocks", async () => {
+    const { repo, x, m1 } = pastBaseMerge({ h: "h\n" });
+    edit(repo, { f: "B\n" });
+    const m2 = merge(repo, "main");
+    expect((await leadGate(repo, x, m1, m2)).stdout).toContain(carriedPass(x, m2));
+  });
+
+  it("an anchor past a clean base merge, then a base merge changing f and a PR commit restoring it, unlock nothing", async () => {
+    const { repo, x, m1 } = pastBaseMerge({ f: "B\n", h: "h\n" });
+    merge(repo, "main");
+    const restore = edit(repo, { f: "A\n" }, "restore");
+    expect((await leadGate(repo, x, m1, restore)).stdout).toContain(failLine(restore));
+  });
+
+  it("X1: a side branch that wraps a base merge, merged with no content of its own, unlocks nothing", async () => {
+    const { repo, x } = start();
+    repo.git("checkout", "-q", "-b", "side");
+    repo.git("checkout", "-q", "main");
+    put(repo, { g: "g\n" });
+    repo.commit("base moves");
+    repo.git("checkout", "-q", "side");
+    merge(repo, "main");
+    repo.git("checkout", "-q", "topic");
+    const s = merge(repo, "side");
+    expect((await leadGate(repo, x, x, s)).stdout).toContain(failLine(s));
+  });
+
+  it("F2(b): a side branch forked from a newer base commit, with only an empty commit, unlocks nothing", async () => {
+    const { repo, x } = start();
+    const newer = onBase(repo, { g: "g\n" });
+    repo.git("checkout", "-q", "-b", "side", newer);
+    repo.git("commit", "-q", "--allow-empty", "-m", "empty");
+    repo.git("checkout", "-q", "topic");
+    const s = merge(repo, "side");
+    expect((await leadGate(repo, x, x, s)).stdout).toContain(failLine(s));
+  });
 });
 
 describe("review coverage decisions over records", () => {
@@ -1682,6 +2188,23 @@ describe("review coverage decisions over records", () => {
     expect(decision.start).toMatchObject({ sha: first });
     expect(decision.reasons).toEqual(["not on the head's history"]);
     expect(decision.uncovered).toEqual([second]);
+  });
+
+  it("ruling 1: the lead's record unlocks only when the head's one merge base with the base is exactly the merge passed in", () => {
+    const repo = repository();
+    repo.git("checkout", "-q", "-b", "topic");
+    const x = grow(repo, 5);
+    repo.git("checkout", "-q", "main");
+    const moved = grow(repo, 5, "other.mjs");
+    repo.git("checkout", "-q", "topic");
+    repo.git("merge", "-q", "--no-ff", "-m", "merge base", "main");
+    const c = grow(repo, 5);
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const carried = record({ head: x, base: repo.base, carried: true, fresh: undefined, at: null, trusted: false });
+    const lead = record({ head: c, base: x, role: "lead", op: "review-before-merge", at: "2026-11-14T10:01:00.000Z" });
+    expect(sources.mergeBases(c, moved)).toEqual([moved]);
+    expect(reviewCoverage([carried, lead], sources, { head: c, baseSha: moved, merge: moved }).leadReviewed).toBe(true);
+    expect(reviewCoverage([carried, lead], sources, { head: c, baseSha: moved, merge: repo.base }).leadReviewed).toBe(false);
   });
 
   it("a --codex-rollout run that names its base is still only a re-check", () => {
