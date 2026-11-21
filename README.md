@@ -402,8 +402,14 @@ also have surrounding quotes.
   list its session. A carried record has no freshness, outcome, time or read
   script to judge, so those checks are skipped; it must still name its base
   in its args, from a clean tree, with a bound performer. It counts only
-  beside the lead's own creditable `review-before-merge` record that read a
-  non-empty range ending at the head; then a line resting on it prints
+  beside the lead's own creditable `review-before-merge` record ending at
+  the head that read pull-request content: its base is an ancestor of the
+  head, and after the latest chain commit with its base's tree, a non-merge
+  commit or a side-branch merge changed a path that the head holds
+  differently and the base left alone (that commit re-merged with the
+  head's merge-base, each pair with one merge base). A merge from the base
+  is never content; an octopus with a parent off the base reads none. Then
+  a line resting on it prints
   `carried`, ending `(carried; the lead reviewed <head>)`, which counts as
   neither failed nor unchecked. When no full review is credited, no such
   lead record exists and a carried full review would otherwise start the
@@ -527,9 +533,12 @@ lets a consuming repo name the commit it pins by its version.
   coverage fails closed with `uncovered commits`. Re-check from the chain
   commit the full review was placed at, or run a new full review. The
   skill-text fix is GRO-77.
-- **Patch-id placement ignores where a change sits** (F9), so a side-branch
-  or rebased record can still place on a commit that makes the same edit in
-  the wrong place. It closes in S4a-3.
+- **Patch-id placement ignores where a change sits** (KOD-44 F9), so a
+  side-branch or rebased record can still place on a commit that makes the
+  same edit in the wrong place. It closes in KOD-44's S4a-3.
+- **A squash or cherry-pick of base content is pull-request content** for
+  carried evidence, since it is a non-merge commit. The lead's own review
+  is the remedy.
 
 ## History
 

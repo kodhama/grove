@@ -1,6 +1,6 @@
 /** Gate sources use stubbed gh responses and disposable, offline git repositories. */
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -379,6 +379,19 @@ describe("git sources in temporary repositories", () => {
     r.git("merge", "-q", "--no-ff", "-X", "ours", "-m", "ours", "upstream");
     expect(r.sources.mergeTree(pr, upstream)).toBeNull();
     expect(() => r.sources.mergeTree(r.base, "f".repeat(40))).toThrow(/^mergeTree:/);
+  });
+
+  it("changedPaths lists each path whose blob or mode differs, both sides of a rename, between commits or trees", () => {
+    const r = repo();
+    r.write("src/a", "a\n");
+    r.write("src/b", "b\n");
+    const one = r.commit("one");
+    r.git("mv", "src/a", "src/c");
+    chmodSync(join(r.cwd, "src/b"), 0o755);
+    const two = r.commit("two");
+    expect(r.sources.changedPaths(one, two).sort()).toEqual(["src/a", "src/b", "src/c"]);
+    expect(r.sources.changedPaths(r.sources.treeOf(one), r.sources.treeOf(two)).sort()).toEqual(["src/a", "src/b", "src/c"]);
+    expect(r.sources.changedPaths(one, one)).toEqual([]);
   });
 
   it("mergeBases lists every merge base: two for a criss-cross, one on a line, none for unrelated history", () => {
@@ -1171,6 +1184,7 @@ describe("git runner contract", () => {
     ["treeOf", ["sha"]],
     ["mergeTree", ["a", "b"]],
     ["mergeBases", ["a", "b"]],
+    ["changedPaths", ["from", "to"]],
     ["checks", ["sha"]],
     ["firstSuiteAt", ["sha"]],
   ])("refuses invalid revisions before running %s", (method, names) => {

@@ -13,7 +13,7 @@
  * botReactions. Each is a single `gh api` request per page, and the module
  * paginates itself, up to 50 pages.
  * From git: hasCommit, isAncestor, treeOf, mergeBase, mergeBases, mergeTree,
- * firstParentChain, numstat, remergeNumstat, nonTestLines and patchId. A defined negative
+ * changedPaths, firstParentChain, numstat, remergeNumstat, nonTestLines and patchId. A defined negative
  * answer, such as a missing commit or no merge-base, is a value, not a failure.
  *
  * run(cmd, args, { cwd, input, env, encoding }) returns spawnSync's result shape. The
@@ -603,6 +603,14 @@ export function createGateSources({ checkout, owner, repo, number, run = default
       const shas = out === "" ? [] : out.split("\n");
       if ((result.status === 1 && shas.length > 0) || !shas.every((sha) => SHA.test(sha))) fail(call, "invalid merge-base answer");
       return shas;
+    },
+
+    /** The paths whose blob or mode differs between two commits or trees, a rename as both its paths. */
+    changedPaths(from, to) {
+      const call = "changedPaths";
+      revisions(call, from, to);
+      const flags = DIFF_FLAGS.filter((flag) => flag !== "-M");
+      return git(call, ["diff", ...flags, "--no-renames", "--name-only", "-z", from, to, "--"]).stdout.split("\0").filter(Boolean);
     },
 
     /** The tree a merge of two commits writes; null when it conflicts, a resolution to one side included. */

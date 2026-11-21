@@ -27,8 +27,8 @@
  *
  * Plan: docs/plans/2026-11-13-kod-44-u4b-gaps.md, G7 and G8;
  * docs/plans/2026-11-08-kod-44-merge-gate-plan.md, KTD4 to KTD8 and KTD11;
- * docs/plans/2026-11-19-kod-44-u4b-s4-plan.md, KTD1 (reachability over exact bases)
- * and KTD3 (clean merges by merge-tree).
+ * docs/plans/2026-11-19-kod-44-u4b-s4-plan.md, KTD1 (reachability over exact bases),
+ * KTD3 (clean merges by merge-tree) and KTD4 (N7, what the lead's record read).
  */
 
 /** At this many non-test lines since the full review, a full review must come again. */
@@ -204,6 +204,45 @@ function cover(starts, rechecks, reader) {
   return first;
 }
 
+/**
+ * Whether the lead's record read pull-request content, so carried evidence
+ * may count (N7; KTD4 under the lead's 11-20 rulings). Its base must be an
+ * ancestor of the head with another tree. The anchor `a` is the latest chain
+ * place with its base's tree. Over `a..head`, a merge whose other parents are
+ * all ancestors of the base is a base merge and no content; an octopus with a
+ * parent off the base unlocks nothing. Content between base merges forms
+ * runs. `Q`, the base-only tree, re-merges `a` with the head's merge base `M`,
+ * each pair having one merge base. A path a run changed is a witness when `Q`
+ * leaves it as `a` has it and the head does not.
+ */
+function readContent(record, reader, sources) {
+  const { chain, head, baseSha, merge } = reader;
+  const tree = reader.treeOf(record.base);
+  if (!reader.ancestor(record.base, head) || tree === reader.treeOf(head)) return false;
+  let anchor = chain.length - 1;
+  while (anchor >= 0 && reader.treeOf(chain[anchor].sha) !== tree) anchor -= 1;
+  const a = reader.shaAt(anchor);
+  if (reader.treeOf(a) !== tree || sources.mergeBases(head, baseSha).length !== 1 || sources.mergeBases(a, merge).length !== 1) return false;
+  const runs = [];
+  let open = false;
+  for (const commit of chain.slice(anchor + 1)) {
+    const others = commit.parents.slice(1);
+    const base = others.every((parent) => reader.ancestor(parent, baseSha));
+    if (others.length > 1 && !base) return false;
+    if (others.length > 0 && base) open = false;
+    else if (open) runs.at(-1).to = commit.sha;
+    else {
+      runs.push({ from: commit.parents[0], to: commit.sha });
+      open = true;
+    }
+  }
+  const q = sources.mergeTree(a, merge);
+  if (q === null) return false;
+  const upstream = new Set(sources.changedPaths(tree, q));
+  const changed = new Set(sources.changedPaths(tree, reader.treeOf(head)));
+  return runs.some((run) => sources.changedPaths(run.from, run.to).some((path) => !upstream.has(path) && changed.has(path)));
+}
+
 /** The distinct reasons records were not credited, in time order. */
 function reasonsOf(judged, leadReviewed) {
   const reasons = judged.map((entry) => {
@@ -219,9 +258,9 @@ export function reviewCoverage(records, sources, { head, baseSha, merge }) {
   const reader = chainReader(sources, { head, baseSha, merge });
   const judged = judgeRecords(records, reader, sources);
   const credited = judged.filter((entry) => entry.place !== undefined);
-  // The lead's own record must have read a non-empty range at the head (lead ruling 2).
+  // The lead's own record must have read pull-request content at the head (lead ruling 2; N7).
   const leadReviewed = credited.some((entry) => entry.record.role === "lead" && !entry.record.carried
-    && !entry.record.rollout && entry.record.head === head && entry.record.base !== head);
+    && !entry.record.rollout && entry.record.head === head && readContent(entry.record, reader, sources));
   const usable = credited.filter((entry) => !entry.record.carried || leadReviewed);
   const starts = startsOf(usable);
   const decision = {
