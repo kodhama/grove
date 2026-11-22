@@ -72,8 +72,10 @@ files=("$projects"/*/"$session".jsonl)
 [ ${#files[@]} -eq 1 ] && [ -f "${files[0]}" ] || hold "has no single transcript for session $session"
 "$(dirname "$0")/open-tool-call.sh" "${files[0]}" >/dev/null || hold "is at a dialog"
 
-input=$("$(dirname "$0")/read-input-line.sh" "$backend" "$pane" "$backend_timeout" 2>/dev/null) ||
-  hold "has an input line that is $input (unsent text, or unreadable)"
+if ! input=$("$(dirname "$0")/read-input-line.sh" "$backend" "$pane" "$backend_timeout" 2>/dev/null); then
+  [ "$input" = draft ] && hold "has unsent text in its input line"
+  hold "has an input line that is unreadable, likely because Claude Code's screen layout changed, or the pane is too narrow for the input box the relay knows"
+fi
 
 # Read the pane again: the transcript parse takes time on a long transcript,
 # and the focus read should be the newest thing the send rests on.

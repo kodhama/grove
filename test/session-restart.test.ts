@@ -124,6 +124,47 @@ function states(lines: readonly string[], file = "states") {
   stubFile(file, `${lines.join("\n")}\n`);
 }
 
+/** What read-input-line.sh reads from `raw`, served as the pane's styled screen. */
+function readInputLine(raw: string) {
+  stubFile("screen-raw", raw);
+  const run = spawnSync(
+    "bash",
+    [join(SCRIPTS, "read-input-line.sh"), join(dir, "herdr"), PANE, "5"],
+    { encoding: "utf8", env: { ...process.env, STUB_DIR: dir }, timeout: 4000 },
+  );
+  return { word: run.stdout.trim(), status: run.status };
+}
+
+/**
+ * Screens captured from idle Claude Code panes on 2026-11-22, cut to the input
+ * box, the lines just above it (their text redacted to x, widths kept) and the
+ * status lines (GRO-78). The box's top rule carries the session's name label.
+ * In a wide pane it reads `─── … ─── <name> ─`; in a narrow one Claude Code
+ * drops the left run of rules, so the line starts with the label, and at 12
+ * columns the label is only `…`. A labelled top rule spans the box, so it is
+ * as wide as the bottom rule in every capture.
+ */
+const SCREENS = join(__dirname, "fixtures", "session-restart");
+const capture = (name: string) => readFileSync(join(SCREENS, `${name}.ansi`), "utf8");
+/** A captured screen with its one-line input box replaced by `box`. */
+const withBox = (raw: string, ...box: string[]) => {
+  const lines = raw.split("\n");
+  const at = lines.findIndex((l) => l.includes("❯"));
+  lines.splice(at, 1, ...box.map((l) => `${l}\r`));
+  return lines.join("\n");
+};
+/** A captured screen with `extra` lines inserted right above its box's top rule. */
+const aboveTopRule = (raw: string, ...extra: string[]) => {
+  const lines = raw.split("\n");
+  const at = lines.findIndex((l) => l.includes("❯")) - 1;
+  lines.splice(at, 0, ...extra.map((l) => `${l}\r`));
+  return lines.join("\n");
+};
+/** A screen line less its carriage return and styling. */
+const plainLine = (line: string) => line.replace(/\r/g, "").replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
+/** A line's width on screen, less its styling; every glyph here is one column. */
+const plainWidth = (line: string) => [...plainLine(line)].length;
+
 function transcriptLine(entry: Record<string, unknown>) {
   appendFileSync(transcript, `${JSON.stringify(entry)}\n`);
 }
@@ -932,9 +973,37 @@ describe("restart-in-place.sh — unsent text in the pane's input line (MQ-359)"
       const run = runHelper({ focusBound: "0.2", maxWait: "1" });
       expect(run.status).toBe(1);
       expect(run.prompts).toEqual([]);
-      expect(run.reports.filter((r) => /could not read the input line/i.test(r))).toHaveLength(1);
+      const held = run.reports.filter((r) => /could not read the input line/i.test(r));
+      expect(held).toHaveLength(1);
+      // The line says why, and that nothing is typed meanwhile (GRO-78).
+      expect(held[0]).toMatch(/\): input line unreadable: /);
+      expect(held[0]).toMatch(/screen layout changed, or the pane is too narrow for the input box/);
+      expect(held[0]).toMatch(/still waits without typing/);
     },
   );
+
+  // GRO-78: a narrow pane's top rule starts with its label, which once read as
+  // no box at all, so the helper waited out its bound without typing.
+  it("types /clear into an idle narrow pane whose top rule starts with its label", () => {
+    freshTurn(now());
+    states(["idle false s1"]);
+    states(["idle false s2"], "after-clear");
+    stubFile("screen-raw", capture("narrow-labelled-empty"));
+    const run = runHelper();
+    expect(run.status, run.stderr).toBe(0);
+    expect(promptTexts(run)[0]).toBe("/clear");
+  });
+
+  it("types nothing into a narrow pane holding a draft under its labelled top rule", () => {
+    freshTurn(now());
+    states(["idle false s1"]);
+    stubFile("screen-raw", withBox(capture("narrow-labelled-empty"), "❯ fix the tests"));
+    const run = runHelper({ focusBound: "0.2", maxWait: "1" });
+    expect(run.status).toBe(1);
+    expect(run.prompts).toEqual([]);
+    expect(run.reports.filter((r) => /unsent text has sat/i.test(r))).toHaveLength(1);
+    expect(run.reports.some((r) => /input line unreadable/i.test(r))).toBe(false);
+  });
 
   it("holds the resume prompt while unsent text sits in the cleared session's input line", () => {
     freshTurn(now());
@@ -967,15 +1036,6 @@ describe("read-input-line.sh — what counts as unsent text (MQ-359)", () => {
       `  ${E}[0m${E}[38;2;153;153;153mModel \u00b7 status${E}[0m`,
       "",
     ].join("\n");
-  const read = (raw: string) => {
-    stubFile("screen-raw", raw);
-    const run = spawnSync(
-      "bash",
-      [join(SCRIPTS, "read-input-line.sh"), join(dir, "herdr"), PANE, "5"],
-      { encoding: "utf8", env: { ...process.env, STUB_DIR: dir }, timeout: 4000 },
-    );
-    return { word: run.stdout.trim(), status: run.status };
-  };
 
   it.each([
     ["an empty box", ["\u276f "]],
@@ -986,7 +1046,7 @@ describe("read-input-line.sh — what counts as unsent text (MQ-359)", () => {
       [`\u276f ${E}[0m${E}[2ma long suggestion that${E}[0m`, `  ${E}[0m${E}[2mwraps${E}[0m`],
     ],
   ])("reads %s as empty", (_label, box) => {
-    expect(read(screen(...box))).toEqual({ word: "empty", status: 0 });
+    expect(readInputLine(screen(...box))).toEqual({ word: "empty", status: 0 });
   });
 
   it.each([
@@ -1002,7 +1062,7 @@ describe("read-input-line.sh — what counts as unsent text (MQ-359)", () => {
     ["a draft of newlines only", ["\u276f ", "  "]],
     ["a dialog whose selected option opens the box", ["\u276f 1. Yes", "  2. No"]],
   ])("reads %s as a draft", (_label, box) => {
-    expect(read(screen(...box))).toEqual({ word: "draft", status: 1 });
+    expect(readInputLine(screen(...box))).toEqual({ word: "draft", status: 1 });
   });
 
   it("reads a question dialog, as drawn live on 2026-09-29, as unreadable", () => {
@@ -1011,7 +1071,84 @@ describe("read-input-line.sh — what counts as unsent text (MQ-359)", () => {
       "",
       "Enter to select \u00b7 \u2191/\u2193 to navigate \u00b7 Esc to cancel",
     );
-    expect(read(raw)).toEqual({ word: "unreadable", status: 1 });
+    expect(readInputLine(raw)).toEqual({ word: "unreadable", status: 1 });
+  });
+});
+
+describe("read-input-line.sh — a narrow pane's labelled top rule (GRO-78)", () => {
+  const narrow = capture("narrow-labelled-empty");
+  const twelve = capture("twelve-column-label-empty");
+  /** The narrow capture without its labelled top rule, so its box has no top. */
+  const unlabelled = narrow.replace(/^.*mq-engine-lead.*\r\n/m, "");
+  // Both as wide as the narrow capture's box (18 columns) and shaped like its
+  // labelled top rule, so only the box's structure tells them from it.
+  const fakeTranscript = "⏺ cut along here ─";
+  const fakeDraftLine = "  then the arrow ─";
+
+  it("builds the look-alike lines as wide as the narrow box", () => {
+    const bottom = narrow.split("\n").find((l) => /^─{3,}$/.test(plainLine(l)));
+    expect(plainWidth(bottom ?? "")).toBe(18);
+    expect(plainWidth(fakeTranscript)).toBe(18);
+    expect(plainWidth(fakeDraftLine)).toBe(18);
+  });
+
+  it.each([
+    ["a narrow pane whose top rule starts with its label (w44-p8)", "narrow-labelled-empty"],
+    ["a 12-column pane whose label is only an ellipsis (w44-pA)", "twelve-column-label-empty"],
+    ["a wide pane's labelled rule over a dim suggestion (w44-p7)", "wide-labelled-suggestion"],
+    ["a wide pane's labelled rule over an empty box (w4A-p4)", "wide-labelled-empty"],
+  ])("reads %s as empty", (_label, name) => {
+    expect(readInputLine(capture(name))).toEqual({ word: "empty", status: 0 });
+  });
+
+  // The box's second line is blank: a newline in a draft looks the same, and
+  // the parser cannot tell them apart, so it holds rather than guess.
+  it("reads a 12-column box holding a dim suggestion and then a blank line as a draft (w44-p5)", () => {
+    expect(readInputLine(capture("twelve-column-label-suggestion-blank-line"))).toEqual({
+      word: "draft",
+      status: 1,
+    });
+  });
+
+  it.each([
+    ["typed text under a narrow labelled rule", () => withBox(narrow, "❯ fix the tests")],
+    [
+      "a narrow draft that wraps onto a second box line",
+      () => withBox(narrow, "❯ fix the failing", "  tests now"),
+    ],
+    ["typed text under the 12-column label", () => withBox(twelve, "❯ hi")],
+    ["a 12-column draft that wraps", () => withBox(twelve, "❯ he", "  ll")],
+    [
+      "a look-alike labelled line above a real narrow box holding a draft",
+      () => aboveTopRule(withBox(narrow, "❯ fix the tests"), fakeTranscript),
+    ],
+  ])("reads %s as a draft", (_label, raw) => {
+    expect(readInputLine(raw())).toEqual({ word: "draft", status: 1 });
+  });
+
+  it.each([
+    [
+      "a transcript line ending in ─ above a missing box",
+      () => withBox(unlabelled, fakeTranscript, "  and paste it"),
+    ],
+    [
+      "a transcript line ending in ─ right above the bottom rule",
+      () => withBox(unlabelled, fakeTranscript),
+    ],
+    [
+      "a short line ending in ─ above a missing box",
+      () => withBox(unlabelled, " step ─", "❯ "),
+    ],
+    // A draft line shaped and sized like the top rule, then a continuation
+    // line holding only the prompt glyph: taking it for the top rule would
+    // leave a box that looks empty. A draft's lines after the first are
+    // indented, and the box opens on its prompt at the line's start.
+    [
+      "a draft line shaped like the top rule, over a line holding only the prompt glyph",
+      () => withBox(narrow, "❯ first line", fakeDraftLine, "  ❯"),
+    ],
+  ])("never reads %s as empty: it is unreadable", (_label, raw) => {
+    expect(readInputLine(raw())).toEqual({ word: "unreadable", status: 1 });
   });
 });
 
@@ -1062,6 +1199,14 @@ describe("close-outgoing.sh — the successor's close of the outgoing session (R
         states(["idle false s1"]);
       },
       /input line is draft/,
+    ],
+    [
+      "its input line cannot be read",
+      () => {
+        stubFile("screen-other", "");
+        states(["idle false s1"]);
+      },
+      /input line is unreadable, likely because .*screen layout changed, or the pane is too narrow for the input box/,
     ],
     ["the pane is focused", () => states(["idle true s1"]), /focused/],
     ["the pane holds another session", () => states(["idle false s9"]), /holds session s9/],
@@ -1364,6 +1509,9 @@ describe("report-to-session.sh — the relay to a live reporter session", () => 
       const run = relay("a line");
       expect(run.status).toBe(3);
       expect(run.prompts).toEqual([]);
+      expect(run.stderr).toMatch(
+        /input line that is unreadable, likely because .*screen layout changed, or the pane is too narrow for the input box/,
+      );
     },
   );
 

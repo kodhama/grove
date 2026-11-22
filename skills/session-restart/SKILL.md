@@ -102,7 +102,8 @@ permission dialog as `done`, as herdr does, so the helper also reads the
 transcript: a tool call with no result yet means a dialog is open, and it
 types nothing. It reads the input line
 through `scripts/read-input-line.sh`, and treats an input line it cannot find,
-as after a change to the harness's screen, like unsent text. If the pane stays
+as after a change to the harness's screen or in a pane too narrow for the
+box it knows, like unsent text. If the pane stays
 focused or holds text past its bound (10 minutes by default), it reports that
 once and keeps waiting without typing. If the handoff is stale, it prompts you
 to refresh it, up to three times, and then gives up. Then it types a bare
