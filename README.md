@@ -306,7 +306,7 @@ path is treated as an import.
 | `--bindings <path>` | Required at least once; repeatable: the worker's, any taken-over worker's, and the lead's own. Each is read as JSON before any process runs; a file that cannot be read, or whose `skill` is neither `story-worker` nor `project-lead`, exits 2 with `merge-gate: --bindings <path> is not a worker's or a lead's bindings file`. |
 | `--receipt <path>` | Optional readable story receipt. Its single `Shipped revision:` line must give 7 to 40 hex characters as its first token, a case-insensitive prefix of `--head`. |
 | `--carried <path>` | Optional handoff whose `## Receipt check` section carries a worker's review lines, read before any process runs. |
-| `--codex-rollout <path>` | Optional, repeatable Codex CLI rollout holding a review. The rule is that such a run, and every thread it started however the gate reaches it, is only ever a re-check: enforced today for the run's own thread and the threads it started, except the threads of a run that a listed transcript reaches, which a later unit tags. No local Codex record is credited yet: each fails `base not named`. |
+| `--codex-rollout <path>` | Optional, repeatable Codex CLI rollout holding a review. Such a run, and every thread under it however the gate reaches it, is only ever a re-check. No local Codex record is credited yet: each fails `base not named`. |
 | `--bot <login>` | Optional, repeatable automated reviewer. Matches logins ignoring case and a trailing `[bot]`; for example, `--bot chatgpt-codex-connector`. There are no aliases: `--bot codex` does not match that connector. |
 | `--bot-unavailable <name>:<reason>` | Optional, repeatable exemption with a non-empty reason on one line. The name is a login, matched as `--bot` matches; it cannot also be passed with `--bot`. |
 | `--checkout <dir>` | Optional git checkout, also where `gh` runs; defaults to the working directory. |
@@ -347,8 +347,8 @@ also have surrounding quotes.
   record does not hold, so run the read command by absolute path. This
   catches a read script run from an unexpected location, not an edited copy
   at a trusted location, and not a forged read: a transcript can be forged. A record is a full review when its base is the merge-base of its
-  own head with the base branch and it is not a `--codex-rollout` run;
-  otherwise it is a re-check.
+  own head with the base branch and it is not from a `--codex-rollout` run
+  or a thread under one; otherwise it is a re-check.
   Where a record sits on the first-parent chain from the merge-base `M`,
   checked in this order: a reviewed head or base missing from the clone
   gives `reviewed commit <sha> is not in the clone`; a full review whose
@@ -358,21 +358,22 @@ also have surrounding quotes.
   for a worker's record whose head is an ancestor of the final head but
   neither on the chain nor `M` or before it (a merged side branch), at the
   first chain commit whose cumulative `git patch-id --verbatim` from `M`
-  equals its head's; for a worker's full review whose head is off the
-  head's history, as after a rebase before the first push, at the first
-  chain commit whose cumulative patch-id from `M` equals the review's own
-  from its merge-base. A re-check off the head's history and any lead's
+  equals its head's and whose tree is its head's; for a worker's full review
+  whose head is off the head's history, as after a rebase before the first
+  push, at the first chain commit whose cumulative patch-id from `M` equals
+  the review's own from its merge-base and whose tree is `git merge-tree` of
+  `M` and its head, that merge-base being their only one; a conflict places
+  nothing. A re-check off the head's history and any lead's
   record never get patch-id credit. Otherwise a record credits nothing: an
-  ancestor head with no patch match, or a lead's there, gives `only on a
-  merged side branch`; a head off the history with no match, a re-check
+  ancestor head with no placing match (patch-id and tree), or a lead's
+  there, gives `only on a merged side branch`; a head off the history with
+  no placing match, a re-check
   there, or a lead's there gives `not on the head's history`. A full
   review placed by patch-id adds `(patch-id match of <sha>)` to the line;
   indentation changes do not match. Every record from a `--codex-rollout`
-  run, or from any thread that run started, is a re-check, even when a
-  listed transcript reaches the run. The gate marks the run's own thread and
-  the threads it started, except the threads of a run that a listed
-  transcript reaches, which a later unit marks. No local Codex record is
-  credited yet, since each fails `base not named`.
+  run, or from any thread under it, is a re-check, however the gate reaches
+  that thread. No local Codex record is credited yet, since each fails
+  `base not named`.
   With no full review the line is
   `fail no creditable full review of <head> (<n> review calls, none credited: <reason>, ...)`.
   A doc review is not credited yet.
@@ -403,16 +404,17 @@ also have surrounding quotes.
   script to judge, so those checks are skipped; it must still name its base
   in its args, from a clean tree, with a bound performer. It counts only
   beside the lead's own creditable `review-before-merge` record ending at
-  the head that read pull-request content. Its base is an ancestor of the
-  head with another tree. The anchor `a` is the latest chain commit, or `M`
-  itself, whose tree is that base's tree; `M` is the head's merge base with
-  the base branch. The head and the base branch, and `a` and `M`, must each
-  have exactly one merge base. Content is read per run: the net change of
-  the non-merge commits and side-branch merges between merges from the base
-  branch, which are never content. Some run must change a path that the
-  head holds differently from `a` and that `a` re-merged with `M` leaves as
-  `a` has it. No anchor, a conflicting re-merge, or an octopus with a parent
-  off the base branch unlocks nothing for the whole record. Then
+  the head that read pull-request content. That lead record's base is an
+  ancestor of the head with another tree. The anchor `a` is the latest chain
+  commit, or `M` itself, whose tree is the lead record's base's tree; `M` is
+  the head's merge base with the base branch. The head and the base branch,
+  and `a` and `M`, must each have exactly one merge base. Content after `a`
+  is read per run: the net change of the non-merge commits and side-branch
+  merges between merges from the base branch, which are never content. Some
+  run must change a path that the head holds differently from `a` and that
+  `a` re-merged with `M` leaves as `a` has it. No anchor, a conflicting
+  re-merge, or an octopus after `a` with a non-first parent off the base
+  branch unlocks nothing for the whole record. Then
   a line resting on it prints
   `carried`, ending `(carried; the lead reviewed <head>)`, which counts as
   neither failed nor unchecked. When no full review is credited, no such
@@ -537,9 +539,6 @@ lets a consuming repo name the commit it pins by its version.
   coverage fails closed with `uncovered commits`. Re-check from the chain
   commit the full review was placed at, or run a new full review. The
   skill-text fix is GRO-77.
-- **Patch-id placement ignores where a change sits** (KOD-44 F9), so a
-  side-branch or rebased record can still place on a commit that makes the
-  same edit in the wrong place. It closes in KOD-44's S4a-3.
 - **A squash or cherry-pick of base content newer than `M`** (the head's
   merge base with the base branch) **is pull-request content** for carried
   evidence, since it is a non-merge commit; older base content is in the

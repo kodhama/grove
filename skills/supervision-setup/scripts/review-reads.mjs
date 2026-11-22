@@ -17,7 +17,8 @@
  *     at: "2026-11-08T10:01:00.000Z", skill: "compound-engineering:ce-code-review",
  *     args: "base:<sha>", outcome: "ran",
  *     head: "<sha>", clean: true, base: "<sha>", baseNamed: true,
- *     read: { script: "<path>/review-read.mjs", checkout: "<dir>", from: "<commit>" } }
+ *     read: { script: "<path>/review-read.mjs", checkout: "<dir>", from: "<commit>" },
+ *     rollout: false }
  *
  * The read record is the last triple before the review call in the same
  * transcript file, by the order their results land in it; another file's
@@ -115,7 +116,8 @@
  * entry there into exit 2: a review it cannot read is not a review it can
  * judge.
  *
- * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U1 and KTD3.
+ * Plan: docs/plans/2026-11-08-kod-44-merge-gate-plan.md, U1 and KTD3;
+ * docs/plans/2026-11-19-kod-44-u4b-s4-plan.md, KTD6 (the rollout tag).
  */
 import { readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
@@ -435,15 +437,39 @@ function uniqueReviews(reviews) {
 }
 
 /**
+ * A caller-named rollout's own thread and every Codex thread under it, by
+ * resolved path, from each thread's own child records, whatever walk reads
+ * them (KTD6); none when it does not exist.
+ */
+function threadsUnder(path) {
+  const threads = [];
+  for (const queue = [path]; queue.length > 0;) {
+    const file = queue.shift();
+    if (threads.includes(realPath(file))) continue;
+    let read;
+    try {
+      read = records(file);
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+      continue;
+    }
+    threads.push(realPath(file));
+    const own = ownRecords(read);
+    // The given path finds children beside a link; the real path, those beside its target.
+    queue.push(...codexChildren(file, own).found, ...codexChildren(realPath(file), own).found);
+  }
+  return threads;
+}
+
+/**
  * The review records every listed transcript `{ session_id, path }` reaches,
  * and those of each Codex rollout path in `rollouts`, read as its own
  * reviewer unless a listed transcript or another named rollout reaches it.
  * `skills`, when given, keeps only the review calls it names.
- * Returns `{ reviews, missing, rollouts }`; the caller exits 2 when `missing`
- * is not empty. A missing caller-named rollout has `session_id` null.
- * `rollouts` lists the id of each caller-named rollout read as its own
- * reviewer: every record its walk reaches, its children's included, carries
- * that id as `session`. One a listed transcript reaches is not in it.
+ * Returns `{ reviews, missing }`; the caller exits 2 when `missing` is not
+ * empty. A missing caller-named rollout has `session_id` null. Each record
+ * carries `rollout`: whether its thread is a caller-named rollout or any
+ * thread under one, however it was reached.
  */
 export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   const reviews = [];
@@ -474,7 +500,7 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     }
     const id = typeof read.first?.payload?.id === "string" ? read.first.payload.id : childName(path);
     const found = walk({ path, subagentDirs: [] }, id, id, namedContext(path, read.first), read, reached);
-    named.push({ id, real, found, within: new Set(found.reached.map(realPath)) });
+    named.push({ real, found, within: new Set(found.reached.map(realPath)) });
   }
   // A named rollout another named one reaches is read in that one's walk, whatever the order.
   const under = (inner, outer) => outer !== inner && outer.within.has(inner.real) && !inner.within.has(outer.real);
@@ -484,8 +510,8 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     missing.push(...walked.found.missing);
   }
   const unique = uniqueReviews(reviews);
-  const ids = named.map((walked) => walked.id);
   const wanted = skills && new Set(skills.map(unqualified));
   const kept = wanted ? unique.filter((review) => wanted.has(unqualified(review.skill))) : unique;
-  return { reviews: kept, missing, rollouts: ids };
+  const tagged = new Set(rollouts.flatMap(threadsUnder));
+  return { reviews: kept.map((review) => ({ ...review, rollout: tagged.has(review.thread) })), missing };
 }
