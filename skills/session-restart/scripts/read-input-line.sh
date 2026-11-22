@@ -72,10 +72,11 @@ state=$(printf '%s\n' "$screen" | perl -CSD -ne '
     my $width = sub { (my $p = shift) =~ s/\s+$//; length $p };
     my ($bottom) = grep { $lines[$_]{plain} =~ $rule } reverse 0 .. $#lines;
     unless (defined $bottom) { print "unreadable"; exit }
+    my $box_width = $width->($lines[$bottom]{plain});
     my $top;
     for (my $i = $bottom - 1; $i >= 0; $i--) {
       my $p = $lines[$i]{plain};
-      if ($p =~ $rule || ($p =~ $labelled && $width->($p) == $width->($lines[$bottom]{plain}))) {
+      if ($p =~ $rule || ($p =~ $labelled && $width->($p) == $box_width)) {
         $top = $i;
         last;
       }
