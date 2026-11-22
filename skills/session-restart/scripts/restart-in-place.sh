@@ -273,7 +273,7 @@ wait_ready_unfocused() {
       if [ "$input" = draft ]; then
         held draft "a restart is pending but unsent text has sat in the pane's input line past ${focus_bound}s. Waiting without typing; send or clear that text to let it run."
       else
-        held unreadable "a restart is pending but the helper could not read the input line of the pane for ${focus_bound}s, so it cannot tell whether unsent text sits there. Waiting without typing."
+        held unreadable "input line unreadable: a restart is pending but the helper could not read the input line of the pane for ${focus_bound}s, so it cannot tell whether unsent text sits there. Likely cause: Claude Code's screen layout changed, or the pane is too narrow for the input box the helper knows. The helper still waits without typing."
       fi
     else
       held_seen=0 held_last=""

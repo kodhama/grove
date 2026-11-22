@@ -38,8 +38,10 @@ refuse() {
 [ -f "$transcript" ] || refuse "the outgoing transcript $transcript does not exist"
 "$scripts/open-tool-call.sh" "$transcript" >/dev/null ||
   refuse "the outgoing session is at a dialog, or its transcript cannot be read"
-input=$("$scripts/read-input-line.sh" "$backend" "$pane" "$backend_timeout" 2>/dev/null) ||
-  refuse "its input line is $input"
+if ! input=$("$scripts/read-input-line.sh" "$backend" "$pane" "$backend_timeout" 2>/dev/null); then
+  [ "$input" = draft ] && refuse "its input line is draft"
+  refuse "its input line is unreadable, likely because Claude Code's screen layout changed, or the pane is too narrow for the input box this script knows"
+fi
 
 # The pane read comes last, so the focus read is the newest thing the send rests on.
 out=$(pane_tool get "$pane" 2>/dev/null) || refuse "the pane tool cannot read pane $pane"

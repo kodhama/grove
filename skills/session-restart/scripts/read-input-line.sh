@@ -10,16 +10,24 @@
 # (supervision-setup's scripts/adapter/<binary name>.sh, read-screen), so this
 # parse of Claude Code's screen is the same whichever tool serves it.
 #
-# The input line is the text between the last two rules (─) of the screen
-# Claude Code draws, less its ❯ prompt and any dim text: in an empty box,
+# The input line is the text inside the input box Claude Code draws, less its
+# ❯ prompt and any dim text. The box's bottom rule is the screen's last line
+# that starts with a run of rules (─). Its top rule is the nearest line above
+# that is a rule too, or the box's labelled rule: the session's name label
+# with one or more rules after it, and optionally rules before it. In a narrow
+# pane Claude Code drops the rules before the label, so the line starts with
+# the label (` name… ─`, or ` … ─` at 12 columns). A labelled rule spans the
+# box, so it counts only when it is as wide as the bottom rule; a transcript
+# or draft line that merely ends in ─ is not taken for it. In an empty box,
 # as right after a clear, Claude Code draws a suggested prompt dim (SGR 2),
 # while typed text is plain. So the screen is read with its ANSI styling
 # (MQ-359's AE6 run, 2026-09-29). A dim span ends at an SGR that resets it
 # (0, 22 or a bare ESC[m, alone or compound); one its line never closes, or
 # one holding a pasted-text or image chip, is a draft. So is a box line
 # after the first that is blank or holds plain text: a draft with newlines.
-# A box that does not open on its prompt, as when a draft holds a pasted rule
-# line or a dialog is open, is ambiguous. A screen with no such box, an
+# A box that does not open on its prompt at the start of its first line, as
+# when a draft holds a pasted rule line (a draft's later lines are indented)
+# or a dialog is open, is ambiguous. A screen with no such box, an
 # ambiguous one, or a pane the adapter cannot read, is unreadable, and unreadable is
 # never clear to type into: a layout change fails closed, as a report, never
 # as a typed /clear.
@@ -59,11 +67,24 @@ state=$(printf '%s\n' "$screen" | perl -CSD -ne '
   }
   push @lines, { plain => $plain, dimmed => $dimmed, open => $dim };
   END {
-    my @rules = grep { $lines[$_]{plain} =~ /^\s*\x{2500}{3,}/ } 0 .. $#lines;
-    if (@rules < 2 || $rules[-1] - $rules[-2] < 2) { print "unreadable"; exit }
-    my @box = @lines[$rules[-2] + 1 .. $rules[-1] - 1];
-    # The box opens on its prompt; a pasted rule line or a dialog does not.
-    unless ($box[0]{plain} =~ s/^\s*\x{276F}//) { print "unreadable"; exit }
+    my $rule = qr/^\s*\x{2500}{3,}/;
+    my $labelled = qr/^\s*(?:\x{2500}+\s)?[^\s\x{2500}][^\x{2500}]*\s\x{2500}+\s*$/;
+    my $width = sub { (my $p = shift) =~ s/\s+$//; length $p };
+    my ($bottom) = grep { $lines[$_]{plain} =~ $rule } reverse 0 .. $#lines;
+    unless (defined $bottom) { print "unreadable"; exit }
+    my $top;
+    for (my $i = $bottom - 1; $i >= 0; $i--) {
+      my $p = $lines[$i]{plain};
+      if ($p =~ $rule || ($p =~ $labelled && $width->($p) == $width->($lines[$bottom]{plain}))) {
+        $top = $i;
+        last;
+      }
+    }
+    if (!defined $top || $bottom - $top < 2) { print "unreadable"; exit }
+    my @box = @lines[$top + 1 .. $bottom - 1];
+    # The box opens on its prompt at the start of the line; a pasted rule
+    # line, a draft line after it, or a dialog does not.
+    unless ($box[0]{plain} =~ s/^\x{276F}//) { print "unreadable"; exit }
     for my $i (0 .. $#box) {
       my $l = $box[$i];
       (my $text = $l->{plain}) =~ s/[\s\x{A0}]+//g;
