@@ -342,13 +342,17 @@ also have surrounding quotes.
   `review-read.mjs`: by realpath the gate's own copy, or the one in the
   `supervision-setup` folder beside the skill folder that holds a bindings
   file's table, and with the same bytes as the gate's own copy (else
-  `read script differs from the gate's copy`). A relative table path is
+  `read script differs from the gate's copy`). Only `review-read.mjs`'s own
+  bytes are compared, not those of the modules it imports, such as
+  `entry.mjs`. A relative table path is
   found by walking up from the bindings file, as setup does; with none found,
   that file adds no trusted copy. So a read from an earlier plugin version's
   folder counts only when both hold: its script's bytes equal the gate's
   copy, and a passed bindings file names a table in that folder. After a
   plugin update moves the bound table to a new versioned folder, it fails
-  (`read by another script`), even while the old folder still exists. A relative script path is never trusted (`read by another
+  (`read by another script`) once no passed bindings file names a table in
+  the old folder (after setup re-runs), even while the old folder still
+  exists. A relative script path is never trusted (`read by another
   script`): Node runs it from the reviewer's working directory, which the
   record does not hold, so run the read command by absolute path. The bytes
   are compared when the gate runs, which proves nothing of them when the
