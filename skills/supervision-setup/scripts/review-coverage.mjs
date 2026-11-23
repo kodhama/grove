@@ -13,10 +13,12 @@
  * A record's tags, beside review-reads' fields: `role` (`worker` or `lead`),
  * `op` (the operation its performer is bound to), `binding` (`bound`, or
  * `fallback` when it matched only a by-fallback operation's suggested name),
- * `trusted` (its read script is a trusted copy), `rollout` (its thread is a
- * `--codex-rollout` run or under one) and `carried` (it came from a handoff, so it has no
- * time, freshness or read script to judge, and counts only beside the lead's
- * own review of the head).
+ * `trusted` (its read script is a trusted copy, or `differs` when its bytes
+ * are not the gate's), `rollout` (its thread is a `--codex-rollout` run or
+ * under one), `carried` (it came from a handoff, so it has no time, freshness
+ * or read script to judge, and counts only beside the lead's own review of
+ * the head), `alsoLead` (a worker's copy of a lead's record) and `copy` (a
+ * second record of one call, not counted in `calls`).
  *
  * Returns `{ calls, reasons, start, links, carriedNeedsLead, carriedUsed,
  * leadReviewed, uncovered, lines }`: `start` is the full review the chain
@@ -49,7 +51,7 @@ function recordFailure(record) {
   if (record.baseNamed !== true) return "base not named";
   if (!record.carried && !Number.isFinite(Date.parse(record.at))) return "no time recorded";
   if (record.binding !== "bound") return "bound by fallback";
-  if (!record.carried && record.trusted !== true) return "read by another script";
+  if (!record.carried && record.trusted !== true) return record.trusted === "differs" ? "read script differs from the gate's copy" : "read by another script";
   if (record.op === "doc-review") return "doc review not judged yet";
   return null;
 }
@@ -125,10 +127,11 @@ function chainReader(sources, { head, baseSha, merge }) {
  * head's tree (D6). A worker's full review off the head's history sits where
  * its patch-id matches and the tree is its change re-merged onto the
  * merge-base, its own merge-base being the only one (KTD7; KTD5, the same
- * change at the same place); a re-check there sits nowhere. A lead's record
- * never gets patch-id credit.
+ * change at the same place); a re-check there sits nowhere. A lead's record,
+ * or a worker's copy of one, never gets patch-id credit.
  */
 function placed(record, reader, sources) {
+  const lead = record.role === "lead" || record.alsoLead === true;
   for (const sha of [record.head, record.base]) {
     if (!sources.hasCommit(sha)) return { reason: `reviewed commit ${sha} is not in the clone` };
   }
@@ -139,12 +142,12 @@ function placed(record, reader, sources) {
     // A full review at the merge-base read the empty range M..M (lead ruling 1).
     if (place < 0) return full ? { reason: READS_NOTHING } : { full, place };
     if (reader.shaAt(place) === record.head) return { full, place };
-    if (record.role === "lead") return { reason: SIDE_BRANCH };
+    if (lead) return { reason: SIDE_BRANCH };
     const patchId = sources.patchId(reader.merge, record.head);
     const equal = patchId === null ? null : reader.patchPlace(patchId, reader.treeOf(record.head));
     return equal === null ? { reason: SIDE_BRANCH } : { full, place: equal, patchOf: record.head };
   }
-  if (!full || record.role === "lead") return { reason: NOT_ON_HISTORY };
+  if (!full || lead) return { reason: NOT_ON_HISTORY };
   const patchId = sources.patchId(own, record.head);
   const replay = patchId === null || String(sources.mergeBases(reader.merge, record.head)) !== own ? null : sources.mergeTree(reader.merge, record.head);
   const place = replay === null ? null : reader.patchPlace(patchId, replay);
@@ -268,7 +271,7 @@ export function reviewCoverage(records, sources, { head, baseSha, merge }) {
   const usable = credited.filter((entry) => !entry.record.carried || leadReviewed);
   const starts = startsOf(usable);
   const decision = {
-    calls: records.length,
+    calls: records.filter((record) => !record.copy).length,
     reasons: reasonsOf(judged, leadReviewed),
     start: null,
     links: 0,

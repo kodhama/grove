@@ -1,6 +1,6 @@
 /** Check one pinned pull-request head; the doc-review condition is not built yet. */
 import { realpathSync, readFileSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -10,6 +10,7 @@ import { matches, unqualified } from "./operation-state.mjs";
 import { LINE_BREAK } from "./pr-body-lines.mjs";
 import { LINE_LIMIT, reviewCoverage } from "./review-coverage.mjs";
 import { namesBase, readReviewReads, reviewKey } from "./review-reads.mjs";
+import { foundAbove } from "./routing-table.mjs";
 
 const USAGE = "Usage: merge-gate.mjs --pr <owner/repo#n> --head <sha> --bindings <path> [--bindings <path>...] [--receipt <path>] [--carried <path>] [--codex-rollout <path>...] [--bot <login>...] [--bot-unavailable <name>:<reason>...] [--checkout <dir>] [--help]";
 const SCOPE = "not checked: whether each finding was fixed or rejected on evidence, or whether a fix went beyond the findings";
@@ -105,12 +106,22 @@ function realOrNull(path) {
   }
 }
 
+/** A file's bytes, or null when it cannot be read. */
+function bytesOrNull(path) {
+  try {
+    return readFileSync(path);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Read each bindings file before any process runs: a worker's or a lead's,
- * with its transcripts, its review operations and its table path, a relative
- * one resolved against the checkout.
+ * with its transcripts, its review operations and its table path: a relative
+ * one is found by walking up from the bindings file, as setup does, and is
+ * null when no folder above holds it (KTD7).
  */
-function readBindingsFiles(paths, checkout) {
+function readBindingsFiles(paths) {
   return paths.map((path) => {
     let bindings;
     try {
@@ -122,7 +133,8 @@ function readBindingsFiles(paths, checkout) {
     if (!ops || !Array.isArray(bindings.transcripts) || !Array.isArray(bindings.operations)) {
       throw new Error(`--bindings ${path} is not a worker's or a lead's bindings file`);
     }
-    const table = typeof bindings.table?.path === "string" ? resolve(checkout, bindings.table.path) : null;
+    const named = bindings.table?.path;
+    const table = typeof named !== "string" || named === "" ? null : isAbsolute(named) ? named : foundAbove(named, path);
     const operations = ops.flatMap((id) => bindings.operations.filter((op) => op?.table === bindings.skill && op.id === id));
     return { role: bindings.skill === "project-lead" ? "lead" : "worker", transcripts: bindings.transcripts, operations, table };
   });
@@ -167,32 +179,43 @@ function reviewSkills(file) {
   });
 }
 
+/** The gate's own read script, whose bytes a trusted copy must equal. */
+const OWN_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "review-read.mjs");
+
 /**
  * The trusted read scripts, by realpath: the gate's own sibling and the copy
  * in the supervision-setup folder beside each bindings file's table.
  */
 function trustedScripts(files) {
-  const own = join(dirname(fileURLToPath(import.meta.url)), "review-read.mjs");
   const beside = files.filter((file) => file.table !== null)
     .map((file) => join(dirname(dirname(file.table)), "supervision-setup", "scripts", "review-read.mjs"));
-  return new Set([own, ...beside].map(realOrNull).filter(Boolean));
+  return new Set([OWN_SCRIPT, ...beside].map(realOrNull).filter(Boolean));
 }
 
 /**
- * Whether a record's read script is trusted. A relative path never is: Node
- * resolves it against the process's working directory, which the read
- * record does not hold, not against `--checkout`.
+ * Whether a record's read script is trusted: its realpath is a trusted one
+ * and its bytes, read now, equal the gate's own copy's, else `differs`
+ * (KTD7). A relative path never is: Node resolves it against the process's
+ * working directory, which the read record does not hold, not `--checkout`.
  */
-function isTrusted(read, trusted) {
+function isTrusted(read, trusted, own) {
   if (typeof read?.script !== "string" || !isAbsolute(read.script)) return false;
   const real = realOrNull(read.script);
-  return real !== null && trusted.has(real);
+  if (real === null || !trusted.has(real)) return false;
+  return own !== null && bytesOrNull(real)?.equals(own) ? true : "differs";
+}
+
+/** The order matches are preferred in: bound before by fallback, then by operation. */
+function rank(match) {
+  return `${match.binding === "bound" ? 0 : 1} ${match.op}`;
 }
 
 /**
  * The records carried for missing transcripts the handoff covers: a worker's
  * review lines that carry what they read, with their arguments, each matched
- * only against the bindings of the worker whose transcripts list its session.
+ * only against the bindings of the workers whose transcripts list its session:
+ * one record per distinct binding among them, in rank order, the rest marked
+ * `copy` so a call counts once (KTD8).
  */
 function carriedRecords(carried, covered, files) {
   if (carried === null) return [];
@@ -203,37 +226,44 @@ function carriedRecords(carried, covered, files) {
     return uses.flatMap((use) => {
       const detail = CARRIED_DETAIL.exec(use.detail ?? "");
       const standsFor = covered.has(use.session) || (use.child !== null && covered.has(use.child));
-      const match = owners(use.session).map((file) => bindingFor(use.performer, file)).find(Boolean);
-      if (!detail || !standsFor || !match) return [];
+      const found = owners(use.session).map((file) => bindingFor(use.performer, file)).filter(Boolean);
+      const matches = [...new Map(found.map((match) => [rank(match), match])).entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+      if (!detail || !standsFor || !matches.length) return [];
       const args = detail[4].startsWith('"') ? JSON.parse(detail[4]) : null;
-      return [{ carried: true, thread: null, at: null, skill: use.performer, args, head: detail[1], base: detail[2],
-        clean: !detail[3], baseNamed: namesBase(args, detail[2]), role: "worker", rollout: false, trusted: false, ...match }];
+      return matches.map(([, match], index) => ({ carried: true, thread: null, at: null, skill: use.performer, args, head: detail[1],
+        base: detail[2], clean: !detail[3], baseNamed: namesBase(args, detail[2]), role: "worker", rollout: false, trusted: false,
+        ...match, ...(index ? { copy: true } : {}) }));
     });
   });
 }
 
 /**
  * Every review record the bindings files' transcripts and the named rollouts
- * hold, tagged for the coverage decision and de-duplicated by thread, time,
- * skill and arguments, plus carried records; `missing` lists transcripts not
- * found that no carried section covers.
+ * hold, tagged for the coverage decision, plus carried records; `missing`
+ * lists transcripts not found that no carried section covers. A record is
+ * kept once per role whose file binds its skill, de-duplicated by thread,
+ * time, skill, arguments and role, with the best-ranked binding, so the
+ * `--bindings` order changes nothing (KTD8). A worker's copy of a lead's
+ * record is marked `alsoLead`, which gets no patch-id credit, and `copy`.
  */
 function reviewEvidence(files, rollouts, carried) {
   const trusted = trustedScripts(files);
-  const seen = new Set();
-  const records = [];
+  const own = bytesOrNull(OWN_SCRIPT);
+  const kept = new Map();
   const missing = [];
   for (const file of files) {
     const found = readReviewReads(file.transcripts, { skills: reviewSkills(file), rollouts });
     missing.push(...found.missing);
     for (const review of found.reviews) {
-      const key = reviewKey(review);
+      const key = JSON.stringify([reviewKey(review), file.role]);
       const match = bindingFor(review.skill, file);
-      if (seen.has(key) || !match) continue;
-      seen.add(key);
-      records.push({ ...review, ...match, role: file.role, carried: false, trusted: isTrusted(review.read, trusted) });
+      if (!match || (kept.has(key) && rank(kept.get(key)) <= rank(match))) continue;
+      kept.set(key, { ...review, ...match, role: file.role, carried: false, trusted: isTrusted(review.read, trusted, own) });
     }
   }
+  const leads = new Set([...kept.values()].filter((record) => record.role === "lead").map(reviewKey));
+  const records = [...kept.values()].sort((a, b) => (a.role === "lead" ? 0 : 1) - (b.role === "lead" ? 0 : 1))
+    .map((record) => record.role === "worker" && leads.has(reviewKey(record)) ? { ...record, alsoLead: true, copy: true } : record);
   const covered = new Set(missing.map((entry) => entry.session_id).filter((id) => id !== null && carried?.covered.has(id)));
   const uncovered = missing.filter((entry) => !covered.has(entry.session_id));
   return { records: [...records, ...carriedRecords(carried, covered, files)], missing: uncovered };
@@ -536,7 +566,7 @@ export function main(argv, { run = defaultRunner, stdout = process.stdout, stder
       return 0;
     }
     receipt = readReceipt(options.receipt);
-    files = readBindingsFiles(options.bindings, options.checkout);
+    files = readBindingsFiles(options.bindings);
     carried = readCarried(options.carried);
   } catch (error) {
     stderr.write(`merge-gate: ${escaped(error.message)}\n${USAGE}\n`);
