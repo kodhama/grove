@@ -97,23 +97,12 @@ function readReceipt(path) {
   return { revision: /^[a-f0-9]{7,40}$/i.test(revision ?? "") ? revision.toLowerCase() : null };
 }
 
+/** `read` of a path, or null when it throws. */
+const orNull = (read) => (path) => { try { return read(path); } catch { return null; } };
 /** A path through symbolic links, or null when it cannot be resolved. */
-function realOrNull(path) {
-  try {
-    return realpathSync(path);
-  } catch {
-    return null;
-  }
-}
-
+const realOrNull = orNull(realpathSync);
 /** A file's bytes, or null when it cannot be read. */
-function bytesOrNull(path) {
-  try {
-    return readFileSync(path);
-  } catch {
-    return null;
-  }
-}
+const bytesOrNull = orNull(readFileSync);
 
 /**
  * Read each bindings file before any process runs: a worker's or a lead's,
@@ -201,7 +190,7 @@ function trustedScripts(files) {
 function isTrusted(read, trusted, own) {
   if (typeof read?.script !== "string" || !isAbsolute(read.script)) return false;
   const real = realOrNull(read.script);
-  if (real === null || !trusted.has(real)) return false;
+  if (!trusted.has(real)) return false;
   return own !== null && bytesOrNull(real)?.equals(own) ? true : "differs";
 }
 
@@ -227,10 +216,10 @@ function carriedRecords(carried, covered, files) {
       const detail = CARRIED_DETAIL.exec(use.detail ?? "");
       const standsFor = covered.has(use.session) || (use.child !== null && covered.has(use.child));
       const found = owners(use.session).map((file) => bindingFor(use.performer, file)).filter(Boolean);
-      const matches = [...new Map(found.map((match) => [rank(match), match])).entries()].sort(([a], [b]) => (a < b ? -1 : 1));
-      if (!detail || !standsFor || !matches.length) return [];
+      const ranked = [...new Map(found.map((match) => [rank(match), match]))].sort(([a], [b]) => (a < b ? -1 : 1));
+      if (!detail || !standsFor || !ranked.length) return [];
       const args = detail[4].startsWith('"') ? JSON.parse(detail[4]) : null;
-      return matches.map(([, match], index) => ({ carried: true, thread: null, at: null, skill: use.performer, args, head: detail[1],
+      return ranked.map(([, match], index) => ({ carried: true, thread: null, at: null, skill: use.performer, args, head: detail[1],
         base: detail[2], clean: !detail[3], baseNamed: namesBase(args, detail[2]), role: "worker", rollout: false, trusted: false,
         ...match, ...(index ? { copy: true } : {}) }));
     });
