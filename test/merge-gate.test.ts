@@ -1740,6 +1740,37 @@ describe("review coverage", () => {
     }
   });
 
+  /** A session whose fresh subagent reviews `a`, and that subagent's transcript listed as a root of its own. */
+  function freshChild(a: string, base: string) {
+    const parent = reviewSession([{ head: a, base, minute: 1 }]);
+    const child = { session_id: "agent-r0", path: join(dirname(parent.path), parent.session_id, "subagents", "agent-r0.jsonl") };
+    return { parent, child };
+  }
+
+  it("8a: a call one worker file reads as not fresh is not credited, though files that bind it better read it fresh, in any order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const f = bindingsFile("worker", [parent, child], { fallback: true });
+    const [w1, w2] = [bindingsFile("worker", [parent]), bindingsFile("worker", [parent])];
+    const fFirst = await coverageGate(repo, a, repo.base, [f, w1, w2]);
+    const fSecond = await coverageGate(repo, a, repo.base, [w1, f, w2]);
+    expect(fSecond.stdout).toBe(fFirst.stdout);
+    expect(fFirst.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
+  });
+
+  it("pin, 8a: the same call, fresh in every file, is credited in any order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent } = freshChild(a, repo.base);
+    const f = bindingsFile("worker", [parent], { fallback: true });
+    const [w1, w2] = [bindingsFile("worker", [parent]), bindingsFile("worker", [parent])];
+    const fFirst = await coverageGate(repo, a, repo.base, [f, w1, w2]);
+    const fSecond = await coverageGate(repo, a, repo.base, [w1, f, w2]);
+    expect(fSecond.stdout).toBe(fFirst.stdout);
+    expect(fFirst.stdout).toContain(`review: pass full review read ${a}\n`);
+  });
+
   it("two full reviews at one chain place: the later call is the start", async () => {
     const { repo, side, equal, merge } = patchEqualSide();
     const sideLater = await coverageGate(repo, merge, repo.base, [worker(
@@ -2446,6 +2477,18 @@ describe("review coverage decisions over records", () => {
     expect(decision.start).toMatchObject({ sha: first });
     expect(decision.reasons).toEqual(["not on the head's history"]);
     expect(decision.uncovered).toEqual([second]);
+  });
+
+  it("pin, 8a: a worker's copy of a lead's record, off the head's history, gets no patch-id credit; without the flag it is placed", () => {
+    const { repo, reviewed, moved, sha } = rebased();
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const full = record({ head: reviewed, base: repo.base, at: "2026-11-14T10:01:00.000Z" });
+    const copy = reviewCoverage([{ ...full, alsoLead: true, copy: true }], sources, { head: sha, baseSha: moved, merge: moved });
+    expect(copy.start).toBeNull();
+    expect(copy.reasons).toEqual(["not on the head's history"]);
+    const own = reviewCoverage([full], sources, { head: sha, baseSha: moved, merge: moved });
+    expect(own.start).toMatchObject({ sha, patchOf: reviewed });
+    expect(own.reasons).toEqual([]);
   });
 
   it("ruling 1: the lead's record unlocks only when the head's one merge base with the base is exactly the merge passed in", () => {

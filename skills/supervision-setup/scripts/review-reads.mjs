@@ -416,7 +416,7 @@ function reviewTime(review) {
  * not-fresh one beats a fresh one (fail closed), and otherwise the one whose
  * JSON sorts first.
  */
-function survivor(kept, other) {
+export function survivor(kept, other) {
   if (kept.fresh !== other.fresh) return kept.fresh ? other : kept;
   return JSON.stringify(other) < JSON.stringify(kept) ? other : kept;
 }

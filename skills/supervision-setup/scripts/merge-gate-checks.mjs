@@ -9,7 +9,7 @@ import { readHandoff } from "./handoff-receipt.mjs";
 import { matches, unqualified } from "./operation-state.mjs";
 import { LINE_BREAK } from "./pr-body-lines.mjs";
 import { LINE_LIMIT, reviewCoverage } from "./review-coverage.mjs";
-import { namesBase, readReviewReads, reviewKey } from "./review-reads.mjs";
+import { namesBase, readReviewReads, reviewKey, survivor } from "./review-reads.mjs";
 import { foundAbove } from "./routing-table.mjs";
 
 const USAGE = "Usage: merge-gate.mjs --pr <owner/repo#n> --head <sha> --bindings <path> [--bindings <path>...] [--receipt <path>] [--carried <path>] [--codex-rollout <path>...] [--bot <login>...] [--bot-unavailable <name>:<reason>...] [--checkout <dir>] [--help]";
@@ -231,8 +231,9 @@ function carriedRecords(carried, covered, files) {
  * hold, tagged for the coverage decision, plus carried records; `missing`
  * lists transcripts not found that no carried section covers. A record is
  * kept once per role whose file binds its skill, de-duplicated by thread,
- * time, skill, arguments and role, with the best-ranked binding, so the
- * `--bindings` order changes nothing (KTD8). A worker's copy of a lead's
+ * time, skill, arguments and role, with the best-ranked binding and the
+ * other fields of review-reads' survivor, not fresh if any copy is not, so
+ * the `--bindings` order changes nothing (KTD8). A worker's copy of a lead's
  * record is marked `alsoLead`, which gets no patch-id credit, and `copy`.
  */
 function reviewEvidence(files, rollouts, carried) {
@@ -246,12 +247,16 @@ function reviewEvidence(files, rollouts, carried) {
     for (const review of found.reviews) {
       const key = JSON.stringify([reviewKey(review), file.role]);
       const match = bindingFor(review.skill, file);
-      if (!match || (kept.has(key) && rank(kept.get(key)) <= rank(match))) continue;
-      kept.set(key, { ...review, ...match, role: file.role, carried: false, trusted: isTrusted(review.read, trusted, own) });
+      if (!match) continue;
+      const old = kept.get(key);
+      kept.set(key, { role: file.role, review: old ? survivor(old.review, review) : review,
+        match: old && rank(old.match) <= rank(match) ? old.match : match });
     }
   }
-  const leads = new Set([...kept.values()].filter((record) => record.role === "lead").map(reviewKey));
-  const records = [...kept.values()].sort((a, b) => (a.role === "lead" ? 0 : 1) - (b.role === "lead" ? 0 : 1))
+  const all = [...kept.values()].map(({ role, review, match }) =>
+    ({ ...review, ...match, role, carried: false, trusted: isTrusted(review.read, trusted, own) }));
+  const leads = new Set(all.filter((record) => record.role === "lead").map(reviewKey));
+  const records = all.sort((a, b) => (a.role === "lead" ? 0 : 1) - (b.role === "lead" ? 0 : 1))
     .map((record) => record.role === "worker" && leads.has(reviewKey(record)) ? { ...record, alsoLead: true, copy: true } : record);
   const covered = new Set(missing.map((entry) => entry.session_id).filter((id) => id !== null && carried?.covered.has(id)));
   const uncovered = missing.filter((entry) => !covered.has(entry.session_id));
