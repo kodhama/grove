@@ -52,7 +52,9 @@ needs one.
 - Tell a worker how to build its story, or read, check or repair a worker's
   bindings. Each level binds its own and resolves its own gaps. The one use
   you make of them is rerunning a worker's receipt check for an Exception
-  (step 7, item 2).
+  (step 7, item 2). That command is the only one you run on them, and it
+  only reads. Any gap the rerun shows goes back to the worker: you never fix
+  or rebind it.
 - Type into a pane that is focused, blocked, held at a dialog or holding
   unsent text. The maintainer may be typing there, and a terminal transport
   submits a draft together with whatever it types next.
@@ -322,19 +324,26 @@ hand-back back to the worker, "Sending it back", below them, says how:
    ready.
 2. **Check an Exception yourself.** Where the receipt's `Exception:` field is
    not "none", rerun the receipt check as the worker's skill runs it at its
-   hand-back, on the bindings file and the Started its receipt names. It must
-   fail on exactly one line, the one the Exception pastes, word for word, and
-   that must be an operation's line, never a table, override or body line.
+   hand-back, with what its receipt carries: `--bindings` from its Bindings
+   field, `--since` from its Started time, a `--not-run` for each entry in its
+   Not run list, and `--handoff` where its pasted check shows one, but no
+   `--pr-body`, since item 1 reads the body. It must fail on exactly one line,
+   the one the Exception pastes, word for word, and that must be an
+   operation's line, never a table, override or body line.
    Any other result goes back to the worker: two failing lines or more, a
    table, override or body line, or a failing line that differs from the one
-   pasted. Then judge the reason it gives, and accept it only on evidence the
-   check cannot see: the operation did not apply to this story, or it ran
-   where the check cannot read, such as a reviewer run as its own
-   command-line process, shown by the session file it wrote. Otherwise it
-   goes back. Never accept an Exception on a review operation, `review` or
-   `doc-review`, unless the read that review recorded names the pull
-   request's final head. An Exception you accept goes in your merge request
-   (item 7).
+   pasted. An Exception you cannot rerun, such as a cloud worker's, whose
+   bindings file or transcripts your machine cannot read, goes back, and the
+   worker clears the failing line itself, by running the operation or by
+   declaring it not run in the receipt's Not run list; it can always do one
+   or the other, so this never loops. Then judge the reason it gives, and
+   accept it only on evidence the check cannot see: the operation did not
+   apply to this story, or it ran where the check cannot read, such as a
+   reviewer run as its own command-line process, shown by the session file it
+   wrote. Otherwise it goes back. Never accept an Exception on a review
+   operation, `review` or `doc-review`, unless the read that review recorded
+   names the pull request's final head. An Exception you accept goes in your
+   merge request (item 7).
 3. **Accept on the evidence.** Check the story's acceptance, taken from its
    source. The receipt must show a review from a context other than the
    author's, such as a fresh-context subagent the worker started, and say

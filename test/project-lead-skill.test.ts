@@ -50,6 +50,21 @@ describe("SKILL.md — a receipt's Exception at a ready hand-back (GRO-80)", () 
     expect(text).toContain("an operation's line, never a table, override or body line");
   });
 
+  it("names each input of the rerun from what the receipt carries, and leaves --pr-body out", () => {
+    const text = item();
+    expect(text).toContain("`--bindings` from its Bindings field");
+    expect(text).toContain("`--since` from its Started time");
+    expect(text).toContain("a `--not-run` for each entry in its Not run list");
+    expect(text).toContain("`--handoff` where its pasted check shows one");
+    expect(text).toContain("no `--pr-body`, since item 1 reads the body");
+  });
+
+  it("sends back an Exception the lead cannot rerun, for the worker to clear the failing line itself", () => {
+    expect(item()).toContain(
+      "An Exception you cannot rerun, such as a cloud worker's, whose bindings file or transcripts your machine cannot read, goes back, and the worker clears the failing line itself, by running the operation or by declaring it not run in the receipt's Not run list; it can always do one or the other, so this never loops.",
+    );
+  });
+
   it("sends back any other result: two lines or more, a table, override or body line, or a line that differs", () => {
     expect(item()).toContain(
       "Any other result goes back to the worker: two failing lines or more, a table, override or body line, or a failing line that differs from the one pasted.",
@@ -86,6 +101,12 @@ describe("SKILL.md — a receipt's Exception at a ready hand-back (GRO-80)", () 
     );
   });
 
+  it("the Never list's carve-out is the receipt-check command only, read-only, and a gap goes back to the worker", () => {
+    const never = section("Never");
+    expect(never).toContain("That command is the only one you run on them, and it only reads.");
+    expect(never).toContain("Any gap the rerun shows goes back to the worker: you never fix or rebind it.");
+  });
+
   it("the receipt's Exception field asks for what the lead accepts on", () => {
     const receipt = readFileSync(join(__dirname, "..", "skills/story-worker/references/receipt.md"), "utf8");
     const field = (receipt.match(/^Exception:.*(?:\n[ \t]+.*)*/m)?.[0] ?? "").replace(/\s+/g, " ");
@@ -93,6 +114,9 @@ describe("SKILL.md — a receipt's Exception at a ready hand-back (GRO-80)", () 
     expect(field).toContain("such as the session file a reviewer run as its own command-line process wrote");
     expect(field).toContain(
       "A review operation's line is accepted only where the read that review recorded names the pull request's final head",
+    );
+    expect(field).toContain(
+      "Only an operation's line can be excepted: a table or override line means you rerun setup and then the check, and a body line means you fix the body and rerun the check",
     );
   });
 

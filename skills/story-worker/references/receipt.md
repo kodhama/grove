@@ -62,10 +62,12 @@ Receipt check:   <the check's output, run with --since the Started time and, whe
 Exception:       <the one failing receipt-check line, pasted as it printed, why it fails, and why
                   the story is ready all the same, with the evidence the check cannot see,
                   such as the session file a reviewer run as its own command-line process
-                  wrote, for the lead to accept or send back — or "none". A check that fails
-                  on two lines or more, or could not run, has no exception: the story is not
-                  ready. A review operation's line is accepted only where the read that
-                  review recorded names the pull request's final head>
+                  wrote, for the lead to accept or send back — or "none". Only an operation's
+                  line can be excepted: a table or override line means you rerun setup and then
+                  the check, and a body line means you fix the body and rerun the check. A
+                  check that fails on two lines or more, or could not run, has no exception:
+                  the story is not ready. A review operation's line is accepted only where
+                  the read that review recorded names the pull request's final head>
 
 Evidence:        <PR link / head and base SHAs / diff stat>
 Checks:          <each check as its command and result; any required check that did not run,
