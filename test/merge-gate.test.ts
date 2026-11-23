@@ -1523,6 +1523,71 @@ describe("review coverage", () => {
     expect(second.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: read by another script)\n`);
   });
 
+  /** A copy of the supervision-setup folder, and the story-worker table when asked, under `root`'s skills folder; returns its read script. */
+  function install(root: string, table = false) {
+    cpSync(resolve("skills/supervision-setup"), join(root, "skills", "supervision-setup"), { recursive: true });
+    if (table) cpSync(WORKER_TABLE, join(root, "skills", "story-worker", "routing.toml"));
+    return join(root, "skills", "supervision-setup", "scripts", "review-read.mjs");
+  }
+
+  it("8b: an edited review-read.mjs at a trusted path fails: read script differs from the gate's copy", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const root = scratch("merge-gate-install-");
+    const script = install(root);
+    writeFileSync(script, readFileSync(script, "utf8") + "// edited\n");
+    const listed = reviewSession([{ head: a, base: repo.base, minute: 1, script }]);
+    const r = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [listed], { table: join(root, "skills", "story-worker", "routing.toml") })]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: read script differs from the gate's copy)\n`);
+  });
+
+  it("8c: a relative table path walks up from the bindings file, and with nothing found no copy is trusted, not one beside --checkout", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    /** These bindings rewritten in `dir` with the relative table path setup records. */
+    const relative = (path: string, dir: string) => {
+      const body = JSON.parse(readFileSync(path, "utf8"));
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "bindings.json"), JSON.stringify({ ...body, table: { path: "skills/story-worker/routing.toml" } }));
+      return join(dir, "bindings.json");
+    };
+    const root = scratch("merge-gate-install-");
+    const script = install(root, true);
+    const found = await coverageGate(repo, a, repo.base, [relative(worker({ head: a, base: repo.base, minute: 1, script }), join(root, "work", "bindings"))]);
+    expect(found.stdout).toContain(`review: pass full review read ${a}\n`);
+    const inCheckout = install(repo.cwd, true);
+    const none = await coverageGate(repo, a, repo.base, [relative(worker({ head: a, base: repo.base, minute: 1, script: inCheckout }), scratch("merge-gate-away-"))]);
+    expect(none.code).toBe(1);
+    expect(none.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: read by another script)\n`);
+  });
+
+  it("pin, item 7n: an older plugin folder's equal read script is trusted while a bindings file names a table there, and not once none does", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const older = scratch("merge-gate-older-");
+    const script = install(older);
+    expect(readFileSync(script).equals(readFileSync(READ_SCRIPT))).toBe(true);
+    const listed = reviewSession([{ head: a, base: repo.base, minute: 1, script }]);
+    const named = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [listed], { table: join(older, "skills", "story-worker", "routing.toml") })]);
+    expect(named.stdout).toContain(`review: pass full review read ${a}\n`);
+    const moved = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [listed])]);
+    expect(moved.code).toBe(1);
+    expect(moved.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: read by another script)\n`);
+  });
+
+  it("pin: a review operation whose native_id is not a string is not bound and credits nothing", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const path = worker({ head: a, base: repo.base, minute: 1 });
+    const body = JSON.parse(readFileSync(path, "utf8"));
+    body.operations[0].native_id = 42;
+    writeFileSync(path, JSON.stringify(body));
+    const r = await coverageGate(repo, a, repo.base, [path]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (0 review calls, none credited)\n`);
+  });
+
   it("a listed transcript that is not found cannot be checked", async () => {
     const repo = repository();
     const a = grow(repo, 5);
@@ -1645,6 +1710,67 @@ describe("review coverage", () => {
     expect(r.stdout).toContain(`review: fail no creditable full review of ${merge} (1 review calls, none credited: only on a merged side branch)\n`);
   });
 
+  it("8a: a lead's record that a worker file also lists gets no patch-id credit on its worker copy, in either --bindings order", async () => {
+    const { repo, side, merge } = patchEqualSide();
+    const session = reviewSession([{ head: side, base: repo.base, minute: 1 }]);
+    const lead = bindingsFile("lead", [session]);
+    const also = bindingsFile("worker", [session]);
+    const leadFirst = await coverageGate(repo, merge, repo.base, [lead, also]);
+    const workerFirst = await coverageGate(repo, merge, repo.base, [also, lead]);
+    expect(workerFirst.stdout).toBe(leadFirst.stdout);
+    expect(leadFirst.stdout).toContain(`review: fail no creditable full review of ${merge} (1 review calls, none credited: only on a merged side branch)\n`);
+    // The copies' reasons print in one order whichever file comes first.
+    const fallback = bindingsFile("worker", [session], { fallback: true });
+    const first = await coverageGate(repo, merge, repo.base, [lead, fallback]);
+    const second = await coverageGate(repo, merge, repo.base, [fallback, lead]);
+    expect(second.stdout).toBe(first.stdout);
+    expect(first.stdout).toContain(`(1 review calls, none credited: only on a merged side branch, bound by fallback)\n`);
+  });
+
+  it("8a: a local session two workers list, one binding by fallback, is kept once with the bound binding, in either order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    for (const [status, line] of [[0, `review: pass full review read ${a}\n`], [1, `(1 review calls, none credited: dirty tree)\n`]] as const) {
+      const session = reviewSession([{ head: a, base: repo.base, minute: 1, status }]);
+      const [bound, fallback] = [bindingsFile("worker", [session]), bindingsFile("worker", [session], { fallback: true })];
+      const first = await coverageGate(repo, a, repo.base, [bound, fallback]);
+      const second = await coverageGate(repo, a, repo.base, [fallback, bound]);
+      expect(second.stdout).toBe(first.stdout);
+      expect(first.stdout).toContain(line);
+    }
+  });
+
+  /** A session whose fresh subagent reviews `a`, and that subagent's transcript listed as a root of its own. */
+  function freshChild(a: string, base: string) {
+    const parent = reviewSession([{ head: a, base, minute: 1 }]);
+    const child = { session_id: "agent-r0", path: join(dirname(parent.path), parent.session_id, "subagents", "agent-r0.jsonl") };
+    return { parent, child };
+  }
+
+  it("8a: a call one worker file reads as not fresh is not credited, though files that bind it better read it fresh, in any order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const f = bindingsFile("worker", [parent, child], { fallback: true });
+    const [w1, w2] = [bindingsFile("worker", [parent]), bindingsFile("worker", [parent])];
+    const fFirst = await coverageGate(repo, a, repo.base, [f, w1, w2]);
+    const fSecond = await coverageGate(repo, a, repo.base, [w1, f, w2]);
+    expect(fSecond.stdout).toBe(fFirst.stdout);
+    expect(fFirst.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
+  });
+
+  it("pin, 8a: the same call, fresh in every file, is credited in any order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent } = freshChild(a, repo.base);
+    const f = bindingsFile("worker", [parent], { fallback: true });
+    const [w1, w2] = [bindingsFile("worker", [parent]), bindingsFile("worker", [parent])];
+    const fFirst = await coverageGate(repo, a, repo.base, [f, w1, w2]);
+    const fSecond = await coverageGate(repo, a, repo.base, [w1, f, w2]);
+    expect(fSecond.stdout).toBe(fFirst.stdout);
+    expect(fFirst.stdout).toContain(`review: pass full review read ${a}\n`);
+  });
+
   it("two full reviews at one chain place: the later call is the start", async () => {
     const { repo, side, equal, merge } = patchEqualSide();
     const sideLater = await coverageGate(repo, merge, repo.base, [worker(
@@ -1682,6 +1808,34 @@ describe("carried evidence", () => {
     const ownLead = bindingsFile("lead", [reviewSession([{ head: own.b, base: own.a, minute: 5 }])]);
     const credited = await coverageGate(own.repo, own.b, own.repo.base, [fallbackOther, own.workerBindings, ownLead], ["--carried", own.carried]);
     expect(credited.stdout).toContain(`review: carried full review read ${own.a} (carried; the lead reviewed ${own.b})\n`);
+  });
+
+  it("8a: a session in both a lead file and a worker file acts as the lead's in either --bindings order", async () => {
+    const { repo, a, b, workerBindings, carried } = carriedCase();
+    const session = reviewSession([{ head: b, base: a, minute: 5 }]);
+    const lead = bindingsFile("lead", [session]);
+    const also = bindingsFile("worker", [session]);
+    const leadFirst = await coverageGate(repo, b, repo.base, [workerBindings, lead, also], ["--carried", carried]);
+    const workerFirst = await coverageGate(repo, b, repo.base, [workerBindings, also, lead], ["--carried", carried]);
+    expect(workerFirst.stdout).toBe(leadFirst.stdout);
+    expect(leadFirst.stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+  });
+
+  it("8a: a carried line whose session two workers list, one binding by fallback, gives the same lines in either order", async () => {
+    const { repo, a, b, workerBindings, carried } = carriedCase();
+    const listed = JSON.parse(readFileSync(workerBindings, "utf8")).transcripts;
+    const fallback = bindingsFile("worker", listed, { fallback: true });
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const boundFirst = await coverageGate(repo, b, repo.base, [workerBindings, fallback, lead], ["--carried", carried]);
+    const fallbackFirst = await coverageGate(repo, b, repo.base, [fallback, workerBindings, lead], ["--carried", carried]);
+    expect(fallbackFirst.stdout).toBe(boundFirst.stdout);
+    expect(boundFirst.stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    // A carried re-check with no lead: one record per binding, counted once, reasons in rank order.
+    const recheck = handoff([`transcript ${listed[0].session_id}: read 4 calls`, carriedLine(listed[0].session_id, b, a)]);
+    const first = await coverageGate(repo, b, repo.base, [workerBindings, fallback], ["--carried", recheck]);
+    const second = await coverageGate(repo, b, repo.base, [fallback, workerBindings], ["--carried", recheck]);
+    expect(second.stdout).toBe(first.stdout);
+    expect(first.stdout).toContain(`(1 review calls, none credited: carried without the lead's own review, bound by fallback)\n`);
   });
 
   it("ruling 2: an empty lead re-check of the head does not unlock carried evidence", async () => {
@@ -2146,6 +2300,19 @@ describe("carried evidence over the lead's range (N7)", () => {
     expect((await leadGate(repo, x, x, m)).stdout).toContain(failLine(m));
   });
 
+  it("pin, P7: a refused base merge's hand resolution that overwrites a PR path with content neither side holds leaves that path a witness the lead's diff shows", async () => {
+    const { repo, x } = start({ f: "A\n", g: "g\n" });
+    edit(repo, { f: "B\n", g: "pr\n" });
+    onBase(repo, { g: "base\n" });
+    expect(() => repo.git("merge", "-q", "--no-ff", "-m", "merge base", "main")).toThrow();
+    put(repo, { g: "pr\nbase\n", f: "X\n" });
+    const m = repo.commit("merge base, resolved");
+    // Q's f is the anchor's A, since the base never touched f; the head's f is X, which the lead's diff x..m shows.
+    expect(repo.git("show", `${repo.git("merge-tree", "--write-tree", x, "main")}:f`)).toBe("A");
+    expect(repo.git("diff", x, m, "--", "f")).toContain("\n-A\n+X");
+    expect((await leadGate(repo, x, x, m)).stdout).toContain(carriedPass(x, m));
+  });
+
   it("ruling 3: an octopus with a parent off the base unlocks nothing, even beside a PR commit", async () => {
     const { repo, x } = start();
     edit(repo, { f: "pr\n" });
@@ -2310,6 +2477,18 @@ describe("review coverage decisions over records", () => {
     expect(decision.start).toMatchObject({ sha: first });
     expect(decision.reasons).toEqual(["not on the head's history"]);
     expect(decision.uncovered).toEqual([second]);
+  });
+
+  it("pin, 8a: a worker's copy of a lead's record, off the head's history, gets no patch-id credit; without the flag it is placed", () => {
+    const { repo, reviewed, moved, sha } = rebased();
+    const sources = createGateSources({ checkout: repo.cwd, owner: "owner", repo: "repo", number: "44" });
+    const full = record({ head: reviewed, base: repo.base, at: "2026-11-14T10:01:00.000Z" });
+    const copy = reviewCoverage([{ ...full, alsoLead: true, copy: true }], sources, { head: sha, baseSha: moved, merge: moved });
+    expect(copy.start).toBeNull();
+    expect(copy.reasons).toEqual(["not on the head's history"]);
+    const own = reviewCoverage([full], sources, { head: sha, baseSha: moved, merge: moved });
+    expect(own.start).toMatchObject({ sha, patchOf: reviewed });
+    expect(own.reasons).toEqual([]);
   });
 
   it("ruling 1: the lead's record unlocks only when the head's one merge base with the base is exactly the merge passed in", () => {

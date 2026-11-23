@@ -49,9 +49,8 @@ import { parse } from "./vendor/smol-toml/index.js";
 /** The skills folder this script ships in: scripts/, then supervision-setup/, then the skills. */
 const SKILLS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-/** Where a relative table path resolves: the nearest folder above the bindings file holding it, else the working directory. */
-function tablePath(relative, bindingsPath) {
-  if (isAbsolute(relative)) return relative;
+/** A relative path in the nearest folder above the bindings file that holds it, or null when none does. */
+export function foundAbove(relative, bindingsPath) {
   let folder = bindingsPath ? dirname(resolve(bindingsPath)) : null;
   while (folder) {
     const candidate = join(folder, relative);
@@ -59,7 +58,13 @@ function tablePath(relative, bindingsPath) {
     const parent = dirname(folder);
     folder = parent === folder ? null : parent;
   }
-  return resolve(process.cwd(), relative);
+  return null;
+}
+
+/** Where a relative table path resolves: the nearest folder above the bindings file holding it, else the working directory. */
+function tablePath(relative, bindingsPath) {
+  if (isAbsolute(relative)) return relative;
+  return foundAbove(relative, bindingsPath) ?? resolve(process.cwd(), relative);
 }
 
 /**

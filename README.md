@@ -332,21 +332,31 @@ also have surrounding quotes.
   is one call to a performer bound to `review` or `doc-review` in a
   worker's bindings, or to `review-before-merge` in a lead's, with the read
   command's `head`, `status` and `base` before it in the same transcript. A
+  call listed by both a lead's and a worker's file is kept for each,
+  whatever the `--bindings` order, and counted once. A
   namespaced call must name the bound performer exactly, so another
   plugin's same-named skill is not it; only a bare name, as a Codex skill
   read gives, matches the binding's unqualified name. It counts only when its reviewer was fresh, the call ran, the tree was clean,
   the call's arguments name the recorded base, its time parses, its
   performer is not bound by fallback, and its read command was a trusted
-  `review-read.mjs`: the gate's own copy, or the one in the
+  `review-read.mjs`: by realpath the gate's own copy, or the one in the
   `supervision-setup` folder beside the skill folder that holds a bindings
-  file's table, compared by realpath. A seeded restart re-reads the table
-  beside the skill the session loaded, so after any plugin update that moves
-  the bound table to a new versioned folder, an earlier read that ran the old
-  version's script fails this check, even while the old folder still exists. A relative script path is never trusted (`read by another
+  file's table, and with the same bytes as the gate's own copy (else
+  `read script differs from the gate's copy`). Only `review-read.mjs`'s own
+  bytes are compared, not those of the modules it imports, such as
+  `entry.mjs`. A relative table path is
+  found by walking up from the bindings file, as setup does; with none found,
+  that file adds no trusted copy. So a read from an earlier plugin version's
+  folder counts only when both hold: its script's bytes equal the gate's
+  copy, and a passed bindings file names a table in that folder. After a
+  plugin update moves the bound table to a new versioned folder, it fails
+  (`read by another script`) once no passed bindings file names a table in
+  the old folder (after setup re-runs), even while the old folder still
+  exists. A relative script path is never trusted (`read by another
   script`): Node runs it from the reviewer's working directory, which the
-  record does not hold, so run the read command by absolute path. This
-  catches a read script run from an unexpected location, not an edited copy
-  at a trusted location, and not a forged read: a transcript can be forged. A record is a full review when its base is the merge-base of its
+  record does not hold, so run the read command by absolute path. The bytes
+  are compared when the gate runs, which proves nothing of them when the
+  read ran, and none of this catches a forged read: a transcript can be forged. A record is a full review when its base is the merge-base of its
   own head with the base branch and it is not from a `--codex-rollout` run
   or a thread under one; otherwise it is a re-check.
   Where a record sits on the first-parent chain from the merge-base `M`,
@@ -364,7 +374,7 @@ also have surrounding quotes.
   the review's own from its merge-base and whose tree is `git merge-tree` of
   `M` and its head, that merge-base being their only one; a conflict places
   nothing. A re-check off the head's history and any lead's
-  record never get patch-id credit. Otherwise a record credits nothing: an
+  record, or its worker copy, never get patch-id credit. Otherwise a record credits nothing: an
   ancestor head with no placing match (patch-id and tree), or a lead's
   there, gives `only on a merged side branch`; a head off the history with
   no placing match, a re-check
@@ -399,8 +409,8 @@ also have surrounding quotes.
   section covers is replaced by that section's worker review lines carrying
   `read <head> from <base>`; one marked `(dirty tree)` credits nothing, and
   carried lines are ignored when the transcript can be read. A carried
-  line is matched only against the bindings of the worker whose transcripts
-  list its session. A carried record has no freshness, outcome, time or read
+  line is matched only against the bindings of the workers whose transcripts
+  list its session, once per distinct binding among them. A carried record has no freshness, outcome, time or read
   script to judge, so those checks are skipped; it must still name its base
   in its args, from a clean tree, with a bound performer. It counts only
   beside the lead's own creditable `review-before-merge` record ending at
