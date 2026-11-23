@@ -2269,6 +2269,19 @@ describe("carried evidence over the lead's range (N7)", () => {
     expect((await leadGate(repo, x, x, m)).stdout).toContain(failLine(m));
   });
 
+  it("pin, P7: a refused base merge's hand resolution that overwrites a PR path with content neither side holds leaves that path a witness the lead's diff shows", async () => {
+    const { repo, x } = start({ f: "A\n", g: "g\n" });
+    edit(repo, { f: "B\n", g: "pr\n" });
+    onBase(repo, { g: "base\n" });
+    expect(() => repo.git("merge", "-q", "--no-ff", "-m", "merge base", "main")).toThrow();
+    put(repo, { g: "pr\nbase\n", f: "X\n" });
+    const m = repo.commit("merge base, resolved");
+    // Q's f is the anchor's A, since the base never touched f; the head's f is X, which the lead's diff x..m shows.
+    expect(repo.git("show", `${repo.git("merge-tree", "--write-tree", x, "main")}:f`)).toBe("A");
+    expect(repo.git("diff", x, m, "--", "f")).toContain("\n-A\n+X");
+    expect((await leadGate(repo, x, x, m)).stdout).toContain(carriedPass(x, m));
+  });
+
   it("ruling 3: an octopus with a parent off the base unlocks nothing, even beside a PR commit", async () => {
     const { repo, x } = start();
     edit(repo, { f: "pr\n" });
