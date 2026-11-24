@@ -221,7 +221,7 @@ function carriedRecords(carried, covered, files, named) {
       const found = owners(use.session).map((file) => bindingFor(use.performer, file)).filter(Boolean);
       const ranked = [...new Map(found.map((match) => [rank(match), match]))].sort(([a], [b]) => (a < b ? -1 : 1));
       if (!detail || !standsFor || !ranked.length) return [];
-      const rollout = covered.get(use.session) === true || (use.child !== null && (covered.get(use.child) === true || (named && covered.has(use.session))));
+      const rollout = covered.get(use.session) === true || covered.get(use.child) === true || (named && use.child !== null && covered.has(use.session));
       const args = detail[4].startsWith('"') ? JSON.parse(detail[4]) : null;
       return ranked.map(([, match], index) => ({ carried: true, thread: null, at: null, skill: use.performer, args, head: detail[1],
         base: detail[2], clean: !detail[3], baseNamed: namesBase(args, detail[2]), role: "worker", rollout, trusted: false,

@@ -483,7 +483,6 @@ function threadsUnder(path, aliases) {
 export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   const reviews = [];
   const missing = [];
-  const reached = new Set();
   const aliases = new Map();
   const alias = (file) => aliases.set(realPath(file), [...(aliases.get(realPath(file)) ?? []), file]);
   for (const { session_id: sessionId, path } of listed) {
@@ -495,11 +494,9 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     const found = walk(at, sessionId, sessionId, MAIN);
     reviews.push(...found.reviews);
     missing.push(...found.missing);
-    for (const file of found.reached) {
-      reached.add(realPath(file));
-      alias(file);
-    }
+    for (const file of found.reached) alias(file);
   }
+  const reached = new Set(aliases.keys());
   const named = [];
   for (const path of rollouts) {
     const real = realPath(path);

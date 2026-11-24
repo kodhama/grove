@@ -933,6 +933,20 @@ describe("read records from the Codex child threads a rollout started", () => {
 /** The path `codexHome` writes a child thread's rollout at. */
 const childAt = (root: string, id: string) => join(dirname(dirname(root)), "09", `rollout-2026-11-09T11-00-00-${id}.jsonl`);
 
+/**
+ * A Codex home whose child starts a grandchild that reviews, with the child's
+ * rollout moved outside the home and linked back from `sessions/`.
+ */
+function childLinkedOutside() {
+  const path = codexHome([started(CHILD_ID)], null, { id: CHILD_ID, records: [started(GRANDCHILD_ID)] }, { id: GRANDCHILD_ID, records: childReview });
+  const link = childAt(path, CHILD_ID);
+  const target = join(tempDir("review-reads-outside-"), "elsewhere", "2026", "11", "09", basename(link));
+  mkdirSync(dirname(target), { recursive: true });
+  renameSync(link, target);
+  symlinkSync(target, link);
+  return { path, target };
+}
+
 describe("rollout descent: every thread under a caller-named rollout is tagged (KTD6)", () => {
   it("a listed transcript reaches a named rollout whose child holds a review: the child's record is tagged, the parent's is not", () => {
     const named = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
@@ -964,13 +978,7 @@ describe("rollout descent: every thread under a caller-named rollout is tagged (
   });
 
   it("pin, R1: a named rollout's child under sessions/ that links to a target outside the Codex home: the grandchild beside the link is tagged", () => {
-    const child = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
-    const path = codexHome([started(CHILD_ID)], null, child, { id: GRANDCHILD_ID, records: childReview });
-    const link = childAt(path, CHILD_ID);
-    const target = join(tempDir("review-reads-outside-"), "elsewhere", "2026", "11", "09", basename(link));
-    mkdirSync(dirname(target), { recursive: true });
-    renameSync(link, target);
-    symlinkSync(target, link);
+    const { path } = childLinkedOutside();
     for (const listed of [[], [{ session_id: ROLLOUT_ID, path }]]) {
       const [record] = reviewsOf(listed, { rollouts: [path] });
       expect(record).toMatchObject({ place: `${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, rollout: true });
@@ -978,13 +986,7 @@ describe("rollout descent: every thread under a caller-named rollout is tagged (
   });
 
   it("a named rollout given by its target outside the Codex home, which a listed transcript reaches through a link in sessions/: the child beside the link is tagged", () => {
-    const named = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
-    const path = codexHome([started(CHILD_ID)], null, named, { id: GRANDCHILD_ID, records: childReview });
-    const link = childAt(path, CHILD_ID);
-    const target = join(tempDir("review-reads-outside-"), "elsewhere", "2026", "11", "09", basename(link));
-    mkdirSync(dirname(target), { recursive: true });
-    renameSync(link, target);
-    symlinkSync(target, link);
+    const { path, target } = childLinkedOutside();
     const [record] = reviewsOf([{ session_id: ROLLOUT_ID, path }], { rollouts: [target] });
     expect(record).toMatchObject({ place: `${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, rollout: true });
   });
