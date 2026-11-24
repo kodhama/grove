@@ -2103,6 +2103,67 @@ describe("MQ-353 · the command line", () => {
     expect(result.status).toBe(1);
   });
 
+  describe("GRO-80 · what the lead's rerun can show", () => {
+    // The failing lines as story-worker's "Ready needs a passing check" names them:
+    // an operation's bound-but-unused, attempted-failed or no evidence line; a table
+    // or override changed since setup; a saved body's line missing, malformed or
+    // repeated. The summary line repeats them and is never counted.
+    const failingLines = (stdout: string) =>
+      stdout
+        .split("\n")
+        .filter(
+          (line) =>
+            /^[a-z][\w-]*\/[\w-]+: (bound-but-unused|attempted-failed|no evidence)\b/.test(line) ||
+            /^(table|override) .*: changed since setup read it/.test(line) ||
+            /^pr-body .*\b(missing|malformed|repeated)\b/.test(line),
+        );
+    const byHand = () => {
+      const file = bindingsReading([BY_HAND, "claude-built-by-hand"]);
+      file.operations = file.operations.filter((o) => o.id === "build" || o.id === "plan");
+      return file;
+    };
+
+    it("pin: one operation's line failing alone exits 1 with that line the only failing one, so it can be excepted", () => {
+      const result = run(byHand(), "--not-run", "story-worker/plan");
+      expect(result.status).toBe(1);
+      expect(failingLines(result.stdout)).toEqual([
+        "story-worker/build: bound-but-unused compound-engineering:ce-work",
+      ]);
+    });
+
+    it("pin: a valid Exception beside a declared not-run operation: that one reads not reached, only the excepted line fails", () => {
+      const result = run(byHand(), "--not-run", "story-worker/plan");
+      expect(result.status).toBe(1);
+      expect(result.stdout).toMatch(/^story-worker\/plan: not reached \(declared by caller\) compound-engineering:ce-plan$/m);
+      expect(failingLines(result.stdout)).toEqual([
+        "story-worker/build: bound-but-unused compound-engineering:ce-work",
+      ]);
+      expect(result.stdout).toMatch(
+        /^summary: 0 used, 0 used \(shared\), 1 bound-but-unused, 0 attempted-failed, 1 not reached, 0 no evidence, /m,
+      );
+    });
+
+    it("pin: two operations' lines failing are two failing lines", () => {
+      const result = run(byHand());
+      expect(result.status).toBe(1);
+      expect(failingLines(result.stdout)).toEqual([
+        "story-worker/plan: bound-but-unused compound-engineering:ce-plan",
+        "story-worker/build: bound-but-unused compound-engineering:ce-work",
+      ]);
+    });
+
+    it("pin: a table-changed line shows among the failing lines, beside the operation's", () => {
+      const file = byHand();
+      Object.assign(file.table as object, { sha256: STALE_SHA256 });
+      const result = run(file, "--not-run", "story-worker/plan");
+      expect(result.status).toBe(1);
+      const failing = failingLines(result.stdout);
+      expect(failing).toHaveLength(2);
+      expect(failing[0]).toMatch(/^table .*: changed since setup read it \(sha256 /);
+      expect(failing[1]).toBe("story-worker/build: bound-but-unused compound-engineering:ce-work");
+    });
+  });
+
   it("never carries an attempted-failed line from its own report in a handoff", () => {
     const before = run(bindingsOfCalls(dir, [SEND, REFUSED])).stdout;
     expect(before).toContain("story-worker/hand-back: attempted-failed SendMessage");

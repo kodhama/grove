@@ -50,7 +50,11 @@ needs one.
 - Write code, or commit on a story's branch, unless an intent run's approved
   shape has made you that story's worker.
 - Tell a worker how to build its story, or read, check or repair a worker's
-  bindings. Each level binds its own and resolves its own gaps.
+  bindings. Each level binds its own and resolves its own gaps. The one use
+  you make of them is rerunning a worker's receipt check for an Exception
+  (step 7, item 2). That command is the only one you run on them, and it
+  only reads. Any gap the rerun shows goes back to the worker: you never fix
+  or rebind it.
 - Type into a pane that is focused, blocked, held at a dialog or holding
   unsent text. The maintainer may be typing there, and a terminal transport
   submits a draft together with whatever it types next.
@@ -291,7 +295,7 @@ iteration cap whose exit wakes you; this is what has worked in practice.
 On each wake, read the notes, each pull request's state, and each pending
 restart, and retry each skipped message. A pull request that turns mergeable
 is the cue to ask the maintainer, not to stop watching it. A new review thread
-on a handed-back pull request goes to triage (step 7, item 4).
+on a handed-back pull request goes to triage (step 7, item 5).
 
 ## 7. A hand-back
 
@@ -318,7 +322,31 @@ hand-back back to the worker, "Sending it back", below them, says how:
    body a line counts only in a form the worker's skill gives it, at the start
    of a line of its own, and never as `not reached` on a pull request that is
    ready.
-2. **Accept on the evidence.** Check the story's acceptance, taken from its
+2. **Check an Exception yourself.** Where the receipt's `Exception:` field is
+   not "none", rerun the receipt check as the worker's skill runs it at its
+   hand-back, with what its receipt carries: `--bindings` from its Bindings
+   field, `--since` from its Started time, a `--not-run` for each entry in its
+   Not run list, and `--handoff` where its pasted check shows one, but no
+   `--pr-body`, since item 1 reads the body. It must fail on exactly one line,
+   the one the Exception pastes, word for word, and that must be an
+   operation's line, never a table, override or body line.
+   Any other result goes back to the worker: two failing lines or more, a
+   table, override or body line, or a failing line that differs from the one
+   pasted. An Exception you cannot rerun, such as a cloud worker's, whose
+   bindings file or transcripts your machine cannot read, goes back. The
+   worker declares the operation not run in the receipt's Not run list only
+   where it did not apply to this story, since a not-run declared for an
+   operation that applied is no way around this item; otherwise it hands back
+   blocked or raises a `DECISION`, and you put the Exception and its evidence
+   to the maintainer. Then judge the reason it gives, and
+   accept it only on evidence the check cannot see: the operation did not
+   apply to this story, or it ran where the check cannot read, such as a
+   reviewer run as its own command-line process, shown by the session file it
+   wrote. Otherwise it goes back. Never accept an Exception on a review
+   operation, `review` or `doc-review`, unless the read that review recorded
+   names the pull request's final head. An Exception you accept goes in your
+   merge request (item 7).
+3. **Accept on the evidence.** Check the story's acceptance, taken from its
    source. The receipt must show a review from a context other than the
    author's, such as a fresh-context subagent the worker started, and say
    whether the shipped revision was reviewed again. "Not reviewed", or the
@@ -334,12 +362,12 @@ hand-back back to the worker, "Sending it back", below them, says how:
    lacks its diagnosis link. So does one that lists `plan` as not run for a
    story that is not a defect, or whose pasted receipt check shows `plan` as
    `bound-but-unused` for such a story: a planner was bound and never called.
-3. **Review it again, from fresh context.** Invoke the performer bound to
+4. **Review it again, from fresh context.** Invoke the performer bound to
    `review-before-merge` on the pull request, from a fresh-context subagent
    you start for it: never your own context, and never a fork of it. Ask for
    findings with evidence, not patches. Triage every finding against the
    source yourself, and say what you dropped and why.
-4. **Cap the bot rounds.** The worker has already had one fix pass per
+5. **Cap the bot rounds.** The worker has already had one fix pass per
    automated reviewer's first round, and what a re-review raised came to you.
    A real defect goes back to the same worker, if it is still up, for one more
    fix pass. Otherwise it goes to a new worker. After two rounds of automated
@@ -348,16 +376,17 @@ hand-back back to the worker, "Sending it back", below them, says how:
    requires: when a fix changes behaviour, a test, config or an instruction,
    request that re-review of the final head, and say in the merge request
    whether it ran. **A fix pass
-   makes a new head**, and that head goes through items 1 to 4 again before
+   makes a new head**, and that head goes through items 1 to 5 again before
    you ask for the merge: its claims, its receipt, its acceptance, and a fresh
    review of what the fix changed. A review or receipt of an earlier head does
    not cover it.
-5. **Check what blocks the merge.** Read every review thread with paginated
+6. **Check what blocks the merge.** Read every review thread with paginated
    calls, and check the merge state yourself.
-6. **Ask the maintainer to merge** (step 8). Say what the change does, how the
-   acceptance is met, what the reviews found and what you dropped, and any
-   risk left.
-7. **Merge only on their approval** of the head you read: given in your
+7. **Ask the maintainer to merge** (step 8). Say what the change does, how the
+   acceptance is met, naming any Exception you accepted by its line, its
+   reason and its evidence, what the reviews found and what you dropped, and
+   any risk left.
+8. **Merge only on their approval** of the head you read: given in your
    conversation, or by a signal the repo's instructions recognise, and newer
    than that head. Merge as the repo's rules say, pinned to that head so a
    later push cannot slip in. Then close the worker's session, or ask the
@@ -369,7 +398,7 @@ hand-back back to the worker, "Sending it back", below them, says how:
 
 **Sending it back.** Wherever this step sends a hand-back or a defect back to
 the worker, do it one way. Before you send one back over a line, read items 1
-and 2 through, so that one message names everything the hand-back lacks, and
+to 3 through, so that one message names everything the hand-back lacks, and
 send it as step 5 says. While the worker's session is live, the message goes
 to it: its skill's "A hand-back that comes back" has it fix what you named,
 post its receipt again as a new note, and send `STATUS: ready` again. It is
@@ -385,7 +414,7 @@ that holds the earlier receipt. Its receipt carries over, from the earlier
 one, what it did not observe itself, and its pasted check shows the earlier
 worker's operations as carried, or says it could carry none: the earlier
 receipt's check is then the evidence for them. Unless what you sent back is
-that the story was never planned, item 2 then reads `plan` in that earlier
+that the story was never planned, item 3 then reads `plan` in that earlier
 check, never in the new worker's own, which shows it `bound-but-unused`
 because a new worker plans nothing again. A worker that ended after posting a
 handoff is the one exception: "A `restart-owner: lead` handoff", below, covers

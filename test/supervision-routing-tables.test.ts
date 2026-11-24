@@ -1579,7 +1579,7 @@ describe("GRO-31 · a hand-back that comes back", () => {
   it("the lead sends a hand-back back one way, and reads what returns from item 1 again", () => {
     expectAll(sendingBack(), [
       "**Sending it back.** Wherever this step sends a hand-back or a defect back to the worker, do it one way.",
-      "Before you send one back over a line, read items 1 and 2 through, so that one message names everything the hand-back lacks, and send it as step 5 says.",
+      "Before you send one back over a line, read items 1 to 3 through, so that one message names everything the hand-back lacks, and send it as step 5 says.",
       `While the worker's session is live, the message goes to it: its skill's "${SECTION}" has it fix what you named, post its receipt again as a new note, and send \`STATUS: ready\` again.`,
       "It is the same story, with the same Started time and the same receipt.",
       "Read what comes back from item 1 again, as you would a fix pass's head: the earlier note does not cover it.",
@@ -1595,9 +1595,9 @@ describe("GRO-31 · a hand-back that comes back", () => {
       "Its receipt carries over, from the earlier one, what it did not observe itself, and its pasted check shows the earlier worker's operations as carried, or says it could carry none: the earlier receipt's check is then the evidence for them.",
       'A worker that ended after posting a handoff is the one exception: "A `restart-owner: lead` handoff", below, covers it.',
     ]);
-    // Where nothing carried, item 2's rule on a `plan` shown unused reads the earlier check, said right after the evidence is.
+    // Where nothing carried, item 3's rule on a `plan` shown unused reads the earlier check, said right after the evidence is.
     expect(sendingBack()).toContain(
-      "the earlier receipt's check is then the evidence for them. Unless what you sent back is that the story was never planned, item 2 then reads `plan` in that earlier check, never in the new worker's own, which shows it `bound-but-unused` because a new worker plans nothing again. A worker that ended after posting a handoff",
+      "the earlier receipt's check is then the evidence for them. Unless what you sent back is that the story was never planned, item 3 then reads `plan` in that earlier check, never in the new worker's own, which shows it `bound-but-unused` because a new worker plans nothing again. A worker that ended after posting a handoff",
     );
   });
 
