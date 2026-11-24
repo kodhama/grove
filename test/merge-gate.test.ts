@@ -1771,6 +1771,27 @@ describe("review coverage", () => {
     expect(fFirst.stdout).toContain(`review: pass full review read ${a}\n`);
   });
 
+  it("KTD8 amendment: a call a lead file reads as not fresh is not credited to a worker file that reads it fresh, in either order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const [lead, also] = [bindingsFile("lead", [child]), bindingsFile("worker", [parent])];
+    const leadFirst = await coverageGate(repo, a, repo.base, [lead, also]);
+    const workerFirst = await coverageGate(repo, a, repo.base, [also, lead]);
+    expect(workerFirst.stdout).toBe(leadFirst.stdout);
+    expect(leadFirst.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
+  });
+
+  it("pin, KTD8 amendment: the lead file alone fails not fresh, and the worker file alone is credited", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const leadOnly = await coverageGate(repo, a, repo.base, [bindingsFile("lead", [child])]);
+    expect(leadOnly.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
+    const workerOnly = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [parent])]);
+    expect(workerOnly.stdout).toContain(`review: pass full review read ${a}\n`);
+  });
+
   it("two full reviews at one chain place: the later call is the start", async () => {
     const { repo, side, equal, merge } = patchEqualSide();
     const sideLater = await coverageGate(repo, merge, repo.base, [worker(
