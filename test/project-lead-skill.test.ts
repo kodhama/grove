@@ -59,9 +59,24 @@ describe("SKILL.md — a receipt's Exception at a ready hand-back (GRO-80)", () 
     expect(text).toContain("no `--pr-body`, since item 1 reads the body");
   });
 
-  it("sends back an Exception the lead cannot rerun, for the worker to clear the failing line itself", () => {
+  it("sends back an Exception the lead cannot rerun: not run only where it did not apply, else blocked or a DECISION to the maintainer", () => {
+    const text = item();
+    expect(text).toContain(
+      "An Exception you cannot rerun, such as a cloud worker's, whose bindings file or transcripts your machine cannot read, goes back.",
+    );
+    expect(text).toContain(
+      "The worker declares the operation not run in the receipt's Not run list only where it did not apply to this story",
+    );
+    expect(text).toContain(
+      "otherwise it hands back blocked or raises a `DECISION`, and you put the Exception and its evidence to the maintainer.",
+    );
+    expect(text).not.toContain("can always");
+    expect(text).not.toContain("never loops");
+  });
+
+  it("a not-run declared for an operation that applied is no route around this item", () => {
     expect(item()).toContain(
-      "An Exception you cannot rerun, such as a cloud worker's, whose bindings file or transcripts your machine cannot read, goes back, and the worker clears the failing line itself, by running the operation or by declaring it not run in the receipt's Not run list; it can always do one or the other, so this never loops.",
+      "a not-run declared for an operation that applied is no way around this item",
     );
   });
 

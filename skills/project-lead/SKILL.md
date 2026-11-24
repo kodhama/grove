@@ -333,10 +333,12 @@ hand-back back to the worker, "Sending it back", below them, says how:
    Any other result goes back to the worker: two failing lines or more, a
    table, override or body line, or a failing line that differs from the one
    pasted. An Exception you cannot rerun, such as a cloud worker's, whose
-   bindings file or transcripts your machine cannot read, goes back, and the
-   worker clears the failing line itself, by running the operation or by
-   declaring it not run in the receipt's Not run list; it can always do one
-   or the other, so this never loops. Then judge the reason it gives, and
+   bindings file or transcripts your machine cannot read, goes back. The
+   worker declares the operation not run in the receipt's Not run list only
+   where it did not apply to this story, since a not-run declared for an
+   operation that applied is no way around this item; otherwise it hands back
+   blocked or raises a `DECISION`, and you put the Exception and its evidence
+   to the maintainer. Then judge the reason it gives, and
    accept it only on evidence the check cannot see: the operation did not
    apply to this story, or it ran where the check cannot read, such as a
    reviewer run as its own command-line process, shown by the session file it
