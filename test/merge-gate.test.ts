@@ -1792,6 +1792,15 @@ describe("review coverage", () => {
     expect(workerOnly.stdout).toContain(`review: pass full review read ${a}\n`);
   });
 
+  it("pin: a record whose thread --codex-rollout names is only a re-check, whatever reaches it", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const r = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [parent])], ["--codex-rollout", child.path]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
   it("two full reviews at one chain place: the later call is the start", async () => {
     const { repo, side, equal, merge } = patchEqualSide();
     const sideLater = await coverageGate(repo, merge, repo.base, [worker(
@@ -1917,6 +1926,15 @@ describe("carried evidence", () => {
     const { a, b, paths, run } = missingCodexChild([["01a40000-0000-7000-8000-0000000000e2", []]]);
     expect((await run([])).stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
     const r = await run([paths[0]!]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  it("G10: a listed transcript reaches a named rollout whose missing child holds a read that would make a full review: that child's record is a re-check", async () => {
+    const child = "01a40000-0000-7000-8000-0000000000e3";
+    const { a, b, paths, run } = missingCodexChild([["01a40000-0000-7000-8000-0000000000e2", [child]], [child, []]]);
+    expect((await run([])).stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    const r = await run([paths[1]!]);
     expect(r.code).toBe(1);
     expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
   });
