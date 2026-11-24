@@ -439,13 +439,17 @@ function uniqueReviews(reviews) {
 /**
  * A caller-named rollout's own thread and every Codex thread under it, by
  * resolved path, from each thread's own child records, whatever walk reads
- * them (KTD6); none when it does not exist.
+ * them (KTD6), and the thread ids of the children under it not found
+ * (`lost`); none when it does not exist. `aliases` maps a resolved path to
+ * the paths a walk reached it by.
  */
-function threadsUnder(path) {
+function threadsUnder(path, aliases) {
   const threads = [];
+  const lost = [];
   for (const queue = [path]; queue.length > 0;) {
     const file = queue.shift();
-    if (threads.includes(realPath(file))) continue;
+    const real = realPath(file);
+    if (threads.includes(real)) continue;
     let read;
     try {
       read = records(file);
@@ -453,12 +457,16 @@ function threadsUnder(path) {
       if (error?.code !== "ENOENT") throw error;
       continue;
     }
-    threads.push(realPath(file));
+    threads.push(real);
     const own = ownRecords(read);
-    // The given path finds children beside a link; the real path, those beside its target.
-    queue.push(...codexChildren(file, own).found, ...codexChildren(realPath(file), own).found);
+    // Children sit beside the given path, the real path, or any link a walk came by.
+    for (const beside of new Set([file, real, ...(aliases.get(real) ?? [])])) {
+      const children = codexChildren(beside, own);
+      queue.push(...children.found);
+      lost.push(...children.missing.map((child) => child.id));
+    }
   }
-  return threads;
+  return { threads, lost };
 }
 
 /**
@@ -469,12 +477,15 @@ function threadsUnder(path) {
  * Returns `{ reviews, missing }`; the caller exits 2 when `missing` is not
  * empty. A missing caller-named rollout has `session_id` null. Each record
  * carries `rollout`: whether its thread is a caller-named rollout or any
- * thread under one, however it was reached.
+ * thread under one, however it was reached; each missing entry carries it
+ * too, true for a missing caller-named rollout.
  */
 export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   const reviews = [];
   const missing = [];
   const reached = new Set();
+  const aliases = new Map();
+  const alias = (file) => aliases.set(realPath(file), [...(aliases.get(realPath(file)) ?? []), file]);
   for (const { session_id: sessionId, path } of listed) {
     const at = locate(path, sessionId);
     if (!at) {
@@ -484,7 +495,10 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     const found = walk(at, sessionId, sessionId, MAIN);
     reviews.push(...found.reviews);
     missing.push(...found.missing);
-    for (const file of found.reached) reached.add(realPath(file));
+    for (const file of found.reached) {
+      reached.add(realPath(file));
+      alias(file);
+    }
   }
   const named = [];
   for (const path of rollouts) {
@@ -501,6 +515,7 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
     const id = typeof read.first?.payload?.id === "string" ? read.first.payload.id : childName(path);
     const found = walk({ path, subagentDirs: [] }, id, id, namedContext(path, read.first), read, reached);
     named.push({ real, found, within: new Set(found.reached.map(realPath)) });
+    for (const file of found.reached) alias(file);
   }
   // A named rollout another named one reaches is read in that one's walk, whatever the order.
   const under = (inner, outer) => outer !== inner && outer.within.has(inner.real) && !inner.within.has(outer.real);
@@ -512,6 +527,9 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   const unique = uniqueReviews(reviews);
   const wanted = skills && new Set(skills.map(unqualified));
   const kept = wanted ? unique.filter((review) => wanted.has(unqualified(review.skill))) : unique;
-  const tagged = new Set(rollouts.flatMap(threadsUnder));
-  return { reviews: kept.map((review) => ({ ...review, rollout: tagged.has(review.thread) })), missing };
+  const descent = rollouts.map((path) => threadsUnder(path, aliases));
+  const tagged = new Set(descent.flatMap((found) => found.threads));
+  const lost = new Set(descent.flatMap((found) => found.lost));
+  return { reviews: kept.map((review) => ({ ...review, rollout: tagged.has(review.thread) })),
+    missing: missing.map((entry) => ({ ...entry, rollout: entry.session_id === null || lost.has(entry.session_id) })) };
 }

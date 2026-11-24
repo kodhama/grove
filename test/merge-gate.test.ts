@@ -1864,6 +1864,52 @@ describe("carried evidence", () => {
     expect(r.stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
   });
 
+  /**
+   * A Codex home whose listed rollout starts these threads, each `[id, starts]`
+   * written under `sessions/` except the last, which is missing: the carried
+   * line places its full review of `a` in that missing thread.
+   */
+  function missingCodexChild(threads: [string, string[]][]) {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const id = "01a40000-0000-7000-8000-0000000000e1";
+    const day = join(scratch("merge-gate-codex-"), "sessions", "2026", "11", "14");
+    mkdirSync(day, { recursive: true });
+    const started = (child: string) => ({ type: "event_msg", timestamp: "2026-11-14T11:00:00.000Z", payload: { type: "item_completed",
+      item: { type: "SubAgentActivity", id: `call_${child.slice(-2)}`, kind: "started", agent_thread_id: child } } });
+    const write = (thread: string, starts: string[]) => {
+      const path = join(day, `rollout-2026-11-14T11-00-00-${thread}.jsonl`);
+      writeFileSync(path, [{ type: "session_meta", payload: { id: thread, source: "exec" } }, ...starts.map(started)]
+        .map((record, ordinal) => JSON.stringify({ ...record, ordinal })).join("\n") + "\n");
+      return path;
+    };
+    const paths = [write(id, [threads[0]![0]]), ...threads.slice(0, -1).map(([thread, starts]) => write(thread, starts))];
+    const lost = threads.at(-1)![0];
+    const line = `story-worker/review: used ${REVIEW_SKILL} in ${id} subagent ${lost}; read ${a} from ${repo.base}; args ${JSON.stringify(`base:${repo.base}`)}`;
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const run = (rollouts: string[]) => coverageGate(repo, b, repo.base, [bindingsFile("worker", [{ session_id: id, path: paths[0]! }]), lead],
+      ["--carried", handoff([line]), ...rollouts.flatMap((path) => ["--codex-rollout", path])]);
+    return { a, b, paths, run };
+  }
+
+  it("a carried full review placed in a missing child of a listed rollout also named by --codex-rollout is only a re-check", async () => {
+    const { a, b, paths, run } = missingCodexChild([["01a40000-0000-7000-8000-0000000000e2", []]]);
+    expect((await run([])).stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    const r = await run([paths[0]!]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  it("a carried full review in a child of a missing transcript is only a re-check once a --codex-rollout run is named: its membership is unknown", async () => {
+    const { repo, a, b, workerBindings, carried } = carriedCase();
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const other = join(scratch("merge-gate-codex-"), "rollout-2026-11-14T11-00-00-01a40000-0000-7000-8000-0000000000e4.jsonl");
+    writeFileSync(other, JSON.stringify({ type: "session_meta", payload: { id: "01a40000-0000-7000-8000-0000000000e4", source: "exec" } }) + "\n");
+    const r = await coverageGate(repo, b, repo.base, [workerBindings, lead], ["--carried", carried, "--codex-rollout", other]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
   it("AE6: carried worker evidence passes only beside the lead's own review of the head", async () => {
     const { repo, a, b, workerBindings, carried } = carriedCase();
     const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);

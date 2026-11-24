@@ -66,7 +66,7 @@ interface ReviewReadsModule {
   readReviewReads(
     listed: Listed[],
     options?: { skills?: string[] | null; rollouts?: string[] },
-  ): { reviews: Review[]; missing: { session_id: string; path: string }[] };
+  ): { reviews: Review[]; missing: { session_id: string; path: string; rollout: boolean }[] };
   isReadCommand(line: string): boolean;
   readCommandArgs(line: string): ReadArgs | null;
   readTriple(text: string): { head: string; status: number; base: string } | null;
@@ -963,6 +963,42 @@ describe("rollout descent: every thread under a caller-named rollout is tagged (
     expect(record).toMatchObject({ place: `${ROLLOUT_ID} subagent ${CHILD_ID}`, rollout: true });
   });
 
+  it("pin, R1: a named rollout's child under sessions/ that links to a target outside the Codex home: the grandchild beside the link is tagged", () => {
+    const child = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
+    const path = codexHome([started(CHILD_ID)], null, child, { id: GRANDCHILD_ID, records: childReview });
+    const link = childAt(path, CHILD_ID);
+    const target = join(tempDir("review-reads-outside-"), "elsewhere", "2026", "11", "09", basename(link));
+    mkdirSync(dirname(target), { recursive: true });
+    renameSync(link, target);
+    symlinkSync(target, link);
+    for (const listed of [[], [{ session_id: ROLLOUT_ID, path }]]) {
+      const [record] = reviewsOf(listed, { rollouts: [path] });
+      expect(record).toMatchObject({ place: `${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, rollout: true });
+    }
+  });
+
+  it("a named rollout given by its target outside the Codex home, which a listed transcript reaches through a link in sessions/: the child beside the link is tagged", () => {
+    const named = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
+    const path = codexHome([started(CHILD_ID)], null, named, { id: GRANDCHILD_ID, records: childReview });
+    const link = childAt(path, CHILD_ID);
+    const target = join(tempDir("review-reads-outside-"), "elsewhere", "2026", "11", "09", basename(link));
+    mkdirSync(dirname(target), { recursive: true });
+    renameSync(link, target);
+    symlinkSync(target, link);
+    const [record] = reviewsOf([{ session_id: ROLLOUT_ID, path }], { rollouts: [target] });
+    expect(record).toMatchObject({ place: `${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, rollout: true });
+  });
+
+  it("a missing child is tagged as its named rollout's, whatever walk reports it; a missing child under none is not", () => {
+    const named = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
+    const path = codexHome([started(CHILD_ID), started(SECOND_ID)], null, named);
+    const tags = (rollouts: string[]) => readReviewReads([{ session_id: ROLLOUT_ID, path }], { rollouts }).missing
+      .map((m) => [m.session_id, m.rollout]);
+    expect(tags([childAt(path, CHILD_ID)])).toEqual([[SECOND_ID, false], [GRANDCHILD_ID, true]]);
+    expect(tags([path])).toEqual([[SECOND_ID, true], [GRANDCHILD_ID, true]]);
+    expect(tags([])).toEqual([[SECOND_ID, false], [GRANDCHILD_ID, false]]);
+  });
+
   it("a named rollout's child listed directly as a transcript is tagged", () => {
     const path = codexHome([started(CHILD_ID)], null, { id: CHILD_ID, records: childReview });
     const [record] = reviewsOf([{ session_id: CHILD_ID, path: childAt(path, CHILD_ID) }], { rollouts: [path] });
@@ -1031,7 +1067,7 @@ describe("missing transcripts", () => {
   it("a transcript that is listed but missing is reported for the caller to turn into exit 2", () => {
     const path = "/Users/maintainer/.claude/projects/-gone/4e440000-0000-4000-8000-0000000000ff.jsonl";
     const listed = [{ session_id: "4e440000-0000-4000-8000-0000000000ff", path }];
-    expect(readReviewReads(listed)).toEqual({ reviews: [], missing: listed });
+    expect(readReviewReads(listed)).toEqual({ reviews: [], missing: listed.map((entry) => ({ ...entry, rollout: false })) });
   });
 
   it("a caller-named rollout path that is a folder rethrows EISDIR", () => {
@@ -1040,7 +1076,7 @@ describe("missing transcripts", () => {
 
   it("a rollout given by the caller that is missing is reported too", () => {
     const path = "/Users/maintainer/.codex/sessions/2026/11/08/rollout-gone.jsonl";
-    expect(readReviewReads([], { rollouts: [path] }).missing).toEqual([{ session_id: null, path }]);
+    expect(readReviewReads([], { rollouts: [path] }).missing).toEqual([{ session_id: null, path, rollout: true }]);
   });
 });
 

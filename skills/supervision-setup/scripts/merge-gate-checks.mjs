@@ -204,9 +204,12 @@ function rank(match) {
  * review lines that carry what they read, with their arguments, each matched
  * only against the bindings of the workers whose transcripts list its session:
  * one record per distinct binding among them, in rank order, the rest marked
- * `copy` so a call counts once (KTD8).
+ * `copy` so a call counts once (KTD8). `covered` maps each covered thread id
+ * to whether it is under a named rollout: a line standing for such a thread
+ * is a re-check, and so is a line in a child of a missing transcript once any
+ * rollout is named, since what that child is under cannot be read.
  */
-function carriedRecords(carried, covered, files) {
+function carriedRecords(carried, covered, files, named) {
   if (carried === null) return [];
   const workers = files.filter((file) => file.role === "worker");
   const owners = (session) => workers.filter((file) => file.transcripts.some((listed) => listed?.session_id === session));
@@ -218,9 +221,10 @@ function carriedRecords(carried, covered, files) {
       const found = owners(use.session).map((file) => bindingFor(use.performer, file)).filter(Boolean);
       const ranked = [...new Map(found.map((match) => [rank(match), match]))].sort(([a], [b]) => (a < b ? -1 : 1));
       if (!detail || !standsFor || !ranked.length) return [];
+      const rollout = covered.get(use.session) === true || (use.child !== null && (covered.get(use.child) === true || (named && covered.has(use.session))));
       const args = detail[4].startsWith('"') ? JSON.parse(detail[4]) : null;
       return ranked.map(([, match], index) => ({ carried: true, thread: null, at: null, skill: use.performer, args, head: detail[1],
-        base: detail[2], clean: !detail[3], baseNamed: namesBase(args, detail[2]), role: "worker", rollout: false, trusted: false,
+        base: detail[2], clean: !detail[3], baseNamed: namesBase(args, detail[2]), role: "worker", rollout, trusted: false,
         ...match, ...(index ? { copy: true } : {}) }));
     });
   });
@@ -258,9 +262,12 @@ function reviewEvidence(files, rollouts, carried) {
   const leads = new Set(all.filter((record) => record.role === "lead").map(reviewKey));
   const records = all.sort((a, b) => (a.role === "lead" ? 0 : 1) - (b.role === "lead" ? 0 : 1))
     .map((record) => record.role === "worker" && leads.has(reviewKey(record)) ? { ...record, alsoLead: true, copy: true } : record);
-  const covered = new Set(missing.map((entry) => entry.session_id).filter((id) => id !== null && carried?.covered.has(id)));
+  const covered = new Map();
+  for (const { session_id: id, rollout } of missing) {
+    if (id !== null && carried?.covered.has(id)) covered.set(id, covered.get(id) === true || rollout);
+  }
   const uncovered = missing.filter((entry) => !covered.has(entry.session_id));
-  return { records: [...records, ...carriedRecords(carried, covered, files)], missing: uncovered };
+  return { records: [...records, ...carriedRecords(carried, covered, files, rollouts.length > 0)], missing: uncovered };
 }
 
 /** One condition's verdict and printable explanation. */
