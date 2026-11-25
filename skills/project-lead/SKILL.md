@@ -53,8 +53,8 @@ needs one.
   bindings. Each level binds its own and resolves its own gaps. The one use
   you make of them is rerunning a worker's receipt check for an Exception
   (step 7, item 2). That command is the only one you run on them, and it
-  only reads. Any gap the rerun shows goes back to the worker: you never fix
-  or rebind it.
+  only reads. Any gap the rerun shows, other than the one line an accepted
+  Exception pastes, goes back to the worker: you never fix or rebind it.
 - Type into a pane that is focused, blocked, held at a dialog or holding
   unsent text. The maintainer may be typing there, and a terminal transport
   submits a draft together with whatever it types next.
@@ -325,27 +325,36 @@ hand-back back to the worker, "Sending it back", below them, says how:
 2. **Check an Exception yourself.** Where the receipt's `Exception:` field is
    not "none", rerun the receipt check as the worker's skill runs it at its
    hand-back, with what its receipt carries: `--bindings` from its Bindings
-   field, `--since` from its Started time, a `--not-run` for each entry in its
-   Not run list, and `--handoff` where its pasted check shows one, but no
-   `--pr-body`, since item 1 reads the body. It must fail on exactly one line,
-   the one the Exception pastes, word for word, and that must be an
-   operation's line, never a table, override or body line.
+   field, `--since` from its Started time where it has one, a `--not-run` for
+   each operation its pasted check shows as `not reached (declared by
+   caller)`, which must match its Not run list but for `post-work-note` and
+   `hand-back` declared before their first use, and `--handoff` where its
+   pasted check shows one, but no `--pr-body`, since item 1 reads the body. It
+   must fail on exactly one line, the one the Exception pastes, word for word,
+   and that must be an operation's line, never a table, override or body
+   line.
    Any other result goes back to the worker: two failing lines or more, a
    table, override or body line, or a failing line that differs from the one
-   pasted. An Exception you cannot rerun, such as a cloud worker's, whose
-   bindings file or transcripts your machine cannot read, goes back. The
-   worker declares the operation not run in the receipt's Not run list only
-   where it did not apply to this story, since a not-run declared for an
-   operation that applied is no way around this item; otherwise it hands back
-   blocked or raises a `DECISION`, and you put the Exception and its evidence
-   to the maintainer. Then judge the reason it gives, and
+   pasted. Then judge the reason it gives, and
    accept it only on evidence the check cannot see: the operation did not
    apply to this story, or it ran where the check cannot read, such as a
    reviewer run as its own command-line process, shown by the session file it
    wrote. Otherwise it goes back. Never accept an Exception on a review
    operation, `review` or `doc-review`, unless the read that review recorded
-   names the pull request's final head. An Exception you accept goes in your
-   merge request (item 7).
+   names the pull request's final head.
+   An Exception you cannot rerun, such as a cloud worker's, whose bindings
+   file or transcripts your machine cannot read, goes back, for the worker to
+   run the operation where the check can read it. The worker declares the
+   operation not run in the receipt's Not run list only where it did not
+   apply to this story, since a not-run declared for an operation that
+   applied is no way around this item; otherwise it hands back blocked or
+   raises a `DECISION`, and you put the Exception and its evidence to the
+   maintainer. Once the maintainer rules on an Exception put to them, follow
+   that ruling.
+   On a hand-back that comes back, compare its Not run list with the earlier
+   receipt's: an operation that moved from a failing line to Not run goes
+   back to the worker, unless it did not apply to this story. An Exception
+   you or the maintainer accepted goes in your merge request (item 7).
 3. **Accept on the evidence.** Check the story's acceptance, taken from its
    source. The receipt must show a review from a context other than the
    author's, such as a fresh-context subagent the worker started, and say
@@ -355,13 +364,18 @@ hand-back back to the worker, "Sending it back", below them, says how:
    resolves at the pull request's head or on its base branch, or, where the
    plan is held in a note on a work item, by a link to that note. For a defect
    it links the diagnosis note. Every path and link the line gives must
-   resolve, and a story that is not a defect never lists `plan` under Not run.
+   resolve, and a story that is not a defect never lists `plan` under Not run,
+   but for one built from a plan unit written before its Started time.
    A hand-back goes back to the worker when its line is missing, reads
    `not reached`, gives a path or link that does not resolve, names no plan
    by a path or a link for a story that is not a defect, or, for a defect,
-   lacks its diagnosis link. So does one that lists `plan` as not run for a
-   story that is not a defect, or whose pasted receipt check shows `plan` as
-   `bound-but-unused` for such a story: a planner was bound and never called.
+   lacks its diagnosis link. So does one that lists `plan` as not run for any
+   other story that is not a defect, or whose pasted receipt check shows
+   `plan` as `bound-but-unused` for a story that is not a defect: a planner
+   was bound and never called. One built from a plan unit written before its
+   Started time lists `plan` under Not run, and its `Plan:` line names that
+   unit by a path that resolves: its `plan` under Not run sends it back only
+   when that line is missing or does not resolve.
 4. **Review it again, from fresh context.** Invoke the performer bound to
    `review-before-merge` on the pull request, from a fresh-context subagent
    you start for it: never your own context, and never a fork of it. Ask for
@@ -383,9 +397,9 @@ hand-back back to the worker, "Sending it back", below them, says how:
 6. **Check what blocks the merge.** Read every review thread with paginated
    calls, and check the merge state yourself.
 7. **Ask the maintainer to merge** (step 8). Say what the change does, how the
-   acceptance is met, naming any Exception you accepted by its line, its
-   reason and its evidence, what the reviews found and what you dropped, and
-   any risk left.
+   acceptance is met, naming any Exception you or the maintainer accepted by
+   its line, its reason and its evidence, what the reviews found and what you
+   dropped, and any risk left.
 8. **Merge only on their approval** of the head you read: given in your
    conversation, or by a signal the repo's instructions recognise, and newer
    than that head. Merge as the repo's rules say, pinned to that head so a

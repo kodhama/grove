@@ -210,7 +210,9 @@ it: the file's path, the plan unit the story was built from, or both where a
 file fills a unit's gaps. Where `plan` is bound by fallback, you do the
 planning yourself, any plan you write goes to a file all the same, and the
 line says so. A story that is not a defect lists `plan` under Not run only
-when it ended before this step.
+when it ended before this step, or when it was built from a plan unit written
+before its Started time, whose `Plan:` line names that unit by a path that
+resolves.
 
 Build only on settled ground. If the source is still changing, or a decision
 it cites turns out wrong or ambiguous against the code, send your lead a
@@ -415,10 +417,14 @@ merged.
   `node "<supervision-setup's folder>/scripts/receipt-check.mjs" --bindings
   "<the bindings file>" --since <the receipt's Started time>`,
   supervision-setup's folder being the one beside this skill's own. Add
-  `--not-run <table/op>,...` for each operation this story did not run, the
-  receipt's Not run list, and for `story-worker/post-work-note` and
+  `--not-run <table/op>,...` for each operation that did not apply to this
+  story, the receipt's Not run list, and for `story-worker/post-work-note` and
   `story-worker/hand-back` when their first use is the hand-back still to
-  come; add `--handoff "<path>"` when you resumed from a
+  come. An operation that applied and did not run, or that ran where the
+  check cannot read it, is never declared not run: its failing line goes in
+  the receipt's `Exception:` field, and where the check then fails on more
+  than one line, the story is not ready: hand back blocked or raise a
+  `DECISION`. Add `--handoff "<path>"` when you resumed from a
   handoff whose receipt-check section holds a result, as the restart skill
   does. A handoff written during an earlier story carries nothing into this
   one, unless neither story recorded a Started: the check drops its uses and
@@ -481,9 +487,12 @@ on it (see "Context and restart"). Then:
    request's body alone makes no new head.
 3. **Hand back again, as step 8 says.** Rerun the receipt check on the same
    bindings file with the same Started, with the body saved again after your
-   last edit to it. Bring the receipt up to date in every field the fix
-   touched, and post it as a new note whose first line says it replaces the
-   earlier receipt and what changed. Leave the earlier note as it is: it is
+   last edit to it. Pass the earlier receipt's Not run list as `--not-run`
+   again only for operations that did not apply to this story. A line that
+   failed in the earlier check stays a failing line unless that operation now
+   runs where the check reads it. Bring the receipt up to date in every field
+   the fix touched, and post it as a new note whose first line says it
+   replaces the earlier receipt and what changed. Leave the earlier note as it is: it is
    what your lead read. Send `STATUS: ready` again, with the head as it now
    stands and the new note's link. Then stop, as before.
 
@@ -507,9 +516,9 @@ under a `## Receipt check` heading, as a handoff carries it, and pass that
 file as `--handoff`. Save each line as the check printed it, from the start of
 its line: one the note indented, bulleted or quoted is not read. Only the
 operations that output shows used carry, so pass the earlier receipt's Not run
-list as `--not-run` again. Where the check then carries no use from it, say so
-under the pasted output: the earlier receipt's check is the evidence for those
-operations.
+list as `--not-run` again, for the operations that did not apply, as step 3
+says. Where the check then carries no use from it, say so under the pasted
+output: the earlier receipt's check is the evidence for those operations.
 
 ## Talking to your lead, and to the maintainer
 

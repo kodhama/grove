@@ -715,7 +715,7 @@ describe("GRO-22 · the plan step's text", () => {
     expectAll(planStep(), [
       'A defect comes here only when its diagnosis says the fix needs a plan (see "A defect: diagnose first").',
       "Otherwise its diagnosis stands as its plan, and `plan` goes under Not run with that reason.",
-      "A story that is not a defect lists `plan` under Not run only when it ended before this step.",
+      "A story that is not a defect lists `plan` under Not run only when it ended before this step, or when it was built from a plan unit written before its Started time, whose `Plan:` line names that unit by a path that resolves.",
     ]);
   });
 
@@ -767,9 +767,9 @@ describe("GRO-22 · the plan step's text", () => {
     expectAll(acceptItem(), [
       "The receipt's `Plan:` line must name the plan the story was built from: by a path that resolves at the pull request's head or on its base branch, or, where the plan is held in a note on a work item, by a link to that note.",
       "For a defect it links the diagnosis note.",
-      "Every path and link the line gives must resolve, and a story that is not a defect never lists `plan` under Not run.",
+      "Every path and link the line gives must resolve, and a story that is not a defect never lists `plan` under Not run, but for one built from a plan unit written before its Started time.",
       "A hand-back goes back to the worker when its line is missing, reads `not reached`, gives a path or link that does not resolve, names no plan by a path or a link for a story that is not a defect, or, for a defect, lacks its diagnosis link.",
-      "So does one that lists `plan` as not run for a story that is not a defect, or whose pasted receipt check shows `plan` as `bound-but-unused` for such a story: a planner was bound and never called.",
+      "So does one that lists `plan` as not run for any other story that is not a defect, or whose pasted receipt check shows `plan` as `bound-but-unused` for a story that is not a defect: a planner was bound and never called.",
     ]);
     expect(acceptItem()).not.toContain("A hand-back whose line is missing");
     expect(acceptItem()).not.toContain("names nothing that resolves");
@@ -1566,7 +1566,7 @@ describe("GRO-31 · a hand-back that comes back", () => {
     const fromTheStart =
       "Save each line as the check printed it, from the start of its line: one the note indented, bulleted or quoted is not read.";
     const passNotRun =
-      "Only the operations that output shows used carry, so pass the earlier receipt's Not run list as `--not-run` again.";
+      "Only the operations that output shows used carry, so pass the earlier receipt's Not run list as `--not-run` again, for the operations that did not apply, as step 3 says.";
     expect(text).toContain(`${passTheFile} ${fromTheStart} ${passNotRun}`);
   });
 

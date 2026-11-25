@@ -2123,15 +2123,7 @@ describe("MQ-353 · the command line", () => {
       return file;
     };
 
-    it("pin: one operation's line failing alone exits 1 with that line the only failing one, so it can be excepted", () => {
-      const result = run(byHand(), "--not-run", "story-worker/plan");
-      expect(result.status).toBe(1);
-      expect(failingLines(result.stdout)).toEqual([
-        "story-worker/build: bound-but-unused compound-engineering:ce-work",
-      ]);
-    });
-
-    it("pin: a valid Exception beside a declared not-run operation: that one reads not reached, only the excepted line fails", () => {
+    it("pin: one operation's line failing alone exits 1 with that line the only failing one, so it can be excepted, and a declared not-run operation beside it reads not reached", () => {
       const result = run(byHand(), "--not-run", "story-worker/plan");
       expect(result.status).toBe(1);
       expect(result.stdout).toMatch(/^story-worker\/plan: not reached \(declared by caller\) compound-engineering:ce-plan$/m);
