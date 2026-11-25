@@ -128,16 +128,16 @@ function reviewSession(reviewers: Reviewer[], id = nextSession()): Listed {
   return { session_id: id, path };
 }
 
-/** A worker's or a lead's bindings file listing these transcripts, its review bound to the review skill unless by fallback. */
-function bindingsFile(role: "worker" | "lead", transcripts: Listed[], { fallback = false, table }: { fallback?: boolean; table?: string } = {}) {
+/** A worker's or a lead's bindings file listing these transcripts, its review bound to `review` (the review skill) unless by fallback. */
+function bindingsFile(role: "worker" | "lead", transcripts: Listed[], { fallback = false, table, review = REVIEW_SKILL }: { fallback?: boolean; table?: string; review?: string } = {}) {
   const skill = role === "lead" ? "project-lead" : "story-worker";
   const op = (id: string, native: string | null, suggested: string[]) => ({
     table: skill, id, required: false, suggested, suggested_by: "skill", how_bound: native ? "check" : "fallback",
     kind: native ? "skill" : "instructions", native_id: native, source: native ? "plugin fixture" : null, invoke: "fixture", evidence: "fixture",
   });
   const operations = role === "lead"
-    ? [op("review-before-merge", REVIEW_SKILL, ["ce-code-review"])]
-    : [op("review", fallback ? null : REVIEW_SKILL, ["ce-code-review", "code-review"]), op("doc-review", "compound-engineering:ce-doc-review", ["ce-doc-review"])];
+    ? [op("review-before-merge", review, ["ce-code-review"])]
+    : [op("review", fallback ? null : review, ["ce-code-review", "code-review"]), op("doc-review", "compound-engineering:ce-doc-review", ["ce-doc-review"])];
   const path = join(scratch("merge-gate-bindings-"), "bindings.json");
   writeFileSync(path, JSON.stringify({ skill, session: "fixture", table: { path: table ?? (role === "lead" ? LEAD_TABLE : WORKER_TABLE) }, transcripts, operations }));
   return path;
@@ -1790,6 +1790,29 @@ describe("review coverage", () => {
     expect(leadOnly.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
     const workerOnly = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [parent])]);
     expect(workerOnly.stdout).toContain(`review: pass full review read ${a}\n`);
+  });
+
+  it("KTD8 amendment: a lead file bound to another performer that reads the call as not fresh still vetoes a worker file's fresh copy, in either order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const [lead, also] = [bindingsFile("lead", [child], { review: "other:review" }), bindingsFile("worker", [parent])];
+    const leadFirst = await coverageGate(repo, a, repo.base, [lead, also]);
+    const workerFirst = await coverageGate(repo, a, repo.base, [also, lead]);
+    expect(workerFirst.stdout).toBe(leadFirst.stdout);
+    expect(leadFirst.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
+  });
+
+  it("pin, KTD8 amendment: a call a worker file reads as not fresh is not credited to a lead file that reads it fresh, in either order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const [stale, lead] = [bindingsFile("worker", [child]), bindingsFile("lead", [parent])];
+    expect((await coverageGate(repo, a, repo.base, [lead])).stdout).toContain(`review: pass full review read ${a}\n`);
+    const workerFirst = await coverageGate(repo, a, repo.base, [stale, lead]);
+    const leadFirst = await coverageGate(repo, a, repo.base, [lead, stale]);
+    expect(leadFirst.stdout).toBe(workerFirst.stdout);
+    expect(workerFirst.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
   });
 
   it("pin: a record whose thread --codex-rollout names is only a re-check, whatever reaches it", async () => {

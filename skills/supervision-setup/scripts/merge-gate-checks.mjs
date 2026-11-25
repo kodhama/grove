@@ -160,14 +160,6 @@ function bindingFor(name, file) {
   return fallback ? { op: fallback.id, binding: "fallback" } : null;
 }
 
-/** The skill names whose calls one file's transcripts are read for: bound performers and fallbacks' suggestions. */
-function reviewSkills(file) {
-  return file.operations.flatMap((op) => {
-    if (op.how_bound === "fallback") return (op.suggested ?? []).filter((name) => typeof name === "string");
-    return isBound(op) ? [op.native_id] : [];
-  });
-}
-
 /** The gate's own read script, whose bytes a trusted copy must equal. */
 const OWN_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "review-read.mjs");
 
@@ -248,7 +240,8 @@ function reviewEvidence(files, rollouts, carried) {
   const missing = [];
   const stale = new Set();
   for (const file of files) {
-    const found = readReviewReads(file.transcripts, { skills: reviewSkills(file), rollouts });
+    // Read unfiltered: a not-fresh call vetoes, whatever skill this file binds.
+    const found = readReviewReads(file.transcripts, { rollouts });
     missing.push(...found.missing);
     for (const review of found.reviews) {
       if (review.fresh !== true) stale.add(reviewKey(review));
