@@ -336,7 +336,7 @@ also have surrounding quotes.
   whatever the `--bindings` order, and counted once. A
   namespaced call must name the bound performer exactly, so another
   plugin's same-named skill is not it; only a bare name, as a Codex skill
-  read gives, matches the binding's unqualified name. It counts only when its reviewer was fresh, the call ran, the tree was clean,
+  read gives, matches the binding's unqualified name. It counts only when its reviewer was fresh (a call read as not fresh in any passed file is credited in no role), the call ran, the tree was clean,
   the call's arguments name the recorded base, its time parses, its
   performer is not bound by fallback, and its read command was a trusted
   `review-read.mjs`: by realpath the gate's own copy, or the one in the
