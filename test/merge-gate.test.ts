@@ -1,9 +1,9 @@
 /** The gate judges real temporary git histories and path-keyed, offline gh answers. */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
@@ -128,16 +128,16 @@ function reviewSession(reviewers: Reviewer[], id = nextSession()): Listed {
   return { session_id: id, path };
 }
 
-/** A worker's or a lead's bindings file listing these transcripts, its review bound to the review skill unless by fallback. */
-function bindingsFile(role: "worker" | "lead", transcripts: Listed[], { fallback = false, table }: { fallback?: boolean; table?: string } = {}) {
+/** A worker's or a lead's bindings file listing these transcripts, its review bound to `review` (the review skill) unless by fallback. */
+function bindingsFile(role: "worker" | "lead", transcripts: Listed[], { fallback = false, table, review = REVIEW_SKILL }: { fallback?: boolean; table?: string; review?: string } = {}) {
   const skill = role === "lead" ? "project-lead" : "story-worker";
   const op = (id: string, native: string | null, suggested: string[]) => ({
     table: skill, id, required: false, suggested, suggested_by: "skill", how_bound: native ? "check" : "fallback",
     kind: native ? "skill" : "instructions", native_id: native, source: native ? "plugin fixture" : null, invoke: "fixture", evidence: "fixture",
   });
   const operations = role === "lead"
-    ? [op("review-before-merge", REVIEW_SKILL, ["ce-code-review"])]
-    : [op("review", fallback ? null : REVIEW_SKILL, ["ce-code-review", "code-review"]), op("doc-review", "compound-engineering:ce-doc-review", ["ce-doc-review"])];
+    ? [op("review-before-merge", review, ["ce-code-review"])]
+    : [op("review", fallback ? null : review, ["ce-code-review", "code-review"]), op("doc-review", "compound-engineering:ce-doc-review", ["ce-doc-review"])];
   const path = join(scratch("merge-gate-bindings-"), "bindings.json");
   writeFileSync(path, JSON.stringify({ skill, session: "fixture", table: { path: table ?? (role === "lead" ? LEAD_TABLE : WORKER_TABLE) }, transcripts, operations }));
   return path;
@@ -1771,6 +1771,59 @@ describe("review coverage", () => {
     expect(fFirst.stdout).toContain(`review: pass full review read ${a}\n`);
   });
 
+  it("KTD8 amendment: a call a lead file reads as not fresh is not credited to a worker file that reads it fresh, in either order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const [lead, also] = [bindingsFile("lead", [child]), bindingsFile("worker", [parent])];
+    const leadFirst = await coverageGate(repo, a, repo.base, [lead, also]);
+    const workerFirst = await coverageGate(repo, a, repo.base, [also, lead]);
+    expect(workerFirst.stdout).toBe(leadFirst.stdout);
+    expect(leadFirst.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
+  });
+
+  it("pin, KTD8 amendment: the lead file alone fails not fresh, and the worker file alone is credited", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const leadOnly = await coverageGate(repo, a, repo.base, [bindingsFile("lead", [child])]);
+    expect(leadOnly.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
+    const workerOnly = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [parent])]);
+    expect(workerOnly.stdout).toContain(`review: pass full review read ${a}\n`);
+  });
+
+  it("KTD8 amendment: a lead file bound to another performer that reads the call as not fresh still vetoes a worker file's fresh copy, in either order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const [lead, also] = [bindingsFile("lead", [child], { review: "other:review" }), bindingsFile("worker", [parent])];
+    const leadFirst = await coverageGate(repo, a, repo.base, [lead, also]);
+    const workerFirst = await coverageGate(repo, a, repo.base, [also, lead]);
+    expect(workerFirst.stdout).toBe(leadFirst.stdout);
+    expect(leadFirst.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
+  });
+
+  it("pin, KTD8 amendment: a call a worker file reads as not fresh is not credited to a lead file that reads it fresh, in either order", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const [stale, lead] = [bindingsFile("worker", [child]), bindingsFile("lead", [parent])];
+    expect((await coverageGate(repo, a, repo.base, [lead])).stdout).toContain(`review: pass full review read ${a}\n`);
+    const workerFirst = await coverageGate(repo, a, repo.base, [stale, lead]);
+    const leadFirst = await coverageGate(repo, a, repo.base, [lead, stale]);
+    expect(leadFirst.stdout).toBe(workerFirst.stdout);
+    expect(workerFirst.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: not fresh)\n`);
+  });
+
+  it("pin: a record whose thread --codex-rollout names is only a re-check, whatever reaches it", async () => {
+    const repo = repository();
+    const a = grow(repo, 5);
+    const { parent, child } = freshChild(a, repo.base);
+    const r = await coverageGate(repo, a, repo.base, [bindingsFile("worker", [parent])], ["--codex-rollout", child.path]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
   it("two full reviews at one chain place: the later call is the start", async () => {
     const { repo, side, equal, merge } = patchEqualSide();
     const sideLater = await coverageGate(repo, merge, repo.base, [worker(
@@ -1862,6 +1915,170 @@ describe("carried evidence", () => {
     const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
     const r = await coverageGate(repo, b, repo.base, [bindingsFile("worker", [{ session_id: id, path: rollout }]), lead], ["--carried", handoff([line])]);
     expect(r.stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+  });
+
+  /**
+   * A Codex home whose listed rollout starts these threads, each `[id, starts]`
+   * written under `sessions/` except the last, which is missing: the carried
+   * line places its full review of `a` in that missing thread.
+   */
+  function missingCodexChild(threads: [string, string[]][]) {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const id = "01a40000-0000-7000-8000-0000000000e1";
+    const day = join(scratch("merge-gate-codex-"), "sessions", "2026", "11", "14");
+    mkdirSync(day, { recursive: true });
+    const started = (child: string) => ({ type: "event_msg", timestamp: "2026-11-14T11:00:00.000Z", payload: { type: "item_completed",
+      item: { type: "SubAgentActivity", id: `call_${child.slice(-2)}`, kind: "started", agent_thread_id: child } } });
+    const write = (thread: string, starts: string[]) => {
+      const path = join(day, `rollout-2026-11-14T11-00-00-${thread}.jsonl`);
+      writeFileSync(path, [{ type: "session_meta", payload: { id: thread, source: "exec" } }, ...starts.map(started)]
+        .map((record, ordinal) => JSON.stringify({ ...record, ordinal })).join("\n") + "\n");
+      return path;
+    };
+    const paths = [write(id, [threads[0]![0]]), ...threads.slice(0, -1).map(([thread, starts]) => write(thread, starts))];
+    const lost = threads.at(-1)![0];
+    const line = `story-worker/review: used ${REVIEW_SKILL} in ${id} subagent ${lost}; read ${a} from ${repo.base}; args ${JSON.stringify(`base:${repo.base}`)}`;
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const run = (rollouts: string[]) => coverageGate(repo, b, repo.base, [bindingsFile("worker", [{ session_id: id, path: paths[0]! }]), lead],
+      ["--carried", handoff([line]), ...rollouts.flatMap((path) => ["--codex-rollout", path])]);
+    return { a, b, paths, run };
+  }
+
+  it("a carried full review placed in a missing child of a listed rollout also named by --codex-rollout is only a re-check", async () => {
+    const { a, b, paths, run } = missingCodexChild([["01a40000-0000-7000-8000-0000000000e2", []]]);
+    expect((await run([])).stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    const r = await run([paths[0]!]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  it("G10: a listed transcript reaches a named rollout whose missing child holds a read that would make a full review: that child's record is a re-check", async () => {
+    const child = "01a40000-0000-7000-8000-0000000000e3";
+    const { a, b, paths, run } = missingCodexChild([["01a40000-0000-7000-8000-0000000000e2", [child]], [child, []]]);
+    expect((await run([])).stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    const r = await run([paths[1]!]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  /** A Codex thread id, by its last two hex digits. */
+  const codexId = (suffix: string) => `01a40000-0000-7000-8000-0000000000${suffix}`;
+  /** A Codex home's day folder, for `codexThread`. */
+  function codexDay() {
+    const day = join(scratch("merge-gate-codex-"), "sessions", "2026", "11", "14");
+    mkdirSync(day, { recursive: true });
+    return day;
+  }
+  /** The path a thread's rollout has in a day folder, written or not. */
+  const rolloutAt = (day: string, id: string) => join(day, `rollout-2026-11-14T11-00-00-${id}.jsonl`);
+  /** A `codex exec` thread's rollout in `day`: its `session_meta`, a `started` record per child it starts, then `records`. */
+  function codexThread(day: string, id: string, starts: string[], records: Row[] = []) {
+    const started = (child: string) => ({ type: "event_msg", timestamp: "2026-11-14T11:00:00.000Z", payload: { type: "item_completed",
+      item: { type: "SubAgentActivity", id: `call_${child.slice(-2)}`, kind: "started", agent_thread_id: child } } });
+    writeFileSync(rolloutAt(day, id), [{ type: "session_meta", payload: { id, source: "exec" } }, ...starts.map(started), ...records]
+      .map((record, ordinal) => JSON.stringify({ ...record, ordinal })).join("\n") + "\n");
+    return rolloutAt(day, id);
+  }
+
+  /**
+   * A worker lists thread S, missing; named rollout R starts S, or starts the
+   * missing I when `through`, which would start S. The handoff covers both
+   * and carries a full review of `a` placed in S itself, with no subagent.
+   */
+  function lostListedThread(through: boolean) {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const day = codexDay();
+    const [s, i] = [codexId("e5"), codexId("e6")];
+    const named = codexThread(day, codexId("e1"), [through ? i : s]);
+    const line = `story-worker/review: used ${REVIEW_SKILL} in ${s}; read ${a} from ${repo.base}; args ${JSON.stringify(`base:${repo.base}`)}`;
+    const carried = handoff([`transcript ${s}: read 4 calls`, `transcript ${i}: read 4 calls`, line]);
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const run = (rollouts: string[]) => coverageGate(repo, b, repo.base, [bindingsFile("worker", [{ session_id: s, path: rolloutAt(day, s) }]), lead],
+      ["--carried", carried, ...rollouts.flatMap((path) => ["--codex-rollout", path])]);
+    return { a, b, named, run };
+  }
+
+  it("pin: a carried full review placed in a missing listed thread that a named rollout lost is only a re-check", async () => {
+    const { a, b, named, run } = lostListedThread(false);
+    expect((await run([])).stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    const r = await run([named]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  it("a carried full review placed in a missing listed thread is only a re-check while a named rollout lost a thread it could be under", async () => {
+    const { a, b, named, run } = lostListedThread(true);
+    expect((await run([])).stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    const r = await run([named]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  /**
+   * A Codex home where R0 starts C, whose rollout sits outside the home and
+   * is linked back from `sessions/`; C starts G, and X, whose id sorts before
+   * R0's, starts G too. G holds a fresh full review of `a` in Claude Code's
+   * record shape, which the gate can credit, or else starts S, missing.
+   * Worker A lists R0 and worker B lists X; `target` is C's real rollout.
+   */
+  function linkedTarget(review: boolean) {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const day = codexDay();
+    const [r0, x, c, g, s] = ["b1", "a1", "c1", "c2", "c3"].map(codexId) as [string, string, string, string, string];
+    const at = (second: number) => `2026-11-14T11:01:0${second}.000Z`;
+    const claude = [
+      { type: "assistant", timestamp: at(0), message: { content: [{ type: "tool_use", id: "toolu_read", name: "Bash",
+        input: { command: `node ${READ_SCRIPT} --checkout /Users/maintainer/work/repo --from ${repo.base}` } }] } },
+      { type: "user", timestamp: at(1), message: { content: [{ type: "tool_result", tool_use_id: "toolu_read", content: `head ${a}\nstatus 0\nbase ${repo.base}\n`, is_error: false }] } },
+      { type: "assistant", timestamp: at(2), message: { content: [{ type: "tool_use", id: "toolu_review", name: "Skill", input: { skill: REVIEW_SKILL, args: `base:${repo.base}` } }] } },
+      { type: "user", timestamp: at(3), message: { content: [{ type: "tool_result", tool_use_id: "toolu_review", content: "Launching skill", is_error: false }] } },
+    ];
+    codexThread(day, r0, [c]);
+    codexThread(day, x, [g]);
+    codexThread(day, g, review ? [] : [s], review ? claude : []);
+    const link = codexThread(day, c, [g]);
+    const target = join(scratch("merge-gate-outside-"), "elsewhere", "2026", "11", "14", basename(link));
+    mkdirSync(dirname(target), { recursive: true });
+    renameSync(link, target);
+    symlinkSync(target, link);
+    const workers = [r0, x].map((id) => bindingsFile("worker", [{ session_id: id, path: rolloutAt(day, id) }]));
+    return { repo, a, b, r0, g, s, target, workers };
+  }
+
+  it("a call two same-role files tag differently is a rollout descendant's, whichever copy survives", async () => {
+    const { repo, a, g, target, workers } = linkedTarget(true);
+    const carried = handoff([`transcript ${g}: read 4 calls`]);
+    expect((await coverageGate(repo, a, repo.base, workers)).stdout).toContain(`review: pass full review read ${a}\n`);
+    for (const order of [workers, [...workers].reverse()]) {
+      const r = await coverageGate(repo, a, repo.base, order, ["--carried", carried, "--codex-rollout", target]);
+      expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: a re-check, not a full review)\n`);
+    }
+  });
+
+  it("pin: a missing thread one file reads as under a named rollout keeps that tag, whatever another file reads, in either order", async () => {
+    const { repo, a, b, r0, g, s, target, workers } = linkedTarget(false);
+    const line = `story-worker/review: used ${REVIEW_SKILL} in ${r0} subagent ${s}; read ${a} from ${repo.base}; args ${JSON.stringify(`base:${repo.base}`)}`;
+    const carried = handoff([`transcript ${g}: read 4 calls`, line]);
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    expect((await coverageGate(repo, b, repo.base, [...workers, lead], ["--carried", carried])).stdout)
+      .toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    for (const order of [workers, [...workers].reverse()]) {
+      const r = await coverageGate(repo, b, repo.base, [...order, lead], ["--carried", carried, "--codex-rollout", target]);
+      expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+    }
+  });
+
+  it("a carried full review in a child of a missing transcript is only a re-check once a --codex-rollout run is named: its membership is unknown", async () => {
+    const { repo, a, b, workerBindings, carried } = carriedCase();
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const other = join(scratch("merge-gate-codex-"), "rollout-2026-11-14T11-00-00-01a40000-0000-7000-8000-0000000000e4.jsonl");
+    writeFileSync(other, JSON.stringify({ type: "session_meta", payload: { id: "01a40000-0000-7000-8000-0000000000e4", source: "exec" } }) + "\n");
+    const r = await coverageGate(repo, b, repo.base, [workerBindings, lead], ["--carried", carried, "--codex-rollout", other]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
   });
 
   it("AE6: carried worker evidence passes only beside the lead's own review of the head", async () => {

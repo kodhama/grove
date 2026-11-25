@@ -160,14 +160,6 @@ function bindingFor(name, file) {
   return fallback ? { op: fallback.id, binding: "fallback" } : null;
 }
 
-/** The skill names whose calls one file's transcripts are read for: bound performers and fallbacks' suggestions. */
-function reviewSkills(file) {
-  return file.operations.flatMap((op) => {
-    if (op.how_bound === "fallback") return (op.suggested ?? []).filter((name) => typeof name === "string");
-    return isBound(op) ? [op.native_id] : [];
-  });
-}
-
 /** The gate's own read script, whose bytes a trusted copy must equal. */
 const OWN_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "review-read.mjs");
 
@@ -204,9 +196,12 @@ function rank(match) {
  * review lines that carry what they read, with their arguments, each matched
  * only against the bindings of the workers whose transcripts list its session:
  * one record per distinct binding among them, in rank order, the rest marked
- * `copy` so a call counts once (KTD8).
+ * `copy` so a call counts once (KTD8). `covered` maps each covered thread id
+ * to whether it is under a named rollout: a line standing for such a thread
+ * is a re-check, and so is a line in a child of a missing transcript once any
+ * rollout is named, since what that child is under cannot be read.
  */
-function carriedRecords(carried, covered, files) {
+function carriedRecords(carried, covered, files, named) {
   if (carried === null) return [];
   const workers = files.filter((file) => file.role === "worker");
   const owners = (session) => workers.filter((file) => file.transcripts.some((listed) => listed?.session_id === session));
@@ -218,9 +213,10 @@ function carriedRecords(carried, covered, files) {
       const found = owners(use.session).map((file) => bindingFor(use.performer, file)).filter(Boolean);
       const ranked = [...new Map(found.map((match) => [rank(match), match]))].sort(([a], [b]) => (a < b ? -1 : 1));
       if (!detail || !standsFor || !ranked.length) return [];
+      const rollout = covered.get(use.session) === true || covered.get(use.child) === true || (named && use.child !== null && covered.has(use.session));
       const args = detail[4].startsWith('"') ? JSON.parse(detail[4]) : null;
       return ranked.map(([, match], index) => ({ carried: true, thread: null, at: null, skill: use.performer, args, head: detail[1],
-        base: detail[2], clean: !detail[3], baseNamed: namesBase(args, detail[2]), role: "worker", rollout: false, trusted: false,
+        base: detail[2], clean: !detail[3], baseNamed: namesBase(args, detail[2]), role: "worker", rollout, trusted: false,
         ...match, ...(index ? { copy: true } : {}) }));
     });
   });
@@ -232,19 +228,26 @@ function carriedRecords(carried, covered, files) {
  * lists transcripts not found that no carried section covers. A record is
  * kept once per role whose file binds its skill, de-duplicated by thread,
  * time, skill, arguments and role, with the best-ranked binding and the
- * other fields of review-reads' survivor, not fresh if any copy is not, so
- * the `--bindings` order changes nothing (KTD8). A worker's copy of a lead's
- * record is marked `alsoLead`, which gets no patch-id credit, and `copy`.
+ * other fields of review-reads' survivor, so the `--bindings` order changes
+ * nothing (KTD8). A call any file reads as not fresh is not fresh in every
+ * role (KTD8's 11-24 amendment), and one any file tags as under a named
+ * rollout is tagged in every copy. A worker's copy of a lead's record is marked
+ * `alsoLead`, which gets no patch-id credit, and `copy`.
  */
 function reviewEvidence(files, rollouts, carried) {
   const trusted = trustedScripts(files);
   const own = bytesOrNull(OWN_SCRIPT);
   const kept = new Map();
   const missing = [];
+  const stale = new Set();
+  const descends = new Set();
   for (const file of files) {
-    const found = readReviewReads(file.transcripts, { skills: reviewSkills(file), rollouts });
+    // Read unfiltered: a not-fresh call vetoes, whatever skill this file binds.
+    const found = readReviewReads(file.transcripts, { rollouts });
     missing.push(...found.missing);
     for (const review of found.reviews) {
+      if (review.fresh !== true) stale.add(reviewKey(review));
+      if (review.rollout === true) descends.add(reviewKey(review));
       const key = JSON.stringify([reviewKey(review), file.role]);
       const match = bindingFor(review.skill, file);
       if (!match) continue;
@@ -254,13 +257,17 @@ function reviewEvidence(files, rollouts, carried) {
     }
   }
   const all = [...kept.values()].map(({ role, review, match }) =>
-    ({ ...review, ...match, role, carried: false, trusted: isTrusted(review.read, trusted, own) }));
+    ({ ...review, ...match, role, carried: false, trusted: isTrusted(review.read, trusted, own),
+      ...(stale.has(reviewKey(review)) ? { fresh: false } : {}), ...(descends.has(reviewKey(review)) ? { rollout: true } : {}) }));
   const leads = new Set(all.filter((record) => record.role === "lead").map(reviewKey));
   const records = all.sort((a, b) => (a.role === "lead" ? 0 : 1) - (b.role === "lead" ? 0 : 1))
     .map((record) => record.role === "worker" && leads.has(reviewKey(record)) ? { ...record, alsoLead: true, copy: true } : record);
-  const covered = new Set(missing.map((entry) => entry.session_id).filter((id) => id !== null && carried?.covered.has(id)));
+  const covered = new Map();
+  for (const { session_id: id, rollout } of missing) {
+    if (id !== null && carried?.covered.has(id)) covered.set(id, covered.get(id) === true || rollout);
+  }
   const uncovered = missing.filter((entry) => !covered.has(entry.session_id));
-  return { records: [...records, ...carriedRecords(carried, covered, files)], missing: uncovered };
+  return { records: [...records, ...carriedRecords(carried, covered, files, rollouts.length > 0)], missing: uncovered };
 }
 
 /** One condition's verdict and printable explanation. */
