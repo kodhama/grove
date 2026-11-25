@@ -478,17 +478,21 @@ function threadsUnder(path, aliases) {
  * empty. A missing caller-named rollout has `session_id` null. Each record
  * carries `rollout`: whether its thread is a caller-named rollout or any
  * thread under one, however it was reached; each missing entry carries it
- * too, true for a missing caller-named rollout.
+ * too, true for a missing caller-named rollout, and for a listed transcript
+ * not found while a named rollout lost a thread, since what it is under
+ * cannot be read (fail closed).
  */
 export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   const reviews = [];
   const missing = [];
   const aliases = new Map();
+  const unread = new Set();
   const alias = (file) => aliases.set(realPath(file), [...(aliases.get(realPath(file)) ?? []), file]);
   for (const { session_id: sessionId, path } of listed) {
     const at = locate(path, sessionId);
     if (!at) {
       missing.push({ session_id: sessionId, path });
+      unread.add(sessionId);
       continue;
     }
     const found = walk(at, sessionId, sessionId, MAIN);
@@ -528,5 +532,6 @@ export function readReviewReads(listed, { skills = null, rollouts = [] } = {}) {
   const tagged = new Set(descent.flatMap((found) => found.threads));
   const lost = new Set(descent.flatMap((found) => found.lost));
   return { reviews: kept.map((review) => ({ ...review, rollout: tagged.has(review.thread) })),
-    missing: missing.map((entry) => ({ ...entry, rollout: entry.session_id === null || lost.has(entry.session_id) })) };
+    missing: missing.map((entry) => ({ ...entry,
+      rollout: entry.session_id === null || lost.has(entry.session_id) || (unread.has(entry.session_id) && lost.size > 0) })) };
 }

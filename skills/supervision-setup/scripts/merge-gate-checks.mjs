@@ -230,7 +230,8 @@ function carriedRecords(carried, covered, files, named) {
  * time, skill, arguments and role, with the best-ranked binding and the
  * other fields of review-reads' survivor, so the `--bindings` order changes
  * nothing (KTD8). A call any file reads as not fresh is not fresh in every
- * role (KTD8's 11-24 amendment). A worker's copy of a lead's record is marked
+ * role (KTD8's 11-24 amendment), and one any file tags as under a named
+ * rollout is tagged in every copy. A worker's copy of a lead's record is marked
  * `alsoLead`, which gets no patch-id credit, and `copy`.
  */
 function reviewEvidence(files, rollouts, carried) {
@@ -239,12 +240,14 @@ function reviewEvidence(files, rollouts, carried) {
   const kept = new Map();
   const missing = [];
   const stale = new Set();
+  const descends = new Set();
   for (const file of files) {
     // Read unfiltered: a not-fresh call vetoes, whatever skill this file binds.
     const found = readReviewReads(file.transcripts, { rollouts });
     missing.push(...found.missing);
     for (const review of found.reviews) {
       if (review.fresh !== true) stale.add(reviewKey(review));
+      if (review.rollout === true) descends.add(reviewKey(review));
       const key = JSON.stringify([reviewKey(review), file.role]);
       const match = bindingFor(review.skill, file);
       if (!match) continue;
@@ -255,7 +258,7 @@ function reviewEvidence(files, rollouts, carried) {
   }
   const all = [...kept.values()].map(({ role, review, match }) =>
     ({ ...review, ...match, role, carried: false, trusted: isTrusted(review.read, trusted, own),
-      ...(stale.has(reviewKey(review)) ? { fresh: false } : {}) }));
+      ...(stale.has(reviewKey(review)) ? { fresh: false } : {}), ...(descends.has(reviewKey(review)) ? { rollout: true } : {}) }));
   const leads = new Set(all.filter((record) => record.role === "lead").map(reviewKey));
   const records = all.sort((a, b) => (a.role === "lead" ? 0 : 1) - (b.role === "lead" ? 0 : 1))
     .map((record) => record.role === "worker" && leads.has(reviewKey(record)) ? { ...record, alsoLead: true, copy: true } : record);

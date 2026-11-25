@@ -1,9 +1,9 @@
 /** The gate judges real temporary git histories and path-keyed, offline gh answers. */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // @ts-expect-error -- no type declarations for this .mjs script
@@ -1960,6 +1960,115 @@ describe("carried evidence", () => {
     const r = await run([paths[1]!]);
     expect(r.code).toBe(1);
     expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  /** A Codex thread id, by its last two hex digits. */
+  const codexId = (suffix: string) => `01a40000-0000-7000-8000-0000000000${suffix}`;
+  /** A Codex home's day folder, for `codexThread`. */
+  function codexDay() {
+    const day = join(scratch("merge-gate-codex-"), "sessions", "2026", "11", "14");
+    mkdirSync(day, { recursive: true });
+    return day;
+  }
+  /** The path a thread's rollout has in a day folder, written or not. */
+  const rolloutAt = (day: string, id: string) => join(day, `rollout-2026-11-14T11-00-00-${id}.jsonl`);
+  /** A `codex exec` thread's rollout in `day`: its `session_meta`, a `started` record per child it starts, then `records`. */
+  function codexThread(day: string, id: string, starts: string[], records: Row[] = []) {
+    const started = (child: string) => ({ type: "event_msg", timestamp: "2026-11-14T11:00:00.000Z", payload: { type: "item_completed",
+      item: { type: "SubAgentActivity", id: `call_${child.slice(-2)}`, kind: "started", agent_thread_id: child } } });
+    writeFileSync(rolloutAt(day, id), [{ type: "session_meta", payload: { id, source: "exec" } }, ...starts.map(started), ...records]
+      .map((record, ordinal) => JSON.stringify({ ...record, ordinal })).join("\n") + "\n");
+    return rolloutAt(day, id);
+  }
+
+  /**
+   * A worker lists thread S, missing; named rollout R starts S, or starts the
+   * missing I when `through`, which would start S. The handoff covers both
+   * and carries a full review of `a` placed in S itself, with no subagent.
+   */
+  function lostListedThread(through: boolean) {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const day = codexDay();
+    const [s, i] = [codexId("e5"), codexId("e6")];
+    const named = codexThread(day, codexId("e1"), [through ? i : s]);
+    const line = `story-worker/review: used ${REVIEW_SKILL} in ${s}; read ${a} from ${repo.base}; args ${JSON.stringify(`base:${repo.base}`)}`;
+    const carried = handoff([`transcript ${s}: read 4 calls`, `transcript ${i}: read 4 calls`, line]);
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    const run = (rollouts: string[]) => coverageGate(repo, b, repo.base, [bindingsFile("worker", [{ session_id: s, path: rolloutAt(day, s) }]), lead],
+      ["--carried", carried, ...rollouts.flatMap((path) => ["--codex-rollout", path])]);
+    return { a, b, named, run };
+  }
+
+  it("pin: a carried full review placed in a missing listed thread that a named rollout lost is only a re-check", async () => {
+    const { a, b, named, run } = lostListedThread(false);
+    expect((await run([])).stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    const r = await run([named]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  it("a carried full review placed in a missing listed thread is only a re-check while a named rollout lost a thread it could be under", async () => {
+    const { a, b, named, run } = lostListedThread(true);
+    expect((await run([])).stdout).toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    const r = await run([named]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+  });
+
+  /**
+   * A Codex home where R0 starts C, whose rollout sits outside the home and
+   * is linked back from `sessions/`; C starts G, and X, whose id sorts before
+   * R0's, starts G too. G holds a fresh full review of `a` in Claude Code's
+   * record shape, which the gate can credit, or else starts S, missing.
+   * Worker A lists R0 and worker B lists X; `target` is C's real rollout.
+   */
+  function linkedTarget(review: boolean) {
+    const repo = repository();
+    const a = grow(repo, 10); const b = grow(repo, 20);
+    const day = codexDay();
+    const [r0, x, c, g, s] = ["b1", "a1", "c1", "c2", "c3"].map(codexId) as [string, string, string, string, string];
+    const at = (second: number) => `2026-11-14T11:01:0${second}.000Z`;
+    const claude = [
+      { type: "assistant", timestamp: at(0), message: { content: [{ type: "tool_use", id: "toolu_read", name: "Bash",
+        input: { command: `node ${READ_SCRIPT} --checkout /Users/maintainer/work/repo --from ${repo.base}` } }] } },
+      { type: "user", timestamp: at(1), message: { content: [{ type: "tool_result", tool_use_id: "toolu_read", content: `head ${a}\nstatus 0\nbase ${repo.base}\n`, is_error: false }] } },
+      { type: "assistant", timestamp: at(2), message: { content: [{ type: "tool_use", id: "toolu_review", name: "Skill", input: { skill: REVIEW_SKILL, args: `base:${repo.base}` } }] } },
+      { type: "user", timestamp: at(3), message: { content: [{ type: "tool_result", tool_use_id: "toolu_review", content: "Launching skill", is_error: false }] } },
+    ];
+    codexThread(day, r0, [c]);
+    codexThread(day, x, [g]);
+    codexThread(day, g, review ? [] : [s], review ? claude : []);
+    const link = codexThread(day, c, [g]);
+    const target = join(scratch("merge-gate-outside-"), "elsewhere", "2026", "11", "14", basename(link));
+    mkdirSync(dirname(target), { recursive: true });
+    renameSync(link, target);
+    symlinkSync(target, link);
+    const workers = [r0, x].map((id) => bindingsFile("worker", [{ session_id: id, path: rolloutAt(day, id) }]));
+    return { repo, a, b, r0, g, s, target, workers };
+  }
+
+  it("a call two same-role files tag differently is a rollout descendant's, whichever copy survives", async () => {
+    const { repo, a, g, target, workers } = linkedTarget(true);
+    const carried = handoff([`transcript ${g}: read 4 calls`]);
+    expect((await coverageGate(repo, a, repo.base, workers)).stdout).toContain(`review: pass full review read ${a}\n`);
+    for (const order of [workers, [...workers].reverse()]) {
+      const r = await coverageGate(repo, a, repo.base, order, ["--carried", carried, "--codex-rollout", target]);
+      expect(r.stdout).toContain(`review: fail no creditable full review of ${a} (1 review calls, none credited: a re-check, not a full review)\n`);
+    }
+  });
+
+  it("pin: a missing thread one file reads as under a named rollout keeps that tag, whatever another file reads, in either order", async () => {
+    const { repo, a, b, r0, g, s, target, workers } = linkedTarget(false);
+    const line = `story-worker/review: used ${REVIEW_SKILL} in ${r0} subagent ${s}; read ${a} from ${repo.base}; args ${JSON.stringify(`base:${repo.base}`)}`;
+    const carried = handoff([`transcript ${g}: read 4 calls`, line]);
+    const lead = bindingsFile("lead", [reviewSession([{ head: b, base: a, minute: 5 }])]);
+    expect((await coverageGate(repo, b, repo.base, [...workers, lead], ["--carried", carried])).stdout)
+      .toContain(`review: carried full review read ${a} (carried; the lead reviewed ${b})\n`);
+    for (const order of [workers, [...workers].reverse()]) {
+      const r = await coverageGate(repo, b, repo.base, [...order, lead], ["--carried", carried, "--codex-rollout", target]);
+      expect(r.stdout).toContain(`review: fail no creditable full review of ${b} (2 review calls, none credited: a re-check, not a full review)\n`);
+    }
   });
 
   it("a carried full review in a child of a missing transcript is only a re-check once a --codex-rollout run is named: its membership is unknown", async () => {

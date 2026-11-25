@@ -991,6 +991,37 @@ describe("rollout descent: every thread under a caller-named rollout is tagged (
     expect(record).toMatchObject({ place: `${ROLLOUT_ID} subagent ${GRANDCHILD_ID}`, rollout: true });
   });
 
+  it("pin: a thread the named rollout's descent first meets outside its walk's Codex home is still looked under where the walk met it", () => {
+    // Home 1 holds the named rollout N, which starts A and E; E starts D, D starts Y, Y starts Z.
+    // A and Y are links into home 2, where A starts C and C starts Y; Z is only in home 1.
+    // The descent meets Y first through C in home 2: only the named walk's alias for Y finds Z.
+    const [a, c, d, e, y, z] = ["d1", "d2", "d3", "d4", "d5", "d6"].map((end) => `01a40000-0000-7000-8000-0000000000${end}`) as
+      [string, string, string, string, string, string];
+    const homes = [tempDir("review-reads-home-1-"), tempDir("review-reads-home-2-")] as const;
+    const write = (home: string, id: string, records: unknown[]) => {
+      const folder = join(home, "sessions", "2026", "11", "09");
+      mkdirSync(folder, { recursive: true });
+      const path = join(folder, `rollout-2026-11-09T11-00-00-${id}.jsonl`);
+      writeFileSync(path, jsonl(threadLines(id, records, null, CHILD_RUN)));
+      return path;
+    };
+    const link = (id: string, records: unknown[]) => {
+      const target = write(homes[1], id, records);
+      const path = join(homes[0], "sessions", "2026", "11", "09", basename(target));
+      mkdirSync(dirname(path), { recursive: true });
+      symlinkSync(target, path);
+    };
+    const named = write(homes[0], ROLLOUT_ID, [started(a), started(e)]);
+    write(homes[0], e, [started(d)]);
+    write(homes[0], d, [started(y)]);
+    write(homes[0], z, childReview);
+    link(a, [started(c)]);
+    link(y, [started(z)]);
+    write(homes[1], c, [started(y)]);
+    const { reviews } = readReviewReads([], { rollouts: [named] });
+    expect(reviews.map((r) => [r.place, r.rollout])).toEqual([[`${ROLLOUT_ID} subagent ${z}`, true]]);
+  });
+
   it("a missing child is tagged as its named rollout's, whatever walk reports it; a missing child under none is not", () => {
     const named = { id: CHILD_ID, records: [started(GRANDCHILD_ID)] };
     const path = codexHome([started(CHILD_ID), started(SECOND_ID)], null, named);
